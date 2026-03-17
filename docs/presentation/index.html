@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OboApp — Developer Onboarding</title>
 
-  <!-- reveal.js 5.2.1 (local vendor) -->
+  <!-- reveal.js 5.2.0 (local vendor) -->
   <link rel="stylesheet" href="vendor/reveal/reveal.css" />
   <link rel="stylesheet" href="vendor/reveal/theme/black.css" id="theme" />
 
@@ -405,15 +405,6 @@
       utterance.voice = pickVoice();
       utterance.rate = 1.05;   // Slightly fast for a tech audience
       utterance.pitch = 1.0;
-
-      utterance.onend = function () { resolve(); };
-      utterance.onerror = function (e) {
-        if (e.error === 'canceled' || e.error === 'interrupted') {
-          reject(new Error('canceled'));
-        } else {
-          reject(e);
-        }
-      };
 
       synth.speak(utterance);
 
