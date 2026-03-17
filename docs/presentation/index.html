@@ -149,6 +149,12 @@
       min-width: 90px;
       text-align: center;
     }
+    #btn-voice {
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -157,7 +163,7 @@
   <div class="slides">
 
     <!-- ═══════════════════ SLIDE 1 — Title ═══════════════════ -->
-    <section data-narration="Welcome to OboApp! This is a quick five-minute overview for new developers joining the team. OboApp is a civic tech platform that helps residents of Sofia, Bulgaria stay informed about infrastructure disruptions. Think of it as an automated early-warning system for things like water shutoffs, heating outages, and road repairs.">
+    <section data-narration="Welcome to OboApp! ... This is a quick five-minute overview for new developers joining the team. ... OboApp is a civic tech platform... that helps residents of Sofia, Bulgaria... stay informed about infrastructure disruptions. ... Think of it as an automated early-warning system... for things like water shutoffs, heating outages, and road repairs.">
       <h1><span class="emoji">🏗️</span> OboApp</h1>
       <h3>Developer Onboarding</h3>
       <p class="subtitle">A civic-tech platform for infrastructure disruptions in Sofia, Bulgaria</p>
@@ -165,7 +171,7 @@
     </section>
 
     <!-- ═══════════════════ SLIDE 2 — The Problem ═══════════════════ -->
-    <section data-narration="So what problem are we solving? Every day, utilities and municipal agencies in Sofia publish notices about disruptions — water will be shut off on this street, heating maintenance on that block, road closures here. These notices are scattered across many different websites, in unstructured formats, often buried in PDFs or long text announcements. Citizens have no easy way to know if their neighborhood is affected. OboApp solves this by automatically collecting, processing, and displaying all of these disruptions on an interactive map.">
+    <section data-narration="So... what problem are we solving? ... Every day, utilities and municipal agencies in Sofia publish notices about disruptions. ... Water will be shut off on this street... heating maintenance on that block... road closures here. ... These notices are scattered across many different websites... in unstructured formats... often buried in PDFs or long text announcements. ... Citizens have no easy way to know if their neighborhood is affected. ... OboApp solves this... by automatically collecting, processing, and displaying all of these disruptions on an interactive map!">
       <h2><span class="emoji">🎯</span> The Problem</h2>
       <ul>
         <li>Utility companies publish disruption notices on scattered websites</li>
@@ -184,7 +190,7 @@
     </section>
 
     <!-- ═══════════════════ SLIDE 3 — Architecture ═══════════════════ -->
-    <section data-narration="The project is structured as a pnpm monorepo with four packages. First, the Shared package contains Zod schemas used by both frontend and backend for type safety. Second, the Database package provides a unified abstraction layer over Firestore and optionally MongoDB, so we never access the database directly. Third, the Ingest package handles all data collection — crawlers, AI processing, geocoding, and notifications. And fourth, the Web package is a Next.js application that serves the interactive map and user interface. All packages share TypeScript strict mode and common tooling.">
+    <section data-narration="The project is structured as a pnpm monorepo... with four packages. ... First... the Shared package contains Zod schemas used by both frontend and backend for type safety. ... Second... the Database package provides a unified abstraction layer over Firestore and optionally MongoDB... so we never access the database directly. ... Third... the Ingest package handles all data collection — crawlers, AI processing, geocoding, and notifications. ... And fourth... the Web package is a Next-JS application that serves the interactive map and user interface. ... All packages share TypeScript strict mode and common tooling.">
       <h2><span class="emoji">📦</span> Monorepo Architecture</h2>
       <p class="subtitle">pnpm workspace — 4 packages</p>
       <div class="mono-grid">
@@ -209,7 +215,7 @@
     </section>
 
     <!-- ═══════════════════ SLIDE 4 — Tech Stack ═══════════════════ -->
-    <section data-narration="Here's a quick tour of the tech stack. On the frontend, we use Next.js with React, TypeScript, and the Google Maps API, styled with Tailwind CSS. The backend runs on Node.js with Firebase for authentication and push notifications, and Firestore as our primary database. For AI and machine learning, we use Google Gemini for text analysis, location extraction, and text embeddings. Infrastructure is managed with Terraform on Google Cloud Run, with Docker containers and Vercel for the web frontend. Crawlers use Playwright for web scraping, and Cloud Scheduler triggers them on a cron schedule. Testing is done with Vitest and MSW, the Mock Service Worker.">
+    <section data-narration="Here's a quick tour of the tech stack. ... On the frontend... we use Next-JS with React, TypeScript, and the Google Maps API, styled with Tailwind CSS. ... The backend runs on Node-JS with Firebase for authentication and push notifications... and Firestore as our primary database. ... For AI and machine learning... we use Google Gemini for text analysis, location extraction, and text embeddings. ... Infrastructure is managed with Terraform on Google Cloud Run... with Docker containers and Vercel for the web frontend. ... Crawlers use Playwright for web scraping... and Cloud Scheduler triggers them on a cron schedule. ... And testing is done with Vitest and MSW — the Mock Service Worker.">
       <h2><span class="emoji">🛠️</span> Tech Stack</h2>
       <div class="tech-grid">
         <div class="cell"><strong>Frontend</strong><br/>Next.js 16, React 19, TypeScript, Google Maps, Tailwind CSS</div>
@@ -222,7 +228,7 @@
     </section>
 
     <!-- ═══════════════════ SLIDE 5 — Data Pipeline ═══════════════════ -->
-    <section data-narration="The heart of OboApp is the data ingestion pipeline. It works in stages. First, nine or more crawlers fetch raw data from utility and municipal websites. Some crawlers already produce geographic data — those skip AI processing entirely. For the rest, the pipeline runs three AI stages powered by Google Gemini. Stage one: Filter and Split — this takes a raw notice, splits it into individual messages, checks relevance, and normalizes the text. Stage two: Categorize — pure classification into categories like water, heating, or road work. Stage three: Extract Locations — pulls out street names, address pins, bus stops, and cadastral properties. After AI processing, we geocode the locations, match messages to events, and send notifications.">
+    <section data-narration="The heart of OboApp... is the data ingestion pipeline. ... It works in stages. ... First... nine or more crawlers fetch raw data from utility and municipal websites. ... Some crawlers already produce geographic data — those skip AI processing entirely! ... For the rest... the pipeline runs three AI stages powered by Google Gemini. ... Stage one: Filter and Split. ... This takes a raw notice... splits it into individual messages... checks relevance... and normalizes the text. ... Stage two: Categorize — pure classification into categories like water, heating, or road work. ... Stage three: Extract Locations — pulls out street names, address pins, bus stops, and cadastral properties. ... After AI processing... we geocode the locations... match messages to events... and send notifications.">
       <h2><span class="emoji">⚙️</span> Data Pipeline</h2>
       <div class="pipeline">
         <span class="step"><span class="emoji">🕷️</span> Crawlers</span>
@@ -249,7 +255,7 @@
     </section>
 
     <!-- ═══════════════════ SLIDE 6 — Key Concepts ═══════════════════ -->
-    <section data-narration="Let's define the key domain concepts. A Source is a single crawled document from a utility website — it's the raw input. A Message is an individual disruption notice extracted from a source — one source can produce many messages. An Event is a real-world incident that groups related messages together, using location proximity, time overlap, and text similarity with cosine distance on embeddings. An Interest is a user-defined geographic zone on the map, typically a circle with a custom radius, used for notification matching. Finally, GeoJSON is the standard format we use for all geographic data — points for addresses, polygons for areas.">
+    <section data-narration="Let's define the key domain concepts. ... A Source... is a single crawled document from a utility website — it's the raw input. ... A Message... is an individual disruption notice extracted from a source — one source can produce many messages! ... An Event... is a real-world incident that groups related messages together... using location proximity, time overlap, and text similarity. ... An Interest... is a user-defined geographic zone on the map — typically a circle with a custom radius — used for notification matching. ... And finally... GeoJSON is the standard format we use for all geographic data — points for addresses... polygons for areas.">
       <h2><span class="emoji">📖</span> Key Concepts</h2>
       <ul>
         <li><strong>Source</strong> — a crawled document from a utility website</li>
@@ -263,7 +269,7 @@
     </section>
 
     <!-- ═══════════════════ SLIDE 7 — Geocoding ═══════════════════ -->
-    <section data-narration="Geocoding is how we turn text addresses into map coordinates. We use a hybrid approach with three services. Google Maps handles address pins — street names with building numbers. Overpass, which is the OpenStreetMap query API, handles street intersections. And the Bulgarian Cadastre service handles cadastral property identifiers, which are a specific Bulgarian land registry format. Each service has rate limiting delays to respect API quotas — 200 milliseconds for Google, 500 for Overpass, and 2 seconds for Cadastre. All results are validated to be within Sofia city boundaries.">
+    <section data-narration="Geocoding is how we turn text addresses into map coordinates. ... We use a hybrid approach with three services. ... Google Maps handles address pins — street names with building numbers. ... Overpass... which is the OpenStreetMap query API... handles street intersections. ... And the Bulgarian Cadastre service handles cadastral property identifiers... which are a specific Bulgarian land registry format. ... Each service has rate limiting delays to respect API quotas — 200 milliseconds for Google... 500 for Overpass... and a full 2 seconds for Cadastre. ... All results are validated to be within Sofia city boundaries.">
       <h2><span class="emoji">🗺️</span> Geocoding Strategy</h2>
       <div class="tech-grid">
         <div class="cell"><strong>Google Maps</strong><br/>Address pins (street + number)<br/><em>200ms delay</em></div>
@@ -275,7 +281,7 @@
     </section>
 
     <!-- ═══════════════════ SLIDE 8 — Event Matching ═══════════════════ -->
-    <section data-narration="Event matching is how we group individual messages into real-world incidents. When a new message is finalized, we search for candidate events based on location, time window, and category. We compute a composite score using four signals: geographic proximity, temporal overlap, text similarity via cosine distance on Gemini embeddings, and category matching. If the score is above 0.70, the message auto-attaches to the event. Between 0.55 and 0.70, we use an LLM verification step where Gemini compares both texts and decides. Below 0.55, a brand new event is created. This scoring system ensures high-quality event aggregation while keeping false positives low.">
+    <section data-narration="Event matching is how we group individual messages into real-world incidents. ... When a new message is finalized... we search for candidate events based on location, time window, and category. ... We compute a composite score using four signals: ... geographic proximity... temporal overlap... text similarity via cosine distance on Gemini embeddings... and category matching. ... If the score is above 0.70... the message auto-attaches to the event. ... Between 0.55 and 0.70... we use an LLM verification step where Gemini compares both texts and decides. ... Below 0.55... a brand new event is created! ... This scoring system ensures high-quality event aggregation... while keeping false positives low.">
       <h2><span class="emoji">🔗</span> Event Matching</h2>
       <ul>
         <li>Groups messages into real-world incidents</li>
@@ -296,7 +302,7 @@
     </section>
 
     <!-- ═══════════════════ SLIDE 9 — Dev Workflow ═══════════════════ -->
-    <section data-narration="For your development workflow, there are two main setup options. The frontend-only mode uses Mock Service Worker, or MSW, to intercept API calls with realistic fixtures — no Java or Docker required. Just set the USE_MSW environment variable to true. For full-stack development, use Firebase Local Emulators which simulate the complete backend. Before submitting any pull request, you must pass four quality checks: pnpm lint with zero errors, TypeScript compilation with no-emit, all Vitest tests passing, and the shared package building successfully. The codebase follows strict conventions documented in AGENTS.md — read it early, it will save you time.">
+    <section data-narration="For your development workflow... there are two main setup options. ... The frontend-only mode uses Mock Service Worker — or MSW — to intercept API calls with realistic fixtures. ... No Java or Docker required! ... Just set the USE underscore MSW environment variable to true. ... For full-stack development... use Firebase Local Emulators which simulate the complete backend. ... Before submitting any pull request... you must pass four quality checks. ... pnpm lint with zero errors... TypeScript compilation with no-emit... all Vitest tests passing... and the shared package building successfully. ... The codebase follows strict conventions documented in AGENTS dot MD — read it early... it will save you a lot of time!">
       <h2><span class="emoji">🚀</span> Getting Started</h2>
       <ul>
         <li><strong>Frontend only</strong> — MSW mocks, no Docker needed<br/>
@@ -315,7 +321,7 @@
     </section>
 
     <!-- ═══════════════════ SLIDE 10 — Closing ═══════════════════ -->
-    <section data-narration="That wraps up this five-minute overview! To recap: OboApp crawls utility websites, processes data with AI, geocodes locations, groups messages into events, and notifies citizens about disruptions in their neighborhoods. The key places to start exploring are: the docs folder for feature documentation, AGENTS.md for coding conventions, the shared package for data schemas, and the ingest and web packages for the core logic. Welcome to the team — happy coding!">
+    <section data-narration="And that wraps up the overview! ... To recap: ... OboApp crawls utility websites... processes data with AI... geocodes locations... groups messages into events... and notifies citizens about disruptions in their neighborhoods. ... The key places to start exploring are: ... the docs folder for feature documentation... AGENTS dot MD for coding conventions... the shared package for data schemas... and the ingest and web packages for the core logic. ... Welcome to the team... and happy coding!">
       <h2><span class="emoji">🎉</span> Welcome to OboApp!</h2>
       <br/>
       <ul>
@@ -337,6 +343,7 @@
   <button id="btn-start">▶ Start Narration</button>
   <button id="btn-pause">⏸ Pause</button>
   <button id="btn-stop">⏹ Stop</button>
+  <button id="btn-voice" title="Click to switch voice">🔊 Loading…</button>
   <span class="status" id="narration-status">Ready</span>
 </div>
 
@@ -365,9 +372,40 @@
   const btnStart = document.getElementById('btn-start');
   const btnPause = document.getElementById('btn-pause');
   const btnStop = document.getElementById('btn-stop');
+  const btnVoice = document.getElementById('btn-voice');
 
   let isNarrating = false;
   let isPaused = false;
+
+  // ── Voice selection ──
+  let voiceIndex = 0;
+  let availableVoices = [];
+
+  function updateVoices() {
+    // Only keep English-language voices
+    availableVoices = synth.getVoices().filter(function (v) { return /^en[-_]/i.test(v.lang); });
+    if (availableVoices.length === 0) return;
+    // Prefer "Google UK English Male" first, then any other quality English voice
+    const ukMale = availableVoices.findIndex(function (v) {
+      return v.name === 'Google UK English Male';
+    });
+    const fallback = availableVoices.findIndex(function (v) {
+      return /en[-_](US|GB)/i.test(v.lang) && /Google|Natural|Enhanced|Samantha/i.test(v.name);
+    });
+    voiceIndex = ukMale >= 0 ? ukMale : fallback >= 0 ? fallback : 0;
+    updateVoiceButton();
+  }
+
+  function updateVoiceButton() {
+    const voice = availableVoices[voiceIndex];
+    btnVoice.textContent = voice ? '🔊 ' + voice.name : '🔊 Default';
+  }
+
+  function cycleVoice() {
+    if (availableVoices.length === 0) return;
+    voiceIndex = (voiceIndex + 1) % availableVoices.length;
+    updateVoiceButton();
+  }
 
   /**
    * Return the narration text for the current slide.
@@ -378,17 +416,10 @@
   }
 
   /**
-   * Pick the best English voice available.
+   * Return the currently selected voice.
    */
   function pickVoice() {
-    const voices = synth.getVoices();
-    // Prefer a natural / enhanced English voice
-    const preferred = voices.find(function (v) {
-      return /en[-_](US|GB)/i.test(v.lang) && /Google|Natural|Enhanced|Samantha/i.test(v.name);
-    });
-    return preferred || voices.find(function (v) {
-      return /en[-_]/i.test(v.lang);
-    }) || voices[0];
+    return availableVoices[voiceIndex] || synth.getVoices()[0];
   }
 
   /**
@@ -511,6 +542,7 @@
   });
   btnPause.addEventListener('click', pauseNarration);
   btnStop.addEventListener('click', stopNarration);
+  btnVoice.addEventListener('click', cycleVoice);
 
   // ── Also allow keyboard shortcut: 'n' to start/stop narration ──
   document.addEventListener('keydown', function (e) {
@@ -524,8 +556,9 @@
   updateUI();
 
   // Ensure voices are loaded (some browsers load them asynchronously)
+  updateVoices();
   if (synth.onvoiceschanged !== undefined) {
-    synth.onvoiceschanged = function () { /* voices now available */ };
+    synth.onvoiceschanged = updateVoices;
   }
 })();
 </script>
