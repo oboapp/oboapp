@@ -19,6 +19,7 @@ vi.mock("./logger", () => ({
 }));
 
 import { generateEmbedding, _testInternals } from "./embeddings";
+import { logger } from "./logger";
 
 describe("generateEmbedding", () => {
   const ORIGINAL_API_KEY = process.env.GOOGLE_AI_API_KEY;
@@ -62,6 +63,42 @@ describe("generateEmbedding", () => {
     mockEmbedContent.mockRejectedValue(new Error("API error"));
     const result = await generateEmbedding("test");
     expect(result).toBeNull();
+  });
+
+  it("includes context in error log on API failure", async () => {
+    mockEmbedContent.mockRejectedValue(new Error("API error"));
+    await generateEmbedding("test text", {
+      messageId: "msg-123",
+      source: "sofia-bg",
+    });
+
+    expect(logger.error).toHaveBeenCalledWith(
+      "Failed to generate embedding",
+      expect.objectContaining({
+        messageId: "msg-123",
+        source: "sofia-bg",
+        textLength: 9,
+        model: _testInternals.EMBEDDING_MODEL,
+      }),
+    );
+  });
+
+  it("includes context in warning log when response has no values", async () => {
+    mockEmbedContent.mockResolvedValue({ embeddings: [] });
+    await generateEmbedding("test text", {
+      messageId: "msg-456",
+      source: "toplo-bg",
+    });
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Embedding response missing values",
+      expect.objectContaining({
+        messageId: "msg-456",
+        source: "toplo-bg",
+        textLength: 9,
+        model: _testInternals.EMBEDDING_MODEL,
+      }),
+    );
   });
 
   it("returns null when response has no embeddings", async () => {

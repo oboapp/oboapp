@@ -253,7 +253,9 @@ async function processPrecomputedGeoJsonMessage(
     });
   }
 
-  await storeEmbeddingForMessage(storedMessageId, text);
+  const precomputedIngestErrors = createIngestErrorCollector();
+
+  await storeEmbeddingForMessage(storedMessageId, text, source, precomputedIngestErrors);
 
   const message = await processSingleMessage(
     storedMessageId,
@@ -261,7 +263,7 @@ async function processPrecomputedGeoJsonMessage(
     options.precomputedGeoJson || null,
     options,
     null,
-    createIngestErrorCollector(),
+    precomputedIngestErrors,
   );
 
   return {
@@ -364,7 +366,7 @@ async function processWithAIPipeline(
       continue;
     }
 
-    await storeEmbeddingForMessage(storedMessageId, filteredMessage.plainText);
+    await storeEmbeddingForMessage(storedMessageId, filteredMessage.plainText, source, ingestErrors);
 
     // Step 2: Categorize (using plainText which is now guaranteed non-empty)
     const categorizationResult = await categorize(
@@ -987,21 +989,65 @@ async function finalizeMessageWithoutGeoJson(
 }
 
 /**
+ * Create minimal audit record for embedding generation step
+ */
+function createEmbeddingAudit(
+  success: boolean,
+  dimensions?: number,
+  reason?: string,
+) {
+  return {
+    step: "embedding",
+    timestamp: new Date().toISOString(),
+    summary: success
+      ? { success: true, dimensions }
+      : { success: false, reason: reason || "unknown" },
+  };
+}
+
+/**
  * Generate and store a text embedding for a message.
  * Non-fatal: failures are logged but don't abort the pipeline.
  */
 async function storeEmbeddingForMessage(
   messageId: string,
   text: string,
+  source: string,
+  ingestErrors: IngestErrorCollector,
 ): Promise<void> {
   try {
     const { generateEmbedding } = await import("@/lib/embeddings");
-    const embedding = await generateEmbedding(text);
+    const embedding = await generateEmbedding(text, { messageId, source });
     if (embedding) {
-      await updateMessage(messageId, { embedding });
+      await updateMessage(messageId, {
+        $set: { embedding },
+        $addToSet: {
+          process: createEmbeddingAudit(true, embedding.length),
+        },
+      });
+    } else {
+      ingestErrors.warn(
+        `Embedding generation returned null for message ${messageId} (source: ${source}, textLength: ${text.length})`,
+      );
+      await updateMessage(messageId, {
+        $addToSet: {
+          process: createEmbeddingAudit(false, undefined, "null result"),
+        },
+      });
     }
   } catch (error) {
-    logger.error("Embedding generation failed", { messageId, error });
+    const errorMessage =
+      error instanceof Error ? error.message : String(error);
+    ingestErrors.error(
+      `Embedding generation failed for message ${messageId} (source: ${source}, textLength: ${text.length}): ${errorMessage}`,
+    );
+    await updateMessage(messageId, {
+      $addToSet: {
+        process: createEmbeddingAudit(false, undefined, errorMessage),
+      },
+    }).catch(() => {
+      // Best-effort — don't let audit storage failure mask the real error
+    });
   }
 }
 

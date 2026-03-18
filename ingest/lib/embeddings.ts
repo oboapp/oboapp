@@ -24,13 +24,21 @@ function getClient(): GoogleGenAI {
   return ai;
 }
 
+export interface EmbeddingContext {
+  readonly messageId?: string;
+  readonly source?: string;
+}
+
 /**
  * Generate a text embedding via Gemini gemini-embedding-001.
  * Rate-limited to 200ms between calls; serialized via an internal queue so
  * concurrent callers never bypass the delay.
  * Returns null on failure (does not throw).
  */
-export function generateEmbedding(text: string): Promise<number[] | null> {
+export function generateEmbedding(
+  text: string,
+  context?: EmbeddingContext,
+): Promise<number[] | null> {
   if (!text.trim()) return Promise.resolve(null);
 
   if (!process.env.GOOGLE_AI_API_KEY) {
@@ -38,7 +46,7 @@ export function generateEmbedding(text: string): Promise<number[] | null> {
   }
 
   // Chain onto the shared queue so calls are always serialized.
-  const result = queue.then(() => _doGenerate(text));
+  const result = queue.then(() => _doGenerate(text, context));
   // Swallow rejections on the queue tail so a failure doesn't break later callers.
   queue = result.then(
     () => undefined,
@@ -47,12 +55,22 @@ export function generateEmbedding(text: string): Promise<number[] | null> {
   return result;
 }
 
-async function _doGenerate(text: string): Promise<number[] | null> {
+async function _doGenerate(
+  text: string,
+  context?: EmbeddingContext,
+): Promise<number[] | null> {
   // Rate limiting: enforce minimum gap between API calls.
   const elapsed = Date.now() - lastCallTime;
   if (elapsed < RATE_LIMIT_MS) {
     await delay(RATE_LIMIT_MS - elapsed);
   }
+
+  const logContext = {
+    model: EMBEDDING_MODEL,
+    textLength: text.length,
+    messageId: context?.messageId,
+    source: context?.source,
+  };
 
   try {
     const client = getClient();
@@ -66,15 +84,13 @@ async function _doGenerate(text: string): Promise<number[] | null> {
 
     const values = response.embeddings?.[0]?.values;
     if (!values?.length) {
-      logger.warn("Embedding response missing values", {
-        model: EMBEDDING_MODEL,
-      });
+      logger.warn("Embedding response missing values", logContext);
       return null;
     }
 
     return values;
   } catch (error) {
-    logger.error("Failed to generate embedding", { error });
+    logger.error("Failed to generate embedding", { ...logContext, error });
     return null;
   }
 }
