@@ -11,7 +11,12 @@ import { logger } from "@/lib/logger";
  * - Score >= MATCH_THRESHOLD (0.70): auto-match
  * - Score in [LLM_VERIFY_LOWER, MATCH_THRESHOLD) (0.55–0.70): ask LLM to verify
  * - Score < LLM_VERIFY_LOWER (0.55): no match
- * Returns the event and its match score, or null if no match.
+ *
+ * Returns a {@link FindBestMatchOutput} object containing:
+ * - `match`: a {@link FindBestMatchResult} with the matched event and its score,
+ *   or `null` if no match is selected.
+ * - `candidateCount`: the total number of candidate events considered (always present,
+ *   even when `match` is `null`).
  */
 export interface FindBestMatchResult {
   event: Record<string, unknown>;
