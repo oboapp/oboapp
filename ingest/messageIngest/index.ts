@@ -214,7 +214,7 @@ async function processSingleMessage(
   // Event matching: group this message into an event (create or attach)
   // Trigger for messages with geoJson OR city-wide messages (which may have no geometry)
   if (geoJson || options.cityWide || extractedLocations?.cityWide) {
-    await runEventMatching(messageId);
+    await runEventMatching(messageId, ingestErrors);
   }
 
   return await buildMessageResponse(
@@ -1052,10 +1052,49 @@ async function storeEmbeddingForMessage(
 }
 
 /**
+ * Create minimal audit record for event matching step
+ */
+function createEventMatchingAudit(
+  success: boolean,
+  result?: {
+    eventId: string;
+    action: string;
+    confidence: number;
+    llmVerified?: boolean;
+    candidateCount: number;
+  },
+  errorMessage?: string,
+) {
+  if (!success) {
+    return {
+      step: "eventMatching",
+      timestamp: new Date().toISOString(),
+      summary: { success: false, error: errorMessage || "unknown" },
+    };
+  }
+
+  return {
+    step: "eventMatching",
+    timestamp: new Date().toISOString(),
+    summary: {
+      success: true,
+      eventId: result!.eventId,
+      action: result!.action,
+      confidence: result!.confidence,
+      llmVerified: result!.llmVerified ?? false,
+      candidateCount: result!.candidateCount,
+    },
+  };
+}
+
+/**
  * Run event matching for a finalized message.
  * Reads the full message from DB, finds or creates an event, and stores the eventId cache.
  */
-async function runEventMatching(messageId: string): Promise<void> {
+async function runEventMatching(
+  messageId: string,
+  ingestErrors: IngestErrorCollector,
+): Promise<void> {
   try {
     const { getDb } = await import("@/lib/db");
     const { processEventMatching } = await import("@/lib/event-matching");
@@ -1067,11 +1106,25 @@ async function runEventMatching(messageId: string): Promise<void> {
     const result = await processEventMatching(db, message);
 
     await updateMessage(messageId, {
-      eventId: result.eventId,
+      $set: { eventId: result.eventId },
+      $addToSet: {
+        process: createEventMatchingAudit(true, result),
+      },
     });
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : String(error);
     // Event matching failures should not break the ingest pipeline
-    logger.error("Event matching failed", { messageId, error });
+    ingestErrors.error(
+      `Event matching failed for message ${messageId}: ${errorMessage}`,
+    );
+    await updateMessage(messageId, {
+      $addToSet: {
+        process: createEventMatchingAudit(false, undefined, errorMessage),
+      },
+    }).catch(() => {
+      // Best-effort — don't let audit storage failure mask the real error
+    });
   }
 }
 

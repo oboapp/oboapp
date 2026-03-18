@@ -73,6 +73,7 @@ describe("findBestMatch", () => {
     expect(result).not.toBeNull();
     expect(result!.event._id).toBe("evt-1");
     expect(result!.score).toBe(0.85);
+    expect(result!.candidateCount).toBe(1);
     expect(verifyEventMatch).not.toHaveBeenCalled();
   });
 
@@ -97,6 +98,7 @@ describe("findBestMatch", () => {
     });
     expect(result!.event._id).toBe("evt-2");
     expect(result!.score).toBe(0.92);
+    expect(result!.candidateCount).toBe(2);
   });
 
   // --- LLM verification zone tests ---
@@ -130,6 +132,7 @@ describe("findBestMatch", () => {
     expect(result!.event._id).toBe("evt-1");
     expect(result!.score).toBe(0.6);
     expect(result!.llmVerified).toBe(true);
+    expect(result!.candidateCount).toBe(1);
   });
 
   it("returns null when LLM rejects match in uncertain zone", async () => {

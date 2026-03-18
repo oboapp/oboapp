@@ -398,6 +398,7 @@ describe("event matching after finalization", () => {
       eventId: "evt-1",
       action: "created",
       confidence: 1.0,
+      candidateCount: 0,
     });
     mockDeleteOne.mockResolvedValue(undefined);
   });
@@ -411,7 +412,17 @@ describe("event matching after finalization", () => {
     expect(mockProcessEventMatching).toHaveBeenCalledOnce();
     // Verify eventId is stored on the message
     expect(mockUpdateMessage).toHaveBeenCalledWith("test-msg-id", {
-      eventId: "evt-1",
+      $set: { eventId: "evt-1" },
+      $addToSet: {
+        process: expect.objectContaining({
+          step: "eventMatching",
+          summary: expect.objectContaining({
+            success: true,
+            eventId: "evt-1",
+            action: "created",
+          }),
+        }),
+      },
     });
   });
 
@@ -442,5 +453,21 @@ describe("event matching after finalization", () => {
     // Pipeline should complete successfully despite event matching failure
     expect(result.messages).toHaveLength(1);
     expect(result.totalRelevant).toBe(1);
+
+    // Verify error audit was recorded
+    expect(mockUpdateMessage).toHaveBeenCalledWith(
+      "test-msg-id",
+      expect.objectContaining({
+        $addToSet: {
+          process: expect.objectContaining({
+            step: "eventMatching",
+            summary: expect.objectContaining({
+              success: false,
+              error: "matching failed",
+            }),
+          }),
+        },
+      }),
+    );
   });
 });

@@ -13,6 +13,14 @@ import { logger } from "@/lib/logger";
  * - Score < LLM_VERIFY_LOWER (0.55): no match
  * Returns the event and its match score, or null if no match.
  */
+export interface FindBestMatchResult {
+  event: Record<string, unknown>;
+  score: number;
+  signals: MatchSignals;
+  llmVerified?: boolean;
+  candidateCount: number;
+}
+
 export async function findBestMatch(
   db: OboDb,
   message: {
@@ -27,12 +35,7 @@ export async function findBestMatch(
     plainText?: string;
     streets?: Array<{ street: string }>;
   },
-): Promise<{
-  event: Record<string, unknown>;
-  score: number;
-  signals: MatchSignals;
-  llmVerified?: boolean;
-} | null> {
+): Promise<FindBestMatchResult | null> {
   const candidates = await findCandidateEvents(db, message);
 
   if (candidates.length === 0) return null;
@@ -72,7 +75,7 @@ export async function findBestMatch(
 
   // High-confidence match — auto-attach
   if (bestMatch.score >= MATCH_THRESHOLD) {
-    return bestMatch;
+    return { ...bestMatch, candidateCount: candidates.length };
   }
 
   // Uncertain zone (LLM_VERIFY_LOWER to MATCH_THRESHOLD) — ask LLM
@@ -105,7 +108,7 @@ export async function findBestMatch(
       score: bestMatch.score,
       reasoning: llmResult.reasoning,
     });
-    return { ...bestMatch, llmVerified: true };
+    return { ...bestMatch, llmVerified: true, candidateCount: candidates.length };
   }
 
   // LLM rejected or failed — treat as no match (conservative)
