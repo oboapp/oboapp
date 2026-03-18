@@ -454,11 +454,11 @@ describe("event matching after finalization", () => {
     expect(result.messages).toHaveLength(1);
     expect(result.totalRelevant).toBe(1);
 
-    // Verify error audit was recorded
+    // Verify error audit was recorded with both process and ingestErrors
     expect(mockUpdateMessage).toHaveBeenCalledWith(
       "test-msg-id",
       expect.objectContaining({
-        $addToSet: {
+        $addToSet: expect.objectContaining({
           process: expect.objectContaining({
             step: "eventMatching",
             summary: expect.objectContaining({
@@ -466,7 +466,11 @@ describe("event matching after finalization", () => {
               error: "matching failed",
             }),
           }),
-        },
+          ingestErrors: expect.objectContaining({
+            text: expect.any(String),
+            type: "error",
+          }),
+        }),
       }),
     );
   });

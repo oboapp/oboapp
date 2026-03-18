@@ -1118,9 +1118,11 @@ async function runEventMatching(
     ingestErrors.error(
       `Event matching failed for message ${messageId}: ${errorMessage}`,
     );
+    // Persist errors directly — finalizeMessageWithResults already ran
     await updateMessage(messageId, {
       $addToSet: {
         process: createEventMatchingAudit(false, undefined, errorMessage),
+        ingestErrors: { text: `Event matching failed: ${errorMessage}`, type: "error" as const },
       },
     }).catch(() => {
       // Best-effort — don't let audit storage failure mask the real error
