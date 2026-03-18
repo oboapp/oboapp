@@ -10,6 +10,7 @@ import type { CadastralGeometry } from "@/lib/cadastre-geocoding-service";
 import {
   createIngestErrorCollector,
   buildIngestErrorsField,
+  formatIngestErrorText,
   type IngestErrorCollector,
   type IngestErrorRecorder,
 } from "@/lib/ingest-errors";
@@ -1036,8 +1037,7 @@ async function storeEmbeddingForMessage(
       });
     }
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : String(error);
+    const errorMessage = formatIngestErrorText(error);
     ingestErrors.error(
       `Embedding generation failed for message ${messageId} (source: ${source}, textLength: ${text.length}): ${errorMessage}`,
     );
@@ -1112,8 +1112,7 @@ async function runEventMatching(
       },
     });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : String(error);
+    const errorMessage = formatIngestErrorText(error);
     // Event matching failures should not break the ingest pipeline
     ingestErrors.error(
       `Event matching failed for message ${messageId}: ${errorMessage}`,

@@ -8,7 +8,7 @@ import { getLocality } from "@/lib/target-locality";
 
 export { computeMatchScore, type MatchSignals } from "./score";
 export { findCandidateEvents } from "./candidates";
-export { findBestMatch, type FindBestMatchResult } from "./match";
+export { findBestMatch, type FindBestMatchResult, type FindBestMatchOutput } from "./match";
 export { createEventFromMessage } from "./create-event";
 export { attachMessageToEvent } from "./attach-to-event";
 export { preGeocodeMatch, type PreGeocodeMatchResult } from "./pre-geocode-match";
@@ -46,7 +46,7 @@ export async function processEventMatching(
     streets: message.streets as Array<{ street: string }> | undefined,
   };
 
-  const bestMatch = await findBestMatch(db, matchInput);
+  const { match: bestMatch, candidateCount } = await findBestMatch(db, matchInput);
 
   if (bestMatch) {
     const eventId = bestMatch.event._id as string;
@@ -79,7 +79,7 @@ export async function processEventMatching(
       action: "attached",
       confidence: bestMatch.score,
       llmVerified: bestMatch.llmVerified,
-      candidateCount: bestMatch.candidateCount,
+      candidateCount,
     };
   }
 
@@ -109,5 +109,5 @@ export async function processEventMatching(
     action,
   });
 
-  return { eventId, action, confidence, candidateCount: 0 };
+  return { eventId, action, confidence, candidateCount };
 }

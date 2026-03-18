@@ -37,7 +37,8 @@ describe("findBestMatch", () => {
       locality: "bg.sofia",
       geoJson: null,
     });
-    expect(result).toBeNull();
+    expect(result.match).toBeNull();
+    expect(result.candidateCount).toBe(0);
   });
 
   it("returns null when all candidates score below LLM_VERIFY_LOWER (0.55)", async () => {
@@ -53,7 +54,8 @@ describe("findBestMatch", () => {
       locality: "bg.sofia",
       geoJson: null,
     });
-    expect(result).toBeNull();
+    expect(result.match).toBeNull();
+    expect(result.candidateCount).toBe(1);
     expect(verifyEventMatch).not.toHaveBeenCalled();
   });
 
@@ -70,10 +72,10 @@ describe("findBestMatch", () => {
       locality: "bg.sofia",
       geoJson: null,
     });
-    expect(result).not.toBeNull();
-    expect(result!.event._id).toBe("evt-1");
-    expect(result!.score).toBe(0.85);
-    expect(result!.candidateCount).toBe(1);
+    expect(result.match).not.toBeNull();
+    expect(result.match!.event._id).toBe("evt-1");
+    expect(result.match!.score).toBe(0.85);
+    expect(result.candidateCount).toBe(1);
     expect(verifyEventMatch).not.toHaveBeenCalled();
   });
 
@@ -96,9 +98,9 @@ describe("findBestMatch", () => {
       locality: "bg.sofia",
       geoJson: null,
     });
-    expect(result!.event._id).toBe("evt-2");
-    expect(result!.score).toBe(0.92);
-    expect(result!.candidateCount).toBe(2);
+    expect(result.match!.event._id).toBe("evt-2");
+    expect(result.match!.score).toBe(0.92);
+    expect(result.candidateCount).toBe(2);
   });
 
   // --- LLM verification zone tests ---
@@ -128,11 +130,11 @@ describe("findBestMatch", () => {
         eventText: "Event text about water outage",
       }),
     );
-    expect(result).not.toBeNull();
-    expect(result!.event._id).toBe("evt-1");
-    expect(result!.score).toBe(0.6);
-    expect(result!.llmVerified).toBe(true);
-    expect(result!.candidateCount).toBe(1);
+    expect(result.match).not.toBeNull();
+    expect(result.match!.event._id).toBe("evt-1");
+    expect(result.match!.score).toBe(0.6);
+    expect(result.match!.llmVerified).toBe(true);
+    expect(result.candidateCount).toBe(1);
   });
 
   it("returns null when LLM rejects match in uncertain zone", async () => {
@@ -155,7 +157,8 @@ describe("findBestMatch", () => {
     });
 
     expect(verifyEventMatch).toHaveBeenCalled();
-    expect(result).toBeNull();
+    expect(result.match).toBeNull();
+    expect(result.candidateCount).toBe(1);
   });
 
   it("returns null when LLM call fails in uncertain zone (conservative fallback)", async () => {
@@ -175,7 +178,8 @@ describe("findBestMatch", () => {
     });
 
     expect(verifyEventMatch).toHaveBeenCalled();
-    expect(result).toBeNull();
+    expect(result.match).toBeNull();
+    expect(result.candidateCount).toBe(1);
   });
 
   it("skips LLM verify when message has no text", async () => {
@@ -194,7 +198,8 @@ describe("findBestMatch", () => {
     });
 
     expect(verifyEventMatch).not.toHaveBeenCalled();
-    expect(result).toBeNull();
+    expect(result.match).toBeNull();
+    expect(result.candidateCount).toBe(1);
   });
 
   it("skips LLM verify when event has no canonical text", async () => {
@@ -213,7 +218,8 @@ describe("findBestMatch", () => {
     });
 
     expect(verifyEventMatch).not.toHaveBeenCalled();
-    expect(result).toBeNull();
+    expect(result.match).toBeNull();
+    expect(result.candidateCount).toBe(1);
   });
 
   it("uses text field as fallback when plainText is missing", async () => {

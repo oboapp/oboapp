@@ -18,6 +18,10 @@ export interface FindBestMatchResult {
   score: number;
   signals: MatchSignals;
   llmVerified?: boolean;
+}
+
+export interface FindBestMatchOutput {
+  match: FindBestMatchResult | null;
   candidateCount: number;
 }
 
@@ -35,10 +39,10 @@ export async function findBestMatch(
     plainText?: string;
     streets?: Array<{ street: string }>;
   },
-): Promise<FindBestMatchResult | null> {
+): Promise<FindBestMatchOutput> {
   const candidates = await findCandidateEvents(db, message);
 
-  if (candidates.length === 0) return null;
+  if (candidates.length === 0) return { match: null, candidateCount: 0 };
 
   let bestMatch: {
     event: Record<string, unknown>;
@@ -71,11 +75,11 @@ export async function findBestMatch(
     }
   }
 
-  if (!bestMatch) return null;
+  if (!bestMatch) return { match: null, candidateCount: candidates.length };
 
   // High-confidence match — auto-attach
   if (bestMatch.score >= MATCH_THRESHOLD) {
-    return { ...bestMatch, candidateCount: candidates.length };
+    return { match: bestMatch, candidateCount: candidates.length };
   }
 
   // Uncertain zone (LLM_VERIFY_LOWER to MATCH_THRESHOLD) — ask LLM
@@ -90,7 +94,7 @@ export async function findBestMatch(
       hasMessageText: Boolean(messageText),
       hasEventText: Boolean(eventText),
     });
-    return null;
+    return { match: null, candidateCount: candidates.length };
   }
 
   const locationContext = buildLocationContext(message, bestMatch.event);
@@ -108,7 +112,7 @@ export async function findBestMatch(
       score: bestMatch.score,
       reasoning: llmResult.reasoning,
     });
-    return { ...bestMatch, llmVerified: true, candidateCount: candidates.length };
+    return { match: { ...bestMatch, llmVerified: true }, candidateCount: candidates.length };
   }
 
   // LLM rejected or failed — treat as no match (conservative)
@@ -117,7 +121,7 @@ export async function findBestMatch(
     reasoning: llmResult?.reasoning ?? "LLM call failed",
     isSameEvent: llmResult?.isSameEvent,
   });
-  return null;
+  return { match: null, candidateCount: candidates.length };
 }
 
 function buildLocationContext(
