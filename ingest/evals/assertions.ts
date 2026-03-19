@@ -392,9 +392,10 @@ export function assertMinPinCount(
   const parsed = parseOutput(output);
   if (!parsed.success) return parsed.result;
 
-  const data = parsed.data as { pins?: unknown[] };
+  const data = parsed.data as { locations?: { pins?: unknown[] }[] };
   const expected = Number(context.config?.value ?? 1);
-  const actual = data.pins?.length ?? 0;
+  const allPins = (data.locations ?? []).flatMap((loc) => loc.pins ?? []);
+  const actual = allPins.length;
 
   return {
     pass: actual >= expected,

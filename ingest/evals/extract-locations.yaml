@@ -105,7 +105,7 @@ tests:
                 );
               }
 
-              if (!normalizedPattern.test(pin.address)) {
+              if (!normalizedPattern.test(addrLower)) {
                 throw new Error(
                   `Pin address is not normalized as "бл. <n>, ж.к. <name>": "${pin.address}"`
                 );
