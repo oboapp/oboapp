@@ -55,7 +55,7 @@ export class ApiClientsRepository {
         error instanceof Error &&
         (error.message.includes("NOT_FOUND") ||
           error.message.includes("not found") ||
-          (error as { code?: number }).code === 5);
+          ("code" in error && error.code === 5));
       if (!notFound) {
         console.error("deleteByUserId: unexpected error deleting API client", error);
       }

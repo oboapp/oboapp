@@ -76,8 +76,8 @@ export class UserPreferencesRepository {
         error instanceof Error &&
         (error.message.includes("ALREADY_EXISTS") ||
           error.message.includes("already exists") ||
-          (error as { code?: unknown }).code === 6 ||
-          (error as { code?: unknown }).code === "already-exists");
+          ("code" in error &&
+            (error.code === 6 || error.code === "already-exists")));
       if (!isAlreadyExists) {
         throw error;
       }

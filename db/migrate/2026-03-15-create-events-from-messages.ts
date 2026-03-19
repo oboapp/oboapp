@@ -50,21 +50,25 @@ function getGeometryQuality(source: string): number {
  * Convert a Firestore Timestamp to ISO string.
  * Handles { _seconds, _nanoseconds } shape and toDate() method.
  */
+function hasToDate(v: object): v is { toDate(): Date } {
+  return "toDate" in v && typeof v.toDate === "function";
+}
+
+function hasSeconds(v: object): v is { _seconds: number } {
+  return "_seconds" in v && typeof v._seconds === "number";
+}
+
 function convertTimestampToISO(value: unknown): string | null {
   if (!value) return null;
   if (typeof value === "string") return value;
   if (value instanceof Date) return value.toISOString();
 
   if (typeof value === "object" && value !== null) {
-    if (
-      "toDate" in value &&
-      typeof (value as Record<string, unknown>).toDate === "function"
-    ) {
-      return (value as { toDate(): Date }).toDate().toISOString();
+    if (hasToDate(value)) {
+      return value.toDate().toISOString();
     }
-    if ("_seconds" in value) {
-      const secs = (value as Record<string, number>)._seconds;
-      return new Date(secs * 1000).toISOString();
+    if (hasSeconds(value)) {
+      return new Date(value._seconds * 1000).toISOString();
     }
   }
 
@@ -174,7 +178,10 @@ async function main() {
       const existingLinksMap = new Map(
         existingLinks
           .filter((d) => d.exists)
-          .map((d) => [d.id, d.data() as { eventId?: string }]),
+          .map((d): [string, { eventId?: string }] => {
+            const data: { eventId?: string } = d.data() ?? {};
+            return [d.id, data];
+          }),
       );
 
       for (const { doc, data, messageId, geoJson } of messagesToProcess) {
@@ -192,7 +199,7 @@ async function main() {
         }
 
         const now = new Date().toISOString();
-        const source = (data.source as string) || "";
+        const source = typeof data.source === "string" ? data.source : "";
         // Only assign source-based quality when geometry is actually present
         const geometryQuality = geoJson ? getGeometryQuality(source) : 0;
 

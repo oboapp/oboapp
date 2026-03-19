@@ -41,22 +41,24 @@ const JSON_STRING_FIELDS = new Set(["geoJson", "addresses", "ingestErrors"]);
 /**
  * Convert a Firestore Timestamp or timestamp-like object to a Date.
  */
+function hasToDate(v: object): v is { toDate(): Date } {
+  return "toDate" in v && typeof v.toDate === "function";
+}
+
+function hasSeconds(v: object): v is { _seconds: number } {
+  return "_seconds" in v && typeof v._seconds === "number";
+}
+
 function convertTimestamp(value: unknown): Date | unknown {
   if (!value) return value;
   if (value instanceof Date) return value;
 
   if (typeof value === "object" && value !== null) {
-    // Firestore Timestamp: { _seconds, _nanoseconds }
-    if ("_seconds" in value) {
-      const secs = (value as Record<string, number>)._seconds;
-      return new Date(secs * 1000);
+    if (hasSeconds(value)) {
+      return new Date(value._seconds * 1000);
     }
-    // Firestore Timestamp with toDate()
-    if (
-      "toDate" in value &&
-      typeof (value as Record<string, unknown>).toDate === "function"
-    ) {
-      return (value as { toDate(): Date }).toDate();
+    if (hasToDate(value)) {
+      return value.toDate();
     }
   }
 

@@ -76,7 +76,10 @@ export class EventsRepository {
     // Filter timespanStart in memory (Firestore doesn't support range filters on two fields)
     const windowEndStr = timeWindowEnd.toISOString();
     return results.filter((event) => {
-      const start = event.timespanStart as string | null | undefined;
+      const start: string | undefined =
+        typeof event.timespanStart === "string"
+          ? event.timespanStart
+          : undefined;
       return !start || start <= windowEndStr;
     });
   }

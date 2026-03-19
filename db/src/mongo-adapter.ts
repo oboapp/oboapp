@@ -71,7 +71,8 @@ function buildFilter(clauses?: WhereClause[]): Filter<Document> {
 
   if (filters.length === 0) return {};
   if (filters.length === 1) return filters[0];
-  return { $and: filters } as Filter<Document>;
+  const combined: Filter<Document> = { $and: filters };
+  return combined;
 }
 
 function buildSort(
@@ -90,6 +91,21 @@ function isUpdateOperators(data: unknown): data is UpdateOperators {
   if (!data || typeof data !== "object") return false;
   const keys = Object.keys(data);
   return keys.some((k) => k.startsWith("$"));
+}
+
+/** Build a MongoDB _id filter from a string ID */
+function idFilter(id: string): Filter<Document> {
+  const base: Filter<Document> = {};
+  return Object.assign(base, { _id: id });
+}
+
+/** Build a document with string _id for insert operations */
+function withId(
+  data: Record<string, unknown>,
+  id: string,
+): OptionalUnlessRequiredId<Document> {
+  const doc: Document = { ...data, _id: id };
+  return doc;
 }
 
 export class MongoAdapter implements DbClient {
@@ -122,9 +138,10 @@ export class MongoAdapter implements DbClient {
   ): Promise<Record<string, unknown> | null> {
     const doc = await this.db
       .collection(collection)
-      .findOne({ _id: id as unknown as Document["_id"] });
+      .findOne(idFilter(id));
     if (!doc) return null;
-    return { ...doc, _id: String(doc._id) } as Record<string, unknown>;
+    const result: Record<string, unknown> = { ...doc, _id: String(doc._id) };
+    return result;
   }
 
   async findMany(
@@ -165,10 +182,12 @@ export class MongoAdapter implements DbClient {
     data: Record<string, unknown>,
     id?: string,
   ): Promise<string> {
-    const doc = id ? { ...data, _id: id as unknown as Document["_id"] } : data;
+    const doc: OptionalUnlessRequiredId<Document> = id
+      ? withId(data, id)
+      : { ...data };
     const result = await this.db
       .collection(collection)
-      .insertOne(doc as OptionalUnlessRequiredId<Document>);
+      .insertOne(doc);
     return String(result.insertedId);
   }
 
@@ -178,18 +197,17 @@ export class MongoAdapter implements DbClient {
     id: string,
   ): Promise<string> {
     try {
-      const doc = { ...data, _id: id as unknown as Document["_id"] };
+      const doc = withId(data, id);
       await this.db
         .collection(collection)
-        .insertOne(doc as OptionalUnlessRequiredId<Document>);
+        .insertOne(doc);
       return id;
     } catch (err) {
       if (err instanceof MongoServerError && err.code === DUPLICATE_KEY_ERROR) {
-        const alreadyExistsError = new Error(
-          `Document already exists: ${collection}/${id}`,
+        const alreadyExistsError = Object.assign(
+          new Error(`Document already exists: ${collection}/${id}`),
+          { code: "already-exists" },
         );
-        (alreadyExistsError as unknown as Record<string, unknown>).code =
-          "already-exists";
         throw alreadyExistsError;
       }
       throw err;
@@ -201,20 +219,17 @@ export class MongoAdapter implements DbClient {
     id: string,
     data: Record<string, unknown> | UpdateOperators,
   ): Promise<void> {
-    const filter = { _id: id as unknown as Document["_id"] };
+    const filter = idFilter(id);
 
     if (isUpdateOperators(data)) {
       const update: Record<string, unknown> = {};
       if (data.$set) update.$set = data.$set;
       if (data.$addToSet) {
-        update.$addToSet = {};
+        const addToSet: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(data.$addToSet)) {
-          (update.$addToSet as Record<string, unknown>)[key] = Array.isArray(
-            value,
-          )
-            ? { $each: value }
-            : value;
+          addToSet[key] = Array.isArray(value) ? { $each: value } : value;
         }
+        update.$addToSet = addToSet;
       }
       if (data.$pull) update.$pull = data.$pull;
       if (data.$inc) update.$inc = data.$inc;
@@ -228,7 +243,7 @@ export class MongoAdapter implements DbClient {
   async deleteOne(collection: string, id: string): Promise<void> {
     await this.db
       .collection(collection)
-      .deleteOne({ _id: id as unknown as Document["_id"] });
+      .deleteOne(idFilter(id));
   }
 
   async deleteMany(collection: string, where: WhereClause[]): Promise<number> {
@@ -258,7 +273,7 @@ export class MongoAdapter implements DbClient {
     for (const [collectionName, ops] of byCollection) {
       const col = this.db.collection(collectionName);
       const bulkOps = ops.map((op) => {
-        const filter = { _id: op.id as unknown as Document["_id"] };
+        const filter = idFilter(op.id);
         switch (op.type) {
           case "set":
             if (op.merge) {

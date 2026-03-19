@@ -88,16 +88,23 @@ function buildRepositories(client: DbClient): OboDb {
  *
  * For most callers, use `createDb()` which reads from environment variables.
  */
+function assertFirestoreDb(
+  db: unknown,
+): asserts db is FirebaseFirestore.Firestore {
+  if (!db || typeof db !== "object") {
+    throw new Error("firestoreDb must be a valid Firestore instance");
+  }
+}
+
 export async function createDbFromConfig(config: DbConfig): Promise<OboDb> {
-  const readSource = resolveReadSource(config.readSource as string);
+  const readSource = resolveReadSource(config.readSource);
   const hasFirestore = !!config.firestoreDb;
   const hasMongo = !!config.mongoUri;
 
   // Dual-write: both backends available
   if (hasFirestore && hasMongo) {
-    const firestoreAdapter = new FirestoreAdapter(
-      config.firestoreDb as FirebaseFirestore.Firestore,
-    );
+    assertFirestoreDb(config.firestoreDb);
+    const firestoreAdapter = new FirestoreAdapter(config.firestoreDb);
     const mongoAdapter = await MongoAdapter.connect(
       config.mongoUri!,
       config.mongoDatabase ?? "oboapp",
@@ -112,9 +119,8 @@ export async function createDbFromConfig(config: DbConfig): Promise<OboDb> {
 
   // Firestore only
   if (hasFirestore) {
-    const firestoreAdapter = new FirestoreAdapter(
-      config.firestoreDb as FirebaseFirestore.Firestore,
-    );
+    assertFirestoreDb(config.firestoreDb);
+    const firestoreAdapter = new FirestoreAdapter(config.firestoreDb);
     return buildRepositories(firestoreAdapter);
   }
 

@@ -20,28 +20,29 @@ const PARSE_ON_READ: Record<string, Set<string>> = {
   events: new Set(["geoJson"]),
 };
 
+function hasToDate(v: object): v is { toDate(): Date } {
+  return "toDate" in v && typeof v.toDate === "function";
+}
+
+function hasSeconds(v: object): v is { _seconds: number } {
+  return "_seconds" in v && typeof v._seconds === "number";
+}
+
 function isFirestoreTimestamp(
   value: unknown,
 ): value is { toDate(): Date } | { _seconds: number } {
   if (!value || typeof value !== "object") return false;
-  return (
-    ("toDate" in value &&
-      typeof (value as Record<string, unknown>).toDate === "function") ||
-    "_seconds" in value
-  );
+  return hasToDate(value) || "_seconds" in value;
 }
 
 function timestampToDate(value: unknown): Date {
   if (value instanceof Date) return value;
   if (typeof value === "object" && value !== null) {
-    if (
-      "toDate" in value &&
-      typeof (value as Record<string, unknown>).toDate === "function"
-    ) {
-      return (value as { toDate(): Date }).toDate();
+    if (hasToDate(value)) {
+      return value.toDate();
     }
-    if ("_seconds" in value) {
-      return new Date((value as { _seconds: number })._seconds * 1000);
+    if (hasSeconds(value)) {
+      return new Date(value._seconds * 1000);
     }
   }
   if (typeof value === "string") {

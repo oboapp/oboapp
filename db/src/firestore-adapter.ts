@@ -49,7 +49,7 @@ export class FirestoreAdapter implements DbClient {
   ): Promise<Record<string, unknown> | null> {
     const doc = await this.db.collection(collection).doc(id).get();
     if (!doc.exists) return null;
-    const raw = { _id: doc.id, ...doc.data() } as Record<string, unknown>;
+    const raw: Record<string, unknown> = { _id: doc.id, ...doc.data() };
     return transformFromFirestoreRead(collection, raw);
   }
 
