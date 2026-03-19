@@ -6,9 +6,9 @@ This document outlines the quality assurance strategy across the oboapp monorepo
 
 | Layer | Tool | When |
 |-------|------|------|
-| Static analysis (lint) | ESLint | Every commit (pre-commit hook) and CI |
+| Static analysis (lint) | ESLint | Pre-commit hook; run manually before opening a PR |
 | Circular dependency check | dpdm | Every PR in CI |
-| Unit tests | Vitest | CI on every PR; run locally before pushing |
+| Unit tests | Vitest | CI on every PR (`ingest`, `web`); run locally for all packages |
 | Integration tests | Vitest (real APIs) | Manual, before merging pipeline changes |
 | Component tests | Testing Library + MSW | CI on every PR |
 | LLM prompt evaluation | promptfoo | Manual, before merging prompt changes |
@@ -18,13 +18,19 @@ This document outlines the quality assurance strategy across the oboapp monorepo
 
 A pre-commit hook (Husky + lint-staged) runs ESLint automatically on staged files in `web/`, `ingest/`, and `shared/` before each commit.
 
-**No `eslint-disable` comments are permitted** — lint errors must be fixed at the source.
+**`eslint-disable` comments are generally not permitted** — lint errors must be fixed at the source. Exceptions are allowed only for generated or vendor code that cannot be modified.
 
-Run lint and TypeScript checks manually before opening a PR:
+Run lint and TypeScript checks manually before opening a PR (from the respective package directory):
 
 ```bash
 pnpm lint
 pnpm tsc --noEmit
+```
+
+Or lint all packages at once from the repo root:
+
+```bash
+pnpm lint:all
 ```
 
 Circular dependency detection uses `dpdm` and runs in CI on every pull request to catch import cycles across all packages.
@@ -42,7 +48,7 @@ cd shared && pnpm test
 
 ## Integration Tests
 
-Integration tests for the AI pipeline call the live Gemini API with real source fixtures. They are excluded from the standard `test:run` command and require API credentials.
+Integration tests for the AI pipeline call the live Gemini API with real source fixtures. They are excluded from the standard `test:run` command and require API credentials set in `ingest/.env.local` (`GOOGLE_AI_API_KEY`, `GOOGLE_AI_MODEL`).
 
 ```bash
 cd ingest

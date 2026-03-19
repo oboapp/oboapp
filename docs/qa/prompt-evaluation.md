@@ -24,7 +24,7 @@ pnpm promptfoo:redteam     # Adversarial / red team inputs
 pnpm promptfoo:view        # Open results dashboard in browser
 ```
 
-Requires `GOOGLE_AI_API_KEY` in `ingest/.env.local`.
+Requires `GOOGLE_AI_API_KEY` and `GOOGLE_AI_MODEL` in `ingest/.env.local`.
 
 ## Evaluated Prompts
 
