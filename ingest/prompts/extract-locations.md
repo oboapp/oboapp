@@ -103,7 +103,7 @@ An array of objects representing single **point locations**. Use this for:
   - **Housing complex blocks (ж.к.)**: For addresses in residential complexes (ж.к.), normalize to "бл. `<number>`, ж.к. `<complex name>`" format. Strip positional words like "до", "пред", "зад", "срещу", "при", "между".
     - Example: `ж.к. Дружба, до бл. 66` → `бл. 66, ж.к. Дружба`
     - Example: `ж.к. Младост 1, пред бл. 5` → `бл. 5, ж.к. Младост 1`
-    - Example: `кв. Дружба, бл. 91` → `бл. 91, ж.к. Дружба`
+    - Example: `ж.к. Люлин 5, зад бл. 302` → `бл. 302, ж.к. Люлин 5`
 - **Exclusion**: Do not create a pin for an address that is already used in the `from` or `to` field of a `streets` entry.
 - **Pre-resolved coordinates**: If the source text includes explicit latitude/longitude coordinates for a pin location, include them in the `coordinates` field as `{ "lat": <number>, "lng": <number> }`. Only include coordinates when they are **explicitly stated** in the text — do NOT guess or calculate coordinates.
 
