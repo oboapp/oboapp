@@ -106,5 +106,25 @@ describe("rayon-ilinden-bg/extractors", () => {
       expect(details.dateText).toBe("22.12.2025");
       expect(details.contentHtml).toContain("Ремонтни дейности");
     });
+
+    it("passes .related-posts to unwanted elements so related news are excluded", async () => {
+      // Verify that extractPostDetails calls extractPostDetailsGeneric with .related-posts
+      // in the unwanted elements list. We check this by ensuring the evaluate call receives
+      // an array that includes ".related-posts".
+      let capturedArgs: any;
+      const mockEvaluate = vi.fn().mockImplementation((_fn: any, args: any) => {
+        capturedArgs = args;
+        return Promise.resolve({
+          title: "Уведомления за дерегистрация по чл. 99б",
+          dateText: "07.03.2026",
+          contentHtml: "<p>Main content only</p>",
+        });
+      });
+
+      const page = createMockPage(mockEvaluate) as any;
+      await extractPostDetails(page);
+
+      expect(capturedArgs?.unwantedElements).toContain(".related-posts");
+    });
   });
 });

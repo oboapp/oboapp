@@ -40,6 +40,7 @@ export async function extractPostDetails(
     ".post-navigation",
     ".wp-block-buttons",
     ".wp-block-social-links",
+    ".related-posts",
     "footer",
   ]);
 }
