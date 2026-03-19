@@ -26,6 +26,7 @@
     "capture-fixtures": "tsx scripts/capture-api-responses.ts",
     "capture:firestore": "tsx scripts/capture-from-firestore.ts",
     "reprocess-failed-messages": "tsx scripts/reprocess-failed-messages.ts",
+    "reprocess-message": "tsx scripts/reprocess-message.ts",
     "promptfoo": "NODE_OPTIONS='--import tsx/esm' promptfoo eval --env-file .env.local -c evals/filter-split.yaml && NODE_OPTIONS='--import tsx/esm' promptfoo eval --env-file .env.local -c evals/categorize.yaml && NODE_OPTIONS='--import tsx/esm' promptfoo eval --env-file .env.local -c evals/extract-locations.yaml && NODE_OPTIONS='--import tsx/esm' promptfoo eval --env-file .env.local -c evals/verify-event-match.yaml",
     "promptfoo:filter": "NODE_OPTIONS='--import tsx/esm' promptfoo eval --env-file .env.local -c evals/filter-split.yaml",
     "promptfoo:categorize": "NODE_OPTIONS='--import tsx/esm' promptfoo eval --env-file .env.local -c evals/categorize.yaml",

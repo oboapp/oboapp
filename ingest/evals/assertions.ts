@@ -328,9 +328,8 @@ export async function validateVerifyEventMatchSchema(
   output: string,
   _context: AssertionValueFunctionContext,
 ): Promise<GradingResult> {
-  const { VerifyEventMatchResponseSchema } = await import(
-    "../lib/verify-event-match.schema"
-  );
+  const { VerifyEventMatchResponseSchema } =
+    await import("../lib/verify-event-match.schema");
   return validateWithSchema(
     output,
     VerifyEventMatchResponseSchema,
@@ -379,6 +378,31 @@ export function assertIsDifferentEvent(
       data.isSameEvent === false
         ? "Correctly identified as different events"
         : "Expected isSameEvent=false, but got true",
+  };
+}
+
+/**
+ * Asserts that extract-locations output contains at least N pins.
+ * Usage in YAML: config.value should be the minimum number of pins expected.
+ */
+export function assertMinPinCount(
+  output: string,
+  context: AssertionValueFunctionContext,
+): GradingResult {
+  const parsed = parseOutput(output);
+  if (!parsed.success) return parsed.result;
+
+  const data = parsed.data as { pins?: unknown[] };
+  const expected = Number(context.config?.value ?? 1);
+  const actual = data.pins?.length ?? 0;
+
+  return {
+    pass: actual >= expected,
+    score: actual >= expected ? 1 : 0,
+    reason:
+      actual >= expected
+        ? `Found ${actual} pin(s) (expected at least ${expected})`
+        : `Expected at least ${expected} pin(s), got ${actual}`,
   };
 }
 

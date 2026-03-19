@@ -1,0 +1,172 @@
+#!/usr/bin/env node
+/**
+ * Re-processes a single message by its ID.
+ *
+ * Looks up the message's source document, deletes all sibling messages
+ * from that source, then re-runs messageIngest from scratch.
+ *
+ * Usage:
+ *   pnpm reprocess-message LQ8D9Bkp            # dry-run (safe)
+ *   pnpm reprocess-message LQ8D9Bkp --execute   # actually run
+ */
+
+import { Command } from "commander";
+import dotenv from "dotenv";
+import { resolve } from "node:path";
+import type { OboDb } from "@oboapp/db";
+
+function parseTimestamp(value: unknown): Date | undefined {
+  if (value instanceof Date) return value;
+  return value ? new Date(value as string) : undefined;
+}
+
+async function main(messageId: string, dryRun: boolean) {
+  const { getDb } = await import("@/lib/db");
+  const db = await getDb();
+
+  const msg = await db.messages.findById(messageId);
+  if (!msg) {
+    console.error(`❌ Message "${messageId}" not found`);
+    process.exit(1);
+  }
+
+  const sourceDocumentId = msg.sourceDocumentId as string;
+  if (!sourceDocumentId) {
+    console.error(`❌ Message "${messageId}" has no sourceDocumentId`);
+    process.exit(1);
+  }
+
+  const snippet = ((msg.text ?? msg.plainText ?? "") as string).slice(0, 100);
+  console.log(`\nFound message: ${messageId}`);
+  console.log(`  Source: ${sourceDocumentId}`);
+  console.log(`  Text:   "${snippet}..."\n`);
+
+  const source = await db.sources.findById(sourceDocumentId);
+  if (!source) {
+    console.error(`❌ Source "${sourceDocumentId}" not found`);
+    process.exit(1);
+  }
+
+  if (!source.locality) {
+    console.error(`❌ Source missing locality field`);
+    process.exit(1);
+  }
+
+  const allMsgsForSource = await db.messages.findBySourceDocumentIds(
+    [sourceDocumentId],
+    ["_id", "sourceDocumentId"],
+  );
+
+  if (dryRun) {
+    console.log(
+      `[dry-run] Would delete ${allMsgsForSource.length} message(s) and re-ingest from "${source.sourceType as string}"`,
+    );
+    console.log(
+      `\n⚠️  DRY RUN — no changes made. Re-run with --execute to apply.`,
+    );
+    return;
+  }
+
+  await reingest(db, source, sourceDocumentId, allMsgsForSource);
+}
+
+async function reingest(
+  db: OboDb,
+  source: Record<string, unknown>,
+  sourceDocumentId: string,
+  allMsgsForSource: Record<string, unknown>[],
+) {
+  console.log(
+    `🗑️  Deleting ${allMsgsForSource.length} message(s) for this source...`,
+  );
+  for (const m of allMsgsForSource) {
+    await db.messages.deleteOne(m._id as string);
+  }
+
+  let geoJson = null;
+  if (source.geoJson) {
+    geoJson =
+      typeof source.geoJson === "string"
+        ? JSON.parse(source.geoJson)
+        : source.geoJson;
+  }
+
+  const crawledAt =
+    source.crawledAt instanceof Date
+      ? source.crawledAt
+      : new Date(
+          (source.crawledAt as string | number | undefined) ?? Date.now(),
+        );
+
+  const userFacingUrl =
+    source.deepLinkUrl === undefined
+      ? (source.url as string)
+      : (source.deepLinkUrl as string) || undefined;
+
+  console.log(
+    `🔄 Re-ingesting from source "${source.sourceType as string}"...`,
+  );
+  const { messageIngest } = await import("@/messageIngest/index");
+
+  const result = await messageIngest(
+    source.message as string,
+    source.sourceType as string,
+    {
+      precomputedGeoJson: geoJson,
+      sourceUrl: userFacingUrl,
+      sourceDocumentId,
+      crawledAt,
+      markdownText: source.markdownText as string | undefined,
+      categories: source.categories as string[] | undefined,
+      isRelevant: source.isRelevant as boolean | undefined,
+      timespanStart: parseTimestamp(source.timespanStart),
+      timespanEnd: parseTimestamp(source.timespanEnd),
+      cityWide: source.cityWide as boolean | undefined,
+      locality: source.locality as string,
+    },
+  );
+
+  const withGeoJson = result.messages.filter(
+    (m) => m.geoJson && m.geoJson.features.length > 0,
+  ).length;
+  const stillFailed = result.messages.length - withGeoJson;
+
+  console.log(`\n${"─".repeat(55)}`);
+  console.log(`Created ${result.messages.length} message(s)`);
+  console.log(
+    `  GeoJSON: ${withGeoJson} got geometry, ${stillFailed} still without`,
+  );
+  for (const m of result.messages) {
+    console.log(`  ${m.id}: features=${m.geoJson?.features?.length ?? 0}`);
+  }
+  console.log(`${"─".repeat(55)}\n`);
+}
+
+const program = new Command();
+
+program
+  .name("reprocess-message")
+  .description("Re-process a single message by its ID")
+  .argument("<messageId>", "The message ID to reprocess")
+  .option(
+    "--execute",
+    "Actually apply changes (default is dry-run — safe to run without this flag)",
+  )
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ pnpm reprocess-message LQ8D9Bkp              # dry-run
+  $ pnpm reprocess-message LQ8D9Bkp --execute    # actually run
+`,
+  )
+  .action(async (messageId: string, opts) => {
+    dotenv.config({ path: resolve(process.cwd(), ".env.local") });
+    const dryRun = !opts.execute;
+    await main(messageId, dryRun);
+  });
+
+program.parseAsync().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

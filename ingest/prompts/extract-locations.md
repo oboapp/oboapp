@@ -100,6 +100,10 @@ An array of objects representing single **point locations**. Use this for:
   - Keep original Cyrillic names but remove decorative quotes (e.g., `„`, `"`).
   - Do NOT append `, София`.
   - For public spaces, use the full, normalized name (e.g., `площад Княз Александър І`, not `пл. Княз Александър І`).
+  - **Housing complex blocks (ж.к.)**: For addresses in residential complexes (ж.к.), normalize to "бл. `<number>`, ж.к. `<complex name>`" format. Strip positional words like "до", "пред", "зад", "срещу", "при", "между".
+    - Example: `ж.к. Дружба, до бл. 66` → `бл. 66, ж.к. Дружба`
+    - Example: `ж.к. Младост 1, пред бл. 5` → `бл. 5, ж.к. Младост 1`
+    - Example: `кв. Дружба, бл. 91` → `бл. 91, ж.к. Дружба`
 - **Exclusion**: Do not create a pin for an address that is already used in the `from` or `to` field of a `streets` entry.
 - **Pre-resolved coordinates**: If the source text includes explicit latitude/longitude coordinates for a pin location, include them in the `coordinates` field as `{ "lat": <number>, "lng": <number> }`. Only include coordinates when they are **explicitly stated** in the text — do NOT guess or calculate coordinates.
 
@@ -299,6 +303,41 @@ An array of all date and time ranges associated with a location.
     "cityWide": false,
     "busStops": ["0483"],
     "pins": [],
+    "streets": [],
+    "cadastralProperties": []
+  }
+  ```
+
+## Example 7: Housing Complex Blocks (ж.к.)
+
+- **Input Text**: "На 20.03.2026 г. от 09:00 до 17:00 ч. ще бъде преустановено водоснабдяването в ж.к. Дружба, до бл. 66, пред бл. 91 и пред бл. 88."
+- **Analysis**: This message mentions three block locations in a housing complex. Each should be a separate pin with the normalized format "бл. X, ж.к. Y", stripping positional words like "до" and "пред".
+- **Output**:
+  ```json
+  {
+    "withSpecificAddress": true,
+    "cityWide": false,
+    "busStops": [],
+    "pins": [
+      {
+        "address": "бл. 66, ж.к. Дружба",
+        "timespans": [
+          { "start": "20.03.2026 09:00", "end": "20.03.2026 17:00" }
+        ]
+      },
+      {
+        "address": "бл. 91, ж.к. Дружба",
+        "timespans": [
+          { "start": "20.03.2026 09:00", "end": "20.03.2026 17:00" }
+        ]
+      },
+      {
+        "address": "бл. 88, ж.к. Дружба",
+        "timespans": [
+          { "start": "20.03.2026 09:00", "end": "20.03.2026 17:00" }
+        ]
+      }
+    ],
     "streets": [],
     "cadastralProperties": []
   }

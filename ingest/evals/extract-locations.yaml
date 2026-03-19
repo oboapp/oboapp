@@ -66,3 +66,18 @@ tests:
     assert:
       - type: javascript
         value: "file://assertions.ts:assertHasLocations"
+
+  # Housing complex blocks (ж.к. Дружба, бл. 66/91/88)
+  - vars:
+      input: "file://../__mocks__/fixtures/sources/housing-complex-blocks.md"
+    assert:
+      - type: javascript
+        value: "file://assertions.ts:assertWithSpecificAddress"
+        config:
+          value: "true"
+      - type: javascript
+        value: "file://assertions.ts:assertHasLocations"
+      - type: javascript
+        value: "file://assertions.ts:assertMinPinCount"
+        config:
+          value: 3
