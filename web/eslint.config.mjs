@@ -37,6 +37,12 @@ const eslintConfig = [
       // Prefer early returns over else-if-return chains
       "no-else-return": ["error", { allowElseIf: false }],
 
+      // Ban type assertions (as X) - use type guards or proper typing instead
+      "@typescript-eslint/consistent-type-assertions": [
+        "error",
+        { assertionStyle: "never" },
+      ],
+
       // React/JSX rules
       "react/button-has-type": [
         "error",
@@ -48,11 +54,12 @@ const eslintConfig = [
       ],
     },
   },
-  // Allow 'any' in test files for mocking purposes
+  // Allow 'any' and type assertions in test files for mocking purposes
   {
-    files: ["**/*.test.ts", "**/*.test.tsx", "**/__tests__/**"],
+    files: ["**/*.test.ts", "**/*.test.tsx", "**/__tests__/**", "**/__mocks__/**"],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/consistent-type-assertions": "off",
     },
   },
   {

@@ -27,6 +27,19 @@ const eslintConfig = [
       ],
       "prefer-const": "error",
       "no-var": "error",
+
+      // Ban type assertions (as X) - use type guards or proper typing instead
+      "@typescript-eslint/consistent-type-assertions": [
+        "error",
+        { assertionStyle: "never" },
+      ],
+    },
+  },
+  // Allow type assertions in test files (Stage 2 will ban these too)
+  {
+    files: ["**/*.test.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off",
     },
   },
   {
