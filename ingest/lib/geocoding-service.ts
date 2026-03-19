@@ -106,24 +106,27 @@ export async function geocodeAddresses(
     if (geocoded) {
       geocodedAddresses.push(geocoded);
     } else {
-      logger.warn("Failed to geocode address via Google", { address });
+      logger.info(
+        "Failed to geocode address via Google; will try OSM fallback",
+        { address },
+      );
       failedAddresses.push(address);
     }
     // Add a small delay to avoid hitting rate limits
     await delay(GEOCODING_BATCH_DELAY_MS);
   }
 
-  // Fallback: try Nominatim for addresses that Google couldn't resolve
+  // Fallback: try OSM/Overpass for addresses that Google couldn't resolve
   if (failedAddresses.length > 0) {
-    logger.info("Attempting Nominatim fallback for failed addresses", {
+    logger.info("Attempting OSM/Overpass fallback for failed addresses", {
       count: failedAddresses.length,
     });
-    const nominatimResults = await overpassGeocodeAddresses(failedAddresses);
-    geocodedAddresses.push(...nominatimResults);
+    const overpassResults = await overpassGeocodeAddresses(failedAddresses);
+    geocodedAddresses.push(...overpassResults);
 
-    const stillFailed = failedAddresses.length - nominatimResults.length;
+    const stillFailed = failedAddresses.length - overpassResults.length;
     if (stillFailed > 0) {
-      logger.warn("Addresses failed both Google and Nominatim", {
+      logger.warn("Addresses failed both Google and OSM/Overpass fallback", {
         count: stillFailed,
       });
     }

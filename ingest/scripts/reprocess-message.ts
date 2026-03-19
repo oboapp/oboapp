@@ -25,53 +25,61 @@ function parseTimestamp(value: unknown): Date | undefined {
 }
 
 async function main(messageId: string, dryRun: boolean) {
-  const { getDb } = await import("@/lib/db");
+  const { getDb, closeDb } = await import("@/lib/db");
   const db = await getDb();
 
-  const msg = await db.messages.findById(messageId);
-  if (!msg) {
-    console.error(`❌ Message "${messageId}" not found`);
-    process.exit(1);
-  }
+  try {
+    const msg = await db.messages.findById(messageId);
+    if (!msg) {
+      console.error(`❌ Message "${messageId}" not found`);
+      process.exitCode = 1;
+      return;
+    }
 
-  const sourceDocumentId = msg.sourceDocumentId as string;
-  if (!sourceDocumentId) {
-    console.error(`❌ Message "${messageId}" has no sourceDocumentId`);
-    process.exit(1);
-  }
+    const sourceDocumentId = msg.sourceDocumentId as string;
+    if (!sourceDocumentId) {
+      console.error(`❌ Message "${messageId}" has no sourceDocumentId`);
+      process.exitCode = 1;
+      return;
+    }
 
-  const snippet = ((msg.text ?? msg.plainText ?? "") as string).slice(0, 100);
-  console.log(`\nFound message: ${messageId}`);
-  console.log(`  Source: ${sourceDocumentId}`);
-  console.log(`  Text:   "${snippet}..."\n`);
+    const snippet = ((msg.text ?? msg.plainText ?? "") as string).slice(0, 100);
+    console.log(`\nFound message: ${messageId}`);
+    console.log(`  Source: ${sourceDocumentId}`);
+    console.log(`  Text:   "${snippet}..."\n`);
 
-  const source = await db.sources.findById(sourceDocumentId);
-  if (!source) {
-    console.error(`❌ Source "${sourceDocumentId}" not found`);
-    process.exit(1);
-  }
+    const source = await db.sources.findById(sourceDocumentId);
+    if (!source) {
+      console.error(`❌ Source "${sourceDocumentId}" not found`);
+      process.exitCode = 1;
+      return;
+    }
 
-  if (!source.locality) {
-    console.error(`❌ Source missing locality field`);
-    process.exit(1);
-  }
+    if (!source.locality) {
+      console.error(`❌ Source missing locality field`);
+      process.exitCode = 1;
+      return;
+    }
 
-  const allMsgsForSource = await db.messages.findBySourceDocumentIds(
-    [sourceDocumentId],
-    ["_id", "sourceDocumentId"],
-  );
-
-  if (dryRun) {
-    console.log(
-      `[dry-run] Would delete ${allMsgsForSource.length} message(s) and re-ingest from "${source.sourceType as string}"`,
+    const allMsgsForSource = await db.messages.findBySourceDocumentIds(
+      [sourceDocumentId],
+      ["_id", "sourceDocumentId"],
     );
-    console.log(
-      `\n⚠️  DRY RUN — no changes made. Re-run with --execute to apply.`,
-    );
-    return;
-  }
 
-  await reingest(db, source, sourceDocumentId, allMsgsForSource);
+    if (dryRun) {
+      console.log(
+        `[dry-run] Would delete ${allMsgsForSource.length} message(s) and re-ingest from "${source.sourceType as string}"`,
+      );
+      console.log(
+        `\n⚠️  DRY RUN — no changes made. Re-run with --execute to apply.`,
+      );
+      return;
+    }
+
+    await reingest(db, source, sourceDocumentId, allMsgsForSource);
+  } finally {
+    await closeDb();
+  }
 }
 
 async function reingest(

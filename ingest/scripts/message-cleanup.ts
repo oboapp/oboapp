@@ -33,10 +33,20 @@ export async function deleteMessagesWithRelations(
 
   for (const msg of messages) {
     const messageId = msg._id as string;
+    if (!messageId) {
+      throw new Error(
+        `Message is missing required _id field: ${JSON.stringify(msg)}`,
+      );
+    }
 
     // 1. Delete eventMessage links
     const links = await db.eventMessages.findByMessageId(messageId);
     for (const link of links) {
+      if (!link._id || !link.eventId) {
+        throw new Error(
+          `eventMessage link is missing required fields (_id or eventId): ${JSON.stringify(link)}`,
+        );
+      }
       affectedEventIds.add(link.eventId as string);
       await db.eventMessages.deleteOne(link._id as string);
       stats.eventMessagesDeleted++;
@@ -47,6 +57,11 @@ export async function deleteMessagesWithRelations(
       where: [{ field: "messageId", op: "==", value: messageId }],
     });
     for (const match of matches) {
+      if (!match._id) {
+        throw new Error(
+          `notificationMatch is missing required _id field: ${JSON.stringify(match)}`,
+        );
+      }
       await db.notificationMatches.deleteOne(match._id as string);
       stats.notificationMatchesDeleted++;
     }

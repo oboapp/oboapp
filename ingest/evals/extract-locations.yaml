@@ -78,6 +78,39 @@ tests:
       - type: javascript
         value: "file://assertions.ts:assertHasLocations"
       - type: javascript
-        value: "file://assertions.ts:assertMinPinCount"
-        config:
-          value: 3
+        value: |
+          (output) => {
+            const data = typeof output === 'string' ? JSON.parse(output) : output;
+            const locations = Array.isArray(data?.locations) ? data.locations : [];
+            const pins = locations.flatMap((loc) =>
+              Array.isArray(loc?.pins) ? loc.pins : []
+            );
+
+            if (pins.length < 3) {
+              throw new Error(`Expected at least 3 pins for housing complex blocks, got ${pins.length}`);
+            }
+
+            const positionalWords = ['до', 'пред'];
+            const normalizedPattern = /^бл\.\s*\d+,\s*ж\.к\. .+/;
+
+            for (const pin of pins) {
+              if (!pin || typeof pin.address !== 'string' || !pin.address.trim()) {
+                throw new Error('Every pin must have a non-empty address string');
+              }
+
+              const addrLower = pin.address.toLowerCase();
+              if (positionalWords.some((w) => addrLower.includes(w))) {
+                throw new Error(
+                  `Unnormalized positional wording found in pin address: "${pin.address}"`
+                );
+              }
+
+              if (!normalizedPattern.test(pin.address)) {
+                throw new Error(
+                  `Pin address is not normalized as "бл. <n>, ж.к. <name>": "${pin.address}"`
+                );
+              }
+            }
+
+            return true;
+          }
