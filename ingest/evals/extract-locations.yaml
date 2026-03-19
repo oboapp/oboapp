@@ -87,7 +87,7 @@ tests:
             const data = typeof output === 'string' ? JSON.parse(output) : output;
             const pins = Array.isArray(data?.pins) ? data.pins : [];
 
-            const positionalWords = ['до', 'пред', 'зад', 'срещу', 'при', 'между'];
+            const positionalPattern = /(?:^|[\s,.])(до|пред|зад|срещу|при|между)(?:[\s,.]|$)/;
             const normalizedPattern = /^бл\.\s*\d+,\s*ж\.к\. .+/;
 
             for (const pin of pins) {
@@ -96,7 +96,7 @@ tests:
               }
 
               const addrLower = pin.address.toLowerCase();
-              if (positionalWords.some((w) => addrLower.includes(w))) {
+              if (positionalPattern.test(addrLower)) {
                 throw new Error(
                   `Unnormalized positional wording found in pin address: "${pin.address}"`
                 );
