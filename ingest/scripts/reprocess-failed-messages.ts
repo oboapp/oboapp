@@ -19,6 +19,10 @@ import { Command } from "commander";
 import dotenv from "dotenv";
 import { resolve } from "node:path";
 import type { OboDb } from "@oboapp/db";
+import {
+  deleteMessagesWithRelations,
+  logCleanupStats,
+} from "./message-cleanup";
 
 type MsgDoc = Record<string, unknown>;
 
@@ -103,11 +107,10 @@ async function processSource(
   );
 
   console.log(
-    `  🗑️  Deleting ${allMsgsForSource.length} message(s) for this source...`,
+    `  🗑️  Deleting ${allMsgsForSource.length} message(s) and related records...`,
   );
-  for (const m of allMsgsForSource) {
-    await db.messages.deleteOne(m._id as string);
-  }
+  const cleanupStats = await deleteMessagesWithRelations(db, allMsgsForSource);
+  logCleanupStats(cleanupStats, "  ");
 
   // Parse precomputed geoJson if present
   let geoJson = null;
@@ -271,7 +274,11 @@ program
     "--execute",
     "Actually apply changes (default is dry-run — safe to run without this flag)",
   )
-  .option("--days <n>", "Number of days back to search for failed messages", "14")
+  .option(
+    "--days <n>",
+    "Number of days back to search for failed messages",
+    "14",
+  )
   .addHelpText(
     "after",
     `

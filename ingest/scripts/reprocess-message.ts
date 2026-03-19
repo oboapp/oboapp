@@ -14,6 +14,10 @@ import { Command } from "commander";
 import dotenv from "dotenv";
 import { resolve } from "node:path";
 import type { OboDb } from "@oboapp/db";
+import {
+  deleteMessagesWithRelations,
+  logCleanupStats,
+} from "./message-cleanup";
 
 function parseTimestamp(value: unknown): Date | undefined {
   if (value instanceof Date) return value;
@@ -77,11 +81,10 @@ async function reingest(
   allMsgsForSource: Record<string, unknown>[],
 ) {
   console.log(
-    `🗑️  Deleting ${allMsgsForSource.length} message(s) for this source...`,
+    `🗑️  Deleting ${allMsgsForSource.length} message(s) and related records...`,
   );
-  for (const m of allMsgsForSource) {
-    await db.messages.deleteOne(m._id as string);
-  }
+  const cleanupStats = await deleteMessagesWithRelations(db, allMsgsForSource);
+  logCleanupStats(cleanupStats, "  ");
 
   let geoJson = null;
   if (source.geoJson) {
