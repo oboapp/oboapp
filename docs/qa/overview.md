@@ -99,5 +99,4 @@ For testing locally without cloud dependencies, see:
 ## Future Plans
 
 - Run E2E tests in CI against a staging environment (implement step definitions for `e2e/*.feature` files)
-- Enforce minimum unit test coverage thresholds via Vitest coverage gates
 - Expand promptfoo eval fixtures to cover more edge cases and regression scenarios
