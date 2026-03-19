@@ -6,21 +6,21 @@ This document outlines the quality assurance strategy across the oboapp monorepo
 
 | Layer | Tool | When |
 |-------|------|------|
-| Static analysis | ESLint + TypeScript | Every commit (pre-commit hook) and CI |
+| Static analysis (lint) | ESLint | Every commit (pre-commit hook) and CI |
 | Circular dependency check | dpdm | Every PR in CI |
-| Unit tests | Vitest | Every commit (pre-commit hook) and CI |
+| Unit tests | Vitest | CI on every PR; run locally before pushing |
 | Integration tests | Vitest (real APIs) | Manual, before merging pipeline changes |
-| Component tests | Testing Library + MSW | Every commit and CI |
+| Component tests | Testing Library + MSW | CI on every PR |
 | LLM prompt evaluation | promptfoo | Manual, before merging prompt changes |
 | E2E specifications | Gherkin (`.feature` files) | Reference — not yet run in CI |
 
 ## Static Analysis
 
-All packages enforce ESLint rules and TypeScript type checking. Pre-commit hooks (Husky + lint-staged) run these automatically before each commit.
+A pre-commit hook (Husky + lint-staged) runs ESLint automatically on staged files in `web/`, `ingest/`, and `shared/` before each commit.
 
 **No `eslint-disable` comments are permitted** — lint errors must be fixed at the source.
 
-Run manually in `web/` or `ingest/`:
+Run lint and TypeScript checks manually before opening a PR:
 
 ```bash
 pnpm lint
@@ -31,19 +31,13 @@ Circular dependency detection uses `dpdm` and runs in CI on every pull request t
 
 ## Unit Tests
 
-Unit tests live alongside source files and use Vitest. ~140 test files are spread across the four packages (`db`, `shared`, `ingest`, `web`).
+Unit tests live alongside source files and use Vitest. Tests are spread across the four packages (`db`, `shared`, `ingest`, `web`).
 
 ```bash
 cd web    && pnpm test:run
 cd ingest && pnpm test:run
 cd db     && pnpm test:run
-cd shared && pnpm test:run
-```
-
-Watch mode during development:
-
-```bash
-pnpm test  # runs Vitest in watch mode
+cd shared && pnpm test
 ```
 
 ## Integration Tests
@@ -69,13 +63,7 @@ Run before merging any changes to prompt files or AI service schemas. See [Promp
 
 ## E2E Specifications
 
-Gherkin feature files in `e2e/` describe expected end-to-end behavior for key API endpoints and UI flows:
-
-- `heatmap-api.feature` — Heatmap API endpoint
-- `history-heatmap.feature` — Historical heatmap data
-- `notification-filters.feature` — Notification filtering UI
-
-These are specification documents. There is no automated runner configured yet — executing E2E tests in CI is a future goal (see [Future Plans](#future-plans)).
+Gherkin feature files in `e2e/` describe expected end-to-end behavior for key API endpoints and UI flows. These are specification documents — there is no automated runner configured yet. Executing E2E tests in CI is a future goal (see [Future Plans](#future-plans)).
 
 ## CI/CD Pipeline
 
@@ -86,7 +74,7 @@ Every pull request triggers the [CI/CD pipeline](../../.github/workflows/ci-cd.y
 3. **Test web** — `pnpm test:run` in `web/`
 4. **Build & Deploy** — (main branch only) Docker build, push to GCP, Terraform apply
 
-A [CI failure agent](../../.github/workflows/ci-failure-agent.yml) creates GitHub issues for failed runs and auto-assigns them to Copilot for investigation.
+A [CI failure agent](../../.github/workflows/ci-failure-agent.yml) creates GitHub issues for failed runs and labels them for Copilot triage (`ci-failure`, `copilot`).
 
 ## Local Development Environment
 

@@ -28,37 +28,24 @@ Requires `GOOGLE_AI_API_KEY` in `ingest/.env.local`.
 
 ## Evaluated Prompts
 
-| Prompt | Eval Config | What It Tests |
-|--------|-------------|---------------|
-| Filter & Split | `evals/filter-split.yaml` | Relevance detection, message splitting, link stripping, unreadable detection |
-| Categorize | `evals/categorize.yaml` | Category classification |
-| Extract Locations | `evals/extract-locations.yaml` | Pins, streets, bus stops, cadastral properties |
-| Verify Event Match | `evals/verify-event-match.yaml` | Same-event vs. different-event judgements |
+Each stage of the AI pipeline has its own eval config in `ingest/evals/`. The evals cover all prompts involved in message processing — relevance detection, categorization, location extraction, and event-match verification.
 
 ## Assertions
 
 Each eval uses two types of assertions:
 
-1. **Schema validation** — Zod schemas from production code verify that the output JSON is structurally correct (e.g. `validateFilterSplitSchema`, `validateExtractLocationsSchema`)
-2. **Behavioral assertions** — Custom functions check expected semantics (e.g. `assertIrrelevant`, `assertMessageCount`, `assertNoLinks`)
+1. **Schema validation** — verifies that the output JSON is structurally correct against the same Zod schemas used in production
+2. **Behavioral assertions** — custom functions check expected semantics (e.g. a message is marked as irrelevant, a specific number of messages are produced, no links appear in the output)
 
-All assertion functions are in `ingest/evals/assertions.ts`.
+Assertions are defined alongside the eval configs in `ingest/evals/`.
 
 ## Red Team Testing
 
-The red team eval (`evals/redteam.yaml`) tests prompt robustness against adversarial inputs:
-
-- Prompt injection attempts
-- Jailbreak inputs
-- Off-topic steering
-
-Prompts pass when they consistently reject adversarial inputs without leaking instructions or producing unstructured output.
+A separate red team eval tests prompt robustness against adversarial inputs such as prompt injection, jailbreak attempts, and off-topic steering. Prompts pass when they consistently reject adversarial inputs without leaking instructions or producing unstructured output.
 
 ## Fixtures
 
-Test inputs are Markdown files in `ingest/__mocks__/fixtures/sources/`. Each file represents a realistic source document fed to the LLM.
-
-Add new fixture files to cover new edge cases or to reproduce regression scenarios.
+Test inputs are Markdown files representing realistic source documents fed to the LLM. They live in `ingest/__mocks__/fixtures/`. Add new fixture files to cover new edge cases or to reproduce regression scenarios.
 
 ## Related
 
