@@ -31,54 +31,77 @@ export async function deleteMessagesWithRelations(
   // This avoids premature deletion when multiple sibling messages share the same event.
   const affectedEventIds = new Set<string>();
 
-  for (const msg of messages) {
+  // Collect and validate all message IDs up front
+  const messageIds = messages.map((msg) => {
     const messageId = msg._id as string;
     if (!messageId) {
       throw new Error(
         `Message is missing required _id field: ${JSON.stringify(msg)}`,
       );
     }
+    return messageId;
+  });
 
-    // 1. Delete eventMessage links
-    const links = await db.eventMessages.findByMessageId(messageId);
-    for (const link of links) {
-      if (!link._id || !link.eventId) {
-        throw new Error(
-          `eventMessage link is missing required fields (_id or eventId): ${JSON.stringify(link)}`,
-        );
-      }
-      affectedEventIds.add(link.eventId as string);
-      await db.eventMessages.deleteOne(link._id as string);
-      stats.eventMessagesDeleted++;
+  // 1. Find and delete all eventMessage links
+  const linksPerMessage = await Promise.all(
+    messageIds.map((id) => db.eventMessages.findByMessageId(id)),
+  );
+  const allLinks = linksPerMessage.flat();
+
+  for (const link of allLinks) {
+    if (!link._id || !link.eventId) {
+      throw new Error(
+        `eventMessage link is missing required fields (_id or eventId): ${JSON.stringify(link)}`,
+      );
     }
-
-    // 2. Delete notificationMatches
-    const matches = await db.notificationMatches.findMany({
-      where: [{ field: "messageId", op: "==", value: messageId }],
-    });
-    for (const match of matches) {
-      if (!match._id) {
-        throw new Error(
-          `notificationMatch is missing required _id field: ${JSON.stringify(match)}`,
-        );
-      }
-      await db.notificationMatches.deleteOne(match._id as string);
-      stats.notificationMatchesDeleted++;
-    }
-
-    // 3. Delete the message itself
-    await db.messages.deleteOne(messageId);
-    stats.messagesDeleted++;
+    affectedEventIds.add(link.eventId as string);
   }
+
+  await Promise.all(
+    allLinks.map((link) => db.eventMessages.deleteOne(link._id as string)),
+  );
+  stats.eventMessagesDeleted = allLinks.length;
+
+  // 2. Find and delete all notificationMatches
+  const matchesPerMessage = await Promise.all(
+    messageIds.map((id) =>
+      db.notificationMatches.findMany({
+        where: [{ field: "messageId", op: "==", value: id }],
+      }),
+    ),
+  );
+  const allMatches = matchesPerMessage.flat();
+
+  for (const match of allMatches) {
+    if (!match._id) {
+      throw new Error(
+        `notificationMatch is missing required _id field: ${JSON.stringify(match)}`,
+      );
+    }
+  }
+
+  await Promise.all(
+    allMatches.map((match) =>
+      db.notificationMatches.deleteOne(match._id as string),
+    ),
+  );
+  stats.notificationMatchesDeleted = allMatches.length;
+
+  // 3. Delete the messages themselves
+  await Promise.all(messageIds.map((id) => db.messages.deleteOne(id)));
+  stats.messagesDeleted = messageIds.length;
 
   // 4. Delete orphaned events (events with zero remaining messages)
-  for (const eventId of affectedEventIds) {
-    const remaining = await db.eventMessages.findByEventId(eventId);
-    if (remaining.length === 0) {
-      await db.events.deleteOne(eventId);
-      stats.orphanedEventsDeleted++;
-    }
-  }
+  const eventIds = Array.from(affectedEventIds);
+  const remainingPerEvent = await Promise.all(
+    eventIds.map((id) => db.eventMessages.findByEventId(id)),
+  );
+
+  const orphanEventIds = eventIds.filter(
+    (_, i) => remainingPerEvent[i].length === 0,
+  );
+  await Promise.all(orphanEventIds.map((id) => db.events.deleteOne(id)));
+  stats.orphanedEventsDeleted = orphanEventIds.length;
 
   return stats;
 }

@@ -78,16 +78,16 @@ tests:
       - type: javascript
         value: "file://assertions.ts:assertHasLocations"
       - type: javascript
+        value: "file://assertions.ts:assertMinPinCount"
+        config:
+          value: 3
+      - type: javascript
         value: |
           (output) => {
             const data = typeof output === 'string' ? JSON.parse(output) : output;
             const pins = Array.isArray(data?.pins) ? data.pins : [];
 
-            if (pins.length < 3) {
-              throw new Error(`Expected at least 3 pins for housing complex blocks, got ${pins.length}`);
-            }
-
-            const positionalWords = ['до', 'пред'];
+            const positionalWords = ['до', 'пред', 'зад', 'срещу', 'при', 'между'];
             const normalizedPattern = /^бл\.\s*\d+,\s*ж\.к\. .+/;
 
             for (const pin of pins) {

@@ -124,10 +124,16 @@ export async function geocodeAddresses(
     const overpassResults = await overpassGeocodeAddresses(failedAddresses);
     geocodedAddresses.push(...overpassResults);
 
-    const stillFailed = failedAddresses.length - overpassResults.length;
-    if (stillFailed > 0) {
+    const overpassResolved = new Set(
+      overpassResults.map((r) => r.originalText),
+    );
+    const stillFailedAddresses = failedAddresses.filter(
+      (a) => !overpassResolved.has(a),
+    );
+    if (stillFailedAddresses.length > 0) {
       logger.warn("Addresses failed both Google and OSM/Overpass fallback", {
-        count: stillFailed,
+        count: stillFailedAddresses.length,
+        addresses: stillFailedAddresses,
       });
     }
   }
