@@ -122,10 +122,28 @@ export async function geocodeAddresses(
       count: failedAddresses.length,
     });
     const overpassResults = await overpassGeocodeAddresses(failedAddresses);
-    geocodedAddresses.push(...overpassResults);
+
+    const locality = getLocality();
+    const boundedOverpassResults = overpassResults.filter((result) => {
+      const within = isWithinBounds(
+        locality,
+        result.coordinates.lat,
+        result.coordinates.lng,
+      );
+      if (!within) {
+        logger.warn("Dropping OSM/Overpass result outside locality bounds", {
+          address: result.originalText,
+          lat: result.coordinates.lat,
+          lng: result.coordinates.lng,
+        });
+      }
+      return within;
+    });
+
+    geocodedAddresses.push(...boundedOverpassResults);
 
     const overpassResolved = new Set(
-      overpassResults.map((r) => r.originalText),
+      boundedOverpassResults.map((r) => r.originalText),
     );
     const stillFailedAddresses = failedAddresses.filter(
       (a) => !overpassResolved.has(a),
