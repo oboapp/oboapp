@@ -96,10 +96,18 @@ async function reingest(
 
   let geoJson = null;
   if (source.geoJson) {
-    geoJson =
-      typeof source.geoJson === "string"
-        ? JSON.parse(source.geoJson)
-        : source.geoJson;
+    if (typeof source.geoJson === "string") {
+      try {
+        geoJson = JSON.parse(source.geoJson);
+      } catch {
+        console.warn(
+          "⚠️  Failed to parse geoJson; continuing without it.",
+          source.geoJson,
+        );
+      }
+    } else {
+      geoJson = source.geoJson;
+    }
   }
 
   const crawledAt =
