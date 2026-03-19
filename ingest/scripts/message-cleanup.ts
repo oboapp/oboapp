@@ -60,9 +60,15 @@ export async function deleteMessagesWithRelations(
   const linkResults = await Promise.allSettled(
     allLinks.map((link) => db.eventMessages.deleteOne(link._id as string)),
   );
-  stats.eventMessagesDeleted = linkResults.filter(
-    (r) => r.status === "fulfilled",
-  ).length;
+  const rejectedLinks = linkResults.filter(
+    (r): r is PromiseRejectedResult => r.status === "rejected",
+  );
+  stats.eventMessagesDeleted = allLinks.length - rejectedLinks.length;
+  if (rejectedLinks.length > 0) {
+    throw new Error(
+      `Failed to delete ${rejectedLinks.length} eventMessage(s): ${rejectedLinks.map((r) => r.reason).join("; ")}`,
+    );
+  }
 
   // 2. Find and delete all notificationMatches
   const matchesPerMessage = await Promise.all(
@@ -87,17 +93,29 @@ export async function deleteMessagesWithRelations(
       db.notificationMatches.deleteOne(match._id as string),
     ),
   );
-  stats.notificationMatchesDeleted = matchResults.filter(
-    (r) => r.status === "fulfilled",
-  ).length;
+  const rejectedMatches = matchResults.filter(
+    (r): r is PromiseRejectedResult => r.status === "rejected",
+  );
+  stats.notificationMatchesDeleted = allMatches.length - rejectedMatches.length;
+  if (rejectedMatches.length > 0) {
+    throw new Error(
+      `Failed to delete ${rejectedMatches.length} notificationMatch(es): ${rejectedMatches.map((r) => r.reason).join("; ")}`,
+    );
+  }
 
   // 3. Delete the messages themselves
   const msgResults = await Promise.allSettled(
     messageIds.map((id) => db.messages.deleteOne(id)),
   );
-  stats.messagesDeleted = msgResults.filter(
-    (r) => r.status === "fulfilled",
-  ).length;
+  const rejectedMsgs = msgResults.filter(
+    (r): r is PromiseRejectedResult => r.status === "rejected",
+  );
+  stats.messagesDeleted = messageIds.length - rejectedMsgs.length;
+  if (rejectedMsgs.length > 0) {
+    throw new Error(
+      `Failed to delete ${rejectedMsgs.length} message(s): ${rejectedMsgs.map((r) => r.reason).join("; ")}`,
+    );
+  }
 
   // 4. Delete orphaned events (events with zero remaining messages)
   const eventIds = Array.from(affectedEventIds);
@@ -111,9 +129,15 @@ export async function deleteMessagesWithRelations(
   const eventResults = await Promise.allSettled(
     orphanEventIds.map((id) => db.events.deleteOne(id)),
   );
-  stats.orphanedEventsDeleted = eventResults.filter(
-    (r) => r.status === "fulfilled",
-  ).length;
+  const rejectedEvents = eventResults.filter(
+    (r): r is PromiseRejectedResult => r.status === "rejected",
+  );
+  stats.orphanedEventsDeleted = orphanEventIds.length - rejectedEvents.length;
+  if (rejectedEvents.length > 0) {
+    throw new Error(
+      `Failed to delete ${rejectedEvents.length} orphaned event(s): ${rejectedEvents.map((r) => r.reason).join("; ")}`,
+    );
+  }
 
   return stats;
 }

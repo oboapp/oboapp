@@ -140,12 +140,7 @@ async function reingest(
     }
   }
 
-  const crawledAt =
-    source.crawledAt instanceof Date
-      ? source.crawledAt
-      : new Date(
-          (source.crawledAt as string | number | undefined) ?? Date.now(),
-        );
+  const crawledAt = parseTimestamp(source.crawledAt) ?? new Date();
 
   const userFacingUrl =
     source.deepLinkUrl === undefined
