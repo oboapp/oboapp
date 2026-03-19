@@ -20,8 +20,38 @@ import {
 } from "./message-cleanup";
 
 function parseTimestamp(value: unknown): Date | undefined {
-  if (value instanceof Date) return value;
-  return value ? new Date(value as string) : undefined;
+  if (value == null) return undefined;
+
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? undefined : value;
+  }
+
+  if (typeof value === "number") {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? undefined : d;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+    const d = new Date(trimmed);
+    return isNaN(d.getTime()) ? undefined : d;
+  }
+
+  // Handle Firestore Timestamp-like objects with a toDate() method
+  const maybeTs = value as { toDate?: () => unknown };
+  if (typeof maybeTs.toDate === "function") {
+    try {
+      const converted = maybeTs.toDate();
+      if (converted instanceof Date && !isNaN(converted.getTime())) {
+        return converted;
+      }
+    } catch {
+      // Fall through
+    }
+  }
+
+  return undefined;
 }
 
 async function main(messageId: string, dryRun: boolean) {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  normalizeAddressForNominatim,
   normalizeStreetName,
   toOverpassRegex,
 } from "./overpass-geocoding-service";
@@ -258,6 +259,42 @@ describe("overpass-geocoding-service", () => {
       const pattern = toOverpassRegex("ген. михаил скобелев");
       // "ген." has 3 letters — must NOT be expanded
       expect(pattern).toBe("ген. михаил скобелев");
+    });
+  });
+
+  describe("normalizeAddressForNominatim", () => {
+    it("strips № symbol", () => {
+      expect(normalizeAddressForNominatim("ул. Оборище №15")).toBe(
+        "ул. Оборище 15",
+      );
+    });
+
+    it("strips № with space after it", () => {
+      expect(normalizeAddressForNominatim("бул. Витоша № 23")).toBe(
+        "бул. Витоша 23",
+      );
+    });
+
+    it("normalizes multiple spaces", () => {
+      expect(normalizeAddressForNominatim("бл. 66,  ж.к.  Дружба")).toBe(
+        "бл. 66, ж.к. Дружба",
+      );
+    });
+
+    it("trims leading/trailing whitespace", () => {
+      expect(normalizeAddressForNominatim("  ул. Шипка 5  ")).toBe(
+        "ул. Шипка 5",
+      );
+    });
+
+    it("returns empty string for whitespace-only input", () => {
+      expect(normalizeAddressForNominatim("   ")).toBe("");
+    });
+
+    it("passes through addresses without special characters", () => {
+      expect(normalizeAddressForNominatim("бл. 12, ж.к. Младост")).toBe(
+        "бл. 12, ж.к. Младост",
+      );
     });
   });
 });

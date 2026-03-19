@@ -392,9 +392,12 @@ export function assertMinPinCount(
   const parsed = parseOutput(output);
   if (!parsed.success) return parsed.result;
 
-  const data = parsed.data as { pins?: unknown[] };
-  const expected = Number(context.config?.value ?? 1);
-  const actual = data.pins?.length ?? 0;
+  const data = parsed.data as { pins?: unknown };
+  let expected = Number(context.config?.value ?? 1);
+  if (Number.isNaN(expected) || expected < 0) {
+    expected = 1;
+  }
+  const actual = Array.isArray(data.pins) ? data.pins.length : 0;
 
   return {
     pass: actual >= expected,

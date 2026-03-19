@@ -734,7 +734,7 @@ export async function getStreetSectionGeometry(
  * - Strips "№" symbol (Nominatim doesn't understand it)
  * - Normalizes whitespace
  */
-function normalizeAddressForNominatim(address: string): string {
+export function normalizeAddressForNominatim(address: string): string {
   return address.replaceAll(/№\s*/g, "").replaceAll(/\s+/g, " ").trim();
 }
 
