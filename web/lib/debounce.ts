@@ -35,5 +35,8 @@ export function debounce<T extends (...args: Parameters<T>) => void>(
     }
   };
 
-  return debouncedFn as DebouncedFunction<T>;
+  const result: DebouncedFunction<T> = Object.assign(debouncedFn, {
+    cancel: debouncedFn.cancel,
+  });
+  return result;
 }

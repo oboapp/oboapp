@@ -43,13 +43,18 @@ export default function NotificationBell() {
     });
 
     // Listen for unread count changes from other parts of the app
-    const handleCountChange = (event: CustomEvent<{ count: number }>) => {
-      setUnreadCount(event.detail.count);
+    const handleCountChange = (event: Event) => {
+      if ("detail" in event && typeof event.detail === "object" && event.detail !== null) {
+        const detail = event.detail;
+        if ("count" in detail && typeof detail.count === "number") {
+          setUnreadCount(detail.count);
+        }
+      }
     };
 
     window.addEventListener(
       "notifications:unread-count-changed",
-      handleCountChange as EventListener,
+      handleCountChange,
     );
 
     // Poll for updates every 60 seconds
@@ -65,7 +70,7 @@ export default function NotificationBell() {
       clearInterval(interval);
       window.removeEventListener(
         "notifications:unread-count-changed",
-        handleCountChange as EventListener,
+        handleCountChange,
       );
     };
   }, [user, getUnreadCount]);

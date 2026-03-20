@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         createError instanceof Error &&
         (createError.message.includes("already exists") ||
           createError.message.includes("ALREADY_EXISTS") ||
-          (createError as { code?: number }).code === 6);
+          ("code" in createError && createError.code === 6));
       if (alreadyExists) {
         return NextResponse.json(
           { error: "You already have an API key. Revoke it first to generate a new one." },

@@ -5,6 +5,14 @@ import { colors } from "@/lib/colors";
 
 type HeatmapPoint = [number, number];
 
+// Augment leaflet module with the heatLayer function from leaflet.heat plugin
+declare module "leaflet" {
+  function heatLayer(
+    points: HeatmapPoint[],
+    options: Record<string, unknown>,
+  ): import("leaflet").Layer;
+}
+
 interface HeatmapResponse {
   points: HeatmapPoint[];
   messageCount: number;
@@ -49,7 +57,8 @@ async function fetchHeatmapData(
   if (!response.ok) {
     throw new Error("Failed to fetch heatmap data");
   }
-  return response.json() as Promise<HeatmapResponse>;
+  const data: HeatmapResponse = await response.json();
+  return data;
 }
 
 export default function HistoryMapClient({
@@ -82,7 +91,7 @@ export default function HistoryMapClient({
 
     async function initMap() {
       try {
-        const L = (await import("leaflet")).default as typeof import("leaflet");
+        const L: typeof import("leaflet") = (await import("leaflet")).default;
         await import("leaflet.heat");
 
         if (cancelled || !mapRef.current || mapInstanceRef.current) return;
@@ -164,14 +173,7 @@ export default function HistoryMapClient({
           leafletRef.current
         ) {
           const L = leafletRef.current;
-          const layer = (
-            L as unknown as {
-              heatLayer: (
-                points: HeatmapPoint[],
-                options: Record<string, unknown>,
-              ) => import("leaflet").Layer;
-            }
-          )
+          const layer = L
             .heatLayer(data.points, {
               radius: 20,
               blur: 25,

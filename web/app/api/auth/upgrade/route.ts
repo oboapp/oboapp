@@ -60,12 +60,23 @@ async function getUpgradeStats(
 
 function getInterestKey(record: Record<string, unknown>): string {
   const coordinates =
-    (record.coordinates as { lat?: number; lng?: number }) || {};
-  const lat = coordinates.lat ?? "";
-  const lng = coordinates.lng ?? "";
-  const radius = (record.radius as number | undefined) ?? "";
-  const label = (record.label as string | undefined) ?? "";
-  const color = (record.color as string | undefined) ?? "";
+    typeof record.coordinates === "object" &&
+    record.coordinates !== null &&
+    "lat" in record.coordinates &&
+    "lng" in record.coordinates
+      ? record.coordinates
+      : { lat: "", lng: "" };
+  const lat =
+    "lat" in coordinates && typeof coordinates.lat === "number"
+      ? coordinates.lat
+      : "";
+  const lng =
+    "lng" in coordinates && typeof coordinates.lng === "number"
+      ? coordinates.lng
+      : "";
+  const radius = typeof record.radius === "number" ? record.radius : "";
+  const label = typeof record.label === "string" ? record.label : "";
+  const color = typeof record.color === "string" ? record.color : "";
   return `${lat}:${lng}:${radius}:${label}:${color}`;
 }
 
@@ -272,10 +283,10 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get("authorization");
     const { userId: accountUserId } = await verifyAuthToken(authHeader);
 
-    const body = (await request.json()) as {
+    const body: {
       guestUserId?: string;
       option?: UpgradeDecisionOption;
-    };
+    } = await request.json();
 
     const guestUserId = body.guestUserId;
     const option = body.option;
@@ -381,7 +392,9 @@ export async function POST(request: NextRequest) {
           accountInterests.map(getInterestKey),
         );
         const accountSubscriptionTokens = new Set(
-          accountSubscriptions.map((doc) => (doc.token as string) ?? ""),
+          accountSubscriptions.map((doc) =>
+            typeof doc.token === "string" ? doc.token : "",
+          ),
         );
 
         for (const guestInterest of guestInterests) {

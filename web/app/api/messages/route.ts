@@ -33,8 +33,8 @@ function sortMessagesByRelevance(messages: Message[]): Message[] {
 }
 
 function isUncategorizedDoc(doc: MessageRecord): boolean {
-  const categories = doc.categories as string[] | undefined;
-  return !categories || (Array.isArray(categories) && categories.length === 0);
+  const categories = Array.isArray(doc.categories) ? doc.categories : undefined;
+  return !categories || categories.length === 0;
 }
 
 function toViewportBounds(params: {
@@ -123,7 +123,7 @@ async function findMessagesBySources(
   const messagesMap = new Map<string, Message>();
 
   for (const doc of results) {
-    const docId = doc._id as string;
+    const docId = String(doc._id ?? "");
     if (!messagesMap.has(docId)) {
       messagesMap.set(docId, recordToMessage(doc));
     }
@@ -153,7 +153,7 @@ function dedupeAndMapMessages(docs: MessageRecord[]): Message[] {
   const messagesMap = new Map<string, Message>();
 
   for (const doc of docs) {
-    const docId = doc._id as string;
+    const docId = String(doc._id ?? "");
     if (!messagesMap.has(docId)) {
       messagesMap.set(docId, recordToMessage(doc));
     }
@@ -171,7 +171,7 @@ function applyOptionalSourceSet(
   }
 
   return docs.filter(
-    (doc) => doc.source && sourceSet.has(doc.source as string),
+    (doc) => typeof doc.source === "string" && sourceSet.has(doc.source),
   );
 }
 
@@ -183,7 +183,7 @@ function isInvalidSourceForFilter(
     return false;
   }
 
-  return !doc.source || !sourceSet.has(doc.source as string);
+  return !doc.source || typeof doc.source !== "string" || !sourceSet.has(doc.source);
 }
 
 async function buildCategoryQueryPlans(
@@ -268,7 +268,7 @@ async function findMessagesByCategoryFilters(
         continue;
       }
 
-      const docId = doc._id as string;
+      const docId = String(doc._id ?? "");
       if (!messagesMap.has(docId)) {
         messagesMap.set(docId, recordToMessage(doc));
       }
@@ -321,17 +321,18 @@ function simplifyMessagesForClusterZoom(
         const centroid = getCentroid(feature.geometry);
         if (!centroid) return feature;
 
-        return {
+        const simplifiedFeature: typeof feature = {
           ...feature,
           geometry: {
-            type: "Point" as const,
-            coordinates: [centroid.lng, centroid.lat] as [number, number],
+            type: "Point",
+            coordinates: [centroid.lng, centroid.lat],
           },
           properties: {
             ...feature.properties,
             _originalGeometryType: feature.geometry.type,
           },
-        } as typeof feature;
+        };
+        return simplifiedFeature;
       }
 
       return feature;

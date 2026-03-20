@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     // Mark each as read, in batches to avoid unbounded concurrency
     const readAt = new Date().toISOString();
     const notificationIds = unreadNotifications.map(
-      (notification) => notification._id as string,
+      (notification) => String(notification._id ?? ""),
     );
 
     const BATCH_SIZE = 100;

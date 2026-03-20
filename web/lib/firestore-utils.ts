@@ -20,20 +20,23 @@ export function convertTimestamp(timestamp: unknown): string {
   if (
     typeof timestamp === "object" &&
     timestamp !== null &&
-    "_seconds" in timestamp
+    "_seconds" in timestamp &&
+    typeof timestamp._seconds === "number"
   ) {
-    const ts = timestamp as { _seconds: number };
-    return new Date(ts._seconds * 1000).toISOString();
+    return new Date(timestamp._seconds * 1000).toISOString();
   }
 
   // Handle objects with toDate method
   if (
     typeof timestamp === "object" &&
     timestamp !== null &&
-    "toDate" in timestamp
+    "toDate" in timestamp &&
+    typeof timestamp.toDate === "function"
   ) {
-    const ts = timestamp as { toDate(): Date };
-    return ts.toDate().toISOString();
+    const dateResult: unknown = timestamp.toDate();
+    if (dateResult instanceof Date) {
+      return dateResult.toISOString();
+    }
   }
 
   // Handle Date objects
@@ -63,19 +66,27 @@ export function convertTimestamp(timestamp: unknown): string {
  * @param context - Optional context for logging (e.g., field name)
  * @returns Parsed value or fallback
  */
-export function safeJsonParse<T>(
+export const safeJsonParse: <T>(
   value: unknown,
   fallback?: T,
   context?: string,
-): T | undefined {
+) => T | undefined = safeJsonParseImpl;
+
+function safeJsonParseImpl(
+  value: unknown,
+  fallback?: unknown,
+  context?: string,
+  // Return type is intentionally untyped — the public generic signature above
+  // provides the type constraint. This avoids needing `as T` assertions.
+): ReturnType<typeof JSON.parse> {
   // Non-string inputs are returned as-is (e.g., Firestore already-deserialized data)
   if (typeof value !== "string") {
-    return value as T;
+    return value;
   }
 
-  // Attempt to parse string
+  // Attempt to parse string — JSON.parse returns `any`
   try {
-    return JSON.parse(value) as T;
+    return JSON.parse(value);
   } catch (error) {
     const contextMsg = context ? ` (${context})` : "";
     console.warn(`Failed to parse JSON${contextMsg}:`, error);

@@ -49,9 +49,10 @@ export default function ZoneList({
       return;
     }
 
-    const currentIndex = items.indexOf(
-      document.activeElement as HTMLButtonElement,
-    );
+    const currentIndex =
+      document.activeElement instanceof HTMLButtonElement
+        ? items.indexOf(document.activeElement)
+        : -1;
 
     if (currentIndex < 0) {
       const fallbackIndex = direction === "next" ? 0 : items.length - 1;

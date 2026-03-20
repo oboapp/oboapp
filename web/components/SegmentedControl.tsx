@@ -53,9 +53,11 @@ export default function SegmentedControl({
       onChange(nextOption.value);
 
       // Move focus to the newly selected radio button
-      const radiogroup = (event.target as HTMLElement).closest(
-        "[role='radiogroup']",
-      );
+      const target = event.target;
+      const radiogroup =
+        target instanceof HTMLElement
+          ? target.closest("[role='radiogroup']")
+          : null;
       const buttons = radiogroup?.querySelectorAll<HTMLButtonElement>(
         "[role='radio']:not([aria-disabled='true'])",
       );

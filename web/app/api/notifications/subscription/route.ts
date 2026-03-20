@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     if (existing) {
       // Update existing subscription
-      const docId = existing._id as string;
+      const docId = String(existing._id ?? "");
       await db.notificationSubscriptions.updateOne(docId, {
         endpoint,
         deviceInfo: deviceInfo || {},
@@ -67,12 +67,16 @@ export async function POST(request: NextRequest) {
 
       const subscription: NotificationSubscription = {
         id: docId,
-        userId: updatedDoc.userId as string,
-        token: updatedDoc.token as string,
-        endpoint: updatedDoc.endpoint as string,
+        userId: typeof updatedDoc.userId === "string" ? updatedDoc.userId : "",
+        token: typeof updatedDoc.token === "string" ? updatedDoc.token : "",
+        endpoint: typeof updatedDoc.endpoint === "string" ? updatedDoc.endpoint : "",
         createdAt: toRequiredISOString(updatedDoc.createdAt, "createdAt"),
         updatedAt: toRequiredISOString(updatedDoc.updatedAt, "updatedAt"),
-        deviceInfo: (updatedDoc.deviceInfo as Record<string, unknown>) || {},
+        deviceInfo:
+          typeof updatedDoc.deviceInfo === "object" &&
+          updatedDoc.deviceInfo !== null
+            ? updatedDoc.deviceInfo
+            : {},
       };
 
       return NextResponse.json(subscription);
@@ -139,7 +143,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete the subscription
-    await db.notificationSubscriptions.deleteOne(existing._id as string);
+    await db.notificationSubscriptions.deleteOne(String(existing._id ?? ""));
 
     return NextResponse.json({ success: true });
   } catch (error) {

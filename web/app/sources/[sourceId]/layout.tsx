@@ -12,7 +12,8 @@ export async function generateMetadata({
   params: Promise<{ sourceId: string }>;
 }): Promise<Metadata> {
   const { sourceId } = await params;
-  const source = (sourcesData as SourceConfig[]).find((s) => s.id === sourceId);
+  const typedSourcesData: SourceConfig[] = sourcesData;
+  const source = typedSourcesData.find((s) => s.id === sourceId);
 
   if (!source) {
     return {

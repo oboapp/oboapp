@@ -47,10 +47,10 @@ export function isPWA(): boolean {
   ).matches;
 
   // Check iOS-specific standalone property
+  const nav = globalThis.window.navigator;
   const iosStandalone =
-    "standalone" in globalThis.window.navigator &&
-    (globalThis.window.navigator as { standalone?: boolean }).standalone ===
-      true;
+    "standalone" in nav &&
+    nav.standalone === true;
 
   return standaloneMatch || iosStandalone;
 }

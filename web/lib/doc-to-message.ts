@@ -1,4 +1,4 @@
-import type { Message } from "@/lib/types";
+import type { Message, GeoJSONFeatureCollection } from "@/lib/types";
 import {
   toOptionalISOString,
   toRequiredISOString,
@@ -10,29 +10,47 @@ import {
  * so this function only needs to map fields and convert Dates to ISO strings.
  */
 
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function isFeatureCollection(
+  value: unknown,
+): value is GeoJSONFeatureCollection {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "type" in value &&
+    value.type === "FeatureCollection" &&
+    "features" in value &&
+    Array.isArray(value.features)
+  );
+}
+
 export function recordToMessage(record: Record<string, unknown>): Message {
   return {
-    id: record._id as string,
-    text: record.text as string,
-    locality: (record.locality as string) ?? "",
-    plainText: record.plainText as string | undefined,
-    addresses: (record.addresses as Message["addresses"]) ?? [],
-    geoJson: record.geoJson as Message["geoJson"],
+    id: String(record._id ?? ""),
+    text: typeof record.text === "string" ? record.text : "",
+    locality: typeof record.locality === "string" ? record.locality : "",
+    plainText: optionalString(record.plainText),
+    addresses: Array.isArray(record.addresses) ? record.addresses : [],
+    geoJson: isFeatureCollection(record.geoJson) ? record.geoJson : undefined,
     crawledAt: toOptionalISOString(record.crawledAt, "crawledAt"),
     createdAt: toRequiredISOString(record.createdAt, "createdAt"),
     finalizedAt: toOptionalISOString(record.finalizedAt, "finalizedAt"),
-    source: record.source as string | undefined,
-    sourceUrl: record.sourceUrl as string | undefined,
-    markdownText: record.markdownText as string | undefined,
+    source: optionalString(record.source),
+    sourceUrl: optionalString(record.sourceUrl),
+    markdownText: optionalString(record.markdownText),
     categories: Array.isArray(record.categories) ? record.categories : [],
     timespanStart: toOptionalISOString(record.timespanStart, "timespanStart"),
     timespanEnd: toOptionalISOString(record.timespanEnd, "timespanEnd"),
-    cityWide: (record.cityWide as boolean) || false,
-    responsibleEntity: record.responsibleEntity as string | undefined,
-    pins: record.pins as Message["pins"],
-    streets: record.streets as Message["streets"],
-    cadastralProperties:
-      record.cadastralProperties as Message["cadastralProperties"],
-    busStops: record.busStops as Message["busStops"],
+    cityWide: record.cityWide === true,
+    responsibleEntity: optionalString(record.responsibleEntity),
+    pins: Array.isArray(record.pins) ? record.pins : undefined,
+    streets: Array.isArray(record.streets) ? record.streets : undefined,
+    cadastralProperties: Array.isArray(record.cadastralProperties)
+      ? record.cadastralProperties
+      : undefined,
+    busStops: Array.isArray(record.busStops) ? record.busStops : undefined,
   };
 }

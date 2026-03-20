@@ -12,12 +12,14 @@ import { extractFeaturesFromMessages, FeatureData } from "@/lib/feature-utils";
 import { createMarkerIcon, createClusterIcon } from "@/lib/marker-config";
 import GeometryRenderer from "./GeometryRenderer";
 
-// Extend google.maps.Marker with custom feature data
-interface ExtendedMarker extends google.maps.Marker {
-  featureData?: FeatureData;
-  featureKey?: string;
-  classification?: "active" | "archived";
+// Metadata associated with each marker, stored in a WeakMap to avoid `as` casts
+interface MarkerMeta {
+  featureData: FeatureData;
+  featureKey: string;
+  classification: "active" | "archived";
 }
+
+const markerMetaMap = new WeakMap<WeakKey, MarkerMeta>();
 
 interface GeoJSONLayerProps {
   readonly messages: Message[];
@@ -85,16 +87,22 @@ export default function GeoJSONLayer({
         map: null, // Will be managed by clusterer
         icon: createMarkerIcon(isHighlighted, classification),
         title:
-          (feature.properties?.["address"] as string | undefined) ||
-          (feature.properties?.["street_name"] as string | undefined) ||
+          (typeof feature.properties?.["address"] === "string"
+            ? feature.properties["address"]
+            : undefined) ||
+          (typeof feature.properties?.["street_name"] === "string"
+            ? feature.properties["street_name"]
+            : undefined) ||
           "Маркер",
         zIndex: classification === "active" ? 10 : 5, // Active markers higher
       });
 
-      // Store feature data in marker
-      (marker as ExtendedMarker).featureData = feature;
-      (marker as ExtendedMarker).featureKey = key;
-      (marker as ExtendedMarker).classification = classification;
+      // Store feature data in marker metadata map
+      markerMetaMap.set(marker, {
+        featureData: feature,
+        featureKey: key,
+        classification,
+      });
 
       // Click handler
       marker.addListener("click", () => {
@@ -173,11 +181,11 @@ export default function GeoJSONLayer({
             // Track which markers are in this cluster
             if (count > 1) {
               clusterMarkers?.forEach((marker) => {
-                const key = (marker as ExtendedMarker).featureKey;
-                if (key) {
+                const meta = markerMetaMap.get(marker);
+                if (meta) {
                   setUnclusteredArchivedFeatures((prev) => {
                     const next = new Set(prev);
-                    next.delete(key);
+                    next.delete(meta.featureKey);
                     return next;
                   });
                 }
@@ -231,11 +239,11 @@ export default function GeoJSONLayer({
             // Track which markers are in this cluster
             if (count > 1) {
               clusterMarkers?.forEach((marker) => {
-                const key = (marker as ExtendedMarker).featureKey;
-                if (key) {
+                const meta = markerMetaMap.get(marker);
+                if (meta) {
                   setUnclusteredActiveFeatures((prev) => {
                     const next = new Set(prev);
-                    next.delete(key);
+                    next.delete(meta.featureKey);
                     return next;
                   });
                 }
@@ -327,9 +335,9 @@ export default function GeoJSONLayer({
   useEffect(() => {
     // Update active markers
     activeMarkersRef.current.forEach((marker, key) => {
-      const extMarker = marker as ExtendedMarker;
-      const isHighlighted = extMarker.featureData?.messageId === hoveredMessageId ||
-                           extMarker.featureData?.messageId === selectedMessageId;
+      const meta = markerMetaMap.get(marker);
+      const isHighlighted = meta?.featureData?.messageId === hoveredMessageId ||
+                           meta?.featureData?.messageId === selectedMessageId;
       // Only update icon if not currently hovered by mouse (hoveredFeature takes precedence)
       if (hoveredFeature !== key) {
         marker.setIcon(createMarkerIcon(isHighlighted, "active"));
@@ -338,9 +346,9 @@ export default function GeoJSONLayer({
 
     // Update archived markers
     archivedMarkersRef.current.forEach((marker, key) => {
-      const extMarker = marker as ExtendedMarker;
-      const isHighlighted = extMarker.featureData?.messageId === hoveredMessageId ||
-                           extMarker.featureData?.messageId === selectedMessageId;
+      const meta = markerMetaMap.get(marker);
+      const isHighlighted = meta?.featureData?.messageId === hoveredMessageId ||
+                           meta?.featureData?.messageId === selectedMessageId;
       // Only update icon if not currently hovered by mouse (hoveredFeature takes precedence)
       if (hoveredFeature !== key) {
         marker.setIcon(createMarkerIcon(isHighlighted, "archived"));

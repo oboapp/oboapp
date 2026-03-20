@@ -1,5 +1,7 @@
 export function toTimestamp(value: unknown): number | null {
-  const timestamp = new Date(value as string | Date).getTime();
+  if (value === null) return 0;
+  if (typeof value !== "string" && !(value instanceof Date)) return null;
+  const timestamp = new Date(value).getTime();
   return Number.isNaN(timestamp) ? null : timestamp;
 }
 
@@ -35,7 +37,8 @@ export function paginateCandidateDocs(
   const shouldIncludeByCursor = (doc: Record<string, unknown>): boolean => {
     if (!cursor) return true;
 
-    const docTime = new Date(doc.finalizedAt as string | Date).getTime();
+    const docTime = toTimestamp(doc.finalizedAt);
+    if (docTime === null) return false;
     const cursorTime = cursor.date.getTime();
 
     if (docTime < cursorTime) return true;

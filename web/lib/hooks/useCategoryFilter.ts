@@ -23,6 +23,12 @@ interface CategoryCount {
   count: number;
 }
 
+const CATEGORY_SET: ReadonlySet<string> = new Set(CATEGORIES);
+
+function isCategory(value: string): value is Category {
+  return CATEGORY_SET.has(value);
+}
+
 export function computeCategoryCounts(
   availableCategories: Set<Category | typeof UNCATEGORIZED>,
   viewportMessages: Message[],
@@ -46,11 +52,8 @@ export function computeCategoryCounts(
       }
     } else {
       for (const category of message.categories) {
-        if (counts.has(category as Category)) {
-          counts.set(
-            category as Category,
-            counts.get(category as Category)! + featureCount,
-          );
+        if (isCategory(category) && counts.has(category)) {
+          counts.set(category, counts.get(category)! + featureCount);
         }
       }
     }

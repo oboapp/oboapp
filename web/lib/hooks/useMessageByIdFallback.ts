@@ -61,7 +61,9 @@ export function useMessageByIdFallback(
       .catch((err) => {
         // On a real error (not an intentional abort), clear the ref so a future
         // navigation to the same messageId can retry.
-        if ((err as Error).name !== "AbortError") {
+        if (err instanceof Error && err.name === "AbortError") {
+          // Intentional abort — do nothing
+        } else {
           fetchedIdRef.current = null;
         }
       });

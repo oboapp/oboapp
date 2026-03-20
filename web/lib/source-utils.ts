@@ -13,9 +13,10 @@ export interface Source {
  * @returns Array of sources that serve this locality
  */
 export function getSourcesForLocality(locality: string): Source[] {
-  return sources.filter((source) =>
+  const filtered: Source[] = sources.filter((source) =>
     source.localities.includes(locality),
-  ) as Source[];
+  );
+  return filtered;
 }
 
 /**

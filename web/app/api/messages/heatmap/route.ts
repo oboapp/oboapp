@@ -3,6 +3,15 @@ import { getDb } from "@/lib/db";
 import { getCentroid } from "@/lib/geometry-utils";
 import type { GeoJSONFeatureCollection, GeoJSONGeometry } from "@/lib/types";
 
+function isGeoJsonFeatureCollection(
+  value: unknown,
+): value is GeoJSONFeatureCollection {
+  if (typeof value !== "object" || value === null || !("features" in value)) {
+    return false;
+  }
+  return Array.isArray(value.features);
+}
+
 type HeatmapPoint = [number, number];
 
 /**
@@ -109,12 +118,16 @@ export async function GET(request: Request) {
       // Skip city-wide messages — they have no specific geometry
       if (doc.cityWide) continue;
 
-      const geoJson = doc.geoJson as GeoJSONFeatureCollection | null;
+      const geoJson = isGeoJsonFeatureCollection(doc.geoJson)
+        ? doc.geoJson
+        : null;
       if (!geoJson) continue;
 
       // Apply category filter when requested
       if (filterCategories) {
-        const docCategories = (doc.categories as string[] | undefined) ?? [];
+        const docCategories: string[] = Array.isArray(doc.categories)
+          ? doc.categories
+          : [];
         const hasNoCategories = docCategories.length === 0;
         const matchesUncategorized = includeUncategorized && hasNoCategories;
         const matchesCategory =
@@ -127,7 +140,7 @@ export async function GET(request: Request) {
 
       // Apply source filter when requested
       if (selectedSourcesSet) {
-        const docSource = doc.source as string | undefined;
+        const docSource = typeof doc.source === "string" ? doc.source : undefined;
         if (!docSource || !selectedSourcesSet.has(docSource)) continue;
       }
 

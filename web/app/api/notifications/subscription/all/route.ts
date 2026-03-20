@@ -15,14 +15,16 @@ export async function GET(request: NextRequest) {
 
     const subscriptions: NotificationSubscription[] = docs
       .map((doc) => ({
-        id: doc._id as string,
-        userId: doc.userId as string,
-        token: doc.token as string,
-        endpoint: doc.endpoint as string,
+        id: String(doc._id ?? ""),
+        userId: typeof doc.userId === "string" ? doc.userId : "",
+        token: typeof doc.token === "string" ? doc.token : "",
+        endpoint: typeof doc.endpoint === "string" ? doc.endpoint : "",
         createdAt: toRequiredISOString(doc.createdAt, "createdAt"),
         updatedAt: toRequiredISOString(doc.updatedAt, "updatedAt"),
         deviceInfo:
-          (doc.deviceInfo as NotificationSubscription["deviceInfo"]) || {},
+          typeof doc.deviceInfo === "object" && doc.deviceInfo !== null
+            ? doc.deviceInfo
+            : {},
       }))
       .sort((a, b) => {
         // Sort by createdAt descending (newest first)

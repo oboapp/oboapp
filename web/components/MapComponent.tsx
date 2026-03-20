@@ -194,7 +194,7 @@ export default function MapComponent({
     const baseOptions = {
       ...mapOptions,
       disableDefaultUI: true,
-      gestureHandling: "greedy" as google.maps.MapOptions["gestureHandling"],
+      gestureHandling: "greedy" satisfies google.maps.MapOptions["gestureHandling"],
     } as const;
 
     // Only include center if map hasn't loaded yet (mapInstance is null)

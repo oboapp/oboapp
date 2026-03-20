@@ -15,7 +15,6 @@ import {
   signInAnonymously,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
-  AuthError,
 } from "firebase/auth";
 import { auth } from "./firebase";
 import { trackEvent } from "./analytics";
@@ -31,10 +30,9 @@ import {
  */
 function isUserCancellationError(error: unknown): boolean {
   if (error && typeof error === "object" && "code" in error) {
-    const authError = error as AuthError;
     return (
-      authError.code === "auth/popup-closed-by-user" ||
-      authError.code === "auth/cancelled-popup-request"
+      error.code === "auth/popup-closed-by-user" ||
+      error.code === "auth/cancelled-popup-request"
     );
   }
   return false;

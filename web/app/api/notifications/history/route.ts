@@ -36,31 +36,45 @@ export async function GET(request: NextRequest) {
 
     const historyItems: NotificationHistoryItem[] = itemsToReturn.map((doc) => {
       const notifiedAt = toRequiredISOString(doc.notifiedAt, "notifiedAt");
-      const messageSnapshot =
-        (doc.messageSnapshot as NotificationHistoryItem["messageSnapshot"]) ||
-        undefined;
+      const rawSnapshot = doc.messageSnapshot;
+      const snapshotText =
+        typeof rawSnapshot === "object" &&
+        rawSnapshot !== null &&
+        "text" in rawSnapshot &&
+        typeof rawSnapshot.text === "string"
+          ? rawSnapshot.text
+          : "";
+      const snapshotCreatedAt =
+        typeof rawSnapshot === "object" &&
+        rawSnapshot !== null &&
+        "createdAt" in rawSnapshot
+          ? rawSnapshot.createdAt
+          : undefined;
 
       // Calculate successful devices count
-      const deviceNotifications =
-        (doc.deviceNotifications as DeviceNotification[]) || [];
+      const deviceNotifications: DeviceNotification[] = Array.isArray(
+        doc.deviceNotifications,
+      )
+        ? doc.deviceNotifications
+        : [];
       const successfulDevicesCount = deviceNotifications.filter(
         (d: DeviceNotification) => d.success,
       ).length;
 
       return {
-        id: doc._id as string,
-        messageId: doc.messageId as string,
+        id: String(doc._id ?? ""),
+        messageId: typeof doc.messageId === "string" ? doc.messageId : "",
         messageSnapshot: {
-          text: messageSnapshot?.text ?? "",
+          text: snapshotText,
           createdAt:
             toOptionalISOString(
-              messageSnapshot?.createdAt,
+              snapshotCreatedAt,
               "messageSnapshot.createdAt",
             ) ?? notifiedAt,
         },
         notifiedAt,
-        distance: doc.distance as number,
-        interestId: doc.interestId as string,
+        distance: typeof doc.distance === "number" ? doc.distance : 0,
+        interestId: typeof doc.interestId === "string" ? doc.interestId : "",
         successfulDevicesCount,
         readAt: toOptionalISOString(doc.readAt, "readAt"),
       };

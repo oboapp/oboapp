@@ -21,11 +21,12 @@ export default function SourcePage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const sourceId = params.sourceId as string;
+  const sourceId = typeof params.sourceId === "string" ? params.sourceId : "";
 
   // Find source in sources.json
   const source = useMemo(() => {
-    return (sourcesData as SourceConfig[]).find((s) => s.id === sourceId);
+    const allSources: SourceConfig[] = sourcesData;
+    return allSources.find((s) => s.id === sourceId);
   }, [sourceId]);
 
   // Validate source exists - redirect to 404 if not

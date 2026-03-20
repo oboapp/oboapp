@@ -21,11 +21,11 @@ export async function fetchNotificationHistory(
     throw new Error("Failed to fetch notifications");
   }
 
-  const data = (await response.json()) as {
+  const data: {
     items?: NotificationHistoryItem[];
     hasMore?: boolean;
     nextOffset?: number | null;
-  };
+  } = await response.json();
 
   return {
     items: data.items || [],
@@ -77,7 +77,7 @@ export async function fetchUnreadNotificationCount(
     throw new Error("Failed to fetch unread count");
   }
 
-  const data = (await response.json()) as { count?: number };
+  const data: { count?: number } = await response.json();
   return data.count || 0;
 }
 

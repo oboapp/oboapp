@@ -227,11 +227,11 @@ export default function HomeContent() {
           return;
         }
 
-        const data = (await response.json()) as {
+        const data: {
           requiresDecision?: boolean;
           hasGuestData?: boolean;
           hasAccountData?: boolean;
-        };
+        } = await response.json();
 
         if (canceled) {
           return;
@@ -404,7 +404,10 @@ export default function HomeContent() {
         <SegmentedControl
           options={viewModeOptions}
           value={effectiveViewMode}
-          onChange={(v) => setViewMode(v as ViewMode)}
+          onChange={(v) => {
+            const mode = v === "zones" || v === "events" ? v : "events";
+            setViewMode(mode);
+          }}
         />
         {user && effectiveViewMode === "zones" && (
           <button

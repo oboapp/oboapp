@@ -22,11 +22,16 @@ function applyCoordinatesUpdate(
   updates: Record<string, unknown>,
   coordinates: unknown,
 ): NextResponse | null {
-  if (!coordinates) {
+  if (
+    typeof coordinates !== "object" ||
+    coordinates === null ||
+    !("lat" in coordinates) ||
+    !("lng" in coordinates)
+  ) {
     return null;
   }
 
-  const coords = coordinates as { lat?: unknown; lng?: unknown };
+  const coords = coordinates;
   if (typeof coords.lat !== "number" || typeof coords.lng !== "number") {
     return NextResponse.json({ error: "Invalid coordinates" }, { status: 400 });
   }
@@ -46,7 +51,7 @@ function applyRadiusUpdate(
     return;
   }
 
-  updates.radius = validateRadius(radius as number);
+  updates.radius = validateRadius(typeof radius === "number" ? radius : DEFAULT_RADIUS);
 }
 
 function applyMetadataUpdates(
@@ -69,13 +74,23 @@ function applyMetadataUpdates(
 }
 
 function recordToInterest(record: Record<string, unknown>): Interest {
+  const coords =
+    typeof record.coordinates === "object" &&
+    record.coordinates !== null &&
+    "lat" in record.coordinates &&
+    "lng" in record.coordinates
+      ? record.coordinates
+      : { lat: undefined, lng: undefined };
   return {
-    id: record._id as string,
-    userId: record.userId as string,
-    coordinates: record.coordinates as Interest["coordinates"],
-    radius: record.radius as number,
-    label: record.label as string | undefined,
-    color: record.color as string | undefined,
+    id: String(record._id ?? ""),
+    userId: typeof record.userId === "string" ? record.userId : "",
+    coordinates: {
+      lat: typeof coords.lat === "number" ? coords.lat : 0,
+      lng: typeof coords.lng === "number" ? coords.lng : 0,
+    },
+    radius: typeof record.radius === "number" ? record.radius : DEFAULT_RADIUS,
+    label: typeof record.label === "string" ? record.label : undefined,
+    color: typeof record.color === "string" ? record.color : undefined,
     createdAt: toRequiredISOString(record.createdAt, "createdAt"),
     updatedAt: toRequiredISOString(record.updatedAt, "updatedAt"),
   };
