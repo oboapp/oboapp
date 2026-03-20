@@ -19,7 +19,7 @@ interface MarkerMeta {
   classification: "active" | "archived";
 }
 
-const markerMetaMap = new WeakMap<WeakKey, MarkerMeta>();
+const markerMetaMap = new WeakMap<google.maps.Marker, MarkerMeta>();
 
 interface GeoJSONLayerProps {
   readonly messages: Message[];
