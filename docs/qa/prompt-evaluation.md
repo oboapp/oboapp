@@ -28,7 +28,7 @@ Requires `GOOGLE_AI_API_KEY` and `GOOGLE_AI_MODEL` in `ingest/.env.local`.
 
 ## Evaluated Prompts
 
-Each stage of the AI pipeline has its own eval config in `ingest/evals/`. The evals cover all prompts involved in message processing — relevance detection, categorization, location extraction, and event-match verification.
+Each stage of the AI pipeline has its own eval config in `ingest/__evals__/`. The evals cover all prompts involved in message processing — relevance detection, categorization, location extraction, and event-match verification.
 
 ## Assertions
 
@@ -37,7 +37,7 @@ Each eval uses two types of assertions:
 1. **Schema validation** — verifies that the output JSON is structurally correct against the same Zod schemas used in production
 2. **Behavioral assertions** — custom functions check expected semantics (e.g. a message is marked as irrelevant, a specific number of messages are produced, no links appear in the output)
 
-Assertions are defined alongside the eval configs in `ingest/evals/`.
+Assertions are defined alongside the eval configs in `ingest/__evals__/`.
 
 ## Red Team Testing
 

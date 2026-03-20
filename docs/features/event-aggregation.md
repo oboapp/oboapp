@@ -83,4 +83,4 @@ The migration is idempotent — running it again skips already-linked messages.
 - [database-layer.md](database-layer.md) — DB access patterns for `events` and `eventMessages` collections, and the linking model (`eventMessages` as authoritative source of truth vs `messages.eventId` as denormalized cache)
 - `ingest/lib/event-matching/` — matching implementation
 - `ingest/lib/event-matching/constants.ts` — scoring thresholds and weights
-- `ingest/evals/verify-event-match.yaml` — promptfoo evaluation for the LLM verification prompt
+- `ingest/__evals__/verify-event-match.yaml` — promptfoo evaluation for the LLM verification prompt
