@@ -25,8 +25,8 @@ describe("toTimestamp", () => {
     expect(toTimestamp(undefined)).toBeNull();
   });
 
-  it("treats null as epoch (0) — JS Date coercion behaviour", () => {
-    expect(toTimestamp(null)).toBe(0);
+  it("treats null as missing — same as undefined", () => {
+    expect(toTimestamp(null)).toBeNull();
   });
 });
 

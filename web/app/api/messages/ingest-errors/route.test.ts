@@ -70,7 +70,7 @@ describe("GET /api/messages/ingest-errors - Array Field Validation", () => {
         source: "test-source",
         sourceUrl: "https://example.com",
         categories: [],
-        pins: [{ latitude: 42.7, longitude: 23.3 }], // Valid array
+        pins: [{ address: "ул. Витоша 1", timespans: [{ start: "2026-01-01", end: null }] }], // Valid Pin
       },
       {
         _id: "msg-2",
@@ -116,7 +116,7 @@ describe("GET /api/messages/ingest-errors - Array Field Validation", () => {
     );
 
     // msg-1: Valid array should be preserved
-    expect(msg1?.pins).toEqual([{ latitude: 42.7, longitude: 23.3 }]);
+    expect(msg1?.pins).toEqual([{ address: "ул. Витоша 1", timespans: [{ start: "2026-01-01", end: null }] }]);
 
     // msg-2: String should become undefined
     expect(msg2?.pins).toBeUndefined();
@@ -138,7 +138,7 @@ describe("GET /api/messages/ingest-errors - Array Field Validation", () => {
         source: "test-source",
         sourceUrl: "https://example.com",
         categories: [],
-        streets: [{ name: "Test Street" }], // Valid array
+        streets: [{ street: "ул. Витоша", from: "бул. Патриарх Евтимий", to: "пл. Св. Неделя", timespans: [{ start: "2026-01-01", end: null }] }], // Valid StreetSection
       },
       {
         _id: "msg-2",
@@ -170,7 +170,7 @@ describe("GET /api/messages/ingest-errors - Array Field Validation", () => {
     );
 
     // msg-1: Valid array should be preserved
-    expect(msg1?.streets).toEqual([{ name: "Test Street" }]);
+    expect(msg1?.streets).toEqual([{ street: "ул. Витоша", from: "бул. Патриарх Евтимий", to: "пл. Св. Неделя", timespans: [{ start: "2026-01-01", end: null }] }]);
 
     // msg-2: Object should become undefined
     expect(msg2?.streets).toBeUndefined();
@@ -189,7 +189,7 @@ describe("GET /api/messages/ingest-errors - Array Field Validation", () => {
         source: "test-source",
         sourceUrl: "https://example.com",
         categories: [],
-        cadastralProperties: [{ identifier: "УПИ-123" }], // Valid array
+        cadastralProperties: [{ identifier: "УПИ-123", timespans: [{ start: "2026-01-01", end: "2026-01-02" }] }], // Valid CadastralProperty
       },
       {
         _id: "msg-2",
@@ -221,7 +221,7 @@ describe("GET /api/messages/ingest-errors - Array Field Validation", () => {
     );
 
     // msg-1: Valid array should be preserved
-    expect(msg1?.cadastralProperties).toEqual([{ identifier: "УПИ-123" }]);
+    expect(msg1?.cadastralProperties).toEqual([{ identifier: "УПИ-123", timespans: [{ start: "2026-01-01", end: "2026-01-02" }] }]);
 
     // msg-2: Number should become undefined
     expect(msg2?.cadastralProperties).toBeUndefined();
@@ -240,7 +240,7 @@ describe("GET /api/messages/ingest-errors - Array Field Validation", () => {
         source: "test-source",
         sourceUrl: "https://example.com",
         categories: [],
-        busStops: [{ name: "Stop 1" }], // Valid array
+        busStops: ["Спирка 1"], // Valid string array
       },
       {
         _id: "msg-2",
@@ -272,7 +272,7 @@ describe("GET /api/messages/ingest-errors - Array Field Validation", () => {
     );
 
     // msg-1: Valid array should be preserved
-    expect(msg1?.busStops).toEqual([{ name: "Stop 1" }]);
+    expect(msg1?.busStops).toEqual(["Спирка 1"]);
 
     // msg-2: Undefined should remain undefined
     expect(msg2?.busStops).toBeUndefined();
@@ -324,10 +324,10 @@ describe("GET /api/messages/ingest-errors - Array Field Validation", () => {
         source: "test-source",
         sourceUrl: "https://example.com",
         categories: [],
-        pins: [{ latitude: 42.7, longitude: 23.3 }],
-        streets: [{ name: "Test Street" }],
-        cadastralProperties: [{ identifier: "УПИ-123" }],
-        busStops: [{ name: "Stop 1" }],
+        pins: [{ address: "ул. Витоша 1", timespans: [{ start: "2026-01-01", end: null }] }],
+        streets: [{ street: "ул. Витоша", from: "бул. Патриарх Евтимий", to: "пл. Св. Неделя", timespans: [{ start: "2026-01-01", end: null }] }],
+        cadastralProperties: [{ identifier: "УПИ-123", timespans: [{ start: "2026-01-01", end: "2026-01-02" }] }],
+        busStops: ["Спирка 1"],
       },
     ];
 
@@ -342,13 +342,13 @@ describe("GET /api/messages/ingest-errors - Array Field Validation", () => {
 
     // All location fields should be preserved
     expect(data.messages[0].pins).toEqual([
-      { latitude: 42.7, longitude: 23.3 },
+      { address: "ул. Витоша 1", timespans: [{ start: "2026-01-01", end: null }] },
     ]);
-    expect(data.messages[0].streets).toEqual([{ name: "Test Street" }]);
+    expect(data.messages[0].streets).toEqual([{ street: "ул. Витоша", from: "бул. Патриарх Евтимий", to: "пл. Св. Неделя", timespans: [{ start: "2026-01-01", end: null }] }]);
     expect(data.messages[0].cadastralProperties).toEqual([
-      { identifier: "УПИ-123" },
+      { identifier: "УПИ-123", timespans: [{ start: "2026-01-01", end: "2026-01-02" }] },
     ]);
-    expect(data.messages[0].busStops).toEqual([{ name: "Stop 1" }]);
+    expect(data.messages[0].busStops).toEqual(["Спирка 1"]);
   });
 
   it("should return 400 when cursorFinalizedAt is provided without cursorId", async () => {

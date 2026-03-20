@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { NotificationHistoryItem, DeviceNotification } from "@/lib/types";
+import { NotificationHistoryItem } from "@/lib/types";
 import { verifyAuthToken } from "@/lib/verifyAuthToken";
 import {
   toOptionalISOString,
@@ -51,14 +51,13 @@ export async function GET(request: NextRequest) {
           ? rawSnapshot.createdAt
           : undefined;
 
-      // Calculate successful devices count
-      const deviceNotifications: DeviceNotification[] = Array.isArray(
-        doc.deviceNotifications,
-      )
+      // Calculate successful devices count from raw DB array
+      const rawDeviceNotifications = Array.isArray(doc.deviceNotifications)
         ? doc.deviceNotifications
         : [];
-      const successfulDevicesCount = deviceNotifications.filter(
-        (d: DeviceNotification) => d.success,
+      const successfulDevicesCount = rawDeviceNotifications.filter(
+        (d: unknown) =>
+          typeof d === "object" && d !== null && "success" in d && d.success === true,
       ).length;
 
       return {

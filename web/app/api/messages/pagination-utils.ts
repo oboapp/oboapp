@@ -1,5 +1,5 @@
 export function toTimestamp(value: unknown): number | null {
-  if (value === null) return 0;
+  if (value === null || value === undefined) return null;
   if (typeof value !== "string" && !(value instanceof Date)) return null;
   const timestamp = new Date(value).getTime();
   return Number.isNaN(timestamp) ? null : timestamp;

@@ -58,12 +58,15 @@ export function useMessageByIdFallback(
           setFetchedMessage({ id: messageId, message: data.message });
         }
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         // On a real error (not an intentional abort), clear the ref so a future
         // navigation to the same messageId can retry.
-        if (err instanceof Error && err.name === "AbortError") {
-          // Intentional abort — do nothing
-        } else {
+        const isAbort =
+          typeof err === "object" &&
+          err !== null &&
+          "name" in err &&
+          err.name === "AbortError";
+        if (!isAbort) {
           fetchedIdRef.current = null;
         }
       });

@@ -48,7 +48,7 @@ export async function GET(request: Request) {
         return value.trim().length === 0;
       }
       // Check for empty FeatureCollection (object with no features)
-      if (typeof value === "object") {
+      if (typeof value === "object" && value !== null) {
         const fc = value;
         const features = "features" in fc ? fc.features : undefined;
         if (!Array.isArray(features) || features.length === 0) return true;
