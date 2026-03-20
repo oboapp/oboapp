@@ -113,14 +113,7 @@ function safeRecordToInterest(
   record: Record<string, unknown>,
 ): Interest | null {
   try {
-    const interest = recordToInterest(record);
-    if (!interest) {
-      console.error("[GET /api/interests] Skipping interest with invalid coordinates:", {
-        interestId: record._id,
-        userId: record.userId,
-      });
-    }
-    return interest;
+    return recordToInterest(record);
   } catch (error) {
     console.error("[GET /api/interests] Skipping malformed interest record:", {
       interestId: record._id,

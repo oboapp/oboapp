@@ -6,9 +6,10 @@
  * corresponding Zod schema from `@oboapp/shared` so that callers
  * receive properly typed arrays.
  *
- * Return types mirror the Message/InternalMessage schema:
- * - Required fields (`categories`, `addresses`) return `[]` when invalid
- * - Optional fields (`pins`, `streets`, etc.) return `undefined` when invalid
+ * Return conventions:
+ * - `categories` and `addresses` return `[]` when invalid (normalised for convenience;
+ *    both are optional in the shared MessageSchema)
+ * - Other array fields (`pins`, `streets`, etc.) return `undefined` when invalid
  */
 import {
   AddressSchema,

@@ -25,7 +25,7 @@ function optionalString(value: unknown): string | undefined {
 
 export function recordToMessage(record: Record<string, unknown>): Message {
   return {
-    id: String(record._id ?? ""),
+    id: typeof record._id === "string" ? record._id : undefined,
     text: typeof record.text === "string" ? record.text : "",
     locality: typeof record.locality === "string" ? record.locality : "",
     plainText: optionalString(record.plainText),

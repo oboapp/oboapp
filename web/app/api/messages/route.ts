@@ -123,8 +123,8 @@ async function findMessagesBySources(
   const messagesMap = new Map<string, Message>();
 
   for (const doc of results) {
-    const docId = String(doc._id ?? "");
-    if (!messagesMap.has(docId)) {
+    const docId = typeof doc._id === "string" ? doc._id : "";
+    if (docId && !messagesMap.has(docId)) {
       messagesMap.set(docId, recordToMessage(doc));
     }
   }
@@ -153,8 +153,8 @@ function dedupeAndMapMessages(docs: MessageRecord[]): Message[] {
   const messagesMap = new Map<string, Message>();
 
   for (const doc of docs) {
-    const docId = String(doc._id ?? "");
-    if (!messagesMap.has(docId)) {
+    const docId = typeof doc._id === "string" ? doc._id : "";
+    if (docId && !messagesMap.has(docId)) {
       messagesMap.set(docId, recordToMessage(doc));
     }
   }
@@ -268,8 +268,8 @@ async function findMessagesByCategoryFilters(
         continue;
       }
 
-      const docId = String(doc._id ?? "");
-      if (!messagesMap.has(docId)) {
+      const docId = typeof doc._id === "string" ? doc._id : "";
+      if (docId && !messagesMap.has(docId)) {
         messagesMap.set(docId, recordToMessage(doc));
       }
     }
