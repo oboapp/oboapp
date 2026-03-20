@@ -56,8 +56,11 @@ interface IngestSummary {
 
 function toDate(value: unknown): Date | undefined {
   if (value instanceof Date) return value;
-  if (typeof value === "string") return new Date(value);
-  return value ? new Date(String(value)) : undefined;
+  if (typeof value === "string") {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? undefined : d;
+  }
+  return undefined;
 }
 
 async function fetchSources(

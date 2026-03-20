@@ -44,9 +44,16 @@ export function getStringArray(value: unknown): string[] | undefined {
 }
 
 export function getNumberArray(value: unknown): number[] | undefined {
-  return Array.isArray(value) && value.every((v) => typeof v === "number")
-    ? value
-    : undefined;
+  if (!Array.isArray(value)) return undefined;
+  const result: number[] = [];
+  for (const item of value) {
+    if (typeof item === "number") {
+      result.push(item);
+    } else {
+      return undefined; // Mixed types — not a valid number array
+    }
+  }
+  return result;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

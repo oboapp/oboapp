@@ -22,16 +22,27 @@ export async function getAllInterests(db: OboDb): Promise<Interest[]> {
 
   const docs = await db.interests.findMany();
 
-  const interests: Interest[] = docs.map((data) => ({
-    id: getString(data._id),
-    userId: getString(data.userId),
-    coordinates: getCoordinates(data.coordinates) ?? { lat: 0, lng: 0 },
-    radius: getNumber(data.radius),
-    label: getOptionalString(data.label),
-    color: getOptionalString(data.color),
-    createdAt: toDateOrString(data.createdAt),
-    updatedAt: toDateOrString(data.updatedAt),
-  }));
+  const interests: Interest[] = [];
+  for (const data of docs) {
+    const coords = getCoordinates(data.coordinates);
+    if (!coords) {
+      logger.warn("Interest missing valid coordinates, skipping", {
+        interestId: getString(data._id),
+        userId: getString(data.userId),
+      });
+      continue;
+    }
+    interests.push({
+      id: getString(data._id),
+      userId: getString(data.userId),
+      coordinates: coords,
+      radius: getNumber(data.radius),
+      label: getOptionalString(data.label),
+      color: getOptionalString(data.color),
+      createdAt: toDateOrString(data.createdAt),
+      updatedAt: toDateOrString(data.updatedAt),
+    });
+  }
 
   logger.info("Found user interests", {
     count: interests.length,

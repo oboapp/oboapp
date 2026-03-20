@@ -22,9 +22,10 @@ function loadLocalityGeoJson(locality: string): GeoJSONFeatureCollection {
     const path = resolve(process.cwd(), "localities", `${locality}.geojson`);
     const content = readFileSync(path, "utf-8");
     const parsed: unknown = JSON.parse(content);
-    if (isFeatureCollection(parsed)) {
-      geoJsonCache.set(locality, parsed);
+    if (!isFeatureCollection(parsed)) {
+      throw new Error(`Invalid GeoJSON in locality file: ${path}`);
     }
+    geoJsonCache.set(locality, parsed);
   }
   return geoJsonCache.get(locality)!;
 }
