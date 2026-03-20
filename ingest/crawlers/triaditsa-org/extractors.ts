@@ -2,6 +2,7 @@ import type { Page } from "playwright";
 import type { PostLink } from "./types";
 import { SELECTORS } from "./selectors";
 import { extractPostLinks as extractPostLinksShared } from "../shared/extractors";
+import { isRecord } from "../../lib/record-fields";
 
 function extractDateFromStructuredDataNode(node: unknown): string | undefined {
   if (Array.isArray(node)) {
@@ -15,22 +16,21 @@ function extractDateFromStructuredDataNode(node: unknown): string | undefined {
     return undefined;
   }
 
-  if (!node || typeof node !== "object") {
+  if (!isRecord(node)) {
     return undefined;
   }
 
-  const record = node as Record<string, unknown>;
-  const datePublished = record.datePublished;
+  const datePublished = node.datePublished;
   if (typeof datePublished === "string" && datePublished.trim()) {
     return datePublished.trim();
   }
 
-  const dateModified = record.dateModified;
+  const dateModified = node.dateModified;
   if (typeof dateModified === "string" && dateModified.trim()) {
     return dateModified.trim();
   }
 
-  const graph = record["@graph"];
+  const graph = node["@graph"];
   if (Array.isArray(graph)) {
     for (const graphNode of graph) {
       const found = extractDateFromStructuredDataNode(graphNode);
@@ -138,7 +138,15 @@ export async function extractPostDetails(
     let contentHtml = "";
 
     if (contentEl) {
-      const clone = contentEl.cloneNode(true) as HTMLElement;
+      const clone = contentEl.cloneNode(true);
+      if (!(clone instanceof HTMLElement)) {
+        return {
+          title,
+          contentHtml: "",
+          dateCandidates,
+          structuredDataScripts,
+        };
+      }
       clone
         .querySelectorAll(
           "script, style, nav, .sharedaddy, .share-buttons, .navigation, .post-navigation, .wp-block-buttons, .wp-block-social-links, footer",
