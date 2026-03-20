@@ -73,20 +73,33 @@ function applyMetadataUpdates(
   }
 }
 
-function recordToInterest(record: Record<string, unknown>): Interest {
+function recordToInterest(record: Record<string, unknown>): Interest | null {
   const coords =
     typeof record.coordinates === "object" &&
     record.coordinates !== null &&
     "lat" in record.coordinates &&
     "lng" in record.coordinates
       ? record.coordinates
-      : { lat: undefined, lng: undefined };
+      : null;
+
+  if (
+    !coords ||
+    typeof coords.lat !== "number" ||
+    typeof coords.lng !== "number"
+  ) {
+    console.warn(
+      "[recordToInterest] Skipping interest with missing/invalid coordinates:",
+      { interestId: record._id, userId: record.userId },
+    );
+    return null;
+  }
+
   return {
     id: String(record._id ?? ""),
     userId: typeof record.userId === "string" ? record.userId : "",
     coordinates: {
-      lat: typeof coords.lat === "number" ? coords.lat : 0,
-      lng: typeof coords.lng === "number" ? coords.lng : 0,
+      lat: coords.lat,
+      lng: coords.lng,
     },
     radius: typeof record.radius === "number" ? record.radius : DEFAULT_RADIUS,
     label: typeof record.label === "string" ? record.label : undefined,
@@ -100,7 +113,14 @@ function safeRecordToInterest(
   record: Record<string, unknown>,
 ): Interest | null {
   try {
-    return recordToInterest(record);
+    const interest = recordToInterest(record);
+    if (!interest) {
+      console.error("[GET /api/interests] Skipping interest with invalid coordinates:", {
+        interestId: record._id,
+        userId: record.userId,
+      });
+    }
+    return interest;
   } catch (error) {
     console.error("[GET /api/interests] Skipping malformed interest record:", {
       interestId: record._id,
@@ -363,7 +383,13 @@ export async function PATCH(request: NextRequest) {
     // Fetch updated document
     const updatedDoc = await db.interests.findById(id);
 
-    const updatedInterest: Interest = recordToInterest(updatedDoc!);
+    const updatedInterest = updatedDoc ? recordToInterest(updatedDoc) : null;
+    if (!updatedInterest) {
+      return NextResponse.json(
+        { error: "Failed to read updated interest" },
+        { status: 500 },
+      );
+    }
 
     return NextResponse.json({ interest: updatedInterest });
   } catch (error) {

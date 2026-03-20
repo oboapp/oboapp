@@ -32,7 +32,7 @@ function isFirestoreTimestamp(
   value: unknown,
 ): value is { toDate(): Date } | { _seconds: number } {
   if (!value || typeof value !== "object") return false;
-  return hasToDate(value) || "_seconds" in value;
+  return hasToDate(value) || hasSeconds(value);
 }
 
 function timestampToDate(value: unknown): Date {
