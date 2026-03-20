@@ -143,8 +143,8 @@ export function assertContainsCategory(
   const parsed = parseOutput(output);
   if (!parsed.success) return parsed.result;
 
-  const data = parsed.data as { categories?: string[] };
-  const categories = data.categories ?? [];
+  const data = toRecord(parsed.data);
+  const categories = Array.isArray(data.categories) ? data.categories : [];
   const expectedStr = String(context.config?.value ?? "");
   const expected = expectedStr.split(",").map((s) => s.trim());
 
@@ -170,18 +170,13 @@ export function assertHasLocations(
   const parsed = parseOutput(output);
   if (!parsed.success) return parsed.result;
 
-  const data = parsed.data as {
-    pins?: unknown[];
-    streets?: unknown[];
-    cadastralProperties?: unknown[];
-    busStops?: unknown[];
-  };
+  const data = toRecord(parsed.data);
 
   const totalLocations =
-    (data.pins?.length ?? 0) +
-    (data.streets?.length ?? 0) +
-    (data.cadastralProperties?.length ?? 0) +
-    (data.busStops?.length ?? 0);
+    (Array.isArray(data.pins) ? data.pins.length : 0) +
+    (Array.isArray(data.streets) ? data.streets.length : 0) +
+    (Array.isArray(data.cadastralProperties) ? data.cadastralProperties.length : 0) +
+    (Array.isArray(data.busStops) ? data.busStops.length : 0);
 
   return {
     pass: totalLocations > 0,
@@ -204,9 +199,9 @@ export function assertWithSpecificAddress(
   const parsed = parseOutput(output);
   if (!parsed.success) return parsed.result;
 
-  const data = parsed.data as { withSpecificAddress?: boolean };
+  const data = toRecord(parsed.data);
   const expected = String(context.config?.value) === "true";
-  const actual = data.withSpecificAddress ?? false;
+  const actual = typeof data.withSpecificAddress === "boolean" ? data.withSpecificAddress : false;
 
   return {
     pass: actual === expected,
@@ -244,7 +239,7 @@ export function assertNoLinks(
   }
 
   const violations: string[] = [];
-  for (const item of items as Record<string, unknown>[]) {
+  for (const item of items.filter(isRecord)) {
     for (const field of ["plainText", "markdownText"] as const) {
       const value = item[field];
       if (typeof value !== "string") {
@@ -347,7 +342,7 @@ export function assertIsSameEvent(
   const parsed = parseOutput(output);
   if (!parsed.success) return parsed.result;
 
-  const data = parsed.data as { isSameEvent?: boolean };
+  const data = toRecord(parsed.data);
 
   return {
     pass: data.isSameEvent === true,
@@ -369,7 +364,7 @@ export function assertIsDifferentEvent(
   const parsed = parseOutput(output);
   if (!parsed.success) return parsed.result;
 
-  const data = parsed.data as { isSameEvent?: boolean };
+  const data = toRecord(parsed.data);
 
   return {
     pass: data.isSameEvent === false,
@@ -392,7 +387,7 @@ export function assertMinPinCount(
   const parsed = parseOutput(output);
   if (!parsed.success) return parsed.result;
 
-  const data = parsed.data as { pins?: unknown };
+  const data = toRecord(parsed.data);
   let expected = Number(context.config?.value ?? 1);
   if (Number.isNaN(expected) || expected < 0) {
     expected = 1;
@@ -410,6 +405,14 @@ export function assertMinPinCount(
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
 
 function parseOutput(
   raw: string,

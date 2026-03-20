@@ -49,7 +49,10 @@ export async function saveSourceDocument<T extends BaseSourceDocument>(
     data.categories = normalizeCategoriesInput(data.categories);
   }
 
-  await db.sources.setOne(docId, data as Record<string, unknown>);
+  const record: Record<string, unknown> = Object.fromEntries(
+    Object.entries(data),
+  );
+  await db.sources.setOne(docId, record);
 
   if (options?.logSuccess !== false) {
     logger.info("Saved document", { title: doc.title.substring(0, 50) });

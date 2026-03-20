@@ -19,7 +19,7 @@ async function getIngestedSourceIds(db: OboDb): Promise<Set<string>> {
 
   const ingestedIds = new Set<string>();
   for (const doc of docs) {
-    const sourceDocId = doc.sourceDocumentId as string;
+    const sourceDocId = typeof doc.sourceDocumentId === "string" ? doc.sourceDocumentId : "";
     if (sourceDocId) {
       ingestedIds.add(sourceDocId);
     }
@@ -61,9 +61,13 @@ export async function cleanSources(
   const ingested: SourceDocument[] = [];
 
   for (const data of allSources) {
-    const sourceType = data.sourceType as string;
-    const id = data._id as string;
-    const doc = data as unknown as SourceDocument;
+    const sourceType = typeof data.sourceType === "string" ? data.sourceType : "";
+    const id = typeof data._id === "string" ? data._id : "";
+    const doc: SourceDocument = {
+      sourceType,
+      url: typeof data.url === "string" ? data.url : "",
+      title: typeof data.title === "string" ? data.title : "",
+    };
 
     // Keep sources of the retain type
     if (sourceType === retainSourceType) {

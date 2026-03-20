@@ -59,7 +59,7 @@ Examples:
     );
 
     const output: Record<string, unknown> = { input: text };
-    const step = options.step as string;
+    const step = String(options.step);
 
     // Step 1: Filter & Split
     if (step === "all" || step === "filter") {
@@ -95,8 +95,10 @@ Examples:
           return writeOutput(output, options.json);
         }
 
-        output.categorize = [];
-        output.extractLocations = [];
+        const categorizeResults: unknown[] = [];
+        const extractLocationsResults: unknown[] = [];
+        output.categorize = categorizeResults;
+        output.extractLocations = extractLocationsResults;
 
         for (let i = 0; i < relevantMessages.length; i++) {
           const msg = relevantMessages[i];
@@ -108,7 +110,7 @@ Examples:
             console.log(`Step 2: Categorize (message ${i + 1}/${relevantMessages.length})`);
             console.log("━".repeat(60));
             const catResult = await categorize(messageText);
-            (output.categorize as unknown[]).push(catResult);
+            categorizeResults.push(catResult);
             if (catResult) {
               console.log(`  categories: [${catResult.categories.join(", ")}]\n`);
             } else {
@@ -122,7 +124,7 @@ Examples:
             console.log(`Step 3: Extract Locations (message ${i + 1}/${relevantMessages.length})`);
             console.log("━".repeat(60));
             const locResult = await extractLocations(messageText);
-            (output.extractLocations as unknown[]).push(locResult);
+            extractLocationsResults.push(locResult);
             if (locResult) {
               const pinCount = locResult.pins?.length ?? 0;
               const streetCount = locResult.streets?.length ?? 0;

@@ -26,16 +26,18 @@ export async function extractPostDetails(
 
     if (componentParagraphs.length > 0) {
       // First component-paragraph usually contains the title
-      const firstParagraph = componentParagraphs[0] as HTMLElement;
-      title = firstParagraph.textContent?.trim() || "";
+      const firstParagraph = componentParagraphs[0];
+      if (firstParagraph instanceof HTMLElement) {
+        title = firstParagraph.textContent?.trim() || "";
 
-      // If title is very long, it might include content, try to get just first line/paragraph
-      const firstChild = firstParagraph.querySelector("p, div");
-      if (
-        firstChild?.textContent &&
-        firstChild.textContent.length < title.length
-      ) {
-        title = firstChild.textContent.trim();
+        // If title is very long, it might include content, try to get just first line/paragraph
+        const firstChild = firstParagraph.querySelector("p, div");
+        if (
+          firstChild?.textContent &&
+          firstChild.textContent.length < title.length
+        ) {
+          title = firstChild.textContent.trim();
+        }
       }
     }
 
@@ -55,27 +57,31 @@ export async function extractPostDetails(
       // Create a container for all paragraphs
       const container = document.createElement("div");
       componentParagraphs.forEach((p) => {
-        const clone = p.cloneNode(true) as HTMLElement;
-        // Remove unwanted elements
-        clone
-          .querySelectorAll(
-            "script, style, nav, .navigation, .share-buttons, .social-share"
-          )
-          .forEach((el) => el.remove());
-        container.appendChild(clone);
+        const clone = p.cloneNode(true);
+        if (clone instanceof HTMLElement) {
+          // Remove unwanted elements
+          clone
+            .querySelectorAll(
+              "script, style, nav, .navigation, .share-buttons, .social-share"
+            )
+            .forEach((el) => el.remove());
+          container.appendChild(clone);
+        }
       });
       contentHtml = container.innerHTML;
     } else {
       // Fallback: get main-content
       const mainContent = document.querySelector("#main-content");
       if (mainContent) {
-        const clone = mainContent.cloneNode(true) as HTMLElement;
-        clone
-          .querySelectorAll(
-            "script, style, nav, .navigation, .share-buttons, .social-share, header, footer"
-          )
-          .forEach((el) => el.remove());
-        contentHtml = clone.innerHTML;
+        const clone = mainContent.cloneNode(true);
+        if (clone instanceof HTMLElement) {
+          clone
+            .querySelectorAll(
+              "script, style, nav, .navigation, .share-buttons, .social-share, header, footer"
+            )
+            .forEach((el) => el.remove());
+          contentHtml = clone.innerHTML;
+        }
       }
     }
 

@@ -137,12 +137,14 @@ export function parseExtractLocationsResponse(
   ];
 
   // Use Record<string, unknown> for filtered
-  const filtered: Record<string, unknown> = { ...parsed };
+  const parsedRecord: Record<string, unknown> = Object.fromEntries(
+    Object.entries(parsed),
+  );
+  const filtered: Record<string, unknown> = { ...parsedRecord };
   for (const { key, itemSchema } of arrays) {
-    if (Array.isArray((parsed as Record<string, unknown>)[key])) {
-      filtered[key] = (
-        (parsed as Record<string, unknown>)[key] as unknown[]
-      ).filter((item, idx) => {
+    const arr = parsedRecord[key];
+    if (Array.isArray(arr)) {
+      filtered[key] = arr.filter((item, idx) => {
         const itemResult = itemSchema.safeParse(item);
         if (!itemResult.success) {
           recorder.error(

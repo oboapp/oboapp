@@ -13,6 +13,7 @@ import { Command } from "commander";
 import { resolve } from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
 import dotenv from "dotenv";
+import type { ExtractedLocations } from "./lib/types";
 
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 
@@ -78,8 +79,18 @@ Examples:
       console.log("━".repeat(60));
 
       try {
+        const { ExtractedLocationsSchema } = await import("./lib/extract-locations.schema");
+        const parseResult = ExtractedLocationsSchema.safeParse(extracted);
+        const typedExtracted: ExtractedLocations | null = parseResult.success
+          ? parseResult.data
+          : null;
+        if (!typedExtracted) {
+          console.log("  ⚠️  Could not parse extracted location data — skipping");
+          results.push(null);
+          continue;
+        }
         const geocodingResult = await geocodeAddressesFromExtractedData(
-          extracted as Parameters<typeof geocodeAddressesFromExtractedData>[0],
+          typedExtracted,
         );
 
         console.log(`  Addresses resolved: ${geocodingResult.addresses.length}`);
@@ -94,7 +105,7 @@ Examples:
 
         // Convert to GeoJSON
         const geoJson = await convertMessageGeocodingToGeoJson(
-          extracted as Parameters<typeof convertMessageGeocodingToGeoJson>[0],
+          typedExtracted,
           geocodingResult.preGeocodedMap,
           geocodingResult.cadastralGeometries,
         );

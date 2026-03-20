@@ -40,7 +40,7 @@ export function buildTitle(
     layer.titlePrefix,
     sanitizeText(attributes?.LOCATION),
     sanitizeText(attributes?.ALERTTYPE),
-  ].filter(Boolean) as string[];
+  ].filter((s): s is string => typeof s === "string" && s.length > 0);
 
   if (parts.length === 0 && attributes?.ALERTID) {
     parts.push(`Инцидент ${attributes.ALERTID}`);
@@ -80,8 +80,10 @@ export function buildFeatureProperties(
   ];
 
   const filteredEntries: [string, FeatureProperty][] = rawEntries
-    .filter(([, value]) => value !== null && value !== "")
-    .map(([key, value]) => [key, value as FeatureProperty]);
+    .filter(
+      (entry): entry is [string, FeatureProperty] =>
+        entry[1] !== null && entry[1] !== "",
+    );
 
   return Object.fromEntries(filteredEntries);
 }
@@ -113,11 +115,14 @@ export function buildGeoJsonFeatureCollection(
   const properties = buildFeatureProperties(feature.attributes ?? {}, layer);
 
   if (geometry.rings?.length) {
+    const coordinates: [number, number][][] = geometry.rings.map((ring) =>
+      ring.map((coord): [number, number] => [coord[0], coord[1]]),
+    );
     return createFeatureCollection({
       type: "Feature",
       geometry: {
         type: "Polygon",
-        coordinates: geometry.rings as [number, number][][],
+        coordinates,
       },
       properties,
     });
@@ -126,11 +131,14 @@ export function buildGeoJsonFeatureCollection(
   if (geometry.paths?.length) {
     const firstPath = geometry.paths.find((path) => path.length > 1);
     if (firstPath) {
+      const coordinates: [number, number][] = firstPath.map(
+        (coord): [number, number] => [coord[0], coord[1]],
+      );
       return createFeatureCollection({
         type: "Feature",
         geometry: {
           type: "LineString",
-          coordinates: firstPath as [number, number][],
+          coordinates,
         },
         properties,
       });
@@ -166,13 +174,16 @@ export async function buildSourceDocument(
   }
 
   const url = getFeatureUrl(layer.id, objectId);
+  const attrs: Record<string, unknown> | undefined = feature.attributes
+    ? { ...feature.attributes }
+    : undefined;
   const message = buildPlainTextMessage(
-    feature.attributes as Record<string, unknown>,
+    attrs,
     layer,
     dateFormatter,
   );
   const markdownText = buildMarkdownMessage(
-    feature.attributes as Record<string, unknown>,
+    attrs,
     layer,
     dateFormatter,
   );

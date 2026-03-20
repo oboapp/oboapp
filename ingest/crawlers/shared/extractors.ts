@@ -47,7 +47,8 @@ export async function extractPostLinks(
       const linkEl = container.querySelector(selectors.INDEX.POST_LINK);
       if (!linkEl) return;
 
-      const url = (linkEl as HTMLAnchorElement).href;
+      const url =
+        linkEl instanceof HTMLAnchorElement ? linkEl.href : "";
 
       // Extract title
       const titleEl = container.querySelector(selectors.INDEX.POST_TITLE);
@@ -105,7 +106,8 @@ export async function extractPostDetailsGeneric(
       let contentHtml = "";
       if (contentEl) {
         // Clone the element to avoid modifying the page
-        const clone = contentEl.cloneNode(true) as HTMLElement;
+        const clone = contentEl.cloneNode(true);
+        if (!(clone instanceof HTMLElement)) return { title: "", dateText: "", contentHtml: "" };
 
         // Remove unwanted elements
         const selector = unwantedElements.join(", ");

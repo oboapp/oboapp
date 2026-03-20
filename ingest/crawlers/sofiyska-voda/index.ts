@@ -113,7 +113,8 @@ async function callArcGis(url: string): Promise<ArcGisQueryResponse> {
       );
     }
 
-    return (await response.json()) as ArcGisQueryResponse;
+    const json: ArcGisQueryResponse = await response.json();
+    return json;
   } finally {
     clearTimeout(timeout);
   }

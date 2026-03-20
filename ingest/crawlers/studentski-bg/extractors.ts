@@ -34,7 +34,8 @@ export async function extractPostDetails(page: Page): Promise<{
     let contentHtml = "";
 
     if (contentEl) {
-      const clone = contentEl.cloneNode(true) as HTMLElement;
+      const clone = contentEl.cloneNode(true);
+      if (!(clone instanceof HTMLElement)) return { title: "", dateText: "", contentHtml: "" };
 
       // Remove unwanted elements
       clone

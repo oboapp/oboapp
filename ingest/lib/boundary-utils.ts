@@ -26,7 +26,7 @@ export function loadBoundariesForLocality(
 
   try {
     const content = readFileSync(absolutePath, "utf-8");
-    const geojson = JSON.parse(content) as GeoJSONFeatureCollection;
+    const geojson: GeoJSONFeatureCollection = JSON.parse(content);
 
     // Cache the result
     boundaryCache.set(absolutePath, geojson);
@@ -59,7 +59,7 @@ export function loadBoundaries(
 
   try {
     const content = readFileSync(absolutePath, "utf-8");
-    const geojson = JSON.parse(content) as GeoJSONFeatureCollection;
+    const geojson: GeoJSONFeatureCollection = JSON.parse(content);
 
     // Cache the result
     boundaryCache.set(absolutePath, geojson);

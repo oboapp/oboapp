@@ -181,7 +181,8 @@ async function readFoundObjects(
     return null;
   }
 
-  return data.Data[0] as CadastreSearchResult;
+  const result: CadastreSearchResult = data.Data[0];
+  return result;
 }
 
 /**
@@ -237,7 +238,8 @@ async function getGeometry(
     return null;
   }
 
-  return data[0] as CadastreGeometryResponse;
+  const result: CadastreGeometryResponse = data[0];
+  return result;
 }
 
 /**

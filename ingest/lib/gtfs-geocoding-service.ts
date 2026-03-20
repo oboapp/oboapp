@@ -24,13 +24,22 @@ async function geocodeBusStop(
       return null;
     }
 
-    const coordinates = doc.coordinates as { latitude: number; longitude: number };
+    const coordsObj = typeof doc.coordinates === "object" && doc.coordinates !== null
+      ? doc.coordinates
+      : null;
+    if (!coordsObj) {
+      logger.warn("Bus stop missing coordinates", { stopCode });
+      return null;
+    }
+    const coordRecord = Object.fromEntries(Object.entries(coordsObj));
+    const lat = typeof coordRecord.latitude === "number" ? coordRecord.latitude : 0;
+    const lng = typeof coordRecord.longitude === "number" ? coordRecord.longitude : 0;
 
     return {
-      stopCode: doc.stopCode as string,
-      stopName: doc.stopName as string,
-      lat: coordinates.latitude,
-      lng: coordinates.longitude,
+      stopCode: typeof doc.stopCode === "string" ? doc.stopCode : stopCode,
+      stopName: typeof doc.stopName === "string" ? doc.stopName : "",
+      lat,
+      lng,
     };
   } catch (error) {
     logger.error("Failed to geocode bus stop", { stopCode, error: error instanceof Error ? error.message : String(error) });

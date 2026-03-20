@@ -57,7 +57,7 @@ export function parseIncidents(html: string): ToploIncident[] {
 
       incidents.push({ info, geoJson: validation.geoJson });
     } catch (error) {
-      logger.warn("Failed to parse incident", { error: (error as Error).message });
+      logger.warn("Failed to parse incident", { error: error instanceof Error ? error.message : String(error) });
       continue;
     }
   }

@@ -9,6 +9,34 @@ import type {
 import { getBoundsForLocality } from "@oboapp/shared";
 import { getLocality } from "@/lib/target-locality";
 
+/** Type guard for objects with an optional `coordinates` field. */
+function hasCoordinates(
+  value: object,
+): value is { coordinates: unknown } {
+  return "coordinates" in value;
+}
+
+/** Type guard for objects with a `type` field. */
+function hasType(
+  value: object,
+): value is { type: unknown } {
+  return "type" in value;
+}
+
+/** Type guard for objects with a `properties` field. */
+function hasProperties(
+  value: object,
+): value is { properties: unknown } {
+  return "properties" in value;
+}
+
+/** Type guard for objects with a `features` field. */
+function hasFeatures(
+  value: object,
+): value is { features: unknown } {
+  return "features" in value;
+}
+
 /**
  * Check if coordinates are within target locality bounds
  * Uses current target locality from environment
@@ -114,13 +142,12 @@ function validateAndFixPoint(
   if (
     !geometry ||
     typeof geometry !== "object" ||
-    !("coordinates" in geometry)
+    !hasCoordinates(geometry)
   ) {
     return null;
   }
 
-  const g = geometry as { coordinates?: unknown };
-  const coords = g.coordinates;
+  const coords = geometry.coordinates;
 
   if (!Array.isArray(coords) || coords.length !== 2) {
     return null;
@@ -160,13 +187,12 @@ function validateAndFixLineString(
   if (
     !geometry ||
     typeof geometry !== "object" ||
-    !("coordinates" in geometry)
+    !hasCoordinates(geometry)
   ) {
     return null;
   }
 
-  const g = geometry as { coordinates?: unknown };
-  const coords = g.coordinates;
+  const coords = geometry.coordinates;
 
   if (!Array.isArray(coords) || coords.length < 2) {
     return null;
@@ -243,13 +269,12 @@ function validateAndFixPolygon(
   if (
     !geometry ||
     typeof geometry !== "object" ||
-    !("coordinates" in geometry)
+    !hasCoordinates(geometry)
   ) {
     return null;
   }
 
-  const g = geometry as { coordinates?: unknown };
-  const coords = g.coordinates;
+  const coords = geometry.coordinates;
 
   if (!Array.isArray(coords) || coords.length < 1) {
     return null;
@@ -287,11 +312,11 @@ function validateAndFixGeometry(
   geometry: unknown,
   warnings: string[],
 ): GeoJSONGeometry | null {
-  if (!geometry || typeof geometry !== "object" || !("type" in geometry)) {
+  if (!geometry || typeof geometry !== "object" || !hasType(geometry)) {
     return null;
   }
 
-  const geomType = (geometry as { type: unknown }).type;
+  const geomType = geometry.type;
 
   switch (geomType) {
     case "Point":
@@ -350,10 +375,15 @@ function validateAndFixFeature(
     warnings.push(`${contextPrefix}Feature ${index}: ${w}`);
   });
 
-  const properties =
-    "properties" in feature && typeof feature.properties === "object"
-      ? (feature.properties as Record<string, unknown>)
-      : {};
+  const rawProps =
+    hasProperties(feature) &&
+    typeof feature.properties === "object" &&
+    feature.properties !== null
+      ? feature.properties
+      : null;
+  const properties: Record<string, unknown> = rawProps
+    ? Object.fromEntries(Object.entries(rawProps))
+    : {};
 
   return {
     type: "Feature",
@@ -430,7 +460,15 @@ export function validateAndFixGeoJSON(
   }
 
   // At this point we know data has the right shape
-  const features = (data as { features: unknown[] }).features;
+  if (
+    !data ||
+    typeof data !== "object" ||
+    !hasFeatures(data) ||
+    !Array.isArray(data.features)
+  ) {
+    return { isValid: false, geoJson: null, warnings, errors, fixedCoordinates: false };
+  }
+  const features = data.features;
 
   // Validate and fix each feature
   const fixedFeatures: GeoJSONFeature[] = [];

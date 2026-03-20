@@ -63,7 +63,8 @@ export async function getStreetGeometry(
     startCoords,
     endCoords,
   );
-  return geometry as [number, number][] | null;
+  if (!geometry) return null;
+  return geometry.map((pos): [number, number] => [pos[0], pos[1]]);
 }
 
 /**

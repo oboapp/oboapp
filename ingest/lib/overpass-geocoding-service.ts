@@ -236,7 +236,7 @@ async function getStreetGeometryFromOverpass(
       } catch (error) {
         clearTimeout(timeoutId);
 
-        const err = error as Error;
+        const err = error instanceof Error ? error : new Error(String(error));
 
         // Check if this is a client-side error
         if (!shouldTryFallback(err)) {

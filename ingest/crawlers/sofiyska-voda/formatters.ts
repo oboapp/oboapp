@@ -66,8 +66,12 @@ function buildMessageInternal(
   dateFormatter?: Intl.DateTimeFormat,
 ): string {
   const paragraphs: string[] = [];
-  const location = sanitizeText(attributes?.LOCATION as string | null);
-  const description = sanitizeText(attributes?.DESCRIPTION as string | null);
+  const location = sanitizeText(
+    typeof attributes?.LOCATION === "string" ? attributes.LOCATION : null,
+  );
+  const description = sanitizeText(
+    typeof attributes?.DESCRIPTION === "string" ? attributes.DESCRIPTION : null,
+  );
 
   if (location) {
     paragraphs.push(location);
@@ -78,15 +82,15 @@ function buildMessageInternal(
   }
 
   const startDate = formatDate(
-    ensureDate(attributes?.START_ as number | null),
+    ensureDate(typeof attributes?.START_ === "number" ? attributes.START_ : null),
     dateFormatter,
   );
   const endDate = formatDate(
-    ensureDate(attributes?.ALERTEND as number | null),
+    ensureDate(typeof attributes?.ALERTEND === "number" ? attributes.ALERTEND : null),
     dateFormatter,
   );
   const lastUpdate = formatDate(
-    ensureDate(attributes?.LASTUPDATE as number | null),
+    ensureDate(typeof attributes?.LASTUPDATE === "number" ? attributes.LASTUPDATE : null),
     dateFormatter,
   );
 
@@ -94,16 +98,16 @@ function buildMessageInternal(
   const metadata = [
     fmtLabel("Категория", layer.name),
     attributes?.ACTIVESTATUS
-      ? fmtLabel("Статус", attributes.ACTIVESTATUS as string)
+      ? fmtLabel("Статус", String(attributes.ACTIVESTATUS))
       : null,
     startDate ? fmtLabel("Начало", startDate) : null,
     endDate ? fmtLabel("Край", endDate) : null,
     lastUpdate ? fmtLabel("Последно обновяване", lastUpdate) : null,
     attributes?.SOFIADISTRICT
-      ? fmtLabel("Район на СО (ID)", String(attributes.SOFIADISTRICT as number))
+      ? fmtLabel("Район на СО (ID)", String(attributes.SOFIADISTRICT))
       : null,
     attributes?.CONTACT
-      ? fmtLabel("Контакт", attributes.CONTACT as string)
+      ? fmtLabel("Контакт", String(attributes.CONTACT))
       : null,
   ].filter(Boolean);
 

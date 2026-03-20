@@ -243,10 +243,11 @@ function extractDatesFromFeature(feature: unknown): Date[] {
     return dates;
   }
 
-  const f = feature as { properties?: unknown };
-  const props = f.properties as Record<string, unknown> | null | undefined;
-
-  if (!props) return dates;
+  const rawProps = feature.properties;
+  if (!rawProps || typeof rawProps !== "object") return dates;
+  const props: Record<string, unknown> = Object.fromEntries(
+    Object.entries(rawProps),
+  );
 
   // Try ISO format
   const startISO = tryParseISODate(props["startTimeISO"]);
