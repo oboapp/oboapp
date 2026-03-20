@@ -7,7 +7,7 @@ type HeatmapPoint = [number, number];
 
 // Augment leaflet module with the heatLayer function from leaflet.heat plugin
 declare module "leaflet" {
-  function heatLayer(
+  export function heatLayer(
     points: HeatmapPoint[],
     options: Record<string, unknown>,
   ): import("leaflet").Layer;
@@ -69,9 +69,7 @@ export default function HistoryMapClient({
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import("leaflet").Map | null>(null);
   const heatLayerRef = useRef<import("leaflet").Layer | null>(null);
-  // Store L (leaflet namespace) — cast via unknown because @types/leaflet uses
-  // `export =` and doesn't expose a `.default` member, but at runtime
-  // `(await import("leaflet")).default` is the same object.
+  // Store L (leaflet namespace) for use across effects.
   const leafletRef = useRef<typeof import("leaflet") | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -91,7 +89,12 @@ export default function HistoryMapClient({
 
     async function initMap() {
       try {
-        const L: typeof import("leaflet") = (await import("leaflet")).default;
+        // @types/leaflet uses `export =`, so the dynamic import gives us a
+        // module with a `.default` property at runtime (via the bundler).
+        // Access it through the module object to stay type-safe.
+        const leafletModule = await import("leaflet");
+        const L: typeof import("leaflet") =
+          "default" in leafletModule ? leafletModule.default : leafletModule;
         await import("leaflet.heat");
 
         if (cancelled || !mapRef.current || mapInstanceRef.current) return;

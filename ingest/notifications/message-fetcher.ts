@@ -1,5 +1,6 @@
 import type { OboDb } from "@oboapp/db";
 import type { Category } from "@oboapp/shared";
+import { CATEGORIES } from "@oboapp/shared";
 import { Message } from "@/lib/types";
 import { logger } from "@/lib/logger";
 import {
@@ -8,6 +9,12 @@ import {
   getOptionalBoolean,
   isFeatureCollection,
 } from "@/lib/record-fields";
+
+const categorySet: ReadonlySet<string> = new Set(CATEGORIES);
+
+function isCategory(v: unknown): v is Category {
+  return typeof v === "string" && categorySet.has(v);
+}
 
 function toISOString(value: unknown): string {
   if (value instanceof Date) return value.toISOString();
@@ -38,7 +45,7 @@ export async function getUnprocessedMessages(db: OboDb): Promise<Message[]> {
         cityWide: getOptionalBoolean(data.cityWide),
         source: getOptionalString(data.source),
         categories: Array.isArray(data.categories)
-          ? data.categories.filter((v): v is Category => typeof v === "string")
+          ? data.categories.filter(isCategory)
           : undefined,
       });
     }
