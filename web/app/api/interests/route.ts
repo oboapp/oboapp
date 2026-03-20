@@ -22,18 +22,23 @@ function applyCoordinatesUpdate(
   updates: Record<string, unknown>,
   coordinates: unknown,
 ): NextResponse | null {
+  // No coordinates provided — not an error, just no update
+  if (coordinates === undefined) {
+    return null;
+  }
+
   if (
     typeof coordinates !== "object" ||
     coordinates === null ||
     !("lat" in coordinates) ||
     !("lng" in coordinates)
   ) {
-    return null;
+    return NextResponse.json({ error: "Invalid coordinates: must be an object with lat and lng" }, { status: 400 });
   }
 
   const coords = coordinates;
   if (typeof coords.lat !== "number" || typeof coords.lng !== "number") {
-    return NextResponse.json({ error: "Invalid coordinates" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid coordinates: lat and lng must be numbers" }, { status: 400 });
   }
 
   updates.coordinates = {

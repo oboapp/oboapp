@@ -15,11 +15,11 @@ import {
 } from "./constants";
 import {
   getNumber,
-  getOptionalString,
   getOptionalBoolean,
   getStringArray,
   getNumberArray,
   isFeatureCollection,
+  getStringOrDateOrNull,
 } from "@/lib/record-fields";
 
 export interface PreGeocodeMatchResult {
@@ -75,8 +75,8 @@ export async function preGeocodeMatch(
       },
       {
         geoJson: isFeatureCollection(candidate.geoJson) ? candidate.geoJson : null,
-        timespanStart: getOptionalString(candidate.timespanStart) ?? null,
-        timespanEnd: getOptionalString(candidate.timespanEnd) ?? null,
+        timespanStart: getStringOrDateOrNull(candidate.timespanStart),
+        timespanEnd: getStringOrDateOrNull(candidate.timespanEnd),
         categories: getStringArray(candidate.categories),
         cityWide: getOptionalBoolean(candidate.cityWide),
       },

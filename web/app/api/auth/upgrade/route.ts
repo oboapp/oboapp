@@ -89,13 +89,26 @@ function getRecordId(record: DbRecord): string | null {
   return typeof id === "string" && id.length > 0 ? id : null;
 }
 
-function buildInterestPayload(record: DbRecord, userId: string): DbRecord {
+function buildInterestPayload(record: DbRecord, userId: string): DbRecord | null {
+  const coords = record.coordinates;
+  if (
+    typeof coords !== "object" ||
+    coords === null ||
+    !("lat" in coords) ||
+    !("lng" in coords) ||
+    typeof coords.lat !== "number" ||
+    typeof coords.lng !== "number"
+  ) {
+    console.warn("Skipping interest with invalid coordinates during upgrade:", record._id);
+    return null;
+  }
+
   return {
     userId,
-    coordinates: record.coordinates,
-    radius: record.radius,
-    label: record.label,
-    color: record.color,
+    coordinates: { lat: coords.lat, lng: coords.lng },
+    radius: typeof record.radius === "number" ? record.radius : 500,
+    label: typeof record.label === "string" ? record.label : undefined,
+    color: typeof record.color === "string" ? record.color : undefined,
     createdAt: record.createdAt instanceof Date ? record.createdAt : new Date(),
     updatedAt: record.updatedAt instanceof Date ? record.updatedAt : new Date(),
   };
@@ -173,10 +186,14 @@ async function restoreUserState(
 
   for (const interestRecord of interestRecords) {
     const id = getRecordId(interestRecord);
+    const payload = buildInterestPayload(interestRecord, userId);
+    if (!payload) {
+      continue;
+    }
     operations.push(
       createSetOperation(
         INTERESTS_COLLECTION,
-        buildInterestPayload(interestRecord, userId),
+        payload,
         id ?? undefined,
       ),
     );
@@ -363,9 +380,13 @@ export async function POST(request: NextRequest) {
         }
 
         for (const guestInterest of guestInterests) {
+          const payload = buildInterestPayload(guestInterest, accountUserId);
+          if (!payload) {
+            continue;
+          }
           operations.push(
             createSetOperation(INTERESTS_COLLECTION, {
-              ...buildInterestPayload(guestInterest, accountUserId),
+              ...payload,
               updatedAt: new Date(),
             }),
           );
@@ -403,9 +424,14 @@ export async function POST(request: NextRequest) {
             continue;
           }
 
+          const payload = buildInterestPayload(guestInterest, accountUserId);
+          if (!payload) {
+            continue;
+          }
+
           operations.push(
             createSetOperation(INTERESTS_COLLECTION, {
-              ...buildInterestPayload(guestInterest, accountUserId),
+              ...payload,
               updatedAt: new Date(),
             }),
           );

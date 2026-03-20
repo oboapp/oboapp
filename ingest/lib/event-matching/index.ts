@@ -14,6 +14,7 @@ import {
   getArray,
   isFeatureCollection,
   getStreetArray,
+  getStringOrDateOrNull,
 } from "@/lib/record-fields";
 
 export { computeMatchScore, type MatchSignals } from "./score";
@@ -50,8 +51,8 @@ export async function processEventMatching(
 
   const matchInput = {
     geoJson,
-    timespanStart: getOptionalString(message.timespanStart) ?? null,
-    timespanEnd: getOptionalString(message.timespanEnd) ?? null,
+    timespanStart: getStringOrDateOrNull(message.timespanStart),
+    timespanEnd: getStringOrDateOrNull(message.timespanEnd),
     categories: getStringArray(message.categories),
     cityWide: getOptionalBoolean(message.cityWide),
     locality: getString(message.locality) || getLocality(),
@@ -71,8 +72,8 @@ export async function processEventMatching(
       {
         _id: messageId,
         geoJson: isFeatureCollection(message.geoJson) ? message.geoJson : null,
-        timespanStart: getOptionalString(message.timespanStart) ?? null,
-        timespanEnd: getOptionalString(message.timespanEnd) ?? null,
+        timespanStart: getStringOrDateOrNull(message.timespanStart),
+        timespanEnd: getStringOrDateOrNull(message.timespanEnd),
         source: getOptionalString(message.source),
         categories: getStringArray(message.categories),
         embedding: getNumberArray(message.embedding),
@@ -105,8 +106,8 @@ export async function processEventMatching(
     text: getOptionalString(message.text),
     markdownText: getOptionalString(message.markdownText),
     geoJson: isFeatureCollection(message.geoJson) ? message.geoJson : null,
-    timespanStart: getOptionalString(message.timespanStart) ?? null,
-    timespanEnd: getOptionalString(message.timespanEnd) ?? null,
+    timespanStart: getStringOrDateOrNull(message.timespanStart),
+    timespanEnd: getStringOrDateOrNull(message.timespanEnd),
     categories: getStringArray(message.categories),
     source: getOptionalString(message.source),
     locality: getString(message.locality) || getLocality(),

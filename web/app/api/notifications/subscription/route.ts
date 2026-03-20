@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const { userId } = await verifyAuthToken(authHeader);
 
     const body = await request.json();
-    const { token, endpoint, deviceInfo } = body;
+    const { token, endpoint, deviceInfo: rawDeviceInfo } = body;
 
     if (!token || !endpoint) {
       return NextResponse.json(
@@ -39,6 +39,11 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    const deviceInfo =
+      typeof rawDeviceInfo === "object" && rawDeviceInfo !== null && !Array.isArray(rawDeviceInfo)
+        ? rawDeviceInfo
+        : {};
 
     const db = await getDb();
     const now = new Date();

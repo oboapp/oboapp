@@ -46,6 +46,7 @@ const eslintConfig = [
       "**/__tests__/**",
       "**/__mocks__/**",
       "**/scripts/**",
+      "**/tmp/**",
     ],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",

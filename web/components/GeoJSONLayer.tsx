@@ -19,7 +19,7 @@ interface MarkerMeta {
   classification: "active" | "archived";
 }
 
-const markerMetaMap = new WeakMap<google.maps.Marker, MarkerMeta>();
+const markerMetaMap = new WeakMap<object, MarkerMeta>();
 
 interface GeoJSONLayerProps {
   readonly messages: Message[];
@@ -256,18 +256,7 @@ export default function GeoJSONLayer({
               position,
               icon,
               label,
-              zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count, // Higher base z-index
-            });
-
-            // Add click handler for analytics and zoom
-            clusterMarker.addListener("click", () => {
-              trackEvent({
-                name: "map_cluster_clicked",
-                params: {
-                  classification: "active",
-                },
-              });
-              map.setZoom((map.getZoom() || 0) + 1);
+              zIndex: google.maps.Marker.MAX_ZINDEX + count, // Higher base z-index
             });
 
             // Add click handler for analytics and zoom
