@@ -14,6 +14,7 @@ import { Command } from "commander";
 import { resolve } from "node:path";
 import dotenv from "dotenv";
 import { verifyDbEnv } from "@/lib/verify-env";
+import { getString, getStringArray, getRecord } from "@/lib/record-fields";
 
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 
@@ -72,7 +73,7 @@ async function showOverview(
   console.log(`\n📊 Found ${events.length} event(s)\n`);
 
   for (const event of events) {
-    const eventId = event._id as string;
+    const eventId = getString(event._id);
     const eventMessages = await db.eventMessages.findByEventId(eventId);
 
     // If filtering by source, skip events that don't have messages from that source
@@ -83,7 +84,7 @@ async function showOverview(
         },
       );
       // Also check event sources array
-      const eventSources = (event.sources as string[]) ?? [];
+      const eventSources = getStringArray(event.sources) ?? [];
       if (!hasSource && !eventSources.includes(sourceName)) continue;
     }
 
@@ -110,7 +111,7 @@ async function showOverview(
   }> = [];
 
   for (const message of finalizedWithGeometry) {
-    const messageId = message._id as string;
+    const messageId = getString(message._id);
     const links = await db.eventMessages.findByMessageId(messageId);
     const linkedEventIds = links
       .map((link) => link.eventId)
@@ -169,12 +170,13 @@ async function inspectEvent(
 
   // Show each linked message
   for (const em of eventMessages) {
-    const messageId = em.messageId as string;
+    const messageId = getString(em.messageId);
     const message = await db.messages.findById(messageId);
     if (message) {
       console.log(`  📝 Message: ${messageId}`);
       console.log(`     source: ${message.source}`);
-      console.log(`     text: ${(message.plainText as string || message.text as string || "").substring(0, 120)}`);
+      const messageText = getString(message.plainText) || getString(message.text);
+      console.log(`     text: ${messageText.substring(0, 120)}`);
       console.log(`     categories: ${JSON.stringify(message.categories)}`);
       console.log(`     hasGeoJson: ${Boolean(message.geoJson)}`);
       console.log(`     hasEmbedding: ${Boolean(message.embedding)}`);
@@ -192,7 +194,7 @@ function printEventSummary(
   eventMessages: Record<string, unknown>[],
   verbose?: boolean,
 ): void {
-  const eventId = event._id as string;
+  const eventId = getString(event._id);
 
   console.log("━".repeat(60));
   console.log(`🔗 Event: ${eventId}`);
@@ -203,7 +205,7 @@ function printEventSummary(
   console.log(`   cityWide: ${event.cityWide ?? false}`);
   console.log(`   geometryQuality: ${event.geometryQuality ?? 0}`);
   console.log(`   timespan: ${event.timespanStart} → ${event.timespanEnd}`);
-  console.log(`   text: ${(event.plainText as string || "").substring(0, 120)}`);
+  console.log(`   text: ${getString(event.plainText).substring(0, 120)}`);
 
   if (verbose) {
     console.log(`   full document:`, JSON.stringify(event, null, 2));
@@ -212,11 +214,12 @@ function printEventSummary(
   if (eventMessages.length > 0) {
     console.log(`   ── linked messages ──`);
     for (const em of eventMessages) {
-      const signals = em.matchSignals as Record<string, number> | undefined;
+      const signals = getRecord(em.matchSignals);
+      const fmtSig = (v: unknown): string => typeof v === "number" ? v.toFixed(2) : "?";
       console.log(
         `   ${em.messageId} (source: ${em.source}, confidence: ${em.confidence}${
           signals
-            ? `, loc: ${signals.locationSimilarity?.toFixed(2)}, time: ${signals.timeOverlap?.toFixed(2)}, text: ${signals.textSimilarity?.toFixed(2)}, cat: ${signals.categoryMatch?.toFixed(2)}`
+            ? `, loc: ${fmtSig(signals.locationSimilarity)}, time: ${fmtSig(signals.timeOverlap)}, text: ${fmtSig(signals.textSimilarity)}, cat: ${fmtSig(signals.categoryMatch)}`
             : ""
         })`,
       );

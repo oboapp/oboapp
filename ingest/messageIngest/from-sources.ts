@@ -7,6 +7,13 @@ import type { OboDb } from "@oboapp/db";
 import { GeoJSONFeatureCollection } from "@/lib/types";
 import { isWithinBoundaries, loadBoundaries } from "@/lib/boundary-utils";
 import { logger } from "@/lib/logger";
+import {
+  getString,
+  getOptionalString,
+  getOptionalBoolean,
+  getStringArray,
+  isFeatureCollection,
+} from "@/lib/record-fields";
 
 interface SourceDocument {
   url: string;
@@ -49,7 +56,8 @@ interface IngestSummary {
 
 function toDate(value: unknown): Date | undefined {
   if (value instanceof Date) return value;
-  return value ? new Date(value as string) : undefined;
+  if (typeof value === "string") return new Date(value);
+  return value ? new Date(String(value)) : undefined;
 }
 
 async function fetchSources(
@@ -74,24 +82,25 @@ async function fetchSources(
   });
 
   const sources: SourceDocument[] = docs.map((data) => ({
-    url: data.url as string,
-    datePublished: data.datePublished as string,
-    title: data.title as string,
-    message: data.message as string,
-    sourceType: data.sourceType as string,
+    url: getString(data.url),
+    datePublished: getString(data.datePublished),
+    title: getString(data.title),
+    message: getString(data.message),
+    sourceType: getString(data.sourceType),
     crawledAt:
       data.crawledAt instanceof Date
         ? data.crawledAt
-        : new Date((data.crawledAt as string) ?? Date.now()),
-    geoJson: data.geoJson as string | GeoJSONFeatureCollection | undefined,
-    markdownText: data.markdownText as string | undefined,
-    categories: data.categories as string[] | undefined,
-    isRelevant: data.isRelevant as boolean | undefined,
+        : new Date(getString(data.crawledAt) || Date.now()),
+    geoJson: isFeatureCollection(data.geoJson) ? data.geoJson
+      : getOptionalString(data.geoJson),
+    markdownText: getOptionalString(data.markdownText),
+    categories: getStringArray(data.categories),
+    isRelevant: getOptionalBoolean(data.isRelevant),
     timespanStart: toDate(data.timespanStart),
     timespanEnd: toDate(data.timespanEnd),
-    cityWide: data.cityWide as boolean | undefined,
-    locality: data.locality as string | undefined,
-    deepLinkUrl: data.deepLinkUrl as string | undefined,
+    cityWide: getOptionalBoolean(data.cityWide),
+    locality: getOptionalString(data.locality),
+    deepLinkUrl: getOptionalString(data.deepLinkUrl),
   }));
 
   const filterInfo = filters.length > 0 ? ` (${filters.join(", ")})` : "";
@@ -119,7 +128,7 @@ async function getAlreadyIngestedSet(
 
   const alreadyIngestedIds = new Set<string>();
   for (const doc of docs) {
-    const sourceDocId = doc.sourceDocumentId as string;
+    const sourceDocId = getOptionalString(doc.sourceDocumentId);
     if (sourceDocId) {
       alreadyIngestedIds.add(sourceDocId);
     }
@@ -158,7 +167,8 @@ async function ingestSource(
   let geoJson: GeoJSONFeatureCollection | null = null;
   if (source.geoJson) {
     if (typeof source.geoJson === "string") {
-      geoJson = JSON.parse(source.geoJson) as GeoJSONFeatureCollection;
+      const parsed: unknown = JSON.parse(source.geoJson);
+      geoJson = isFeatureCollection(parsed) ? parsed : null;
     } else {
       geoJson = source.geoJson;
     }
@@ -258,10 +268,10 @@ async function filterByBoundaries(
       continue;
     }
 
-    const geoJson =
-      typeof source.geoJson === "string"
-        ? (JSON.parse(source.geoJson) as GeoJSONFeatureCollection)
-        : source.geoJson;
+    const parsed: unknown = typeof source.geoJson === "string"
+      ? JSON.parse(source.geoJson)
+      : source.geoJson;
+    const geoJson = isFeatureCollection(parsed) ? parsed : null;
 
     // Validate GeoJSON structure
     if (

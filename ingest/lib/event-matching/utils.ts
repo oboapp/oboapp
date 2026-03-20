@@ -9,7 +9,8 @@ export function toMs(value: string | Date): number {
 export function isAlreadyExistsError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
 
-  const code = (error as { code?: unknown }).code;
+  // After `instanceof Error` and `"code" in error`, TS narrows to `Error & Record<"code", unknown>`
+  const code = "code" in error ? error.code : undefined;
   return (
     error.message.includes("ALREADY_EXISTS") ||
     error.message.includes("already exists") ||

@@ -1,6 +1,12 @@
 import type { OboDb } from "@oboapp/db";
 import { Interest } from "@/lib/types";
 import { logger } from "@/lib/logger";
+import {
+  getString,
+  getOptionalString,
+  getNumber,
+  getCoordinates,
+} from "@/lib/record-fields";
 
 function toDateOrString(value: unknown): Date | string {
   if (value instanceof Date) return value;
@@ -17,12 +23,12 @@ export async function getAllInterests(db: OboDb): Promise<Interest[]> {
   const docs = await db.interests.findMany();
 
   const interests: Interest[] = docs.map((data) => ({
-    id: data._id as string,
-    userId: data.userId as string,
-    coordinates: data.coordinates as Interest["coordinates"],
-    radius: data.radius as number,
-    label: (data.label as string | undefined),
-    color: (data.color as string | undefined),
+    id: getString(data._id),
+    userId: getString(data.userId),
+    coordinates: getCoordinates(data.coordinates) ?? { lat: 0, lng: 0 },
+    radius: getNumber(data.radius),
+    label: getOptionalString(data.label),
+    color: getOptionalString(data.color),
     createdAt: toDateOrString(data.createdAt),
     updatedAt: toDateOrString(data.updatedAt),
   }));

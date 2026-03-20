@@ -5,6 +5,8 @@ import { isAlreadyExistsError, toISOString } from "./utils";
 import { logger } from "@/lib/logger";
 import { getLocality } from "@/lib/target-locality";
 
+import { getString, getOptionalString } from "@/lib/record-fields";
+
 /**
  * Create a new event from a message that didn't match any existing event.
  * Also creates the EventMessage link and returns the new event ID.
@@ -33,13 +35,13 @@ export async function createEventFromMessage(
   const existingLinks = await db.eventMessages.findByMessageId(message._id);
   if (existingLinks.length > 0) {
     return {
-      eventId: existingLinks[0].eventId as string,
+      eventId: getString(existingLinks[0].eventId),
       confidence: 1.0,
       action: "attached",
     };
   }
 
-  const source = (message.source as string) || "";
+  const source = typeof message.source === "string" ? message.source : "";
   const hasGeoJson = Boolean(message.geoJson);
   let geometryQuality = 0;
   if (hasGeoJson) {
@@ -91,7 +93,7 @@ export async function createEventFromMessage(
     // Another worker linked this message concurrently. Reuse that link and
     // remove the orphaned event we just created.
     const concurrentLinks = await db.eventMessages.findByMessageId(message._id);
-    const concurrentEventId = concurrentLinks[0]?.eventId as string | undefined;
+    const concurrentEventId = getOptionalString(concurrentLinks[0]?.eventId);
 
     try {
       await db.events.deleteOne(eventId);

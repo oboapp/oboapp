@@ -5,6 +5,16 @@ import { createEventFromMessage } from "./create-event";
 import { attachMessageToEvent } from "./attach-to-event";
 import type { GeoJSONFeatureCollection } from "@/lib/types";
 import { getLocality } from "@/lib/target-locality";
+import {
+  getString,
+  getOptionalString,
+  getOptionalBoolean,
+  getStringArray,
+  getNumberArray,
+  getArray,
+  isFeatureCollection,
+  getStreetArray,
+} from "@/lib/record-fields";
 
 export { computeMatchScore, type MatchSignals } from "./score";
 export { findCandidateEvents } from "./candidates";
@@ -31,36 +41,41 @@ export async function processEventMatching(
   db: OboDb,
   message: Record<string, unknown>,
 ): Promise<EventMatchResult> {
-  const messageId = message._id as string;
+  const messageId = getString(message._id);
+
+  // Extract GeoJSON with structural check
+  const geoJson: GeoJSONFeatureCollection | null = isFeatureCollection(message.geoJson)
+    ? message.geoJson
+    : null;
 
   const matchInput = {
-    geoJson: message.geoJson as GeoJSONFeatureCollection | null,
-    timespanStart: message.timespanStart as string | null,
-    timespanEnd: message.timespanEnd as string | null,
-    categories: message.categories as string[] | undefined,
-    cityWide: message.cityWide as boolean | undefined,
-    locality: (message.locality as string) || getLocality(),
-    embedding: message.embedding as number[] | undefined,
-    text: message.text as string | undefined,
-    plainText: message.plainText as string | undefined,
-    streets: message.streets as Array<{ street: string }> | undefined,
+    geoJson,
+    timespanStart: getOptionalString(message.timespanStart) ?? null,
+    timespanEnd: getOptionalString(message.timespanEnd) ?? null,
+    categories: getStringArray(message.categories),
+    cityWide: getOptionalBoolean(message.cityWide),
+    locality: getString(message.locality) || getLocality(),
+    embedding: getNumberArray(message.embedding),
+    text: getOptionalString(message.text),
+    plainText: getOptionalString(message.plainText),
+    streets: getStreetArray(message.streets),
   };
 
   const { match: bestMatch, candidateCount } = await findBestMatch(db, matchInput);
 
   if (bestMatch) {
-    const eventId = bestMatch.event._id as string;
+    const eventId = getString(bestMatch.event._id);
 
     await attachMessageToEvent(
       db,
       {
         _id: messageId,
-        geoJson: message.geoJson as GeoJSONFeatureCollection | null,
-        timespanStart: message.timespanStart as string | null,
-        timespanEnd: message.timespanEnd as string | null,
-        source: message.source as string | undefined,
-        categories: message.categories as string[] | undefined,
-        embedding: message.embedding as number[] | undefined,
+        geoJson: isFeatureCollection(message.geoJson) ? message.geoJson : null,
+        timespanStart: getOptionalString(message.timespanStart) ?? null,
+        timespanEnd: getOptionalString(message.timespanEnd) ?? null,
+        source: getOptionalString(message.source),
+        categories: getStringArray(message.categories),
+        embedding: getNumberArray(message.embedding),
       },
       bestMatch.event,
       bestMatch.score,
@@ -86,21 +101,21 @@ export async function processEventMatching(
   // No match found — create a new event
   const { eventId, confidence, action } = await createEventFromMessage(db, {
     _id: messageId,
-    plainText: message.plainText as string | undefined,
-    text: message.text as string | undefined,
-    markdownText: message.markdownText as string | undefined,
-    geoJson: message.geoJson as GeoJSONFeatureCollection | null,
-    timespanStart: message.timespanStart as string | null,
-    timespanEnd: message.timespanEnd as string | null,
-    categories: message.categories as string[] | undefined,
-    source: message.source as string | undefined,
-    locality: (message.locality as string) || getLocality(),
-    cityWide: message.cityWide as boolean | undefined,
-    embedding: message.embedding as number[] | undefined,
-    pins: message.pins as unknown[] | undefined,
-    streets: message.streets as unknown[] | undefined,
-    cadastralProperties: message.cadastralProperties as unknown[] | undefined,
-    busStops: message.busStops as string[] | undefined,
+    plainText: getOptionalString(message.plainText),
+    text: getOptionalString(message.text),
+    markdownText: getOptionalString(message.markdownText),
+    geoJson: isFeatureCollection(message.geoJson) ? message.geoJson : null,
+    timespanStart: getOptionalString(message.timespanStart) ?? null,
+    timespanEnd: getOptionalString(message.timespanEnd) ?? null,
+    categories: getStringArray(message.categories),
+    source: getOptionalString(message.source),
+    locality: getString(message.locality) || getLocality(),
+    cityWide: getOptionalBoolean(message.cityWide),
+    embedding: getNumberArray(message.embedding),
+    pins: getArray(message.pins),
+    streets: getArray(message.streets),
+    cadastralProperties: getArray(message.cadastralProperties),
+    busStops: getStringArray(message.busStops),
   });
 
   logger.info("New event created for message", {

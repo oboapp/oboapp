@@ -18,6 +18,13 @@ import { storeIncomingMessage, updateMessage } from "./db";
 import { encodeDocumentId } from "../crawlers/shared/firestore";
 import { logger } from "@/lib/logger";
 import { getLocality } from "@/lib/target-locality";
+import {
+  getString,
+  getOptionalString,
+  getNumber,
+  getNumberArray,
+  getStringOrDateOrNull,
+} from "@/lib/record-fields";
 
 export {
   geocodeAddressesFromExtractedData,
@@ -1155,23 +1162,23 @@ async function tryPreGeocodeMatch(
     if (!storedMessage) return null;
 
     const match = await preGeocodeMatch(db, {
-      timespanStart: (storedMessage.timespanStart as string | Date) ?? null,
-      timespanEnd: (storedMessage.timespanEnd as string | Date) ?? null,
+      timespanStart: getStringOrDateOrNull(storedMessage.timespanStart),
+      timespanEnd: getStringOrDateOrNull(storedMessage.timespanEnd),
       categories,
       cityWide: extractedLocations.cityWide,
       locality: options.locality || getLocality(),
-      embedding: (storedMessage.embedding as number[]) ?? null,
+      embedding: getNumberArray(storedMessage.embedding) ?? null,
     });
 
     if (!match) return null;
 
-    const eventId = match.event._id as string;
+    const eventId = getString(match.event._id);
     const geoJson = match.geometry;
 
     logger.info("Pre-geocode match: reusing event geometry", {
       messageId,
       eventId,
-      geometryQuality: (match.event.geometryQuality as number) ?? 0,
+      geometryQuality: getNumber(match.event.geometryQuality),
       score: match.score,
     });
 
@@ -1191,11 +1198,11 @@ async function tryPreGeocodeMatch(
       {
         _id: messageId,
         geoJson: filteredGeoJson,
-        timespanStart: (storedMessage.timespanStart as string | Date) ?? null,
-        timespanEnd: (storedMessage.timespanEnd as string | Date) ?? null,
-        source: storedMessage.source as string | undefined,
+        timespanStart: getStringOrDateOrNull(storedMessage.timespanStart),
+        timespanEnd: getStringOrDateOrNull(storedMessage.timespanEnd),
+        source: getOptionalString(storedMessage.source),
         categories,
-        embedding: (storedMessage.embedding as number[]) ?? null,
+        embedding: getNumberArray(storedMessage.embedding) ?? null,
       },
       match.event,
       match.score,

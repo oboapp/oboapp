@@ -1,5 +1,11 @@
 import { getDb } from "@/lib/db";
 import type { InternalMessage } from "@/lib/types";
+import {
+  getString,
+  getOptionalString,
+  getOptionalBoolean,
+  isFeatureCollection,
+} from "@/lib/record-fields";
 
 function toISOString(value: unknown): string {
   if (value instanceof Date) return value.toISOString();
@@ -29,30 +35,30 @@ export async function getMessageById(
   }
 
   return {
-    id: data._id as string,
-    text: data.text as string,
-    locality: (data.locality as string) ?? "",
+    id: getString(data._id),
+    text: getString(data.text),
+    locality: getString(data.locality),
     addresses: Array.isArray(data.addresses) ? data.addresses : [],
-    geoJson: data.geoJson as InternalMessage["geoJson"],
+    geoJson: isFeatureCollection(data.geoJson) ? data.geoJson : undefined,
     crawledAt: toOptionalISOString(data.crawledAt),
     createdAt: toISOString(data.createdAt),
     finalizedAt: toOptionalISOString(data.finalizedAt),
-    source: data.source as string,
-    sourceUrl: data.sourceUrl as string | undefined,
-    markdownText: data.markdownText as string | undefined,
+    source: getString(data.source),
+    sourceUrl: getOptionalString(data.sourceUrl),
+    markdownText: getOptionalString(data.markdownText),
     categories: Array.isArray(data.categories) ? data.categories : [],
     timespanStart: toOptionalISOString(data.timespanStart),
     timespanEnd: toOptionalISOString(data.timespanEnd),
-    cityWide: (data.cityWide as boolean) || false,
-    responsibleEntity: data.responsibleEntity as string | undefined,
-    pins: data.pins as InternalMessage["pins"],
-    streets: data.streets as InternalMessage["streets"],
-    cadastralProperties: data.cadastralProperties as InternalMessage["cadastralProperties"],
-    busStops: data.busStops as InternalMessage["busStops"],
+    cityWide: getOptionalBoolean(data.cityWide) || false,
+    responsibleEntity: getOptionalString(data.responsibleEntity),
+    pins: Array.isArray(data.pins) ? data.pins : undefined,
+    streets: Array.isArray(data.streets) ? data.streets : undefined,
+    cadastralProperties: Array.isArray(data.cadastralProperties) ? data.cadastralProperties : undefined,
+    busStops: Array.isArray(data.busStops) ? data.busStops : undefined,
     // Internal-only fields
     process: Array.isArray(data.process) ? data.process : undefined,
     ingestErrors: Array.isArray(data.ingestErrors) ? data.ingestErrors : undefined,
-    sourceDocumentId: data.sourceDocumentId as string | undefined,
-    isRelevant: data.isRelevant as boolean | undefined,
+    sourceDocumentId: getOptionalString(data.sourceDocumentId),
+    isRelevant: getOptionalBoolean(data.isRelevant),
   };
 }

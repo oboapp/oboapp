@@ -4,6 +4,7 @@ import * as turf from "@turf/turf";
 import type { Message, Interest, GeoJSONFeatureCollection } from "@/lib/types";
 import { logger } from "@/lib/logger";
 import { validateLocality } from "@oboapp/shared";
+import { isFeatureCollection } from "@/lib/record-fields";
 
 // Cache GeoJSON files by locality
 const geoJsonCache = new Map<string, GeoJSONFeatureCollection>();
@@ -20,8 +21,10 @@ function loadLocalityGeoJson(locality: string): GeoJSONFeatureCollection {
   if (!geoJsonCache.has(locality)) {
     const path = resolve(process.cwd(), "localities", `${locality}.geojson`);
     const content = readFileSync(path, "utf-8");
-    const geojson = JSON.parse(content) as GeoJSONFeatureCollection;
-    geoJsonCache.set(locality, geojson);
+    const parsed: unknown = JSON.parse(content);
+    if (isFeatureCollection(parsed)) {
+      geoJsonCache.set(locality, parsed);
+    }
   }
   return geoJsonCache.get(locality)!;
 }

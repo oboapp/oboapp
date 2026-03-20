@@ -5,6 +5,14 @@ import { computeMatchScore, type MatchSignals } from "./score";
 import { MATCH_THRESHOLD, LLM_VERIFY_LOWER } from "./constants";
 import { verifyEventMatch } from "./llm-verify";
 import { logger } from "@/lib/logger";
+import {
+  getString,
+  getOptionalString,
+  getOptionalBoolean,
+  getStringArray,
+  getNumberArray,
+  isFeatureCollection,
+} from "@/lib/record-fields";
 
 /**
  * Find the best matching event for a message, if any.
@@ -66,12 +74,12 @@ export async function findBestMatch(
         embedding: message.embedding ?? undefined,
       },
       {
-        geoJson: candidate.geoJson as GeoJSONFeatureCollection | null | undefined,
-        timespanStart: candidate.timespanStart as string | null,
-        timespanEnd: candidate.timespanEnd as string | null,
-        categories: candidate.categories as string[] | undefined,
-        cityWide: candidate.cityWide as boolean | undefined,
-        embedding: candidate.embedding as number[] | undefined,
+        geoJson: isFeatureCollection(candidate.geoJson) ? candidate.geoJson : null,
+        timespanStart: getOptionalString(candidate.timespanStart) ?? null,
+        timespanEnd: getOptionalString(candidate.timespanEnd) ?? null,
+        categories: getStringArray(candidate.categories),
+        cityWide: getOptionalBoolean(candidate.cityWide),
+        embedding: getNumberArray(candidate.embedding),
       },
     );
 
@@ -90,8 +98,8 @@ export async function findBestMatch(
   // Uncertain zone (LLM_VERIFY_LOWER to MATCH_THRESHOLD) — ask LLM
   const messageText = message.plainText || message.text || "";
   const eventText =
-    (bestMatch.event.plainText as string) ||
-    (bestMatch.event.markdownText as string) ||
+    getString(bestMatch.event.plainText) ||
+    getString(bestMatch.event.markdownText) ||
     "";
 
   if (!messageText || !eventText) {

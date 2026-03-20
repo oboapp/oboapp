@@ -13,6 +13,14 @@ import {
   PRE_GEOCODE_CATEGORY_WEIGHT_WITH_EMBEDDINGS,
   PRE_GEOCODE_TEXT_WEIGHT,
 } from "./constants";
+import {
+  getNumber,
+  getOptionalString,
+  getOptionalBoolean,
+  getStringArray,
+  getNumberArray,
+  isFeatureCollection,
+} from "@/lib/record-fields";
 
 export interface PreGeocodeMatchResult {
   event: Record<string, unknown>;
@@ -48,12 +56,12 @@ export async function preGeocodeMatch(
   let best: PreGeocodeMatchResult | null = null;
 
   for (const candidate of candidates) {
-    const geometryQuality = (candidate.geometryQuality as number) ?? 0;
+    const geometryQuality = getNumber(candidate.geometryQuality);
 
     // Skip events with low-quality geometry — not worth reusing
     if (geometryQuality < MIN_REUSABLE_GEOMETRY_QUALITY) continue;
 
-    const geometry = candidate.geoJson as GeoJSONFeatureCollection | undefined;
+    const geometry = isFeatureCollection(candidate.geoJson) ? candidate.geoJson : undefined;
     if (!geometry?.features?.length) continue;
 
     // Score using time + category only (re-weighted since no location signal)
@@ -66,16 +74,17 @@ export async function preGeocodeMatch(
         cityWide: message.cityWide,
       },
       {
-        geoJson: candidate.geoJson as GeoJSONFeatureCollection | null,
-        timespanStart: candidate.timespanStart as string | null,
-        timespanEnd: candidate.timespanEnd as string | null,
-        categories: candidate.categories as string[] | undefined,
-        cityWide: candidate.cityWide as boolean | undefined,
+        geoJson: isFeatureCollection(candidate.geoJson) ? candidate.geoJson : null,
+        timespanStart: getOptionalString(candidate.timespanStart) ?? null,
+        timespanEnd: getOptionalString(candidate.timespanEnd) ?? null,
+        categories: getStringArray(candidate.categories),
+        cityWide: getOptionalBoolean(candidate.cityWide),
       },
     );
 
+    const candidateEmbedding = getNumberArray(candidate.embedding);
     const hasEmbeddings = Boolean(
-      message.embedding?.length && (candidate.embedding as number[] | undefined)?.length,
+      message.embedding?.length && candidateEmbedding?.length,
     );
 
     let score: number;
@@ -84,7 +93,7 @@ export async function preGeocodeMatch(
     if (hasEmbeddings) {
       const raw = cosineSimilarity(
         message.embedding!,
-        candidate.embedding as number[],
+        candidateEmbedding!,
       );
       // Guard against NaN (e.g. if stored embeddings contain non-finite values).
       // Also clamp upper bound: floating-point error can push cosine slightly above 1.

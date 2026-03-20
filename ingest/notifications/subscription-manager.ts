@@ -1,11 +1,20 @@
 import type { OboDb } from "@oboapp/db";
 import { NotificationSubscription } from "@/lib/types";
 import { logger } from "@/lib/logger";
+import { getString, getRecord } from "@/lib/record-fields";
 
 function toDateOrString(value: unknown): Date | string {
   if (value instanceof Date) return value;
   if (typeof value === "string") return value;
   return new Date();
+}
+
+function toDeviceInfo(value: Record<string, unknown> | undefined): NotificationSubscription["deviceInfo"] {
+  if (!value) return undefined;
+  const result: { userAgent?: string; platform?: string } = {};
+  if (typeof value.userAgent === "string") result.userAgent = value.userAgent;
+  if (typeof value.platform === "string") result.platform = value.platform;
+  return result;
 }
 
 /**
@@ -18,13 +27,13 @@ export async function getUserSubscriptions(
   const docs = await db.notificationSubscriptions.findByUserId(userId);
 
   return docs.map((data) => ({
-    id: data._id as string,
-    userId: data.userId as string,
-    token: data.token as string,
-    endpoint: data.endpoint as string,
+    id: getString(data._id),
+    userId: getString(data.userId),
+    token: getString(data.token),
+    endpoint: getString(data.endpoint),
     createdAt: toDateOrString(data.createdAt),
     updatedAt: toDateOrString(data.updatedAt),
-    deviceInfo: data.deviceInfo as NotificationSubscription["deviceInfo"],
+    deviceInfo: toDeviceInfo(getRecord(data.deviceInfo)),
   }));
 }
 

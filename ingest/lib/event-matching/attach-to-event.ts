@@ -4,6 +4,7 @@ import { getSourceTrust, getGeometryQuality } from "@/lib/source-trust";
 import type { MatchSignals } from "./score";
 import { toISOString, toMs, isAlreadyExistsError } from "./utils";
 import { logger } from "@/lib/logger";
+import { getString, getNumber, getStringArray } from "@/lib/record-fields";
 
 /**
  * Attach a message to an existing event.
@@ -29,8 +30,8 @@ export async function attachMessageToEvent(
 ): Promise<void> {
   const existingLinks = await db.eventMessages.findByMessageId(message._id);
   if (existingLinks.length > 0) {
-    const linkedEventId = existingLinks[0].eventId as string;
-    if (linkedEventId !== (event._id as string)) {
+    const linkedEventId = getString(existingLinks[0].eventId);
+    if (linkedEventId !== getString(event._id)) {
       // Message already attached to a *different* event — normal idempotency guard.
       logger.info("Message already linked to a different event, skipping duplicate attach", {
         messageId: message._id,
@@ -48,14 +49,14 @@ export async function attachMessageToEvent(
   }
   const isRepair = existingLinks.length > 0;
 
-  const source = (message.source as string) || "";
+  const source = typeof message.source === "string" ? message.source : "";
   const hasPrecomputedGeoJson = getSourceTrust(source).geometryQuality === 3;
   // Geometry quality is 0 when the message has no geoJson (e.g., city-wide messages)
   const newGeometryQuality = message.geoJson
     ? getGeometryQuality(source, hasPrecomputedGeoJson)
     : 0;
   const now = new Date().toISOString();
-  const eventId = event._id as string;
+  const eventId = getString(event._id);
 
   // Build event update fields up-front so they're available in the already-exists
   // repair path as well as the normal path below.
@@ -65,14 +66,14 @@ export async function attachMessageToEvent(
   // Merge timespans (expand to union)
   if (message.timespanStart) {
     const msgStart = toMs(message.timespanStart);
-    const evtStart = event.timespanStart ? toMs(event.timespanStart as string) : Infinity;
+    const evtStart = event.timespanStart ? toMs(getString(event.timespanStart)) : Infinity;
     if (msgStart < evtStart) {
       setFields.timespanStart = toISOString(message.timespanStart);
     }
   }
   if (message.timespanEnd) {
     const msgEnd = toMs(message.timespanEnd);
-    const evtEnd = event.timespanEnd ? toMs(event.timespanEnd as string) : -Infinity;
+    const evtEnd = event.timespanEnd ? toMs(getString(event.timespanEnd)) : -Infinity;
     if (msgEnd > evtEnd) {
       setFields.timespanEnd = toISOString(message.timespanEnd);
     }
@@ -90,7 +91,7 @@ export async function attachMessageToEvent(
 
   // Update embedding if new source has higher trust than all existing sources
   if (message.embedding?.length) {
-    const existingSources = (event.sources as string[]) ?? [];
+    const existingSources = getStringArray(event.sources) ?? [];
     const newTrust = getSourceTrust(source).trust;
     const maxExistingTrust = existingSources.reduce(
       (max, src) => Math.max(max, getSourceTrust(src).trust),
@@ -160,10 +161,10 @@ export async function attachMessageToEvent(
   // Geometry upgrade: separate step with fresh read to minimize stale-data window.
   // Re-read the event to get the latest geometryQuality before overwriting.
   if (message.geoJson && newGeometryQuality > 0) {
-    const existingGeometryQuality = (event.geometryQuality as number) ?? 0;
+    const existingGeometryQuality = getNumber(event.geometryQuality);
     if (newGeometryQuality > existingGeometryQuality) {
       const freshEvent = await db.events.findById(eventId);
-      const latestGeometryQuality = (freshEvent?.geometryQuality as number) ?? 0;
+      const latestGeometryQuality = getNumber(freshEvent?.geometryQuality);
       if (newGeometryQuality > latestGeometryQuality) {
         await db.events.updateOne(eventId, {
           $set: { geoJson: message.geoJson, geometryQuality: newGeometryQuality },

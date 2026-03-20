@@ -10,6 +10,7 @@ import {
   getUserSubscriptions,
   deleteSubscription,
 } from "./subscription-manager";
+import { getString, hasCode } from "@/lib/record-fields";
 import { logger } from "@/lib/logger";
 
 function toISOString(value: unknown): string {
@@ -109,7 +110,7 @@ export async function sendPushNotification(
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorCode = (error as { code?: string })?.code;
+    const errorCode = hasCode(error) ? String(error.code) : undefined;
 
     // Check if the FCM token is invalid/expired
     const isInvalidToken =
@@ -202,16 +203,16 @@ export async function updateMatchWithResults(
   deviceNotifications: DeviceNotification[],
 ): Promise<void> {
   const messageSnapshot: Record<string, string> = {
-    text: (messageData?.text as string) || "",
+    text: getString(messageData?.text),
     createdAt: toISOString(messageData?.createdAt),
   };
 
   // Only add optional fields if they exist (avoid undefined in Firestore)
-  if (messageData?.source) {
-    messageSnapshot.source = messageData.source as string;
+  if (messageData?.source && typeof messageData.source === "string") {
+    messageSnapshot.source = messageData.source;
   }
-  if (messageData?.sourceUrl) {
-    messageSnapshot.sourceUrl = messageData.sourceUrl as string;
+  if (messageData?.sourceUrl && typeof messageData.sourceUrl === "string") {
+    messageSnapshot.sourceUrl = messageData.sourceUrl;
   }
 
   await db.notificationMatches.updateOne(matchId, {

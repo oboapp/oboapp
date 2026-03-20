@@ -6,6 +6,10 @@ import type { OboDb } from "@oboapp/db";
 import type { Messaging } from "firebase-admin/messaging";
 import { Message, NotificationMatch } from "@/lib/types";
 import {
+  getString,
+  isFeatureCollection,
+} from "@/lib/record-fields";
+import {
   getUnprocessedMessages,
   markMessagesAsNotified,
 } from "./message-fetcher";
@@ -99,9 +103,9 @@ async function sendNotifications(
     const message: Message = {
       id: match.messageId,
       text:
-        (messageData.plainText as string) || (messageData.text as string) || "",
-      locality: messageData.locality as string,
-      geoJson: messageData.geoJson as Message["geoJson"],
+        getString(messageData.plainText) || getString(messageData.text),
+      locality: getString(messageData.locality),
+      geoJson: isFeatureCollection(messageData.geoJson) ? messageData.geoJson : undefined,
       createdAt: toISOString(messageData.createdAt),
     };
 
@@ -188,7 +192,7 @@ export async function main(): Promise<void> {
 
   const allPrefs = await db.userPreferences.findByUserIds(uniqueUserIds);
   for (const prefs of allPrefs) {
-    const userId = prefs._id as string;
+    const userId = getString(prefs._id);
     const rawCats = prefs.notificationCategories;
     const cats = Array.isArray(rawCats)
       ? rawCats.filter((v): v is string => typeof v === "string")

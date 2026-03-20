@@ -3,6 +3,11 @@ import type { Message, Interest, NotificationMatch } from "@/lib/types";
 import { matchMessageToInterest } from "./geo-matcher";
 import { logger } from "@/lib/logger";
 import { UNCATEGORIZED } from "@oboapp/shared";
+import {
+  getString,
+  getBoolean,
+  getOptionalNumber,
+} from "@/lib/record-fields";
 
 export interface MatchResult {
   messageId: string;
@@ -223,14 +228,14 @@ export async function getUnnotifiedMatches(
           : new Date().toISOString();
 
     return {
-      id: data._id as string,
-      userId: data.userId as string,
-      messageId: data.messageId as string,
-      interestId: data.interestId as string,
+      id: getString(data._id),
+      userId: getString(data.userId),
+      messageId: getString(data.messageId),
+      interestId: getString(data.interestId),
       matchedAt: toStr(data.matchedAt),
-      notified: (data.notified as boolean) || false,
+      notified: getBoolean(data.notified),
       notifiedAt: data.notifiedAt ? toStr(data.notifiedAt) : undefined,
-      distance: data.distance as number | undefined,
+      distance: getOptionalNumber(data.distance),
     };
   });
 
