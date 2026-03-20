@@ -32,8 +32,12 @@ async function geocodeBusStop(
       return null;
     }
     const coordRecord = Object.fromEntries(Object.entries(coordsObj));
-    const lat = typeof coordRecord.latitude === "number" ? coordRecord.latitude : 0;
-    const lng = typeof coordRecord.longitude === "number" ? coordRecord.longitude : 0;
+    if (typeof coordRecord.latitude !== "number" || typeof coordRecord.longitude !== "number") {
+      logger.warn("Bus stop has invalid coordinates", { stopCode, coordinates: coordRecord });
+      return null;
+    }
+    const lat = coordRecord.latitude;
+    const lng = coordRecord.longitude;
 
     return {
       stopCode: typeof doc.stopCode === "string" ? doc.stopCode : stopCode,

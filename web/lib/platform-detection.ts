@@ -47,7 +47,7 @@ export function isPWA(): boolean {
   ).matches;
 
   // Check iOS-specific standalone property
-  const nav = globalThis.window.navigator;
+  const nav: Navigator & { standalone?: boolean } = globalThis.window.navigator;
   const iosStandalone =
     "standalone" in nav &&
     nav.standalone === true;
