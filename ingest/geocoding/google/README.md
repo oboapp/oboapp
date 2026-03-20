@@ -22,5 +22,5 @@ Converts specific street addresses with building numbers into GPS coordinates fo
 
 ## Related Documentation
 
-- [Geocoding Overview](geocoding-overview.md) - Multi-service geocoding architecture
-- [Message Ingest Pipeline](../../ingest/messageIngest/README.md) - Integration with extraction and conversion stages
+- [Geocoding Router](../README.md)
+- [Message Ingest Pipeline](../../messageIngest/README.md)

@@ -6,9 +6,9 @@ import {
   GeoJSONLineString,
   GeoJSONPolygon,
   IntersectionCoordinates,
-} from "./types";
-import { getStreetGeometry } from "./geocoding-router";
-import { roundCoordinate } from "@/lib/coordinate-utils";
+} from "../../lib/types";
+import { getStreetGeometry } from "../router";
+import { roundCoordinate } from "./coordinate-utils";
 import { logger } from "@/lib/logger";
 
 // Constants for street buffer widths (in meters)

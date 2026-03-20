@@ -345,7 +345,7 @@ All four prompts have eval configs in `ingest/prompts/__evals__/` using [promptf
 - **ALWAYS link to related content** instead of repeating text
 - **ALWAYS aim for short, readable documentation** (prefer 50-100 lines over 200+)
 - Link to existing sections rather than copy/paste content
-- Example: Reference `docs/features/geocoding-overview.md` rather than duplicating service descriptions
+- Example: Reference `ingest/geocoding/README.md` rather than duplicating service descriptions
 - Maintain single source of truth for each topic
 
 **When to Document**:

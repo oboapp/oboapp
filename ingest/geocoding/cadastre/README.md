@@ -33,6 +33,6 @@ Cadastre API requires multi-step authentication for each request:
 
 ## Related Documentation
 
-- [Geocoding Overview](geocoding-overview.md) - Multi-service geocoding architecture
-- [Location Extraction Prompt](../../ingest/prompts/extract-locations.md) - УПИ extraction rules
-- [Message Ingest Pipeline](../../ingest/messageIngest/README.md) - Integration with extraction and conversion stages
+- [Geocoding Router](../README.md)
+- [Location Extraction Prompt](../../prompts/extract-locations.md) - УПИ extraction rules
+- [Message Ingest Pipeline](../../messageIngest/README.md)

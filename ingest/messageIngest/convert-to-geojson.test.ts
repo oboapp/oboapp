@@ -6,7 +6,7 @@ import {
 import type { ExtractedData } from "@/lib/types";
 
 // Mock dependencies
-vi.mock("@/lib/geojson-service");
+vi.mock("@/geocoding/shared/geojson-service");
 vi.mock("../crawlers/shared/geojson-validation");
 vi.mock("@/lib/firebase-admin", () => ({
   adminDb: vi.fn(),
@@ -192,7 +192,7 @@ describe("convertMessageGeocodingToGeoJson", () => {
   });
 
   it("should succeed with partial geocoding if at least one feature is available", async () => {
-    const { convertToGeoJSON } = await import("@/lib/geojson-service");
+    const { convertToGeoJSON } = await import("@/geocoding/shared/geojson-service");
     const { validateAndFixGeoJSON } =
       await import("../crawlers/shared/geojson-validation");
 
@@ -258,7 +258,7 @@ describe("convertMessageGeocodingToGeoJson", () => {
   });
 
   it("should handle all pins geocoded but streets missing endpoints", async () => {
-    const { convertToGeoJSON } = await import("@/lib/geojson-service");
+    const { convertToGeoJSON } = await import("@/geocoding/shared/geojson-service");
     const { validateAndFixGeoJSON } =
       await import("../crawlers/shared/geojson-validation");
 

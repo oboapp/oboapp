@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
 
 // Mock firebase-admin to avoid requiring env vars
-vi.mock("./firebase-admin", () => ({
+vi.mock("../../lib/firebase-admin", () => ({
   adminDb: vi.fn(),
 }));
 
 // Import after mocking
-const { parseStopsFile } = await import("./gtfs-service");
+const { parseStopsFile } = await import("./service");
 
 describe("parseStopsFile", () => {
   it("should parse valid GTFS stops.txt CSV", () => {

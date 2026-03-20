@@ -3,7 +3,7 @@ import {
   normalizeAddressForNominatim,
   normalizeStreetName,
   toOverpassRegex,
-} from "./overpass-geocoding-service";
+} from "./service";
 
 describe("overpass-geocoding-service", () => {
   describe("parseOverpassError", () => {

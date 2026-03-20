@@ -1,24 +1,24 @@
 import { describe, it, expect, vi } from "vitest";
 
 // Mock Firebase-dependent imports to avoid initialization errors
-vi.mock("./gtfs-geocoding-service", () => ({
+vi.mock("./gtfs/geocoding-service", () => ({
   geocodeBusStops: vi.fn(),
 }));
 
-vi.mock("./geocoding-service", () => ({
+vi.mock("./google/service", () => ({
   geocodeAddresses: vi.fn(),
 }));
 
-vi.mock("./overpass-geocoding-service", () => ({
+vi.mock("./overpass/service", () => ({
   overpassGeocodeAddresses: vi.fn(),
   overpassGeocodeIntersections: vi.fn(),
 }));
 
-vi.mock("./cadastre-geocoding-service", () => ({
+vi.mock("./cadastre/service", () => ({
   geocodeCadastralProperties: vi.fn(),
 }));
 
-import { hasHouseNumber, buildHouseNumberQuery } from "./geocoding-router";
+import { hasHouseNumber, buildHouseNumberQuery } from "./router";
 
 describe("buildHouseNumberQuery", () => {
   it("prefixes street name when endpoint is just a number", () => {
@@ -213,9 +213,9 @@ describe("hasHouseNumber", () => {
 describe("geocodeIntersectionsForStreets", () => {
   it("should skip endpoints already in preGeocodedMap", async () => {
     const { geocodeIntersectionsForStreets } =
-      await import("./geocoding-router");
+      await import("./router");
     const { overpassGeocodeIntersections, overpassGeocodeAddresses } =
-      await import("./overpass-geocoding-service");
+      await import("./overpass/service");
 
     // Mock the geocoding services to track calls
     const mockOverpassGeocodeIntersections = vi.mocked(
@@ -262,9 +262,9 @@ describe("geocodeIntersectionsForStreets", () => {
 
   it("should work without preGeocodedMap (backward compatibility)", async () => {
     const { geocodeIntersectionsForStreets } =
-      await import("./geocoding-router");
+      await import("./router");
     const { overpassGeocodeIntersections, overpassGeocodeAddresses } =
-      await import("./overpass-geocoding-service");
+      await import("./overpass/service");
 
     const mockOverpassGeocodeIntersections = vi.mocked(
       overpassGeocodeIntersections,

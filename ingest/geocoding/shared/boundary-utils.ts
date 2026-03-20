@@ -3,7 +3,7 @@ import type { Feature } from "geojson";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { logger } from "@/lib/logger";
-import type { GeoJSONFeatureCollection, GeoJSONFeature } from "./types";
+import type { GeoJSONFeatureCollection, GeoJSONFeature } from "../../lib/types";
 
 // Cache boundaries by absolute path to avoid re-reading files
 const boundaryCache = new Map<string, GeoJSONFeatureCollection>();

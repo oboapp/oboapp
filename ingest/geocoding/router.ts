@@ -7,18 +7,18 @@
  * GTFS for bus stops (public transport)
  */
 
-import { Address, StreetSection, Coordinates } from "./types";
+import { Address, StreetSection, Coordinates } from "../lib/types";
 import { logger } from "@/lib/logger";
-import { geocodeAddresses as geocodeAddressesTraditional } from "./geocoding-service";
+import { geocodeAddresses as geocodeAddressesTraditional } from "./google/service";
 import {
   overpassGeocodeAddresses,
   overpassGeocodeIntersections,
-} from "./overpass-geocoding-service";
+} from "./overpass/service";
 import {
   geocodeCadastralProperties,
   type CadastralGeometry,
-} from "./cadastre-geocoding-service";
-import { geocodeBusStops as geocodeBusStopsService } from "./gtfs-geocoding-service";
+} from "./cadastre/service";
+import { geocodeBusStops as geocodeBusStopsService } from "./gtfs/geocoding-service";
 import { CadastreMockService } from "../__mocks__/services/cadastre-mock-service";
 
 // Check if mocking is enabled for Cadastre
@@ -57,7 +57,7 @@ export async function getStreetGeometry(
   endCoords: Coordinates,
 ): Promise<[number, number][] | null> {
   const { getStreetSectionGeometry } =
-    await import("./overpass-geocoding-service");
+    await import("./overpass/service");
   const geometry = await getStreetSectionGeometry(
     streetName,
     startCoords,

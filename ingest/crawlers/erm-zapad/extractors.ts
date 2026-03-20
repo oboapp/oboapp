@@ -1,4 +1,4 @@
-import { roundCoordinate } from "@/lib/coordinate-utils";
+import { roundCoordinate } from "@/geocoding/shared/coordinate-utils";
 import type { PinRecord, RawIncident } from "./types";
 
 /**

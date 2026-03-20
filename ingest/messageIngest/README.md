@@ -84,7 +84,7 @@ Converts extracted locations to map coordinates using four specialized services:
 - **Filter Outliers** - Remove coordinates >1km from others
 - **Store Geocoding** - Save validated coordinates
 
-See [Geocoding System Overview](../../docs/features/geocoding-overview.md) for service details, rate limiting, and configuration.
+See [Geocoding](../geocoding/README.md) for service details, rate limiting, and configuration.
 
 ### GeoJSON Stage
 

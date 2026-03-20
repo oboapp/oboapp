@@ -24,7 +24,7 @@ Each has its own `.env.local` configuration.
 - **[AGENTS.md](AGENTS.md)** - Required code patterns and standards for AI agents and developers
 - **[Public API](docs/features/public-api.md)** - `/api/v1` contract, API key auth, and client onboarding
 - **[External API Mocks](docs/features/external-api-mocks.md)** - Mock Gemini, Geocoding, Overpass, Cadastre
-- **[Geocoding Overview](docs/features/geocoding-overview.md)** - Hybrid geocoding system documentation
+- **[Geocoding](ingest/geocoding/README.md)** - Hybrid geocoding system documentation
 
 ## Code Standards
 

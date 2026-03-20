@@ -51,7 +51,7 @@ See [web/](web) for details.
 
 - [Message Filtering](docs/features/message-filtering.md) - AI-powered content filtering, address extraction, geocoding, and time-based relevance
 - [Message URLs](docs/features/message-urls.md) - Short, shareable URLs for deep-linking to messages
-- [Geocoding System](docs/features/geocoding-overview.md) - Multi-service geocoding with Google, OpenStreetMap, Bulgarian Cadastre, and GTFS APIs
+- [Geocoding System](ingest/geocoding/README.md) - Multi-service geocoding with Google, OpenStreetMap, Bulgarian Cadastre, and GTFS APIs
 - [Onboarding Flow](docs/features/onboarding-flow.md) - User onboarding state machine for notifications and zone creation
 - [Database Layer](docs/features/database-layer.md) - Dual-write database abstraction over Firestore and MongoDB
 - [Locality Configuration](docs/features/multi-locality-support.md) - Environment-based locality configuration for hosting in different cities

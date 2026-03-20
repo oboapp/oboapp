@@ -1,4 +1,4 @@
-import { convertToGeoJSON } from "@/lib/geojson-service";
+import { convertToGeoJSON } from "@/geocoding/shared/geojson-service";
 import {
   ExtractedLocations,
   GeoJSONFeatureCollection,
@@ -7,7 +7,7 @@ import {
   Coordinates,
 } from "@/lib/types";
 import { validateAndFixGeoJSON } from "../crawlers/shared/geojson-validation";
-import type { CadastralGeometry } from "@/lib/cadastre-geocoding-service";
+import type { CadastralGeometry } from "@/geocoding/cadastre/service";
 import {
   getIngestErrorRecorder,
   type IngestErrorRecorder,

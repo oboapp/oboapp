@@ -1,11 +1,11 @@
-import { Address } from "./types";
-import { isCenterFallback, isGenericCityAddress } from "./geocoding-utils";
+import { Address } from "../../lib/types";
+import { isCenterFallback, isGenericCityAddress } from "./utils";
 import { isWithinBounds } from "@oboapp/shared";
-import { getLocality } from "./target-locality";
-import { delay } from "./delay";
+import { getLocality } from "../../lib/target-locality";
+import { delay } from "../../lib/delay";
 import { logger } from "@/lib/logger";
-import { GoogleGeocodingMockService } from "../__mocks__/services/google-geocoding-mock-service";
-import { overpassGeocodeAddresses } from "./overpass-geocoding-service";
+import { GoogleGeocodingMockService } from "../../__mocks__/services/google-geocoding-mock-service";
+import { overpassGeocodeAddresses } from "../overpass/service";
 
 // Check if mocking is enabled
 const USE_MOCK = process.env.MOCK_GOOGLE_GEOCODING === "true";

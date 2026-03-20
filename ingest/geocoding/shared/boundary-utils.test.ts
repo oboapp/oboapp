@@ -3,7 +3,7 @@ import {
   filterFeaturesByBoundaries,
   isWithinBoundaries,
 } from "./boundary-utils";
-import type { GeoJSONFeatureCollection } from "./types";
+import type { GeoJSONFeatureCollection } from "../../lib/types";
 
 describe("boundary-utils", () => {
   // Simple square boundary in Sofia (roughly around Oborishte)

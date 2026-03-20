@@ -3,20 +3,20 @@ import {
   OverpassResponse,
   OverpassGeometry,
   Coordinates,
-} from "./types";
+} from "../../lib/types";
 import * as turf from "@turf/turf";
 import type { Feature, MultiLineString, Position } from "geojson";
 import {
   getLocalityBounds,
   getLocalityCenter,
   getLocalityBbox,
-} from "./geocoding-utils";
+} from "../google/utils";
 import { isWithinBounds } from "@oboapp/shared";
-import { getLocality } from "./target-locality";
-import { delay } from "./delay";
-import { roundCoordinate } from "@/lib/coordinate-utils";
+import { getLocality } from "../../lib/target-locality";
+import { delay } from "../../lib/delay";
+import { roundCoordinate } from "@/geocoding/shared/coordinate-utils";
 import { logger } from "@/lib/logger";
-import { OverpassMockService } from "../__mocks__/services/overpass-mock-service";
+import { OverpassMockService } from "../../__mocks__/services/overpass-mock-service";
 
 // Check if mocking is enabled
 const USE_MOCK = process.env.MOCK_OVERPASS_API === "true";

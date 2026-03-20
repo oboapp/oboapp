@@ -21,7 +21,7 @@ vi.mock("@/lib/firebase-admin", () => ({
 }));
 
 // Mock geocoding services
-vi.mock("@/lib/geocoding-router", () => ({
+vi.mock("@/geocoding/router", () => ({
   geocodeAddresses: vi.fn().mockResolvedValue([]),
   geocodeIntersectionsForStreets: vi.fn().mockResolvedValue(new Map()),
   geocodeCadastralPropertiesFromIdentifiers: vi
@@ -30,7 +30,7 @@ vi.mock("@/lib/geocoding-router", () => ({
   geocodeBusStops: vi.fn().mockResolvedValue([]),
 }));
 
-vi.mock("@/lib/overpass-geocoding-service", () => ({
+vi.mock("@/geocoding/overpass/service", () => ({
   overpassGeocodeAddresses: vi.fn().mockResolvedValue([]),
 }));
 
@@ -311,7 +311,7 @@ describe("geocodeAddressesFromExtractedData", () => {
 
   it("should mix pre-resolved coordinates with geocoded addresses", async () => {
     // Import the mocked functions to verify they're not called for pre-resolved
-    const { geocodeAddresses } = await import("@/lib/geocoding-router");
+    const { geocodeAddresses } = await import("@/geocoding/router");
 
     const extractedData: ExtractedLocations = {
       withSpecificAddress: true,

@@ -1,5 +1,5 @@
 import * as proj4Module from "proj4";
-import { delay } from "./delay";
+import { delay } from "../../lib/delay";
 import { logger } from "@/lib/logger";
 
 const proj4 = proj4Module.default || proj4Module;

@@ -54,7 +54,7 @@ vi.mock("@/lib/embeddings", () => ({
 
 // Mock boundary-utils for boundary filtering tests
 const mockFilterFeaturesByBoundaries = vi.fn();
-vi.mock("../lib/boundary-utils", () => ({
+vi.mock("../geocoding/shared/boundary-utils", () => ({
   filterFeaturesByBoundaries: (...args: unknown[]) =>
     mockFilterFeaturesByBoundaries(...args),
 }));

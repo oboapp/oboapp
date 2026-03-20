@@ -3,19 +3,19 @@ import {
   geocodeIntersectionsForStreets,
   geocodeCadastralPropertiesFromIdentifiers,
   geocodeBusStops,
-} from "@/lib/geocoding-router";
-import { overpassGeocodeAddresses } from "@/lib/overpass-geocoding-service";
+} from "@/geocoding/router";
+import { overpassGeocodeAddresses } from "@/geocoding/overpass/service";
 import {
   Address,
   ExtractedLocations,
   StreetSection,
   Coordinates,
 } from "@/lib/types";
-import type { CadastralGeometry } from "@/lib/cadastre-geocoding-service";
+import type { CadastralGeometry } from "@/geocoding/cadastre/service";
 import { logger } from "@/lib/logger";
 import { isWithinBounds } from "@oboapp/shared";
 import { getLocality } from "@/lib/target-locality";
-import { roundCoordinate } from "@/lib/coordinate-utils";
+import { roundCoordinate } from "@/geocoding/shared/coordinate-utils";
 
 // Internal types for the geocoding pipeline
 export interface GeocodingResult {

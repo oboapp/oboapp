@@ -9,7 +9,7 @@ vi.mock("@/lib/firebase-admin", () => ({
 }));
 
 // Mock geocoding-router to prevent real network calls in tests
-vi.mock("@/lib/geocoding-router", () => ({
+vi.mock("@/geocoding/router", () => ({
   getStreetGeometry: vi.fn().mockResolvedValue([
     [23.351, 42.693],
     [23.352, 42.694],
@@ -242,7 +242,7 @@ describe("LineString to Polygon conversion", () => {
 
 describe("convertToGeoJSON with pre-resolved coordinates", () => {
   it("should create straight line when both street endpoints have pre-resolved coordinates", async () => {
-    const { getStreetGeometry } = await import("@/lib/geocoding-router");
+    const { getStreetGeometry } = await import("@/geocoding/router");
     const { convertToGeoJSON } = await import("./geojson-service");
 
     const extractedData = {
@@ -283,7 +283,7 @@ describe("convertToGeoJSON with pre-resolved coordinates", () => {
   });
 
   it("should use street geometry when endpoints are geocoded (not pre-resolved)", async () => {
-    const { getStreetGeometry } = await import("@/lib/geocoding-router");
+    const { getStreetGeometry } = await import("@/geocoding/router");
     vi.mocked(getStreetGeometry).mockClear();
     const { convertToGeoJSON } = await import("./geojson-service");
 

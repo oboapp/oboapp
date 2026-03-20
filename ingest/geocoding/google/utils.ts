@@ -3,7 +3,7 @@
  */
 
 import { getBoundsForLocality, getCenterForLocality, getBboxForLocality } from "@oboapp/shared";
-import { getLocality } from "./target-locality";
+import { getLocality } from "../../lib/target-locality";
 
 /**
  * Get the current locality's bounds

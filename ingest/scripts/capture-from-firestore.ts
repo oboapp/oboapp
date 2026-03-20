@@ -17,11 +17,11 @@ async function main() {
   // Dynamic imports to ensure dotenv loads first
   const { adminDb } = await import("@/lib/firebase-admin");
   const { filterAndSplit, extractLocations } = await import("@/lib/ai-service");
-  const { geocodeAddress } = await import("@/lib/geocoding-service");
+  const { geocodeAddress } = await import("@/geocoding/google/service");
   const { overpassGeocodeAddresses } =
-    await import("@/lib/overpass-geocoding-service");
+    await import("@/geocoding/overpass/service");
   const { geocodeCadastralProperty } =
-    await import("@/lib/cadastre-geocoding-service");
+    await import("@/geocoding/cadastre/service");
 
   // Helper to write fixtures
   const writeFixture = (path: string, data: any) => {

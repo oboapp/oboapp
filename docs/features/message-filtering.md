@@ -4,7 +4,7 @@
 
 Server-side Firestore queries filter messages by denormalized timespan fields, returning only messages with `timespanEnd >= cutoffDate`. Messages remain visible while events are ongoing plus a configurable grace period (`MESSAGE_RELEVANCE_DAYS`).
 
-See [Geocoding System Overview](geocoding-overview.md) for location resolution details.
+See [Geocoding](../../ingest/geocoding/README.md) for location resolution details.
 
 ## Message Lifecycle
 

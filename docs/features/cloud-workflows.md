@@ -283,6 +283,6 @@ See [AGENTS.md](../../AGENTS.md) for detailed crawler development guidelines.
 
 ## Related Documentation
 
-- [Geocoding Overview](./geocoding-overview.md) - How addresses/streets are geocoded during ingest
+- [Geocoding](../../ingest/geocoding/README.md) - How addresses/streets are geocoded during ingest
 - [Message Filtering](./message-filtering.md) - AI categorization and data extraction
 - [Terraform Setup](../../ingest/terraform/README.md) - Infrastructure deployment guide

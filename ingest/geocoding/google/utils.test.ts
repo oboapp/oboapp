@@ -5,7 +5,7 @@ import {
   getLocalityBbox,
   isCenterFallback,
   isGenericCityAddress,
-} from "./geocoding-utils";
+} from "./utils";
 import { BOUNDS, CENTERS } from "@oboapp/shared";
 
 // Set LOCALITY for tests

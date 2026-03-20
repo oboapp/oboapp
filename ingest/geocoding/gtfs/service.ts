@@ -1,8 +1,8 @@
 import AdmZip from "adm-zip";
 import { parse } from "csv-parse/sync";
 import { isWithinBounds } from "@oboapp/shared";
-import { getLocality } from "./target-locality";
-import { roundCoordinate } from "@/lib/coordinate-utils";
+import { getLocality } from "../../lib/target-locality";
+import { roundCoordinate } from "@/geocoding/shared/coordinate-utils";
 import { logger } from "@/lib/logger";
 
 const GTFS_URL = "https://gtfs.sofiatraffic.bg/api/v1/static";

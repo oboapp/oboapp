@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { roundCoordinate } from "@/lib/coordinate-utils";
+import { roundCoordinate } from "@/geocoding/shared/coordinate-utils";
 
 describe("roundCoordinate", () => {
   it("should round to 6 decimal places by default", () => {

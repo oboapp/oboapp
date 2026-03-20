@@ -18,11 +18,11 @@ async function captureApiResponses() {
   // Dynamic imports to ensure dotenv loads first
   const { filterAndSplit, categorize, extractLocations } =
     await import("@/lib/ai-service");
-  const { geocodeAddress } = await import("@/lib/geocoding-service");
+  const { geocodeAddress } = await import("@/geocoding/google/service");
   const { overpassGeocodeAddresses } =
-    await import("@/lib/overpass-geocoding-service");
+    await import("@/geocoding/overpass/service");
   const { geocodeCadastralProperty } =
-    await import("@/lib/cadastre-geocoding-service");
+    await import("@/geocoding/cadastre/service");
 
   // Create fixture directories
   const fixtureBase = resolve(__dirname, "../__mocks__/fixtures");

@@ -1,4 +1,4 @@
-import type { Address } from "./types";
+import type { Address } from "../../lib/types";
 import { logger } from "@/lib/logger";
 
 export interface BusStopGeometry {

@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 import { resolve } from "node:path";
 import type { OboDb } from "@oboapp/db";
 import { GeoJSONFeatureCollection } from "@/lib/types";
-import { isWithinBoundaries, loadBoundaries } from "@/lib/boundary-utils";
+import { isWithinBoundaries, loadBoundaries } from "@/geocoding/shared/boundary-utils";
 import { logger } from "@/lib/logger";
 import {
   getString,

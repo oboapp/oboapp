@@ -6,7 +6,7 @@ import {
   Coordinates,
 } from "@/lib/types";
 import type { FilteredMessage } from "@/lib/filter-split.schema";
-import type { CadastralGeometry } from "@/lib/cadastre-geocoding-service";
+import type { CadastralGeometry } from "@/geocoding/cadastre/service";
 import {
   createIngestErrorCollector,
   buildIngestErrorsField,
@@ -953,7 +953,7 @@ async function applyBoundaryFilteringIfNeeded(
     return geoJson;
   }
 
-  const { filterFeaturesByBoundaries } = await import("../lib/boundary-utils");
+  const { filterFeaturesByBoundaries } = await import("../geocoding/shared/boundary-utils");
   const filteredGeoJson = filterFeaturesByBoundaries(geoJson, boundaryFilter);
 
   if (!filteredGeoJson) {

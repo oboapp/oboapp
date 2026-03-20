@@ -92,7 +92,7 @@ program
 
     try {
       // Dynamically import to avoid loading dependencies at parse time
-      const { syncGTFSStopsToFirestore } = await import("./lib/gtfs-service");
+      const { syncGTFSStopsToFirestore } = await import("./geocoding/gtfs/service");
 
       await syncGTFSStopsToFirestore();
 
