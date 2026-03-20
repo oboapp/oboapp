@@ -51,7 +51,13 @@ export async function POST(request: NextRequest) {
 
     if (existing) {
       // Update existing subscription
-      const docId = String(existing._id ?? "");
+      const docId = typeof existing._id === "string" ? existing._id : "";
+      if (!docId) {
+        return NextResponse.json(
+          { error: "Existing subscription has no valid ID" },
+          { status: 500 },
+        );
+      }
       await db.notificationSubscriptions.updateOne(docId, {
         endpoint,
         deviceInfo: deviceInfo || {},
@@ -143,7 +149,14 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete the subscription
-    await db.notificationSubscriptions.deleteOne(String(existing._id ?? ""));
+    const existingId = typeof existing._id === "string" ? existing._id : "";
+    if (!existingId) {
+      return NextResponse.json(
+        { error: "Subscription record has no valid ID" },
+        { status: 500 },
+      );
+    }
+    await db.notificationSubscriptions.deleteOne(existingId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

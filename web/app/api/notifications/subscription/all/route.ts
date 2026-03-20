@@ -14,8 +14,9 @@ export async function GET(request: NextRequest) {
     const docs = await db.notificationSubscriptions.findByUserId(userId);
 
     const subscriptions: NotificationSubscription[] = docs
+      .filter((doc) => typeof doc._id === "string" && doc._id !== "")
       .map((doc) => ({
-        id: String(doc._id ?? ""),
+        id: typeof doc._id === "string" ? doc._id : "",
         userId: typeof doc.userId === "string" ? doc.userId : "",
         token: typeof doc.token === "string" ? doc.token : "",
         endpoint: typeof doc.endpoint === "string" ? doc.endpoint : "",

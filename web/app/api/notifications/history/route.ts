@@ -34,7 +34,14 @@ export async function GET(request: NextRequest) {
     const hasMore = docs.length > limit;
     const itemsToReturn = hasMore ? docs.slice(0, limit) : docs;
 
-    const historyItems: NotificationHistoryItem[] = itemsToReturn.map((doc) => {
+    const historyItems: NotificationHistoryItem[] = itemsToReturn
+      .filter((doc) => {
+        const hasId = typeof doc._id === "string" && doc._id !== "";
+        const hasMessageId = typeof doc.messageId === "string" && doc.messageId !== "";
+        const hasInterestId = typeof doc.interestId === "string" && doc.interestId !== "";
+        return hasId && hasMessageId && hasInterestId;
+      })
+      .map((doc) => {
       const notifiedAt = toRequiredISOString(doc.notifiedAt, "notifiedAt");
       const rawSnapshot = doc.messageSnapshot;
       const snapshotText =
@@ -61,7 +68,7 @@ export async function GET(request: NextRequest) {
       ).length;
 
       return {
-        id: String(doc._id ?? ""),
+        id: typeof doc._id === "string" ? doc._id : "",
         messageId: typeof doc.messageId === "string" ? doc.messageId : "",
         messageSnapshot: {
           text: snapshotText,

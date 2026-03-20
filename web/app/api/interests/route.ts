@@ -95,7 +95,7 @@ function recordToInterest(record: Record<string, unknown>): Interest | null {
   }
 
   return {
-    id: String(record._id ?? ""),
+    id: typeof record._id === "string" ? record._id : undefined,
     userId: typeof record.userId === "string" ? record.userId : "",
     coordinates: {
       lat: coords.lat,
