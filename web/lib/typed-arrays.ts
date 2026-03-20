@@ -2,9 +2,13 @@
  * Type-safe array extractors for DB records.
  *
  * When reading arrays from `Record<string, unknown>`, `Array.isArray()`
- * only narrows to `unknown[]`.  These helpers validate each element with
- * the corresponding Zod schema from `@oboapp/shared` so that callers
+ * only narrows to `unknown[]`.  These helpers validate with the
+ * corresponding Zod schema from `@oboapp/shared` so that callers
  * receive properly typed arrays.
+ *
+ * Return types mirror the Message/InternalMessage schema:
+ * - Required fields (`categories`, `addresses`) return `[]` when invalid
+ * - Optional fields (`pins`, `streets`, etc.) return `undefined` when invalid
  */
 import {
   AddressSchema,
@@ -24,68 +28,57 @@ import type {
   CadastralProperty,
 } from "@/lib/types";
 import type { Category, IngestError, InternalMessage } from "@oboapp/shared";
+import { z } from "zod";
 
 type ProcessStep = NonNullable<InternalMessage["process"]>[number];
 
 /** Zod schema for an individual process step, extracted from InternalMessageSchema */
 const ProcessStepSchema = InternalMessageSchema.shape.process.unwrap().element;
 
+/* ---------- Required array fields (default: []) ---------- */
+
 export function getCategories(value: unknown): Category[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter(
-    (item): item is Category => CategoryEnum.safeParse(item).success,
-  );
+  const result = z.array(CategoryEnum).safeParse(value);
+  return result.success ? result.data : [];
 }
 
 export function getAddresses(value: unknown): Address[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter(
-    (item): item is Address => AddressSchema.safeParse(item).success,
-  );
+  const result = z.array(AddressSchema).safeParse(value);
+  return result.success ? result.data : [];
 }
 
+/* ---------- Optional array fields (default: undefined) ---------- */
+
 export function getPins(value: unknown): Pin[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  return value.filter(
-    (item): item is Pin => PinSchema.safeParse(item).success,
-  );
+  const result = z.array(PinSchema).safeParse(value);
+  return result.success ? result.data : undefined;
 }
 
 export function getStreets(value: unknown): StreetSection[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  return value.filter(
-    (item): item is StreetSection =>
-      StreetSectionSchema.safeParse(item).success,
-  );
+  const result = z.array(StreetSectionSchema).safeParse(value);
+  return result.success ? result.data : undefined;
 }
 
 export function getCadastralProperties(
   value: unknown,
 ): CadastralProperty[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  return value.filter(
-    (item): item is CadastralProperty =>
-      CadastralPropertySchema.safeParse(item).success,
-  );
+  const result = z.array(CadastralPropertySchema).safeParse(value);
+  return result.success ? result.data : undefined;
 }
 
 export function getBusStops(value: unknown): string[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  return value.filter((item): item is string => typeof item === "string");
+  const result = z.array(z.string()).safeParse(value);
+  return result.success ? result.data : undefined;
 }
 
 export function getIngestErrors(value: unknown): IngestError[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  return value.filter(
-    (item): item is IngestError => IngestErrorSchema.safeParse(item).success,
-  );
+  const result = z.array(IngestErrorSchema).safeParse(value);
+  return result.success ? result.data : undefined;
 }
 
 export function getProcessSteps(value: unknown): ProcessStep[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  return value.filter(
-    (item): item is ProcessStep => ProcessStepSchema.safeParse(item).success,
-  );
+  const result = z.array(ProcessStepSchema).safeParse(value);
+  return result.success ? result.data : undefined;
 }
 
 export function getFeatureCollection(
