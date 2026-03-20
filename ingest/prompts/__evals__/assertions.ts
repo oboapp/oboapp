@@ -329,7 +329,7 @@ export async function validateVerifyEventMatchSchema(
   _context: AssertionValueFunctionContext,
 ): Promise<GradingResult> {
   const { VerifyEventMatchResponseSchema } =
-    await import("../../lib/verify-event-match.schema");
+    await import("../../event-matching/schemas/verify-event-match.schema");
   return validateWithSchema(
     output,
     VerifyEventMatchResponseSchema,

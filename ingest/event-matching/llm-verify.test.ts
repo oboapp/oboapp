@@ -1,22 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { verifyEventMatch } from "./llm-verify";
 
-vi.mock("../ai-client", () => ({
+vi.mock("@/lib/ai-client", () => ({
   callGeminiApi: vi.fn().mockResolvedValue(null),
 }));
 
-vi.mock("../ai-validation", () => ({
+vi.mock("@/lib/ai-validation", () => ({
   validateModelConfig: vi
     .fn()
     .mockReturnValue({ isValid: true, model: "gemini-2.0-flash" }),
 }));
 
-vi.mock("../ai-prompts", () => ({
+vi.mock("@/lib/ai-prompts", () => ({
   loadPrompt: vi.fn().mockReturnValue("mock system prompt"),
 }));
 
-import { callGeminiApi } from "../ai-client";
-import { validateModelConfig } from "../ai-validation";
+import { callGeminiApi } from "@/lib/ai-client";
+import { validateModelConfig } from "@/lib/ai-validation";
 
 describe("verifyEventMatch", () => {
   beforeEach(() => {

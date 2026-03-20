@@ -42,7 +42,7 @@ vi.mock("@/lib/logger", () => ({
 
 // Mock event matching
 const mockProcessEventMatching = vi.fn();
-vi.mock("@/lib/event-matching", () => ({
+vi.mock("@/event-matching", () => ({
   processEventMatching: (...args: unknown[]) =>
     mockProcessEventMatching(...args),
 }));

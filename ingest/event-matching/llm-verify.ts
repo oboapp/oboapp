@@ -1,8 +1,8 @@
-import { callGeminiApi } from "../ai-client";
-import { loadPrompt } from "../ai-prompts";
-import { validateModelConfig } from "../ai-validation";
-import { VerifyEventMatchResponseSchema } from "../verify-event-match.schema";
-import type { VerifyEventMatchResult } from "../verify-event-match.schema";
+import { callGeminiApi } from "@/lib/ai-client";
+import { loadPrompt } from "@/lib/ai-prompts";
+import { validateModelConfig } from "@/lib/ai-validation";
+import { VerifyEventMatchResponseSchema } from "./schemas/verify-event-match.schema";
+import type { VerifyEventMatchResult } from "./schemas/verify-event-match.schema";
 import { logger } from "@/lib/logger";
 
 let promptCache: string | null = null;

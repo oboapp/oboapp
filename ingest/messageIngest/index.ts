@@ -1104,7 +1104,7 @@ async function runEventMatching(
 ): Promise<void> {
   try {
     const { getDb } = await import("@/lib/db");
-    const { processEventMatching } = await import("@/lib/event-matching");
+    const { processEventMatching } = await import("@/event-matching");
 
     const db = await getDb();
     const message = await db.messages.findById(messageId);
@@ -1152,7 +1152,7 @@ async function tryPreGeocodeMatch(
   try {
     const { getDb } = await import("@/lib/db");
     const { preGeocodeMatch, attachMessageToEvent } = await import(
-      "@/lib/event-matching"
+      "@/event-matching"
     );
 
     const db = await getDb();
