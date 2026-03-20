@@ -21,28 +21,28 @@ defaultTest:
 tests:
   # Same event: water outage on same street with overlapping addresses/time
   - vars:
-      input: "file://../__mocks__/fixtures/verify-match/same-event-water-outage.json"
+      input: "file://../../__mocks__/fixtures/verify-match/same-event-water-outage.json"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertIsSameEvent"
 
   # Different events: road repair vs heating outage in different areas
   - vars:
-      input: "file://../__mocks__/fixtures/verify-match/different-events-road-vs-heating.json"
+      input: "file://../../__mocks__/fixtures/verify-match/different-events-road-vs-heating.json"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertIsDifferentEvent"
 
   # Same event: road closure for filming on same street and dates
   - vars:
-      input: "file://../__mocks__/fixtures/verify-match/same-event-road-closure.json"
+      input: "file://../../__mocks__/fixtures/verify-match/same-event-road-closure.json"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertIsSameEvent"
 
   # Different events: electricity outages in different neighborhoods and dates
   - vars:
-      input: "file://../__mocks__/fixtures/verify-match/different-events-electricity-different-areas.json"
+      input: "file://../../__mocks__/fixtures/verify-match/different-events-electricity-different-areas.json"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertIsDifferentEvent"

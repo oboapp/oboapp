@@ -32,7 +32,7 @@ const __dirname = dirname(__filename);
 // Load .env.local before anything reads process.env (AGENTS.md pattern)
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 
-const PROMPTS_DIR = join(__dirname, "..", "prompts");
+const PROMPTS_DIR = join(__dirname, "..");
 
 function loadPromptFile(filename: string): string {
   return readFileSync(join(PROMPTS_DIR, filename), "utf-8");

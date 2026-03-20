@@ -22,7 +22,7 @@ defaultTest:
 tests:
   # Football parking — should have specific address with stadium-area pins
   - vars:
-      input: "file://../__mocks__/fixtures/sources/single-simple-message.md"
+      input: "file://../../__mocks__/fixtures/sources/single-simple-message.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertWithSpecificAddress"
@@ -33,7 +33,7 @@ tests:
 
   # Multiple street locations (sidewalk repairs on Oborishte)
   - vars:
-      input: "file://../__mocks__/fixtures/sources/single-message-multiple-locations.md"
+      input: "file://../../__mocks__/fixtures/sources/single-message-multiple-locations.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertWithSpecificAddress"
@@ -44,7 +44,7 @@ tests:
 
   # Film shooting with timespans — should have specific address
   - vars:
-      input: "file://../__mocks__/fixtures/sources/single-message-mutiple-timespans.md"
+      input: "file://../../__mocks__/fixtures/sources/single-message-mutiple-timespans.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertWithSpecificAddress"
@@ -55,21 +55,21 @@ tests:
 
   # Complex single message (bus rerouting + street closure)
   - vars:
-      input: "file://../__mocks__/fixtures/sources/complex-single-message.md"
+      input: "file://../../__mocks__/fixtures/sources/complex-single-message.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertHasLocations"
 
   # Complex multi-message
   - vars:
-      input: "file://../__mocks__/fixtures/sources/complex-multi-message.md"
+      input: "file://../../__mocks__/fixtures/sources/complex-multi-message.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertHasLocations"
 
   # Housing complex blocks (ж.к. Дружба, бл. 66/91/88)
   - vars:
-      input: "file://../__mocks__/fixtures/sources/housing-complex-blocks.md"
+      input: "file://../../__mocks__/fixtures/sources/housing-complex-blocks.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertWithSpecificAddress"

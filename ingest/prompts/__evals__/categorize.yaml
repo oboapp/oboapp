@@ -26,7 +26,7 @@ defaultTest:
 tests:
   # Football parking restriction — expect parking/traffic/sports
   - vars:
-      input: "file://../__mocks__/fixtures/sources/single-simple-message.md"
+      input: "file://../../__mocks__/fixtures/sources/single-simple-message.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertContainsCategory"
@@ -35,7 +35,7 @@ tests:
 
   # Sidewalk repairs — expect construction-and-repairs
   - vars:
-      input: "file://../__mocks__/fixtures/sources/single-message-multiple-locations.md"
+      input: "file://../../__mocks__/fixtures/sources/single-message-multiple-locations.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertContainsCategory"
@@ -44,7 +44,7 @@ tests:
 
   # Film shooting with timespans — expect traffic/road-block
   - vars:
-      input: "file://../__mocks__/fixtures/sources/single-message-mutiple-timespans.md"
+      input: "file://../../__mocks__/fixtures/sources/single-message-mutiple-timespans.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertContainsCategory"
@@ -53,7 +53,7 @@ tests:
 
   # Complex single message (bus rerouting + street closure)
   - vars:
-      input: "file://../__mocks__/fixtures/sources/complex-single-message.md"
+      input: "file://../../__mocks__/fixtures/sources/complex-single-message.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertContainsCategory"
@@ -62,7 +62,7 @@ tests:
 
   # Complex multi-message (transit + road)
   - vars:
-      input: "file://../__mocks__/fixtures/sources/complex-multi-message.md"
+      input: "file://../../__mocks__/fixtures/sources/complex-multi-message.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertContainsCategory"

@@ -24,14 +24,14 @@ defaultTest:
 tests:
   # Irrelevant content — should be detected and filtered out
   - vars:
-      input: "file://../__mocks__/fixtures/sources/irrelevant-message.md"
+      input: "file://../../__mocks__/fixtures/sources/irrelevant-message.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertIrrelevant"
 
   # Simple single message — should produce 1 relevant message
   - vars:
-      input: "file://../__mocks__/fixtures/sources/single-simple-message.md"
+      input: "file://../../__mocks__/fixtures/sources/single-simple-message.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertRelevant"
@@ -42,7 +42,7 @@ tests:
 
   # Multiple locations — still 1 message (locations, not separate messages)
   - vars:
-      input: "file://../__mocks__/fixtures/sources/single-message-multiple-locations.md"
+      input: "file://../../__mocks__/fixtures/sources/single-message-multiple-locations.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertRelevant"
@@ -53,7 +53,7 @@ tests:
 
   # Multiple timespans — still 1 message
   - vars:
-      input: "file://../__mocks__/fixtures/sources/single-message-mutiple-timespans.md"
+      input: "file://../../__mocks__/fixtures/sources/single-message-mutiple-timespans.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertRelevant"
@@ -64,21 +64,21 @@ tests:
 
   # Complex single message
   - vars:
-      input: "file://../__mocks__/fixtures/sources/complex-single-message.md"
+      input: "file://../../__mocks__/fixtures/sources/complex-single-message.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertRelevant"
 
   # Complex multi-message — should split into multiple relevant messages
   - vars:
-      input: "file://../__mocks__/fixtures/sources/complex-multi-message.md"
+      input: "file://../../__mocks__/fixtures/sources/complex-multi-message.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertRelevant"
 
   # Two messages — should split into exactly 2
   - vars:
-      input: "file://../__mocks__/fixtures/sources/two-messages-simple.md"
+      input: "file://../../__mocks__/fixtures/sources/two-messages-simple.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertRelevant"
@@ -89,11 +89,11 @@ tests:
 
   # Insufficient content — may be irrelevant or produce minimal output
   - vars:
-      input: "file://../__mocks__/fixtures/sources/insufficient.md"
+      input: "file://../../__mocks__/fixtures/sources/insufficient.md"
 
   # Message with link — link and lead-in text must be stripped from output
   - vars:
-      input: "file://../__mocks__/fixtures/sources/single-message-with-links.md"
+      input: "file://../../__mocks__/fixtures/sources/single-message-with-links.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertRelevant"
@@ -106,7 +106,7 @@ tests:
 
   # PDF-only message — should be flagged as unreadable and irrelevant
   - vars:
-      input: "file://../__mocks__/fixtures/sources/pdf-only-message.md"
+      input: "file://../../__mocks__/fixtures/sources/pdf-only-message.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertUnreadable"
@@ -115,7 +115,7 @@ tests:
 
   # PDF link + readable content — should NOT be flagged as unreadable
   - vars:
-      input: "file://../__mocks__/fixtures/sources/pdf-link-readable-message.md"
+      input: "file://../../__mocks__/fixtures/sources/pdf-link-readable-message.md"
     assert:
       - type: javascript
         value: "file://assertions.ts:assertRelevant"

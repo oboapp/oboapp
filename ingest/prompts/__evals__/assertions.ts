@@ -28,7 +28,7 @@ export async function validateFilterSplitSchema(
   _context: AssertionValueFunctionContext,
 ): Promise<GradingResult> {
   const { FilterSplitResponseSchema } =
-    await import("../lib/filter-split.schema");
+    await import("../../lib/filter-split.schema");
   return validateWithSchema(output, FilterSplitResponseSchema, "FilterSplit");
 }
 
@@ -40,7 +40,7 @@ export async function validateCategorizeSchema(
   _context: AssertionValueFunctionContext,
 ): Promise<GradingResult> {
   const { CategorizationResponseSchema } =
-    await import("../lib/categorize.schema");
+    await import("../../lib/categorize.schema");
   return validateWithSchema(output, CategorizationResponseSchema, "Categorize");
 }
 
@@ -52,7 +52,7 @@ export async function validateExtractLocationsSchema(
   _context: AssertionValueFunctionContext,
 ): Promise<GradingResult> {
   const { ExtractedLocationsSchema } =
-    await import("../lib/extract-locations.schema");
+    await import("../../lib/extract-locations.schema");
   return validateWithSchema(
     output,
     ExtractedLocationsSchema,
@@ -175,7 +175,9 @@ export function assertHasLocations(
   const totalLocations =
     (Array.isArray(data.pins) ? data.pins.length : 0) +
     (Array.isArray(data.streets) ? data.streets.length : 0) +
-    (Array.isArray(data.cadastralProperties) ? data.cadastralProperties.length : 0) +
+    (Array.isArray(data.cadastralProperties)
+      ? data.cadastralProperties.length
+      : 0) +
     (Array.isArray(data.busStops) ? data.busStops.length : 0);
 
   return {
@@ -201,7 +203,10 @@ export function assertWithSpecificAddress(
 
   const data = toRecord(parsed.data);
   const expected = String(context.config?.value) === "true";
-  const actual = typeof data.withSpecificAddress === "boolean" ? data.withSpecificAddress : false;
+  const actual =
+    typeof data.withSpecificAddress === "boolean"
+      ? data.withSpecificAddress
+      : false;
 
   return {
     pass: actual === expected,
@@ -324,7 +329,7 @@ export async function validateVerifyEventMatchSchema(
   _context: AssertionValueFunctionContext,
 ): Promise<GradingResult> {
   const { VerifyEventMatchResponseSchema } =
-    await import("../lib/verify-event-match.schema");
+    await import("../../lib/verify-event-match.schema");
   return validateWithSchema(
     output,
     VerifyEventMatchResponseSchema,
