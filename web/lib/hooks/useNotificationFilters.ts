@@ -7,11 +7,13 @@ import { fetchWithAuth } from "@/lib/auth-fetch";
 interface NotificationFiltersState {
   notificationCategories: string[];
   notificationSources: string[];
+  experimentalFeatures: boolean;
 }
 
 const EMPTY_FILTERS: NotificationFiltersState = {
   notificationCategories: [],
   notificationSources: [],
+  experimentalFeatures: false,
 };
 
 export function useNotificationFilters() {
@@ -24,6 +26,7 @@ export function useNotificationFilters() {
   const [selectedSources, setSelectedSources] = useState<Set<string>>(
     new Set(),
   );
+  const [experimentalFeatures, setExperimentalFeatures] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +38,7 @@ export function useNotificationFilters() {
       setSavedFilters(EMPTY_FILTERS);
       setSelectedCategories(new Set());
       setSelectedSources(new Set());
+      setExperimentalFeatures(false);
       return;
     }
 
@@ -55,6 +59,7 @@ export function useNotificationFilters() {
         setSavedFilters(data);
         setSelectedCategories(new Set(data.notificationCategories));
         setSelectedSources(new Set(data.notificationSources));
+        setExperimentalFeatures(data.experimentalFeatures ?? false);
       } catch (err) {
         if (cancelled) return;
         console.error("Error fetching notification filters:", err);
@@ -117,6 +122,8 @@ export function useNotificationFilters() {
 
     if (selectedCategories.size !== savedCats.size) return true;
     if (selectedSources.size !== savedSrcs.size) return true;
+    if (experimentalFeatures !== (savedFilters.experimentalFeatures ?? false))
+      return true;
 
     for (const cat of selectedCategories) {
       if (!savedCats.has(cat)) return true;
@@ -126,7 +133,7 @@ export function useNotificationFilters() {
     }
 
     return false;
-  }, [savedFilters, selectedCategories, selectedSources]);
+  }, [savedFilters, selectedCategories, selectedSources, experimentalFeatures]);
 
   const save = useCallback(async (): Promise<boolean> => {
     if (!user) return false;
@@ -138,6 +145,7 @@ export function useNotificationFilters() {
       const body = {
         notificationCategories: [...selectedCategories],
         notificationSources: [...selectedSources],
+        experimentalFeatures,
       };
 
       const res = await fetchWithAuth(user, "/api/notifications/filters", {
@@ -152,6 +160,7 @@ export function useNotificationFilters() {
       setSavedFilters(data);
       setSelectedCategories(new Set(data.notificationCategories));
       setSelectedSources(new Set(data.notificationSources));
+      setExperimentalFeatures(data.experimentalFeatures ?? false);
       return true;
     } catch (err) {
       console.error("Error saving notification filters:", err);
@@ -160,7 +169,7 @@ export function useNotificationFilters() {
     } finally {
       setIsSaving(false);
     }
-  }, [user, selectedCategories, selectedSources]);
+  }, [user, selectedCategories, selectedSources, experimentalFeatures]);
 
   const clearAll = useCallback(() => {
     setSelectedCategories(new Set());
@@ -170,11 +179,14 @@ export function useNotificationFilters() {
   const resetToSaved = useCallback(() => {
     setSelectedCategories(new Set(savedFilters.notificationCategories));
     setSelectedSources(new Set(savedFilters.notificationSources));
+    setExperimentalFeatures(savedFilters.experimentalFeatures ?? false);
   }, [savedFilters]);
 
   return {
     selectedCategories,
     selectedSources,
+    experimentalFeatures,
+    setExperimentalFeatures,
     isLoading,
     isSaving,
     error,

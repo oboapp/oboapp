@@ -1,4 +1,5 @@
 import sources from "@/lib/sources.json";
+import { isExperimentalSource } from "@oboapp/shared";
 
 export interface Source {
   id: string;
@@ -32,4 +33,17 @@ export function getCurrentLocalitySources(): Source[] {
     );
   }
   return getSourcesForLocality(locality);
+}
+
+/**
+ * Get experimental sources for the current locality.
+ * Returns sources that are marked as experimental in the shared config.
+ */
+export function getExperimentalSources(): Source[] {
+  try {
+    const allSources = getCurrentLocalitySources();
+    return allSources.filter((s) => isExperimentalSource(s.id));
+  } catch {
+    return [];
+  }
 }

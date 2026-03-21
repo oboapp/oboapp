@@ -201,11 +201,13 @@ export async function main(): Promise<void> {
     const srcs = Array.isArray(rawSrcs)
       ? rawSrcs.filter((v): v is string => typeof v === "string")
       : [];
-    // Only add to map if user actually has active filters
-    if (cats.length > 0 || srcs.length > 0) {
+    const experimentalFeatures = prefs.experimentalFeatures === true;
+    // Only add to map if user actually has active filters or experimental opt-in
+    if (cats.length > 0 || srcs.length > 0 || experimentalFeatures) {
       userFiltersMap.set(userId, {
         notificationCategories: new Set(cats),
         notificationSources: new Set(srcs),
+        experimentalFeatures,
       });
     }
   }

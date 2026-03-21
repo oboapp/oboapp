@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         notificationCategories: [],
         notificationSources: [],
+        experimentalFeatures: false,
       });
     }
 
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
             (v): v is string => typeof v === "string",
           )
         : [],
+      experimentalFeatures: prefs.experimentalFeatures === true,
     });
   } catch (error) {
     if (error instanceof Error && (error.message === "Missing auth token" || error.message === "Invalid auth token")) {
@@ -63,11 +65,13 @@ export async function PUT(request: NextRequest) {
     await db.userPreferences.upsertByUserId(userId, {
       notificationCategories: parsed.data.notificationCategories,
       notificationSources: parsed.data.notificationSources,
+      experimentalFeatures: parsed.data.experimentalFeatures,
     });
 
     return NextResponse.json({
       notificationCategories: parsed.data.notificationCategories,
       notificationSources: parsed.data.notificationSources,
+      experimentalFeatures: parsed.data.experimentalFeatures,
     });
   } catch (error) {
     if (error instanceof Error && (error.message === "Missing auth token" || error.message === "Invalid auth token")) {
@@ -91,11 +95,13 @@ export async function DELETE(request: NextRequest) {
     await db.userPreferences.upsertByUserId(userId, {
       notificationCategories: [],
       notificationSources: [],
+      experimentalFeatures: false,
     });
 
     return NextResponse.json({
       notificationCategories: [],
       notificationSources: [],
+      experimentalFeatures: false,
     });
   } catch (error) {
     if (error instanceof Error && (error.message === "Missing auth token" || error.message === "Invalid auth token")) {

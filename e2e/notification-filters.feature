@@ -221,3 +221,26 @@ Feature: Notification Filters
     Given I am not logged in
     When I navigate to "/settings/notification-filters"
     Then I am redirected to the home page
+
+  # ─── Experimental Features ─────────────────────────────────────────
+
+  Scenario: Experimental features toggle defaults to disabled
+    When I navigate to "/settings/notification-filters"
+    Then I see an "Експериментални функции" section with a toggle
+    And the toggle is disabled by default
+
+  Scenario: Enable experimental features shows feature list or empty message
+    When I navigate to "/settings/notification-filters"
+    And I enable "Експериментални функции"
+    Then I see a list of experimental sources or a message that there are none currently
+    And the "Запази" button is enabled
+
+  Scenario: Experimental source notifications are blocked by default
+    Given I have no experimental features enabled
+    When a message from an experimental source intersects my interest circle
+    Then no notification match is created for me
+
+  Scenario: Experimental source notifications are delivered when opted in
+    Given I have enabled experimental features
+    When a message from an experimental source intersects my interest circle
+    Then a notification match is created for me

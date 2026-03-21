@@ -18,6 +18,8 @@ export const UserPreferencesSchema = z.object({
   notificationCategories: z.array(NotificationCategoryEnum).default([]),
   /** Sources to include in notifications (empty = allow all) */
   notificationSources: z.array(z.string()).default([]),
+  /** Whether the user has opted into experimental features */
+  experimentalFeatures: z.boolean().default(false),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -26,6 +28,7 @@ export const UserPreferencesSchema = z.object({
 export const UserPreferencesRequestSchema = z.object({
   notificationCategories: z.array(NotificationCategoryEnum).default([]),
   notificationSources: z.array(z.string()).default([]),
+  experimentalFeatures: z.boolean().default(false),
 });
 
 export type UserPreferences = z.infer<typeof UserPreferencesSchema>;

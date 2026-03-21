@@ -1,6 +1,16 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { deduplicateMatches, shouldNotifyUser } from "./match-processor";
 import type { MatchResult, UserNotificationFilters } from "./match-processor";
+
+// Mock the isExperimentalSource function from @oboapp/shared
+const mockIsExperimentalSource = vi.fn((_id: string) => false);
+vi.mock("@oboapp/shared", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@oboapp/shared")>();
+  return {
+    ...actual,
+    isExperimentalSource: (id: string) => mockIsExperimentalSource(id),
+  };
+});
 
 describe("match-processor", () => {
   describe("deduplicateMatches", () => {
@@ -112,6 +122,7 @@ describe("match-processor", () => {
       const filters: UserNotificationFilters = {
         notificationCategories: new Set(),
         notificationSources: new Set(),
+        experimentalFeatures: false,
       };
       expect(
         shouldNotifyUser(filters, {
@@ -126,6 +137,7 @@ describe("match-processor", () => {
       const filters: UserNotificationFilters = {
         notificationCategories: new Set(["water"]),
         notificationSources: new Set([]),
+        experimentalFeatures: false,
       };
       expect(
         shouldNotifyUser(filters, {
@@ -139,6 +151,7 @@ describe("match-processor", () => {
       const filters: UserNotificationFilters = {
         notificationCategories: new Set(["water"]),
         notificationSources: new Set([]),
+        experimentalFeatures: false,
       };
       expect(
         shouldNotifyUser(filters, {
@@ -152,6 +165,7 @@ describe("match-processor", () => {
       const filters: UserNotificationFilters = {
         notificationCategories: new Set(["water"]),
         notificationSources: new Set([]),
+        experimentalFeatures: false,
       };
       expect(
         shouldNotifyUser(filters, {
@@ -165,6 +179,7 @@ describe("match-processor", () => {
       const filters: UserNotificationFilters = {
         notificationCategories: new Set(["uncategorized"]),
         notificationSources: new Set([]),
+        experimentalFeatures: false,
       };
       expect(
         shouldNotifyUser(filters, { categories: [], source: "sofia-bg" }),
@@ -175,6 +190,7 @@ describe("match-processor", () => {
       const filters: UserNotificationFilters = {
         notificationCategories: new Set(["uncategorized"]),
         notificationSources: new Set([]),
+        experimentalFeatures: false,
       };
       expect(
         shouldNotifyUser(filters, {
@@ -188,6 +204,7 @@ describe("match-processor", () => {
       const filters: UserNotificationFilters = {
         notificationCategories: new Set(["water"]),
         notificationSources: new Set([]),
+        experimentalFeatures: false,
       };
       expect(
         shouldNotifyUser(filters, { categories: [], source: "sofia-bg" }),
@@ -199,6 +216,7 @@ describe("match-processor", () => {
       const filters: UserNotificationFilters = {
         notificationCategories: new Set([]),
         notificationSources: new Set(["sofiyska-voda"]),
+        experimentalFeatures: false,
       };
       expect(
         shouldNotifyUser(filters, {
@@ -212,6 +230,7 @@ describe("match-processor", () => {
       const filters: UserNotificationFilters = {
         notificationCategories: new Set([]),
         notificationSources: new Set(["sofiyska-voda"]),
+        experimentalFeatures: false,
       };
       expect(
         shouldNotifyUser(filters, {
@@ -225,6 +244,7 @@ describe("match-processor", () => {
       const filters: UserNotificationFilters = {
         notificationCategories: new Set([]),
         notificationSources: new Set(["sofiyska-voda"]),
+        experimentalFeatures: false,
       };
       expect(
         shouldNotifyUser(filters, { categories: ["water"], source: undefined }),
@@ -236,6 +256,7 @@ describe("match-processor", () => {
       const filters: UserNotificationFilters = {
         notificationCategories: new Set(["water"]),
         notificationSources: new Set(["sofiyska-voda"]),
+        experimentalFeatures: false,
       };
       expect(
         shouldNotifyUser(filters, {
@@ -249,6 +270,7 @@ describe("match-processor", () => {
       const filters: UserNotificationFilters = {
         notificationCategories: new Set(["water"]),
         notificationSources: new Set(["sofiyska-voda"]),
+        experimentalFeatures: false,
       };
       expect(
         shouldNotifyUser(filters, {
@@ -262,6 +284,7 @@ describe("match-processor", () => {
       const filters: UserNotificationFilters = {
         notificationCategories: new Set(["water"]),
         notificationSources: new Set(["sofiyska-voda"]),
+        experimentalFeatures: false,
       };
       expect(
         shouldNotifyUser(filters, {
@@ -269,6 +292,102 @@ describe("match-processor", () => {
           source: "sofiyska-voda",
         }),
       ).toBe(false);
+    });
+  });
+
+  describe("shouldNotifyUser - experimental sources", () => {
+    it("should reject experimental source when user has no preferences", () => {
+      mockIsExperimentalSource.mockImplementation(
+        (id: string) => id === "experimental-source",
+      );
+
+      expect(
+        shouldNotifyUser(undefined, {
+          categories: ["water"],
+          source: "experimental-source",
+        }),
+      ).toBe(false);
+
+      mockIsExperimentalSource.mockReset();
+    });
+
+    it("should reject experimental source when experimentalFeatures is false", () => {
+      mockIsExperimentalSource.mockImplementation(
+        (id: string) => id === "experimental-source",
+      );
+
+      const filters: UserNotificationFilters = {
+        notificationCategories: new Set(),
+        notificationSources: new Set(),
+        experimentalFeatures: false,
+      };
+      expect(
+        shouldNotifyUser(filters, {
+          categories: ["water"],
+          source: "experimental-source",
+        }),
+      ).toBe(false);
+
+      mockIsExperimentalSource.mockReset();
+    });
+
+    it("should allow experimental source when experimentalFeatures is true", () => {
+      mockIsExperimentalSource.mockImplementation(
+        (id: string) => id === "experimental-source",
+      );
+
+      const filters: UserNotificationFilters = {
+        notificationCategories: new Set(),
+        notificationSources: new Set(),
+        experimentalFeatures: true,
+      };
+      expect(
+        shouldNotifyUser(filters, {
+          categories: ["water"],
+          source: "experimental-source",
+        }),
+      ).toBe(true);
+
+      mockIsExperimentalSource.mockReset();
+    });
+
+    it("should still apply category/source filters for experimental sources", () => {
+      mockIsExperimentalSource.mockImplementation(
+        (id: string) => id === "experimental-source",
+      );
+
+      const filters: UserNotificationFilters = {
+        notificationCategories: new Set(["electricity"]),
+        notificationSources: new Set(),
+        experimentalFeatures: true,
+      };
+      // Category doesn't match
+      expect(
+        shouldNotifyUser(filters, {
+          categories: ["water"],
+          source: "experimental-source",
+        }),
+      ).toBe(false);
+
+      mockIsExperimentalSource.mockReset();
+    });
+
+    it("should allow non-experimental source regardless of experimentalFeatures flag", () => {
+      mockIsExperimentalSource.mockReturnValue(false);
+
+      const filters: UserNotificationFilters = {
+        notificationCategories: new Set(),
+        notificationSources: new Set(),
+        experimentalFeatures: false,
+      };
+      expect(
+        shouldNotifyUser(filters, {
+          categories: ["water"],
+          source: "sofiyska-voda",
+        }),
+      ).toBe(true);
+
+      mockIsExperimentalSource.mockReset();
     });
   });
 });

@@ -27,6 +27,7 @@ let notificationHistory = [...MOCK_NOTIFICATION_HISTORY];
 let notificationFilters = {
   notificationCategories: [] as string[],
   notificationSources: [] as string[],
+  experimentalFeatures: false,
 };
 
 /**
@@ -407,10 +408,12 @@ export const handlers = [
     const body = (await request.json()) as {
       notificationCategories?: string[];
       notificationSources?: string[];
+      experimentalFeatures?: boolean;
     };
     notificationFilters = {
       notificationCategories: body.notificationCategories ?? [],
       notificationSources: body.notificationSources ?? [],
+      experimentalFeatures: body.experimentalFeatures ?? false,
     };
     return HttpResponse.json(notificationFilters);
   }),
@@ -420,6 +423,7 @@ export const handlers = [
     notificationFilters = {
       notificationCategories: [],
       notificationSources: [],
+      experimentalFeatures: false,
     };
     return HttpResponse.json(notificationFilters);
   }),
@@ -505,6 +509,7 @@ export const handlers = [
     notificationFilters = {
       notificationCategories: [],
       notificationSources: [],
+      experimentalFeatures: false,
     };
     return new HttpResponse(null, { status: 204 });
   }),

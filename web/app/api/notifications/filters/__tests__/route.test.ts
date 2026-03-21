@@ -48,6 +48,7 @@ describe("GET /api/notifications/filters", () => {
     expect(data).toEqual({
       notificationCategories: [],
       notificationSources: [],
+      experimentalFeatures: false,
     });
   });
 
@@ -71,6 +72,7 @@ describe("GET /api/notifications/filters", () => {
     expect(data).toEqual({
       notificationCategories: ["water", "electricity"],
       notificationSources: ["sofiyska-voda"],
+      experimentalFeatures: false,
     });
   });
 
@@ -148,10 +150,12 @@ describe("PUT /api/notifications/filters", () => {
     expect(data).toEqual({
       notificationCategories: ["water"],
       notificationSources: ["sofiyska-voda"],
+      experimentalFeatures: false,
     });
     expect(upsertByUserIdMock).toHaveBeenCalledWith("user-1", {
       notificationCategories: ["water"],
       notificationSources: ["sofiyska-voda"],
+      experimentalFeatures: false,
     });
   });
 
@@ -177,7 +181,7 @@ describe("PUT /api/notifications/filters", () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data).toEqual({ notificationCategories: [], notificationSources: [] });
+    expect(data).toEqual({ notificationCategories: [], notificationSources: [], experimentalFeatures: false });
   });
 
   it("returns 400 for invalid category value", async () => {
@@ -287,10 +291,11 @@ describe("DELETE /api/notifications/filters", () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data).toEqual({ notificationCategories: [], notificationSources: [] });
+    expect(data).toEqual({ notificationCategories: [], notificationSources: [], experimentalFeatures: false });
     expect(upsertByUserIdMock).toHaveBeenCalledWith("user-1", {
       notificationCategories: [],
       notificationSources: [],
+      experimentalFeatures: false,
     });
   });
 
