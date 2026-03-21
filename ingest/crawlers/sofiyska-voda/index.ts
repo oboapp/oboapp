@@ -20,6 +20,7 @@ import { logger } from "@/lib/logger";
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 
 const LOCALITY = "bg.sofia";
+const SOURCE_TYPE = "sofiyska-voda";
 const BASE_URL =
   "https://gispx.sofiyskavoda.bg/arcgis/rest/services/WSI_PUBLIC/InfoCenter_Public/MapServer";
 const REQUEST_HEADERS = {
@@ -136,11 +137,11 @@ async function saveSourceDocument(
       logSuccess: false,
     },
   );
-  logger.debug("Saved source document", { sourceType: "sofiyska-voda", title: doc.title });
+  logger.debug("Saved source document", { sourceType: SOURCE_TYPE, title: doc.title });
 }
 
 export async function crawl(): Promise<void> {
-  logger.info("Starting crawler", { sourceType: "sofiyska-voda" });
+  logger.info("Starting crawler", { sourceType: SOURCE_TYPE });
 
   const summary: CrawlSummary = { saved: 0, skipped: 0, emptyLayers: 0 };
   const seenUrls = new Set<string>();
@@ -166,9 +167,9 @@ async function processLayer(
   seenUrls: Set<string>,
   db: OboDb | null,
 ): Promise<CrawlSummary> {
-  logger.debug("Fetching layer", { sourceType: "sofiyska-voda", layerId: layer.id, layerName: layer.name });
+  logger.debug("Fetching layer", { sourceType: SOURCE_TYPE, layerId: layer.id, layerName: layer.name });
   const features = await fetchLayerFeatures(layer);
-  logger.debug("Fetched layer features", { sourceType: "sofiyska-voda", layerName: layer.name, count: features.length });
+  logger.debug("Fetched layer features", { sourceType: SOURCE_TYPE, layerName: layer.name, count: features.length });
 
   if (features.length === 0) {
     return { saved: 0, skipped: 0, emptyLayers: 1 };
@@ -215,7 +216,7 @@ async function handleFeature(
 }
 
 function logSummary(summary: CrawlSummary): void {
-  logger.info("Crawl complete", { sourceType: "sofiyska-voda", saved: summary.saved, skipped: summary.skipped, emptyLayers: summary.emptyLayers });
+  logger.info("Crawl complete", { sourceType: SOURCE_TYPE, saved: summary.saved, skipped: summary.skipped, emptyLayers: summary.emptyLayers });
 }
 
 // Run only when executed directly
