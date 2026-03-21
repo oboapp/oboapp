@@ -32,7 +32,7 @@ export async function extractPostLinks(
   selectors: Selectors,
   urlFilter?: (url: string) => boolean
 ): Promise<PostLink[]> {
-  logger.info("Extracting post links from index page");
+  logger.debug("Extracting post links from index page");
 
   const posts = await page.evaluate((selectors) => {
     const postLinks: { url: string; title: string; date: string }[] = [];
@@ -71,7 +71,7 @@ export async function extractPostLinks(
     ? posts.filter((p) => urlFilter(p.url))
     : posts;
 
-  logger.info("Found posts on index page", { count: filteredPosts.length });
+  logger.debug("Found posts on index page", { count: filteredPosts.length });
   return filteredPosts;
 }
 

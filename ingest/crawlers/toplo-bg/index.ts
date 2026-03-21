@@ -30,7 +30,9 @@ interface CrawlSummary {
 export async function crawl(dryRun = false): Promise<void> {
   const summary: CrawlSummary = { saved: 0, skipped: 0, failed: 0 };
 
-  logger.info("Fetching incidents", { url: TARGET_URL });
+  logger.info("Starting crawler", { sourceType: SOURCE_TYPE });
+
+  logger.debug("Fetching incidents", { url: TARGET_URL });
 
   // Launch browser and fetch HTML
   const browser = await launchBrowser();
@@ -39,7 +41,7 @@ export async function crawl(dryRun = false): Promise<void> {
   const html = await page.content();
   await browser.close();
 
-  logger.info("Parsing incidents");
+  logger.debug("Parsing incidents");
 
   // Parse incidents from HTML
   const incidents = parseIncidents(html);
@@ -49,7 +51,7 @@ export async function crawl(dryRun = false): Promise<void> {
     process.exit(1);
   }
 
-  logger.info("Found incidents", { count: incidents.length });
+  logger.debug("Found incidents", { count: incidents.length });
 
   // Load database (lazy)
   const db = dryRun
@@ -121,7 +123,7 @@ export async function crawl(dryRun = false): Promise<void> {
       };
 
       if (dryRun) {
-        logger.info("Dry-run incident", { title: doc.title });
+        logger.debug("Dry-run incident", { title: doc.title });
         summary.saved++;
       } else if (db) {
         const saved = await saveSourceDocumentIfNew(doc, db, {
@@ -133,7 +135,7 @@ export async function crawl(dryRun = false): Promise<void> {
           logSuccess: false,
         });
         if (saved) {
-          logger.info("Saved incident", { title: doc.title });
+          logger.debug("Saved incident", { title: doc.title });
           summary.saved++;
         } else {
           summary.skipped++;
@@ -146,7 +148,7 @@ export async function crawl(dryRun = false): Promise<void> {
   }
 
   // Print summary
-  logger.info("Crawl summary", { saved: summary.saved, skipped: summary.skipped, failed: summary.failed });
+  logger.info("Crawl complete", { sourceType: SOURCE_TYPE, total: incidents.length, saved: summary.saved, skipped: summary.skipped, failed: summary.failed });
 
   // Exit with error if all failed
   if (summary.failed > 0 && summary.saved === 0 && summary.skipped === 0) {

@@ -77,12 +77,11 @@ export async function processWordpressPost<
 ): Promise<void> {
   const { url, title } = postLink;
 
-  logger.info("Processing post", { title: title.substring(0, 60) });
+  logger.debug("Fetching post", { sourceType, url, title: title.substring(0, 60) });
 
   const page = await browser.newPage();
 
   try {
-    logger.info("Fetching post", { url });
     await page.goto(url, { waitUntil: "networkidle" });
 
     const details = await extractPostDetails(page);
@@ -102,11 +101,11 @@ export async function processWordpressPost<
       crawledAt: new Date(),
     };
 
-    await saveSourceDocument(sourceDoc, db);
+    await saveSourceDocument(sourceDoc, db, { logSuccess: false });
 
-    logger.info("Successfully processed post", { title: title.substring(0, 60) });
+    logger.debug("Saved post", { sourceType, title: title.substring(0, 60) });
   } catch (error) {
-    logger.error("Error processing post", { url, error: error instanceof Error ? error.message : String(error) });
+    logger.error("Error processing post", { sourceType, url, error: error instanceof Error ? error.message : String(error) });
     throw error;
   } finally {
     await page.close();
@@ -138,7 +137,7 @@ export async function crawlWordpressPage(options: {
     delayBetweenRequests: _delayBetweenRequests = 2000,
   } = options;
 
-  logger.info("Starting crawler", { sourceType, indexUrl });
+  logger.info("Starting crawler", { sourceType });
 
   const { getDb } = await import("@/lib/db");
   const db = await getDb();
@@ -146,25 +145,23 @@ export async function crawlWordpressPage(options: {
   let browser: Browser | null = null;
 
   try {
-    logger.info("Launching browser");
     browser = await launchBrowser();
 
     const page = await browser.newPage();
-    logger.info("Fetching index page", { url: indexUrl });
+    logger.debug("Fetching index page", { sourceType, url: indexUrl });
     await page.goto(indexUrl, { waitUntil: "networkidle" });
 
     const postLinks = await extractPostLinks(page);
     await page.close();
 
     if (postLinks.length === 0) {
-      logger.warn("No posts found on index page");
+      logger.warn("No posts found on index page", { sourceType });
       return;
     }
 
-    logger.info("Total posts to process", { count: postLinks.length });
-
-    let processedCount = 0;
+    let savedCount = 0;
     let skippedCount = 0;
+    let failedCount = 0;
 
     for (const postLink of postLinks) {
       try {
@@ -172,24 +169,24 @@ export async function crawlWordpressPage(options: {
 
         if (wasProcessed) {
           skippedCount++;
-          logger.info("Skipped already processed post", { title: postLink.title.substring(0, 60) });
+          logger.debug("Skipped already processed post", { sourceType, title: postLink.title.substring(0, 60) });
         } else {
           await processPost(browser, postLink, db);
-          processedCount++;
+          savedCount++;
         }
       } catch (error) {
-        logger.error("Error processing post", { url: postLink.url, error: error instanceof Error ? error.message : String(error) });
+        failedCount++;
+        logger.error("Error processing post", { sourceType, url: postLink.url, error: error instanceof Error ? error.message : String(error) });
       }
     }
 
-    logger.info("Crawling completed successfully", { totalPosts: postLinks.length, processedCount, skippedCount });
+    logger.info("Crawl complete", { sourceType, total: postLinks.length, saved: savedCount, skipped: skippedCount, failed: failedCount });
   } catch (error) {
-    logger.error("Crawling failed", { error: error instanceof Error ? error.message : String(error) });
+    logger.error("Crawl failed", { sourceType, error: error instanceof Error ? error.message : String(error) });
     throw error;
   } finally {
     if (browser) {
       await browser.close();
-      logger.info("Browser closed");
     }
   }
 }

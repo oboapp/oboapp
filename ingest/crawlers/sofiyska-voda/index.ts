@@ -136,11 +136,11 @@ async function saveSourceDocument(
       logSuccess: false,
     },
   );
-  logger.info("Записано събитие", { title: doc.title });
+  logger.debug("Saved source document", { title: doc.title });
 }
 
 export async function crawl(): Promise<void> {
-  logger.info("Стартиране на crawler за Sofiyska Voda");
+  logger.info("Starting crawler", { sourceType: "sofiyska-voda" });
 
   const summary: CrawlSummary = { saved: 0, skipped: 0, emptyLayers: 0 };
   const seenUrls = new Set<string>();
@@ -166,9 +166,9 @@ async function processLayer(
   seenUrls: Set<string>,
   db: OboDb | null,
 ): Promise<CrawlSummary> {
-  logger.info("Зареждане на слой", { layerId: layer.id, layerName: layer.name });
+  logger.debug("Fetching layer", { layerId: layer.id, layerName: layer.name });
   const features = await fetchLayerFeatures(layer);
-  logger.info("Получени записи", { count: features.length });
+  logger.debug("Fetched layer features", { layerName: layer.name, count: features.length });
 
   if (features.length === 0) {
     return { saved: 0, skipped: 0, emptyLayers: 1 };
@@ -215,7 +215,7 @@ async function handleFeature(
 }
 
 function logSummary(summary: CrawlSummary): void {
-  logger.info("Резюме на обработката", { saved: summary.saved, skipped: summary.skipped, emptyLayers: summary.emptyLayers });
+  logger.info("Crawl complete", { sourceType: "sofiyska-voda", saved: summary.saved, skipped: summary.skipped, emptyLayers: summary.emptyLayers });
 }
 
 // Run only when executed directly

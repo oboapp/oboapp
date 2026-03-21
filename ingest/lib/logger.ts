@@ -5,12 +5,21 @@
  * by Cloud Logging, making logs filterable and alertable.
  *
  * Locally, falls back to plain console output for readability.
+ *
+ * Levels:
+ *   - **debug** – per-item / operational step details (hidden locally by default,
+ *     set `LOG_LEVEL=debug` to show). Always emitted in production for Cloud Logging.
+ *   - **info**  – high-level milestones and summaries.
+ *   - **warn**  – recoverable issues.
+ *   - **error** – failures that need attention.
  */
 
 const isProduction = process.env.NODE_ENV === "production";
+const showDebug =
+  isProduction || process.env.LOG_LEVEL?.toLowerCase() === "debug";
 
 interface LogEntry {
-  severity: "INFO" | "WARNING" | "ERROR";
+  severity: "DEBUG" | "INFO" | "WARNING" | "ERROR";
   message: string;
   [key: string]: unknown;
 }
@@ -38,6 +47,11 @@ function write(entry: LogEntry) {
 }
 
 export const logger = {
+  debug(message: string, extra?: Record<string, unknown>) {
+    if (showDebug) {
+      write({ severity: "DEBUG", message, ...extra });
+    }
+  },
   info(message: string, extra?: Record<string, unknown>) {
     write({ severity: "INFO", message, ...extra });
   },

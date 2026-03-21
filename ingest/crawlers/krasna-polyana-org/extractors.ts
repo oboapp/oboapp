@@ -7,12 +7,12 @@ import {
 import { logger } from "@/lib/logger";
 
 export async function extractPostLinks(page: Page): Promise<PostLink[]> {
-  logger.info("Extracting post links from index page");
+  logger.debug("Extracting post links from index page");
 
   const posts = await page.evaluate((selectors) => {
     const links = Array.from(
-      document.querySelectorAll(selectors.INDEX.POST_LINK),
-    ) as HTMLAnchorElement[];
+      document.querySelectorAll<HTMLAnchorElement>(selectors.INDEX.POST_LINK),
+    );
 
     const result: { url: string; title: string; date: string }[] = [];
 
@@ -74,7 +74,7 @@ export async function extractPostLinks(page: Page): Promise<PostLink[]> {
     return true;
   });
 
-  logger.info("Found posts on index page", { count: filteredPosts.length });
+  logger.debug("Found posts on index page", { count: filteredPosts.length });
 
   return filteredPosts;
 }

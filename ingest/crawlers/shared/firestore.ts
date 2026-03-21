@@ -55,7 +55,7 @@ export async function saveSourceDocument<T extends BaseSourceDocument>(
   await db.sources.setOne(docId, record);
 
   if (options?.logSuccess !== false) {
-    logger.info("Saved document", { title: doc.title.substring(0, 50) });
+    logger.debug("Saved document", { title: doc.title.substring(0, 50) });
   }
 }
 

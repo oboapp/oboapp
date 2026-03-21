@@ -55,7 +55,9 @@ export async function crawl(): Promise<void> {
     noWarnings: 0,
   };
 
-  logger.info("Fetching weather warnings", { url: TARGET_URL });
+  logger.info("Starting crawler", { sourceType: SOURCE_TYPE });
+
+  logger.debug("Fetching weather warnings", { url: TARGET_URL });
 
   // Launch browser and fetch HTML
   const browser = await launchBrowser();
@@ -66,7 +68,7 @@ export async function crawl(): Promise<void> {
     const html = await page.content();
     await browser.close();
 
-    logger.info("Parsing weather warnings");
+    logger.debug("Parsing weather warnings");
 
     // Parse the page
     const pageData = parseWeatherPage(html);
@@ -84,7 +86,7 @@ export async function crawl(): Promise<void> {
       return;
     }
 
-    logger.info("Found active weather warnings", { forecastDate: pageData.forecastDate });
+    logger.debug("Found active weather warnings", { forecastDate: pageData.forecastDate });
 
     // Build source document
     const timespan = buildTimespan(pageData.forecastDate);
@@ -123,10 +125,10 @@ export async function crawl(): Promise<void> {
     });
 
     if (saved) {
-      logger.info("Saved weather warning", { title: doc.title });
+      logger.debug("Saved weather warning", { title: doc.title });
       summary.saved++;
     } else {
-      logger.info("Weather warning already exists", { title: doc.title });
+      logger.debug("Weather warning already exists", { title: doc.title });
       summary.skipped++;
     }
   } catch (error) {
@@ -144,16 +146,7 @@ export async function crawl(): Promise<void> {
 }
 
 function printSummary(summary: CrawlSummary): void {
-  const parts = [`Saved: ${summary.saved}`, `Skipped: ${summary.skipped}`];
-
-  if (summary.noWarnings > 0) {
-    parts.push(`No warnings: ${summary.noWarnings}`);
-  }
-  if (summary.failed > 0) {
-    parts.push(`Failed: ${summary.failed}`);
-  }
-
-  logger.info("Crawl summary", { saved: summary.saved, skipped: summary.skipped, noWarnings: summary.noWarnings, failed: summary.failed });
+  logger.info("Crawl complete", { sourceType: SOURCE_TYPE, saved: summary.saved, skipped: summary.skipped, noWarnings: summary.noWarnings, failed: summary.failed });
 }
 
 // Run if called directly

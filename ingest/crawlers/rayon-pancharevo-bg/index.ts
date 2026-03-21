@@ -95,7 +95,7 @@ export async function crawl(): Promise<void> {
           const relevant = isDateRelevant(range);
 
           if (!relevant) {
-            logger.info("Skipping outdated post", {
+            logger.debug("Skipping outdated post", {
               url: link.url,
               title: link.title.substring(0, 80),
               dateCandidate,

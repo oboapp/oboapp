@@ -38,7 +38,7 @@ const LOCALITY = "bg.sofia";
  * Discover active София-град municipalities from the index page
  */
 async function discoverMunicipalities(): Promise<Municipality[]> {
-  logger.info("Discovering София-град municipalities");
+  logger.debug("Discovering София-град municipalities");
 
   const browser = await launchBrowser();
   const page = await browser.newPage();
@@ -92,7 +92,7 @@ async function discoverMunicipalities(): Promise<Municipality[]> {
       return results;
     });
 
-    logger.info("Found municipalities", {
+    logger.debug("Found municipalities", {
       count: municipalities.length,
       municipalities: municipalities.map((m) => `${m.code}: ${m.name}`),
     });
@@ -231,14 +231,15 @@ function buildSourceDocument(pins: PinRecord[]): ErmZapadSourceDocument | null {
 async function processMunicipality(
   municipality: Municipality,
 ): Promise<PinRecord[]> {
-  logger.info("Processing municipality", {
+  logger.debug("Processing municipality", {
     name: municipality.name,
     code: municipality.code,
   });
 
   try {
     const incidents = await fetchMunicipalityIncidents(municipality.code);
-    logger.info("Found incidents for municipality", {
+    logger.debug("Found incidents for municipality", {
+      municipality: municipality.name,
       count: incidents.length,
     });
 
@@ -253,7 +254,7 @@ async function processMunicipality(
       allPins.push(...pins);
     }
 
-    logger.info("Extracted pins", { count: allPins.length });
+    logger.debug("Extracted pins", { municipality: municipality.name, count: allPins.length });
     return allPins;
   } catch (error) {
     logger.error("Failed to fetch incidents for municipality", {
@@ -282,7 +283,7 @@ async function saveIncidents(
 
       const saved = await saveSourceDocumentIfNew(doc, db);
       if (saved) {
-        logger.info("Saved incident", {
+        logger.debug("Saved incident", {
           title: doc.title,
           pinCount: pins.length,
         });
@@ -304,7 +305,7 @@ async function saveIncidents(
  * Main crawler function
  */
 async function crawl(): Promise<void> {
-  logger.info("Starting ERM-Zapad crawler");
+  logger.info("Starting crawler", { sourceType: SOURCE_TYPE });
 
   const startTime = Date.now();
   const totalSummary: CrawlSummary = { saved: 0, skipped: 0, failed: 0 };
@@ -330,11 +331,11 @@ async function crawl(): Promise<void> {
       }
     }
 
-    logger.info("Total pins extracted", { count: allPins.length });
+    logger.debug("Total pins extracted", { count: allPins.length });
 
     // Deduplicate globally across all municipalities
     const uniquePins = deduplicatePinRecords(allPins);
-    logger.info("Unique pins after deduplication", {
+    logger.debug("Unique pins after deduplication", {
       uniqueCount: uniquePins.length,
       removedDuplicates: allPins.length - uniquePins.length,
     });
@@ -342,7 +343,7 @@ async function crawl(): Promise<void> {
     // Group pins by eventId to handle potential duplicates across municipalities
     const incidentMap = groupPinsByEventId(uniquePins);
 
-    logger.info("Incidents after grouping", {
+    logger.debug("Incidents after grouping", {
       incidentCount: incidentMap.size,
       totalPins: uniquePins.length,
     });
@@ -357,7 +358,10 @@ async function crawl(): Promise<void> {
     // Final summary
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
     logger.info("Crawl complete", {
+      sourceType: SOURCE_TYPE,
       durationSeconds: duration,
+      municipalities: municipalities.length,
+      incidents: incidentMap.size,
       saved: totalSummary.saved,
       skipped: totalSummary.skipped,
       failed: totalSummary.failed,
@@ -374,6 +378,7 @@ async function crawl(): Promise<void> {
     }
   } catch (error) {
     logger.error("Crawl failed", {
+      sourceType: SOURCE_TYPE,
       error: error instanceof Error ? error.message : String(error),
     });
     process.exit(1);
