@@ -84,6 +84,7 @@ export async function crawl(): Promise<void> {
 
         if (!dateCandidate) {
           logger.warn("Could not extract date from post listing; keeping for downstream processing", {
+            sourceType: SOURCE_TYPE,
             url: link.url,
             title: link.title.substring(0, 80),
           });
@@ -105,6 +106,7 @@ export async function crawl(): Promise<void> {
           return relevant;
         } catch (error) {
           logger.warn("Failed to parse post date; keeping post", {
+            sourceType: SOURCE_TYPE,
             url: link.url,
             dateCandidate,
             error: error instanceof Error ? error.message : String(error),
@@ -120,7 +122,7 @@ export async function crawl(): Promise<void> {
 
 if (require.main === module) {
   crawl().catch((error) => {
-    logger.error("Fatal error", { error: error instanceof Error ? error.message : String(error) });
+    logger.error("Fatal error", { sourceType: SOURCE_TYPE, error: error instanceof Error ? error.message : String(error) });
     process.exit(1);
   });
 }

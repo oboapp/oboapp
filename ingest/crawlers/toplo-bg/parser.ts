@@ -46,18 +46,18 @@ export function parseIncidents(html: string): ToploIncident[] {
       const validation = validateAndFixGeoJSON(rawGeoJson, info.Name);
 
       if (!validation.isValid || !validation.geoJson) {
-        logger.warn("Invalid GeoJSON for incident", { name: info.Name, errors: validation.errors });
+        logger.warn("Invalid GeoJSON for incident", { sourceType: "toplo-bg", name: info.Name, errors: validation.errors });
         continue;
       }
 
       // Log warnings about coordinate fixes
       if (validation.warnings.length > 0) {
-        logger.warn("Fixed GeoJSON for incident", { name: info.Name, warnings: validation.warnings });
+        logger.warn("Fixed GeoJSON for incident", { sourceType: "toplo-bg", name: info.Name, warnings: validation.warnings });
       }
 
       incidents.push({ info, geoJson: validation.geoJson });
     } catch (error) {
-      logger.warn("Failed to parse incident", { error: error instanceof Error ? error.message : String(error) });
+      logger.warn("Failed to parse incident", { sourceType: "toplo-bg", error: error instanceof Error ? error.message : String(error) });
       continue;
     }
   }

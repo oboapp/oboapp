@@ -34,12 +34,14 @@ export function resolveTriaditsaDateText(
   if (normalizedListing) {
     logger.warn(
       "Missing extracted post date for triaditsa-org post, falling back to listing date",
+      { sourceType: SOURCE_TYPE },
     );
     return normalizedListing;
   }
 
   logger.warn(
     "Missing extracted and listing date for triaditsa-org post, falling back to current timestamp",
+    { sourceType: SOURCE_TYPE },
   );
   return "";
 }
@@ -50,6 +52,7 @@ export function parseTriaditsaDate(dateText: string): string {
   if (!normalized) {
     logger.warn(
       "Missing date text for triaditsa-org post, falling back to current timestamp",
+      { sourceType: SOURCE_TYPE },
     );
     return new Date().toISOString();
   }
@@ -93,6 +96,7 @@ export async function crawl(): Promise<void> {
 if (require.main === module) {
   crawl().catch((error) => {
     logger.error("Fatal error", {
+      sourceType: SOURCE_TYPE,
       error: error instanceof Error ? error.message : String(error),
     });
     process.exit(1);

@@ -64,6 +64,7 @@ export async function crawl(): Promise<void> {
 if (require.main === module) {
   crawl().catch((error) => {
     logger.error("Fatal error", {
+      sourceType: SOURCE_TYPE,
       error: error instanceof Error ? error.message : String(error),
     });
     process.exit(1);

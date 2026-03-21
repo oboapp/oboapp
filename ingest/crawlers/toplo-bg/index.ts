@@ -47,7 +47,7 @@ export async function crawl(dryRun = false): Promise<void> {
   const incidents = parseIncidents(html);
 
   if (incidents.length === 0) {
-    logger.error("No incidents found in HTML");
+    logger.error("No incidents found in HTML", { sourceType: SOURCE_TYPE });
     process.exit(1);
   }
 
@@ -79,11 +79,11 @@ export async function crawl(dryRun = false): Promise<void> {
         if (validateTimespanRange(parsed)) {
           timespanStart = parsed;
         } else {
-          logger.warn("FromDate outside valid range", { contentItemId: info.ContentItemId, fromDate: info.FromDate });
+          logger.warn("FromDate outside valid range", { sourceType: SOURCE_TYPE, contentItemId: info.ContentItemId, fromDate: info.FromDate });
           timespanStart = new Date();
         }
       } catch (error) {
-        logger.warn("Invalid FromDate", { contentItemId: info.ContentItemId, fromDate: info.FromDate, error: error instanceof Error ? error.message : String(error) });
+        logger.warn("Invalid FromDate", { sourceType: SOURCE_TYPE, contentItemId: info.ContentItemId, fromDate: info.FromDate, error: error instanceof Error ? error.message : String(error) });
         timespanStart = new Date();
       }
 
@@ -94,14 +94,14 @@ export async function crawl(dryRun = false): Promise<void> {
           if (validateTimespanRange(parsed)) {
             timespanEnd = parsed;
           } else {
-            logger.warn("UntilDate outside valid range", { contentItemId: info.ContentItemId, untilDate: info.UntilDate });
+            logger.warn("UntilDate outside valid range", { sourceType: SOURCE_TYPE, contentItemId: info.ContentItemId, untilDate: info.UntilDate });
             timespanEnd = timespanStart;
           }
         } else {
           timespanEnd = timespanStart; // Use start date for both
         }
       } catch (error) {
-        logger.warn("Invalid UntilDate", { contentItemId: info.ContentItemId, untilDate: info.UntilDate, error: error instanceof Error ? error.message : String(error) });
+        logger.warn("Invalid UntilDate", { sourceType: SOURCE_TYPE, contentItemId: info.ContentItemId, untilDate: info.UntilDate, error: error instanceof Error ? error.message : String(error) });
         timespanEnd = timespanStart;
       }
 
@@ -142,7 +142,7 @@ export async function crawl(dryRun = false): Promise<void> {
         }
       }
     } catch (error) {
-      logger.warn("Failed to process incident", { error: error instanceof Error ? error.message : String(error) });
+      logger.warn("Failed to process incident", { sourceType: SOURCE_TYPE, error: error instanceof Error ? error.message : String(error) });
       summary.failed++;
     }
   }
@@ -152,7 +152,7 @@ export async function crawl(dryRun = false): Promise<void> {
 
   // Exit with error if all failed
   if (summary.failed > 0 && summary.saved === 0 && summary.skipped === 0) {
-    logger.error("All incidents failed to process");
+    logger.error("All incidents failed to process", { sourceType: SOURCE_TYPE });
     process.exit(1);
   }
 }
@@ -160,7 +160,7 @@ export async function crawl(dryRun = false): Promise<void> {
 // Run if called directly
 if (require.main === module) {
   crawl(false).catch((error) => {
-    logger.error("Fatal error", { error: error instanceof Error ? error.message : String(error) });
+    logger.error("Fatal error", { sourceType: SOURCE_TYPE, error: error instanceof Error ? error.message : String(error) });
     process.exit(1);
   });
 }

@@ -150,7 +150,7 @@ async function fetchMunicipalityIncidents(
  */
 function buildSourceDocument(pins: PinRecord[]): ErmZapadSourceDocument | null {
   if (pins.length === 0) {
-    logger.warn("Skipping empty pin array");
+    logger.warn("Skipping empty pin array", { sourceType: SOURCE_TYPE });
     return null;
   }
 
@@ -159,14 +159,14 @@ function buildSourceDocument(pins: PinRecord[]): ErmZapadSourceDocument | null {
 
   // Validate required fields
   if (!pin.eventId || typeof pin.eventId !== "string") {
-    logger.warn("Skipping pin without eventId");
+    logger.warn("Skipping pin without eventId", { sourceType: SOURCE_TYPE });
     return null;
   }
 
   // Build GeoJSON with all pins for this incident
   const geoJson = buildGeoJSON(pins);
   if (!geoJson) {
-    logger.warn("Skipping incident without geometry", { eventId: pin.eventId });
+    logger.warn("Skipping incident without geometry", { sourceType: SOURCE_TYPE, eventId: pin.eventId });
     return null;
   }
 
@@ -174,6 +174,7 @@ function buildSourceDocument(pins: PinRecord[]): ErmZapadSourceDocument | null {
   const validation = validateAndFixGeoJSON(geoJson, pin.eventId);
   if (!validation.isValid || !validation.geoJson) {
     logger.warn("Invalid GeoJSON for incident", {
+      sourceType: SOURCE_TYPE,
       eventId: pin.eventId,
       errors: validation.errors,
     });
@@ -183,6 +184,7 @@ function buildSourceDocument(pins: PinRecord[]): ErmZapadSourceDocument | null {
   // Log any coordinate fixes
   if (validation.warnings.length > 0) {
     logger.warn("Fixed GeoJSON for incident", {
+      sourceType: SOURCE_TYPE,
       eventId: pin.eventId,
       warnings: validation.warnings,
     });
@@ -200,6 +202,7 @@ function buildSourceDocument(pins: PinRecord[]): ErmZapadSourceDocument | null {
       datePublished = parseBulgarianDateTime(pin.begin_event).toISOString();
     } catch {
       logger.warn("Invalid date format", {
+        sourceType: SOURCE_TYPE,
         eventId: pin.eventId,
         beginEvent: pin.begin_event,
       });
@@ -261,6 +264,7 @@ async function processMunicipality(
     return allPins;
   } catch (error) {
     logger.error("Failed to fetch incidents for municipality", {
+      sourceType: SOURCE_TYPE,
       code: municipality.code,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -297,6 +301,7 @@ async function saveIncidents(
       }
     } catch (error) {
       logger.error("Failed to process incident", {
+        sourceType: SOURCE_TYPE,
         eventId,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -319,7 +324,7 @@ async function crawl(): Promise<void> {
     const municipalities = await discoverMunicipalities();
 
     if (municipalities.length === 0) {
-      logger.warn("No София-град municipalities found");
+      logger.warn("No София-град municipalities found", { sourceType: SOURCE_TYPE });
       return;
     }
 
@@ -379,7 +384,7 @@ async function crawl(): Promise<void> {
       totalSummary.saved === 0 &&
       totalSummary.skipped === 0
     ) {
-      logger.error("All pins failed to process");
+      logger.error("All pins failed to process", { sourceType: SOURCE_TYPE });
       process.exit(1);
     }
   } catch (error) {

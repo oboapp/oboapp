@@ -100,7 +100,7 @@ export function parseWeatherPage(html: string): WeatherPageData | null {
     /прогноза за[:\s]+(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})/i;
   const forecastDateMatch = forecastDateRegex.exec(html);
   if (!forecastDateMatch) {
-    logger.warn("Could not find forecast date in HTML");
+    logger.warn("Could not find forecast date in HTML", { sourceType: "nimh-severe-weather" });
     return null;
   }
 

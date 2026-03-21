@@ -216,13 +216,14 @@ async function handleFeature(
 }
 
 function logSummary(summary: CrawlSummary): void {
-  logger.info("Crawl complete", { sourceType: SOURCE_TYPE, saved: summary.saved, skipped: summary.skipped, emptyLayers: summary.emptyLayers });
+  const total = summary.saved + summary.skipped;
+  logger.info("Crawl complete", { sourceType: SOURCE_TYPE, total, saved: summary.saved, skipped: summary.skipped, failed: 0, emptyLayers: summary.emptyLayers });
 }
 
 // Run only when executed directly
 if (require.main === module) {
   crawl().catch((error) => {
-    logger.error("Софийска вода crawler се провали", { error: error instanceof Error ? error.message : String(error) });
+    logger.error("Софийска вода crawler се провали", { sourceType: SOURCE_TYPE, error: error instanceof Error ? error.message : String(error) });
     process.exit(1);
   });
 }

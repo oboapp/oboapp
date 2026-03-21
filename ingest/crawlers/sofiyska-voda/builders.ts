@@ -169,7 +169,7 @@ export async function buildSourceDocument(
 ): Promise<SofiyskaVodaSourceDocument | null> {
   const objectId = feature.attributes?.OBJECTID;
   if (typeof objectId !== "number") {
-    logger.warn("Skipping feature without OBJECTID", { layerId: layer.id });
+    logger.warn("Skipping feature without OBJECTID", { sourceType: SOURCE_TYPE, layerId: layer.id });
     return null;
   }
 
@@ -189,7 +189,7 @@ export async function buildSourceDocument(
   );
   const geoJson = buildGeoJsonFeatureCollection(feature, layer);
   if (!geoJson) {
-    logger.warn("Skipping feature without geometry", { url });
+    logger.warn("Skipping feature without geometry", { sourceType: SOURCE_TYPE, url });
     return null;
   }
   const lastUpdate =
@@ -221,12 +221,14 @@ export async function buildSourceDocument(
   if (!isStartValid || !isEndValid) {
     if (!isStartValid && feature.attributes?.START_) {
       logger.warn("START_ outside valid range", {
+        sourceType: SOURCE_TYPE,
         objectId: feature.attributes.OBJECTID,
         startValue: feature.attributes.START_,
       });
     }
     if (!isEndValid && feature.attributes?.ALERTEND) {
       logger.warn("ALERTEND outside valid range", {
+        sourceType: SOURCE_TYPE,
         objectId: feature.attributes.OBJECTID,
         alertEnd: feature.attributes.ALERTEND,
       });

@@ -22,11 +22,11 @@ export function parseTimespans(pin: PinRecord): {
       if (validateTimespanRange(parsed)) {
         timespanStart = parsed;
       } else {
-        logger.warn("begin_event outside valid range", { eventId: pin.eventId, beginEvent: pin.begin_event });
+        logger.warn("begin_event outside valid range", { sourceType: "erm-zapad", eventId: pin.eventId, beginEvent: pin.begin_event });
       }
     }
   } catch (error) {
-    logger.warn("Invalid begin_event", { eventId: pin.eventId, beginEvent: pin.begin_event, error: error instanceof Error ? error.message : String(error) });
+    logger.warn("Invalid begin_event", { sourceType: "erm-zapad", eventId: pin.eventId, beginEvent: pin.begin_event, error: error instanceof Error ? error.message : String(error) });
   }
 
   // Parse end time
@@ -36,7 +36,7 @@ export function parseTimespans(pin: PinRecord): {
       if (validateTimespanRange(parsed)) {
         timespanEnd = parsed;
       } else {
-        logger.warn("end_event outside valid range", { eventId: pin.eventId, endEvent: pin.end_event });
+        logger.warn("end_event outside valid range", { sourceType: "erm-zapad", eventId: pin.eventId, endEvent: pin.end_event });
         timespanEnd = timespanStart;
       }
     } else if (pin.begin_event) {
@@ -44,7 +44,7 @@ export function parseTimespans(pin: PinRecord): {
       timespanEnd = timespanStart;
     }
   } catch (error) {
-    logger.warn("Invalid end_event", { eventId: pin.eventId, endEvent: pin.end_event, error: error instanceof Error ? error.message : String(error) });
+    logger.warn("Invalid end_event", { sourceType: "erm-zapad", eventId: pin.eventId, endEvent: pin.end_event, error: error instanceof Error ? error.message : String(error) });
     timespanEnd = timespanStart;
   }
 

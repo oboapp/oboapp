@@ -74,13 +74,13 @@ export async function crawl(): Promise<void> {
     const pageData = parseWeatherPage(html);
 
     if (!pageData) {
-      logger.error("Failed to parse weather page");
+      logger.error("Failed to parse weather page", { sourceType: SOURCE_TYPE });
       process.exit(1);
     }
 
     // Check if there are any active warnings
     if (!hasActiveWarnings(pageData)) {
-      logger.info("No active weather warnings for Sofia");
+      logger.debug("No active weather warnings for Sofia", { sourceType: SOURCE_TYPE });
       summary.noWarnings++;
       printSummary(summary);
       return;
@@ -133,7 +133,7 @@ export async function crawl(): Promise<void> {
     }
   } catch (error) {
     await browser.close();
-    logger.error("Failed to crawl weather warnings", { error: error instanceof Error ? error.message : String(error) });
+    logger.error("Failed to crawl weather warnings", { sourceType: SOURCE_TYPE, error: error instanceof Error ? error.message : String(error) });
     summary.failed++;
   }
 
@@ -146,13 +146,14 @@ export async function crawl(): Promise<void> {
 }
 
 function printSummary(summary: CrawlSummary): void {
-  logger.info("Crawl complete", { sourceType: SOURCE_TYPE, saved: summary.saved, skipped: summary.skipped, noWarnings: summary.noWarnings, failed: summary.failed });
+  const total = summary.saved + summary.skipped + summary.noWarnings;
+  logger.info("Crawl complete", { sourceType: SOURCE_TYPE, total, saved: summary.saved, skipped: summary.skipped, noWarnings: summary.noWarnings, failed: summary.failed });
 }
 
 // Run if called directly
 if (require.main === module) {
   crawl().catch((error) => {
-    logger.error("Fatal error", { error: error instanceof Error ? error.message : String(error) });
+    logger.error("Fatal error", { sourceType: SOURCE_TYPE, error: error instanceof Error ? error.message : String(error) });
     process.exit(1);
   });
 }
