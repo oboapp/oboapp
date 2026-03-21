@@ -321,6 +321,23 @@ main:
                               args:
                                 text: '${"Crawler vrabnitsa-org failed: " + string(e)}'
                                 severity: "ERROR"
+            - nadezhda:
+                steps:
+                  - callNadezhda:
+                      try:
+                        call: http.post
+                        args:
+                          url: '${"https://" + region + "-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/" + project + "/jobs/crawl-nadezhda:run"}'
+                          auth:
+                            type: OAuth2
+                      except:
+                        as: e
+                        steps:
+                          - log18:
+                              call: sys.log
+                              args:
+                                text: '${"Crawler nadezhda failed: " + string(e)}'
+                                severity: "ERROR"
     - ingest:
         try:
           call: http.post
