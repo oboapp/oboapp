@@ -24,7 +24,7 @@ keywords:
 | | `ingest` | `web` |
 |---|---|---|
 | **Logger** | `import { logger } from "@/lib/logger"` | ❌ No structured logger |
-| **Console** | ✅ Structured via `logger.*` | ⚠️ Discouraged — ESLint `no-console` at `warn` level |
+| **Console** | ✅ Structured via `logger.*` | ⚠️ Allowed with caution — ESLint `no-console` at `warn` level |
 | **Output target** | Cloud Logging (JSON in prod) | Browser DevTools / server stderr |
 
 ### `ingest` — Use the Structured Logger
@@ -42,11 +42,9 @@ logger.error("Crawl failed", { sourceType, error: error.message });
 
 Never use `console.log`, `console.warn`, or `console.error` directly in `ingest/` code.
 
-### `web` — Avoid Console Statements
+### `web` — Console Statements with Caution
 
-Console statements in `web/` are linted at `warn` level (`no-console`). New code should **not** add `console.*` calls. Existing ones should be removed or replaced over time.
-
-For server-side API routes, errors should be thrown or returned as HTTP responses rather than logged to the console.
+Console statements in `web/` are linted at `warn` level (`no-console`). Using `console.*` is fine during development, but these statements should not reach users' browsers in production. The `warn` level means we allow it but flag it for review — think twice before shipping a `console.log` to end users.
 
 ## Log Level Semantics (Ingest)
 
@@ -82,7 +80,7 @@ All per-item details (fetching, saving, skipping) go to `debug`.
 ## Quick Checks
 
 - [ ] No `console.*` in `ingest/` code — use `logger.*` instead
-- [ ] No new `console.*` in `web/` code — find alternatives
+- [ ] No new `console.*` in `web/` code that would reach users' browsers
 - [ ] Per-item logs use `debug`, not `info`
 - [ ] Start/summary logs use `info` with structured metadata
 - [ ] `sourceType` is included in all crawler log entries
