@@ -62,7 +62,7 @@ The relevance filter uses **server-side Firestore queries** to retrieve only mes
 
 - **AI-extracted messages**: Computed from pin and street timespans (denormalized at message root) during ingestion
 - **Precomputed sources**: Copied from source document root fields (crawlers with API access parse dates during crawl)
-- **Fallback**: Uses `crawledAt` when no timespans available or dates invalid
+- **Fallback**: Uses `crawledAt` when no timespans are available or extracted dates are considered invalid (e.g., before the configured minimum-valid date threshold, which filters out parsing errors)
 - **Single date handling**: When only start OR end available, duplicates to both fields
 
 **Example**: Message with pin timespans `10.01.2026 08:00 - 10.01.2026 12:00` and `15.01.2026 14:00 - 15.01.2026 18:00` → `timespanStart: 2026-01-10 08:00`, `timespanEnd: 2026-01-15 18:00`

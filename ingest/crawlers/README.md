@@ -24,7 +24,7 @@ Tip: full-page capture tools such as GoFullPage can speed up baseline creation.
 
 ### Crawler Architecture
 
-Most district municipality crawlers share a WordPress-based architecture using shared utilities from `shared/webpage-crawlers.ts`. These utilities manage browser lifecycle, extract post links from index pages, handle deduplication, and process individual posts (fetching details, converting HTML to Markdown, parsing dates).
+Most district municipality crawlers share a WordPress-based architecture using a common set of shared WordPress crawler utilities. These utilities manage browser lifecycle, extract post links from index pages, handle deduplication, and process individual posts (fetching details, converting HTML to Markdown, parsing dates).
 
 Crawlers that fetch from APIs (utility companies, weather services) have custom implementations tailored to each data source.
 
