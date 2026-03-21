@@ -45,7 +45,7 @@ pnpm ingest
 # Send notifications for new messages
 pnpm notify
 
-# Run emergent pipeline (erm-zapad, toplo-bg, sofiyska-voda + ingest + notify)
+# Run emergent pipeline (emergent crawlers + ingest + notify)
 pnpm pipeline:emergent
 
 # Run full pipeline (all crawlers + ingest + notify)
@@ -62,7 +62,7 @@ The system runs two automated pipelines via Cloud Scheduler:
   - Enables geocoding of messages containing bus stop codes
 
 - **Emergent Pipeline** (`pipeline:emergent`) - Every 30 minutes, 7:00AM-10:30PM
-  - Crawlers: erm-zapad, toplo-bg, sofiyska-voda
+  - Crawlers: Sources that publish short-lived disruptions
   - Runs ingest and notify after crawling
   - Handles short-lived messages and emergency works
 
