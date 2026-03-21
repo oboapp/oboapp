@@ -89,19 +89,11 @@ docker compose up -d          # Start MongoDB + Mongo Express
 
 ## Migration Scripts
 
-Located in `db/migrate/`. Run from the `db/` directory:
+Migration scripts are located in `db/migrate/`. They handle tasks such as backfilling fields, data migration between backends, and creating new collections from existing data. Migrations are designed to be idempotent (safe to re-run).
 
 ```bash
 cd db && npx tsx migrate/<script-name>.ts
 ```
-
-| Script                             | Purpose                                          |
-| ---------------------------------- | ------------------------------------------------ |
-| `2026-02-10-add-locality-field.ts` | Backfills locality field on sources and messages |
-| `2026-02-13-firestore-to-mongo.ts` | One-time Firestore → MongoDB data migration      |
-| `2026-03-15-create-events-from-messages.ts` | Creates initial events and event-message links from finalized messages |
-
-The Firestore-to-MongoDB migration is idempotent (uses upserts) and verifies document counts after completion.
 
 ## MongoDB Indexes
 

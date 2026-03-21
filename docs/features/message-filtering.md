@@ -60,9 +60,9 @@ The relevance filter uses **server-side Firestore queries** to retrieve only mes
 
 **Extraction Strategy**:
 
-- **AI-extracted messages**: Computed from `pins[].timespans` and `streets[].timespans` (denormalized at message root) during ingestion
-- **Precomputed sources**: Copied from source document root fields (erm-zapad, toplo-bg, sofiyska-voda crawlers parse dates during crawl)
-- **Fallback**: Uses `crawledAt` when no timespans available or dates invalid (before 2025-01-01)
+- **AI-extracted messages**: Computed from pin and street timespans (denormalized at message root) during ingestion
+- **Precomputed sources**: Copied from source document root fields (crawlers with API access parse dates during crawl)
+- **Fallback**: Uses `crawledAt` when no timespans are available or extracted dates are considered invalid (e.g., before the configured minimum-valid date threshold, which filters out parsing errors)
 - **Single date handling**: When only start OR end available, duplicates to both fields
 
 **Example**: Message with pin timespans `10.01.2026 08:00 - 10.01.2026 12:00` and `15.01.2026 14:00 - 15.01.2026 18:00` → `timespanStart: 2026-01-10 08:00`, `timespanEnd: 2026-01-15 18:00`
@@ -96,12 +96,7 @@ graph TD
 
 **Firestore Query Pattern**:
 
-```typescript
-messagesRef
-  .where("categories", "array-contains", category) // Optional
-  .where("timespanEnd", ">=", cutoffDate)
-  .orderBy("timespanEnd", "desc");
-```
+The system uses composite indexes on `categories` + `timespanEnd` and `timespanEnd` alone to execute server-side queries that filter by category and time range.
 
 **Composite Index Required**:
 
@@ -155,14 +150,6 @@ Messages appear as red map features (points, lines, polygons). Clicking shows de
 
 ## Testing
 
-The three-stage AI pipeline (Filter & Split, Categorize, Extract Locations) is validated with integration tests that call the live Gemini API. See `ingest/lib/ai-pipeline.integration.test.ts`.
-
-These tests verify end-to-end pipeline behavior with 5 source fixtures covering:
-
-- Irrelevant message detection (job postings filtered out)
-- Simple single-message scenarios (parking restrictions)
-- Multiple locations in one message (sidewalk repairs across multiple street sections)
-- Multiple timespans (film shooting at different locations on different dates)
-- Complex messages (bus rerouting with street closures and multiple bus stop codes)
+The three-stage AI pipeline (Filter & Split, Categorize, Extract Locations) is validated with integration tests that call the live Gemini API. These tests cover scenarios including irrelevant message detection, single and multi-location messages, multiple timespans, and complex bus rerouting scenarios.
 
 To run: `cd ingest && pnpm test:integration` (requires `GOOGLE_AI_API_KEY` in `.env.local`).

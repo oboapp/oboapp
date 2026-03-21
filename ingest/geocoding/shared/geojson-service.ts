@@ -50,7 +50,7 @@ async function getStreetCenterline(
   startCoords: IntersectionCoordinates,
   endCoords: IntersectionCoordinates,
   streetName: string,
-  hasPreResolvedCoordinates: boolean = false,
+  hasGeotaggedCoordinates: boolean = false,
 ): Promise<GeoJSONLineString> {
   // Check if start and end are the same or very close
   const distance = Math.sqrt(
@@ -72,11 +72,11 @@ async function getStreetCenterline(
     };
   }
 
-  // If both endpoints have pre-resolved coordinates from the source,
+  // If both endpoints have geotagged coordinates from the source,
   // draw a straight line instead of querying Overpass for street geometry
-  if (hasPreResolvedCoordinates) {
+  if (hasGeotaggedCoordinates) {
     logger.info(
-      "Using straight line for street with pre-resolved coordinates",
+      "Using straight line for street with geotagged coordinates",
       {
         street: streetName,
       },
@@ -220,10 +220,10 @@ async function createClosureFeature(
     );
   }
 
-  // Check if both endpoints have pre-resolved coordinates that were actually validated and used
-  // We compare the coordinates we're using with the rounded version of the original pre-resolved coordinates
+  // Check if both endpoints have geotagged coordinates that were actually validated and used
+  // We compare the coordinates we're using with the rounded version of the original geotagged coordinates
   // (since validation rounds to 6 decimal places)
-  const hasPreResolvedCoordinates =
+  const hasGeotaggedCoordinates =
     !!street.fromCoordinates &&
     !!street.toCoordinates &&
     roundCoordinate(street.fromCoordinates.lat) === startCoords.lat &&
@@ -236,7 +236,7 @@ async function createClosureFeature(
     startCoords,
     endCoords,
     street.street,
-    hasPreResolvedCoordinates,
+    hasGeotaggedCoordinates,
   );
 
   // Convert to polygon

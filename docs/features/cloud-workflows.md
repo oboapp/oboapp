@@ -21,23 +21,23 @@ Cloud Scheduler
     ↓
 Google Cloud Workflows
     ↓
-    ├─→ [Parallel] Crawler Jobs (crawl-erm-zapad, crawl-toplo, etc.)
+    ├─→ [Parallel] Crawler Jobs
     ↓   └─→ Firestore (sources collection)
-    ├─→ [Sequential] Ingest Job (ingest-messages)
+    ├─→ [Sequential] Ingest Job
     ↓   └─→ Firestore (messages collection)
-    └─→ [Sequential] Notify Job (send-notifications)
+    └─→ [Sequential] Notify Job
         └─→ Firebase Cloud Messaging (push notifications)
 ```
 
 ### Two Workflow Types
 
 1. **Emergent Workflow** (`pipeline-emergent`)
-   - **Crawlers**: 3 emergent sources (erm-zapad, toplo-bg, sofiyska-voda)
+   - **Crawlers**: A subset of sources that publish short-lived disruptions (utility outages, emergency works)
    - **Schedule**: Every 30 minutes (7:00 AM - 10:30 PM, Europe/Sofia timezone)
-   - **Use case**: Short-lived disruptions requiring frequent updates (power outages, heating issues, water disruptions)
+   - **Use case**: Short-lived disruptions requiring frequent updates
 
 2. **All Workflow** (`pipeline-all`)
-  - **Crawlers**: All currently deployed crawlers
+   - **Crawlers**: All currently deployed crawlers
    - **Schedule**: 3 times daily at 10:00 AM, 2:00 PM, 4:00 PM (Europe/Sofia timezone)
    - **Use case**: Long-term construction/repair projects from district municipalities
 
@@ -45,24 +45,7 @@ Google Cloud Workflows
 
 ### Step 1: Parallel Crawler Execution
 
-All crawlers run simultaneously, each invoking its respective Cloud Run job:
-
-- `crawl-erm-zapad` → ERM-Zapad power outages API
-- `crawl-toplo` → Toplo BG heating infrastructure (Playwright scraper)
-- `crawl-sofiyska-voda` → Sofiyska Voda water disruptions API
-- `crawl-rayon-oborishte` → Rayon Oborishte WordPress site
-- `crawl-sofia` → Sofia municipality WordPress site
-- `crawl-mladost` → Mladost district WordPress site
-- `crawl-studentski` → Studentski district WordPress site
-- `crawl-sredec` → Sredec district WordPress site
-- `crawl-slatina` → Slatina district WordPress site
-- `crawl-lozenets` → Lozenets district WordPress site
-- `crawl-raioniskar` → Raion Iskar municipality site
-- `crawl-rayon-pancharevo` → Rayon Pancharevo WordPress site
-- `crawl-rayon-ilinden` → Rayon Ilinden WordPress site
-- `crawl-triaditsa` → Rayon Triaditsa WordPress site
-- `crawl-krasna-polyana` → Rayon Krasna Polyana website
-- `crawl-nimh-severe-weather` → NIMH severe weather warnings site
+All crawlers run simultaneously, each as a separate Cloud Run job. Each crawler fetches data from its respective external source (API or website) and writes raw documents to Firestore.
 
 **Failure behavior**: Crawlers are wrapped in `try`/`except` blocks. If one fails, it logs an ERROR but doesn't stop other crawlers or the workflow.
 
@@ -106,7 +89,7 @@ After ingest completes, the `send-notifications` job runs:
 Each Cloud Run job execution has separate logs:
 
 1. Navigate to **Cloud Run** → **Jobs**
-2. Select a job (e.g., `crawl-toplo`)
+2. Select the relevant job
 3. Click **Logs** tab
 4. Filter by execution time to find logs from specific workflow run
 
@@ -160,21 +143,21 @@ gcloud workflows executions list \
 
 ### Scenario 1: Single Crawler Fails
 
-**Example**: `crawl-toplo` fails due to website timeout
+**Example**: One crawler fails due to a website timeout
 
 **Behavior**:
 
-- Workflow logs ERROR for toplo crawler
+- Workflow logs ERROR for the failed crawler
 - Other crawlers continue running
 - Ingest processes all successful crawler results
 - Notify runs normally
-- **Result**: Partial success - most sources updated, toplo data stale
+- **Result**: Partial success - most sources updated, failed source data stale
 
 **Investigation**:
 
-1. Check workflow execution graph - toplo step will show error
-2. View `crawl-toplo` Cloud Run job logs for detailed error
-3. Check if Toplo BG website is accessible
+1. Check workflow execution graph - the failed step will show error
+2. View that crawler's Cloud Run job logs for detailed error
+3. Check if the source website is accessible
 
 ### Scenario 2: All Crawlers Fail
 
@@ -256,12 +239,7 @@ Alert notifications include:
 
 ## Workflow Source Files
 
-Workflow definitions are version-controlled in the repository:
-
-- **Emergent**: `ingest/terraform/workflows/emergent.yaml`
-- **All**: `ingest/terraform/workflows/all.yaml`
-
-Changes to these files require Terraform deployment:
+Workflow definitions are version-controlled under `ingest/terraform/workflows/`. Changes require Terraform deployment:
 
 ```bash
 cd ingest/terraform
@@ -271,15 +249,7 @@ terraform apply
 
 ## Adding New Crawlers
 
-When adding a new crawler to the system:
-
-1. Implement crawler in `ingest/crawlers/{source-name}/`
-2. Add Cloud Run job definition to `ingest/terraform/main.tf`
-3. Update `ingest/terraform/workflows/all.yaml` - add crawler to parallel step
-4. If emergent crawler: Also update `ingest/terraform/workflows/emergent.yaml` and the `EMERGENT_CRAWLERS` constant in `ingest/pipeline.ts`
-5. Deploy via Terraform: `terraform apply`
-
-See [AGENTS.md](../../AGENTS.md) for detailed crawler development guidelines.
+Adding a new crawler requires updating both the crawler implementation and the Terraform workflow definitions. See [AGENTS.md](../../AGENTS.md) for detailed crawler development guidelines.
 
 ## Related Documentation
 

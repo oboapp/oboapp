@@ -12,25 +12,6 @@ The source message listing feature provides dedicated pages for each data source
 
 **Direct URLs**: Source pages can be accessed directly via URL pattern `/sources/{source-id}` where `source-id` matches the identifier from the sources configuration.
 
-**Valid Source IDs**:
-
-- `rayon-oborishte-bg` - Столична община, Район "Оборище"
-- `sofiyska-voda` - Софийска вода
-- `toplo-bg` - Топлофикация София
-- `sofia-bg` - Столична община
-- `erm-zapad` - ЕРМ Запад
-- `mladost-bg` - Столична община, Район "Младост"
-- `studentski-bg` - Столична община, Район "Студентски"
-- `sredec-sofia-org` - Столична община, Район "Средец"
-- `so-slatina-org` - Столична община, Район "Слатина"
-- `lozenets-sofia-bg` - Столична община, Район "Лозенец"
-- `raioniskar-bg` - Столична община, Район "Искър"
-- `rayon-pancharevo-bg` - Столична община, Район "Панчарево"
-- `rayon-ilinden-bg` - Столична община, Район "Илинден"
-- `triaditsa-org` - Столична община, Район "Триадица"
-- `krasna-polyana-org` - Столична община, Район "Красна поляна"
-- `nimh-severe-weather` - НИМХ (Метеорологични предупреждения)
-
 ## Page Structure
 
 ### Header Section

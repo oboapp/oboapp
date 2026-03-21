@@ -201,7 +201,7 @@ describe.skipIf(!HAS_API_KEY)(
         expect(streetsWithOborishte.length).toBeGreaterThanOrEqual(1);
 
         // The source has explicit coordinates (42.693576, 23.35161)
-        // AI may extract these as pre-resolved coordinates on pins
+        // AI may extract these as geotagged coordinates on pins
         const allPinCoords = result!.pins
           .filter((p) => p.coordinates)
           .map((p) => p.coordinates!);

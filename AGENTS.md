@@ -320,7 +320,7 @@ All four prompts have eval configs in `ingest/prompts/__evals__/` using [promptf
 
 **Routing**: `geocoding-router.ts` dispatches by location type:
 
-- `geocodeAddresses()` → Google (pins with numbers); skips geocoding for pre-resolved coordinates from AI
+- `geocodeAddresses()` → Google (pins with numbers); skips geocoding for geotagged coordinates (pre-resolved by source)
 - `geocodeIntersectionsForStreets()` → Overpass (street ∩ street)
 - `geocodeCadastralPropertiesFromIdentifiers()` → Cadastre (УПИ)
 - Bus stops → resolved from ExtractedLocations data
@@ -338,6 +338,15 @@ All four prompts have eval configs in `ingest/prompts/__evals__/` using [promptf
 - Focus on behavior and operational knowledge
 - Omit implementation details (algorithms, code patterns, TypeScript interfaces)
 - Document "what happens" and "why", not "how it works"
+
+**Describe Concepts, Not Specifics**:
+
+- **For user-facing conceptual documentation (non-developer audiences)**, avoid implementation details that are likely to change over time.
+- **NEVER enumerate items that change over time** (e.g., listing all crawler names, all source IDs, all migration scripts). These go stale when items are added, removed, or renamed.
+- **NEVER reference implementation-specific source code file paths in conceptual docs.** Code is self-documenting; readers who need implementation details should explore the codebase. It is still acceptable to show operational commands/paths that users must run or navigate (e.g., CLI examples, migration/script locations).
+- **NEVER embed large or implementation-specific code snippets** (TypeScript, SQL, etc.) in conceptual docs. They duplicate logic and become outdated. Minimal command examples that demonstrate how to operate the system are acceptable when necessary.
+- Describe categories of things instead of listing every instance (e.g., "emergent crawlers" instead of "erm-zapad, toplo-bg, sofiyska-voda")
+- A single example to illustrate a concept is fine; an exhaustive list is not
 
 **Avoid Duplication**:
 

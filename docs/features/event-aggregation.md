@@ -47,11 +47,11 @@ Pre-geocoding scoring uses time overlap and category match (no spatial compariso
 
 Messages and events store text embeddings generated via Gemini `gemini-embedding-001` (768 dimensions). When both a message and a candidate event have embeddings, cosine similarity is included as a matching signal. Embeddings are optional — old messages/events without embeddings use fallback weights automatically.
 
-Scoring weights and fallback formulas are defined in `ingest/lib/event-matching/constants.ts`.
+Scoring weights and fallback formulas are defined alongside other matching constants in the event-matching module.
 
-**Configuration:** Set `GOOGLE_EMBEDDING_MODEL` environment variable (default: `gemini-embedding-001`).
+**Configuration:** Set `GOOGLE_EMBEDDING_MODEL` environment variable to control the embedding model.
 
-**Cleanup:** Expired messages/events have their embedding fields removed to save Firestore storage. Run `cd ingest && pnpm tsx scripts/cleanup-embeddings.ts` manually or schedule as a weekly cron.
+**Cleanup:** Expired messages/events have their embedding fields removed to save storage. A cleanup script in `ingest/scripts/` can be run manually or scheduled as a weekly cron.
 
 ### LLM Verification (Uncertain Matches)
 
@@ -60,23 +60,15 @@ When a candidate scores between 0.55 and 0.70, the score alone isn't confident e
 - **Input**: both message texts, plus optional location and time context
 - **Output**: `{ isSameEvent: boolean, reasoning: string }`
 - **Conservative fallback**: if the LLM call fails or returns invalid data, the match is rejected (new event created). This avoids incorrectly merging unrelated incidents.
-- **Prompt**: `ingest/prompts/verify-event-match.md`
 - **Cost**: only ~5–15% of messages fall in the uncertain zone, so LLM verify calls are infrequent
 
 ## Source Trust
 
-Higher-trust sources (e.g., utility companies with official GeoJSON) produce higher-quality geometry. When a more trusted source reports the same incident, its geometry replaces the existing one. See `ingest/lib/source-trust.ts` for the full trust table.
+Higher-trust sources (e.g., utility companies with official GeoJSON) produce higher-quality geometry. When a more trusted source reports the same incident, its geometry replaces the existing one.
 
 ## Migration
 
-To create initial 1:1 events from existing finalized messages:
-
-```bash
-cd db
-npx tsx migrate/2026-03-15-create-events-from-messages.ts
-```
-
-The migration is idempotent — running it again skips already-linked messages.
+An idempotent migration script in `db/migrate/` creates initial 1:1 events from existing finalized messages. Running it again skips already-linked messages.
 
 ## Web Observability Page
 
@@ -95,6 +87,3 @@ API endpoints:
 ## Related
 
 - [database-layer.md](database-layer.md) — DB access patterns for `events` and `eventMessages` collections, and the linking model (`eventMessages` as authoritative source of truth vs `messages.eventId` as denormalized cache)
-- `ingest/lib/event-matching/` — matching implementation
-- `ingest/lib/event-matching/constants.ts` — scoring thresholds and weights
-- `ingest/prompts/__evals__/verify-event-match.yaml` — promptfoo evaluation for the LLM verification prompt
