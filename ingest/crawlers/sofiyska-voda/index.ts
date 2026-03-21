@@ -136,7 +136,7 @@ async function saveSourceDocument(
       logSuccess: false,
     },
   );
-  logger.debug("Saved source document", { title: doc.title });
+  logger.debug("Saved source document", { sourceType: "sofiyska-voda", title: doc.title });
 }
 
 export async function crawl(): Promise<void> {
@@ -166,9 +166,9 @@ async function processLayer(
   seenUrls: Set<string>,
   db: OboDb | null,
 ): Promise<CrawlSummary> {
-  logger.debug("Fetching layer", { layerId: layer.id, layerName: layer.name });
+  logger.debug("Fetching layer", { sourceType: "sofiyska-voda", layerId: layer.id, layerName: layer.name });
   const features = await fetchLayerFeatures(layer);
-  logger.debug("Fetched layer features", { layerName: layer.name, count: features.length });
+  logger.debug("Fetched layer features", { sourceType: "sofiyska-voda", layerName: layer.name, count: features.length });
 
   if (features.length === 0) {
     return { saved: 0, skipped: 0, emptyLayers: 1 };

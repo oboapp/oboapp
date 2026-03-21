@@ -32,7 +32,7 @@ export async function crawl(dryRun = false): Promise<void> {
 
   logger.info("Starting crawler", { sourceType: SOURCE_TYPE });
 
-  logger.debug("Fetching incidents", { url: TARGET_URL });
+  logger.debug("Fetching incidents", { sourceType: SOURCE_TYPE, url: TARGET_URL });
 
   // Launch browser and fetch HTML
   const browser = await launchBrowser();
@@ -41,7 +41,7 @@ export async function crawl(dryRun = false): Promise<void> {
   const html = await page.content();
   await browser.close();
 
-  logger.debug("Parsing incidents");
+  logger.debug("Parsing incidents", { sourceType: SOURCE_TYPE });
 
   // Parse incidents from HTML
   const incidents = parseIncidents(html);
@@ -51,7 +51,7 @@ export async function crawl(dryRun = false): Promise<void> {
     process.exit(1);
   }
 
-  logger.debug("Found incidents", { count: incidents.length });
+  logger.debug("Found incidents", { sourceType: SOURCE_TYPE, count: incidents.length });
 
   // Load database (lazy)
   const db = dryRun
@@ -123,7 +123,7 @@ export async function crawl(dryRun = false): Promise<void> {
       };
 
       if (dryRun) {
-        logger.debug("Dry-run incident", { title: doc.title });
+        logger.debug("Dry-run incident", { sourceType: SOURCE_TYPE, title: doc.title });
         summary.saved++;
       } else if (db) {
         const saved = await saveSourceDocumentIfNew(doc, db, {
@@ -135,7 +135,7 @@ export async function crawl(dryRun = false): Promise<void> {
           logSuccess: false,
         });
         if (saved) {
-          logger.debug("Saved incident", { title: doc.title });
+          logger.debug("Saved incident", { sourceType: SOURCE_TYPE, title: doc.title });
           summary.saved++;
         } else {
           summary.skipped++;

@@ -38,7 +38,7 @@ const LOCALITY = "bg.sofia";
  * Discover active София-град municipalities from the index page
  */
 async function discoverMunicipalities(): Promise<Municipality[]> {
-  logger.debug("Discovering София-град municipalities");
+  logger.debug("Discovering София-град municipalities", { sourceType: SOURCE_TYPE });
 
   const browser = await launchBrowser();
   const page = await browser.newPage();
@@ -93,6 +93,7 @@ async function discoverMunicipalities(): Promise<Municipality[]> {
     });
 
     logger.debug("Found municipalities", {
+      sourceType: SOURCE_TYPE,
       count: municipalities.length,
       municipalities: municipalities.map((m) => `${m.code}: ${m.name}`),
     });
@@ -232,6 +233,7 @@ async function processMunicipality(
   municipality: Municipality,
 ): Promise<PinRecord[]> {
   logger.debug("Processing municipality", {
+    sourceType: SOURCE_TYPE,
     name: municipality.name,
     code: municipality.code,
   });
@@ -239,6 +241,7 @@ async function processMunicipality(
   try {
     const incidents = await fetchMunicipalityIncidents(municipality.code);
     logger.debug("Found incidents for municipality", {
+      sourceType: SOURCE_TYPE,
       municipality: municipality.name,
       count: incidents.length,
     });
@@ -254,7 +257,7 @@ async function processMunicipality(
       allPins.push(...pins);
     }
 
-    logger.debug("Extracted pins", { municipality: municipality.name, count: allPins.length });
+    logger.debug("Extracted pins", { sourceType: SOURCE_TYPE, municipality: municipality.name, count: allPins.length });
     return allPins;
   } catch (error) {
     logger.error("Failed to fetch incidents for municipality", {
@@ -284,6 +287,7 @@ async function saveIncidents(
       const saved = await saveSourceDocumentIfNew(doc, db);
       if (saved) {
         logger.debug("Saved incident", {
+          sourceType: SOURCE_TYPE,
           title: doc.title,
           pinCount: pins.length,
         });
@@ -331,11 +335,12 @@ async function crawl(): Promise<void> {
       }
     }
 
-    logger.debug("Total pins extracted", { count: allPins.length });
+    logger.debug("Total pins extracted", { sourceType: SOURCE_TYPE, count: allPins.length });
 
     // Deduplicate globally across all municipalities
     const uniquePins = deduplicatePinRecords(allPins);
     logger.debug("Unique pins after deduplication", {
+      sourceType: SOURCE_TYPE,
       uniqueCount: uniquePins.length,
       removedDuplicates: allPins.length - uniquePins.length,
     });
@@ -344,6 +349,7 @@ async function crawl(): Promise<void> {
     const incidentMap = groupPinsByEventId(uniquePins);
 
     logger.debug("Incidents after grouping", {
+      sourceType: SOURCE_TYPE,
       incidentCount: incidentMap.size,
       totalPins: uniquePins.length,
     });

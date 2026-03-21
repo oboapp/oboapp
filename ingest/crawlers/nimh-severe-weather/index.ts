@@ -57,7 +57,7 @@ export async function crawl(): Promise<void> {
 
   logger.info("Starting crawler", { sourceType: SOURCE_TYPE });
 
-  logger.debug("Fetching weather warnings", { url: TARGET_URL });
+  logger.debug("Fetching weather warnings", { sourceType: SOURCE_TYPE, url: TARGET_URL });
 
   // Launch browser and fetch HTML
   const browser = await launchBrowser();
@@ -68,7 +68,7 @@ export async function crawl(): Promise<void> {
     const html = await page.content();
     await browser.close();
 
-    logger.debug("Parsing weather warnings");
+    logger.debug("Parsing weather warnings", { sourceType: SOURCE_TYPE });
 
     // Parse the page
     const pageData = parseWeatherPage(html);
@@ -86,7 +86,7 @@ export async function crawl(): Promise<void> {
       return;
     }
 
-    logger.debug("Found active weather warnings", { forecastDate: pageData.forecastDate });
+    logger.debug("Found active weather warnings", { sourceType: SOURCE_TYPE, forecastDate: pageData.forecastDate });
 
     // Build source document
     const timespan = buildTimespan(pageData.forecastDate);
@@ -125,10 +125,10 @@ export async function crawl(): Promise<void> {
     });
 
     if (saved) {
-      logger.debug("Saved weather warning", { title: doc.title });
+      logger.debug("Saved weather warning", { sourceType: SOURCE_TYPE, title: doc.title });
       summary.saved++;
     } else {
-      logger.debug("Weather warning already exists", { title: doc.title });
+      logger.debug("Weather warning already exists", { sourceType: SOURCE_TYPE, title: doc.title });
       summary.skipped++;
     }
   } catch (error) {

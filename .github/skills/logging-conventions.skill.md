@@ -73,7 +73,7 @@ All per-item details (fetching, saving, skipping) go to `debug`.
 
 ### Required Metadata
 
-- Always include `sourceType` in crawler logs for filtering.
+- Always include `sourceType` in crawler-level log entries for filtering. Shared helpers that receive a document (e.g., `saveSourceDocument`) can read `sourceType` from the document itself. Generic utilities without source context (e.g., shared extractors) are exempt.
 - Summary logs should include counts: `saved`, `skipped`, `failed`, and `total`.
 - Error logs should include the error message in an `error` field.
 
@@ -83,4 +83,4 @@ All per-item details (fetching, saving, skipping) go to `debug`.
 - [ ] No new `console.*` in `web/` code that would reach users' browsers
 - [ ] Per-item logs use `debug`, not `info`
 - [ ] Start/summary logs use `info` with structured metadata
-- [ ] `sourceType` is included in all crawler log entries
+- [ ] `sourceType` is included in crawler-level log entries
