@@ -11,9 +11,9 @@ The router ([`router.ts`](router.ts)) dispatches each location type extracted fr
 
 All results are validated against the configured locality boundary before use. Results outside the boundary are rejected.
 
-## Pre-resolved coordinates
+## Geotagged coordinates
 
-When the source already includes coordinates (e.g. Rayon Oborishte messages), geocoding is skipped for that location and the coordinates are used directly.
+Some sources practice [geotagging](https://en.wikipedia.org/wiki/Geotagging) — embedding coordinates directly in their messages (e.g. Rayon Oborishte). When geotagged coordinates are present, geocoding is skipped for that location and the coordinates are used directly.
 
 ## Event-based skip
 

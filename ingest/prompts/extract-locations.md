@@ -105,7 +105,7 @@ An array of objects representing single **point locations**. Use this for:
     - Example: `ж.к. Младост 1, пред бл. 5` → `бл. 5, ж.к. Младост 1`
     - Example: `ж.к. Люлин 5, зад бл. 302` → `бл. 302, ж.к. Люлин 5`
 - **Exclusion**: Do not create a pin for an address that is already used in the `from` or `to` field of a `streets` entry.
-- **Pre-resolved coordinates**: If the source text includes explicit latitude/longitude coordinates for a pin location, include them in the `coordinates` field as `{ "lat": <number>, "lng": <number> }`. Only include coordinates when they are **explicitly stated** in the text — do NOT guess or calculate coordinates.
+- **Geotagged coordinates**: If the source text includes explicit latitude/longitude coordinates ([geotagging](https://en.wikipedia.org/wiki/Geotagging)) for a pin location, include them in the `coordinates` field as `{ "lat": <number>, "lng": <number> }`. Only include coordinates when they are **explicitly stated** in the text — do NOT guess or calculate coordinates.
 
 ## `streets` (array of objects)
 
@@ -123,7 +123,7 @@ An array of objects representing street **sections** affected between two distin
       - `"from": "ул. Раковска"`
       - `"to": "бул. Патриарх Евтимий"`
   - Keep original Cyrillic names but remove decorative quotes.
-- **Pre-resolved coordinates**: If the source text includes explicit latitude/longitude coordinates for street endpoints, include them as `fromCoordinates` and/or `toCoordinates` with `{ "lat": <number>, "lng": <number> }`. Only include when **explicitly stated** in the text.
+- **Geotagged coordinates**: If the source text includes explicit latitude/longitude coordinates ([geotagging](https://en.wikipedia.org/wiki/Geotagging)) for street endpoints, include them as `fromCoordinates` and/or `toCoordinates` with `{ "lat": <number>, "lng": <number> }`. Only include when **explicitly stated** in the text.
 
 ## `cadastralProperties` (array of objects)
 

@@ -240,8 +240,8 @@ describe("LineString to Polygon conversion", () => {
   });
 });
 
-describe("convertToGeoJSON with pre-resolved coordinates", () => {
-  it("should create straight line when both street endpoints have pre-resolved coordinates", async () => {
+describe("convertToGeoJSON with geotagged coordinates", () => {
+  it("should create straight line when both street endpoints have geotagged coordinates", async () => {
     const { getStreetGeometry } = await import("@/geocoding/router");
     const { convertToGeoJSON } = await import("./geojson-service");
 
@@ -282,7 +282,7 @@ describe("convertToGeoJSON with pre-resolved coordinates", () => {
     expect(getStreetGeometry).not.toHaveBeenCalled();
   });
 
-  it("should use street geometry when endpoints are geocoded (not pre-resolved)", async () => {
+  it("should use street geometry when endpoints are geocoded (not geotagged)", async () => {
     const { getStreetGeometry } = await import("@/geocoding/router");
     vi.mocked(getStreetGeometry).mockClear();
     const { convertToGeoJSON } = await import("./geojson-service");
@@ -315,7 +315,7 @@ describe("convertToGeoJSON with pre-resolved coordinates", () => {
     expect(result.features[0].geometry.type).toBe("Polygon");
     expect(result.features[0].properties.street).toBe("ул. Оборище");
 
-    // getStreetGeometry SHOULD be called — no pre-resolved coordinates
+    // getStreetGeometry SHOULD be called — no geotagged coordinates
     expect(getStreetGeometry).toHaveBeenCalledOnce();
   });
 });

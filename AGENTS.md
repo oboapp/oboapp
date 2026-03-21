@@ -320,7 +320,7 @@ All four prompts have eval configs in `ingest/prompts/__evals__/` using [promptf
 
 **Routing**: `geocoding-router.ts` dispatches by location type:
 
-- `geocodeAddresses()` → Google (pins with numbers); skips geocoding for pre-resolved coordinates from AI
+- `geocodeAddresses()` → Google (pins with numbers); skips geocoding for geotagged coordinates (pre-resolved by source)
 - `geocodeIntersectionsForStreets()` → Overpass (street ∩ street)
 - `geocodeCadastralPropertiesFromIdentifiers()` → Cadastre (УПИ)
 - Bus stops → resolved from ExtractedLocations data

@@ -4,7 +4,7 @@ Automated data collectors that fetch public notifications and disruptions from e
 
 ## Available Crawlers
 
-- **rayon-oborishte-bg** - Scrapes repair/disruption notices from Rayon Oborishte's website
+- **rayon-oborishte-bg** - Scrapes repair/disruption notices from Rayon Oborishte's website (supports [geotagging](https://en.wikipedia.org/wiki/Geotagging) — coordinates embedded in messages)
 - **sredec-sofia-org** - Scrapes public infrastructure announcements from Rayon Sredec's website
 - **mladost-bg** - Scrapes repair/disruption notices from Rayon Mladost's website
 - **studentski-bg** - Scrapes construction/maintenance schedules from Rayon Studentski's website
