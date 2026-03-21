@@ -238,7 +238,7 @@ describe(deduplicateAddresses, () => {
 });
 
 describe("geocodeAddressesFromExtractedData", () => {
-  it("should skip geocoding for pins with pre-resolved coordinates", async () => {
+  it("should skip geocoding for pins with geotagged coordinates", async () => {
     const extractedData: ExtractedLocations = {
       withSpecificAddress: true,
       cityWide: false,
@@ -256,7 +256,7 @@ describe("geocodeAddressesFromExtractedData", () => {
 
     const result = await geocodeAddressesFromExtractedData(extractedData);
 
-    // Should have the pre-resolved coordinates in the map (rounded to 6 decimals)
+    // Should have the geotagged coordinates in the map (rounded to 6 decimals)
     expect(result.preGeocodedMap.has("ул. Георги Бенковски №26")).toBe(true);
     expect(result.preGeocodedMap.get("ул. Георги Бенковски №26")).toEqual({
       lat: 42.699363,
@@ -272,7 +272,7 @@ describe("geocodeAddressesFromExtractedData", () => {
     });
   });
 
-  it("should skip geocoding for street endpoints with pre-resolved coordinates", async () => {
+  it("should skip geocoding for street endpoints with geotagged coordinates", async () => {
     const extractedData: ExtractedLocations = {
       withSpecificAddress: true,
       cityWide: false,
@@ -309,8 +309,8 @@ describe("geocodeAddressesFromExtractedData", () => {
     expect(result.addresses.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("should mix pre-resolved coordinates with geocoded addresses", async () => {
-    // Import the mocked functions to verify they're not called for pre-resolved
+  it("should mix geotagged coordinates with geocoded addresses", async () => {
+    // Import the mocked functions to verify they're not called for geotagged pins
     const { geocodeAddresses } = await import("@/geocoding/router");
 
     const extractedData: ExtractedLocations = {
@@ -334,7 +334,7 @@ describe("geocodeAddressesFromExtractedData", () => {
 
     const result = await geocodeAddressesFromExtractedData(extractedData);
 
-    // Should have pre-resolved coordinate in the map
+    // Should have geotagged coordinate in the map
     expect(result.preGeocodedMap.has("With coordinates")).toBe(true);
 
     // geocodeAddresses should be called only for the pin without coordinates

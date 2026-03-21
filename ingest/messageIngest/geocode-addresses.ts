@@ -25,7 +25,8 @@ export interface GeocodingResult {
 }
 
 /**
- * Validate and normalize pre-resolved coordinates from source
+ * Validate and normalize geotagged coordinates from source.
+ * Some sources practice geotagging — embedding coordinates directly in messages.
  * - Rounds to 6 decimal places (precision ~0.1 meters)
  * - Validates coordinates are within target locality bounds
  * Returns null if coordinates are invalid
@@ -44,7 +45,7 @@ export function getValidPreResolvedCoordinates(
   // Validate coordinates are within target locality bounds
   const locality = getLocality();
   if (!isWithinBounds(locality, rounded.lat, rounded.lng)) {
-    logger.warn("Pre-resolved coordinates outside locality bounds", {
+    logger.warn("Geotagged coordinates outside locality bounds", {
       context,
       locality,
       original: coordinates,
@@ -159,7 +160,7 @@ export function createAddressFromCoordinates(
 }
 
 /**
- * Helper: Process pins with pre-resolved coordinates
+ * Helper: Process pins with geotagged coordinates
  * Returns addresses that need geocoding and adds validated coordinates to the map
  */
 function processPinsWithPreResolvedCoordinates(
@@ -186,7 +187,7 @@ function processPinsWithPreResolvedCoordinates(
           createAddressFromCoordinates(pin.address, validatedCoords),
         );
       } else {
-        logger.warn("Invalid pre-resolved coordinates for pin, will geocode", {
+        logger.warn("Invalid geotagged coordinates for pin, will geocode", {
           address: pin.address,
           coordinates: pin.coordinates,
         });
@@ -227,7 +228,7 @@ async function geocodePins(
 }
 
 /**
- * Helper: Process a single street endpoint with pre-resolved coordinates
+ * Helper: Process a single street endpoint with geotagged coordinates
  */
 function processStreetEndpoint(
   street: StreetSection,
@@ -247,7 +248,7 @@ function processStreetEndpoint(
     addresses.push(createAddressFromCoordinates(endpointName, validatedCoords));
   } else {
     logger.warn(
-      "Invalid pre-resolved coordinates for street endpoint, will geocode",
+      "Invalid geotagged coordinates for street endpoint, will geocode",
       {
         street: street.street,
         endpoint: endpointName,
@@ -258,7 +259,7 @@ function processStreetEndpoint(
 }
 
 /**
- * Helper: Process street endpoints with pre-resolved coordinates
+ * Helper: Process street endpoints with geotagged coordinates
  */
 function processStreetEndpointsWithPreResolvedCoordinates(
   streets: StreetSection[],
@@ -300,7 +301,7 @@ async function geocodeStreetIntersections(
 ): Promise<void> {
   if (extractedData.streets.length === 0) return;
 
-  // Process pre-resolved coordinates first
+  // Process geotagged coordinates first
   processStreetEndpointsWithPreResolvedCoordinates(
     extractedData.streets,
     preGeocodedMap,
@@ -397,7 +398,7 @@ async function geocodeBusStopsFromExtractedData(
 /**
  * Geocode addresses from extracted locations using hybrid approach.
  * Google for pins, Overpass for street intersections, Cadastre for УПИ, GTFS for bus stops.
- * Skips geocoding for locations with pre-resolved coordinates from the AI.
+ * Skips geocoding for geotagged coordinates (pre-resolved by source).
  */
 export async function geocodeAddressesFromExtractedData(
   extractedData: ExtractedLocations | null,
