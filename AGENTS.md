@@ -339,6 +339,14 @@ All four prompts have eval configs in `ingest/prompts/__evals__/` using [promptf
 - Omit implementation details (algorithms, code patterns, TypeScript interfaces)
 - Document "what happens" and "why", not "how it works"
 
+**Describe Concepts, Not Specifics**:
+
+- **NEVER enumerate items that change over time** (e.g., listing all crawler names, all source IDs, all migration scripts). These go stale when items are added, removed, or renamed.
+- **NEVER reference source code file paths** in documentation. Code is self-documenting; readers who need implementation details should explore the codebase.
+- **NEVER embed code snippets** (TypeScript, SQL, etc.) in conceptual docs. They duplicate logic and become outdated.
+- Describe categories of things instead of listing every instance (e.g., "emergent crawlers" instead of "erm-zapad, toplo-bg, sofiyska-voda")
+- A single example to illustrate a concept is fine; an exhaustive list is not
+
 **Avoid Duplication**:
 
 - **NEVER duplicate big chunks of documentation** across multiple files
