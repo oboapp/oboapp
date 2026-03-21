@@ -296,6 +296,10 @@ describe("match-processor", () => {
   });
 
   describe("shouldNotifyUser - experimental sources", () => {
+    // Experimental sources are opt-in: even users with no preferences doc
+    // (undefined filters) are blocked. This differs from the "allow all"
+    // default for category/source filters because experimental requires
+    // an explicit opt-in.
     it("should reject experimental source when user has no preferences", () => {
       mockIsExperimentalSource.mockImplementation(
         (id: string) => id === "experimental-source",
