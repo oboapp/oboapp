@@ -52,6 +52,9 @@ const eslintConfig = [
           reset: true,
         },
       ],
+
+      // Discourage console statements — use proper error handling instead
+      "no-console": "warn",
     },
   },
   // Allow 'any' and type assertions in test files for mocking purposes

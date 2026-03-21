@@ -133,6 +133,7 @@ Before finalizing, verify:
 - ✅ Uses named exports (not default exports)
 - ✅ No barrel files (`index.ts` for re-exports)
 - ✅ Baseline screenshots are present in crawler directory (`_entry.png` + `_message.png` or equivalent)
+- ✅ Logging follows `logging-conventions` skill: `info` only for start/summary, `debug` for per-item steps, all entries include `sourceType`
 
 ### Testing Against Test Database
 
@@ -188,6 +189,7 @@ Add the new source to `web/lib/sources.json`:
 - **Rate Limiting**: 2000ms between requests (respect source servers)
 - **Document IDs**: Must be deterministic and stable (URL-based)
 - **Error Handling**: Catch per-post errors, continue crawling
+- **Logging**: Follow the `logging-conventions` skill — use `logger.debug` for per-item steps, `logger.info` only for start/summary with `sourceType` and counts
 - **Testing**: Unit tests only for extractors, no integration/e2e tests
 - **Theme**: If adding UI, use theme colors from `web/lib/colors.ts`
 
