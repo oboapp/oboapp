@@ -174,6 +174,7 @@ export function useNotificationFilters() {
   const clearAll = useCallback(() => {
     setSelectedCategories(new Set());
     setSelectedSources(new Set());
+    setExperimentalFeatures(false);
   }, []);
 
   const resetToSaved = useCallback(() => {

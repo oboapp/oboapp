@@ -53,7 +53,13 @@ export default function NotificationFiltersPage() {
     }
   }, []);
 
-  const experimentalSources = useMemo(() => getExperimentalSources(), []);
+  const experimentalSources = useMemo(() => {
+    try {
+      return getExperimentalSources();
+    } catch {
+      return [];
+    }
+  }, []);
 
   /** All category values including "uncategorized" */
   const allCategoryValues = useMemo(
@@ -213,7 +219,9 @@ export default function NotificationFiltersPage() {
                 onClick={clearAll}
                 disabled={
                   isSaving ||
-                  (selectedCategories.size === 0 && selectedSources.size === 0)
+                  (selectedCategories.size === 0 &&
+                    selectedSources.size === 0 &&
+                    !experimentalFeatures)
                 }
                 className={`${buttonStyles.secondary} ${buttonSizes.md} ${borderRadius.sm} ml-auto`}
               >

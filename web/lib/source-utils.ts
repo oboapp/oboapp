@@ -1,7 +1,6 @@
-import { SOURCES } from "@oboapp/shared";
-import type { SourceDefinition } from "@oboapp/shared";
+import sources from "@/lib/sources";
 
-export type Source = SourceDefinition;
+export type Source = (typeof sources)[number];
 
 /**
  * Get sources applicable to a specific locality
@@ -9,7 +8,7 @@ export type Source = SourceDefinition;
  * @returns Array of sources that serve this locality
  */
 export function getSourcesForLocality(locality: string): Source[] {
-  return SOURCES.filter((source) =>
+  return sources.filter((source) =>
     source.localities.includes(locality),
   );
 }
