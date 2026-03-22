@@ -23,7 +23,7 @@ export default function SourcePage() {
   const searchParams = useSearchParams();
   const sourceId = typeof params.sourceId === "string" ? params.sourceId : "";
 
-  // Find source in sources.json
+  // Find source in source definitions
   const source = useMemo(() => {
     const allSources: SourceConfig[] = sourcesData;
     return allSources.find((s) => s.id === sourceId);

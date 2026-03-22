@@ -31,7 +31,7 @@ export function getCurrentLocalitySources(): Source[] {
 
 /**
  * Get experimental sources for the current locality.
- * Returns sources whose `experimental` flag is true in sources.json.
+ * Returns sources whose `experimental` flag is true.
  */
 export function getExperimentalSources(): Source[] {
   try {
