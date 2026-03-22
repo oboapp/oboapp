@@ -35,7 +35,7 @@ export default function ExperimentalFeaturesSection({
       </div>
 
       <p className="text-sm text-neutral mb-3">
-        Включи, за да получаваш известия от нови, все още тествани източници на
+        Включи, за да получаваш известия от нови, все още нетествани източници на
         данни.
       </p>
 
