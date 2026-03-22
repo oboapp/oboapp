@@ -34,9 +34,5 @@ export function getCurrentLocalitySources(): Source[] {
  * Returns sources whose `experimental` flag is true.
  */
 export function getExperimentalSources(): Source[] {
-  try {
-    return getCurrentLocalitySources().filter((s) => s.experimental);
-  } catch {
-    return [];
-  }
+  return getCurrentLocalitySources().filter((s) => s.experimental);
 }

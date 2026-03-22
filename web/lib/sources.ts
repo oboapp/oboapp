@@ -5,7 +5,9 @@ type MutableSourceDefinition = {
   -readonly [K in keyof SourceDefinition]: SourceDefinition[K] extends
     | readonly (infer U)[]
     | undefined
-    ? U[] | undefined
+    ? undefined extends SourceDefinition[K]
+      ? U[] | undefined
+      : U[]
     : SourceDefinition[K];
 };
 
