@@ -3,7 +3,10 @@ import { deduplicateMatches, shouldNotifyUser } from "./match-processor";
 import type { MatchResult, UserNotificationFilters } from "./match-processor";
 
 // Mock the isExperimentalSource function from @oboapp/shared
-const mockIsExperimentalSource = vi.fn((_id: string) => false);
+const { mockIsExperimentalSource } = vi.hoisted(() => ({
+  mockIsExperimentalSource: vi.fn((_id: string) => false),
+}));
+
 vi.mock("@oboapp/shared", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@oboapp/shared")>();
   return {
