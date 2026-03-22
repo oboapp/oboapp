@@ -1,5 +1,6 @@
 import sources from "@/lib/sources";
 
+/** Mutable source type derived from the web-facing sources module (avoids readonly field incompatibilities). */
 export type Source = (typeof sources)[number];
 
 /**
