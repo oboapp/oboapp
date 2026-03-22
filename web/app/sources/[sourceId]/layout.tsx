@@ -1,5 +1,4 @@
 import { Metadata } from "next";
-import { SourceConfig } from "@/lib/types";
 import sourcesData from "@/lib/sources";
 
 interface Props {
@@ -12,8 +11,7 @@ export async function generateMetadata({
   params: Promise<{ sourceId: string }>;
 }): Promise<Metadata> {
   const { sourceId } = await params;
-  const typedSourcesData: SourceConfig[] = sourcesData;
-  const source = typedSourcesData.find((s) => s.id === sourceId);
+  const source = sourcesData.find((s) => s.id === sourceId);
 
   if (!source) {
     return {

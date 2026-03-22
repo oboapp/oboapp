@@ -1,9 +1,21 @@
 import { SOURCES } from "@oboapp/shared";
 import type { SourceDefinition } from "@oboapp/shared";
 
+type MutableSourceDefinition = {
+  -readonly [K in keyof SourceDefinition]: SourceDefinition[K] extends
+    | readonly (infer U)[]
+    | undefined
+    ? U[] | undefined
+    : SourceDefinition[K];
+};
+
 /**
  * Sources array re-exported for web consumers.
- * Spread into a mutable array to maintain backward compatibility.
+ * Cloned into fully mutable objects to maintain backward compatibility
+ * with downstream code that expects non-readonly properties.
  */
-const sources: SourceDefinition[] = [...SOURCES];
+const sources: MutableSourceDefinition[] = SOURCES.map((src) => ({
+  ...src,
+  localities: [...src.localities],
+}));
 export default sources;
