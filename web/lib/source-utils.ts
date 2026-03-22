@@ -1,12 +1,7 @@
-import sources from "@/lib/sources.json";
-import { isExperimentalSource } from "@oboapp/shared";
+import { SOURCES } from "@oboapp/shared";
+import type { SourceDefinition } from "@oboapp/shared";
 
-export interface Source {
-  id: string;
-  url: string;
-  name: string;
-  localities: string[];
-}
+export type Source = SourceDefinition;
 
 /**
  * Get sources applicable to a specific locality
@@ -14,10 +9,9 @@ export interface Source {
  * @returns Array of sources that serve this locality
  */
 export function getSourcesForLocality(locality: string): Source[] {
-  const filtered: Source[] = sources.filter((source) =>
+  return SOURCES.filter((source) =>
     source.localities.includes(locality),
   );
-  return filtered;
 }
 
 /**
@@ -37,12 +31,11 @@ export function getCurrentLocalitySources(): Source[] {
 
 /**
  * Get experimental sources for the current locality.
- * Returns sources that are marked as experimental in the shared config.
+ * Returns sources whose `experimental` flag is true in sources.json.
  */
 export function getExperimentalSources(): Source[] {
   try {
-    const allSources = getCurrentLocalitySources();
-    return allSources.filter((s) => isExperimentalSource(s.id));
+    return getCurrentLocalitySources().filter((s) => s.experimental);
   } catch {
     return [];
   }

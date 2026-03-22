@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { trackEvent } from "@/lib/analytics";
-import sources from "@/lib/sources.json";
+import sources from "@/lib/sources";
 import DetailItem from "./DetailItem";
 
 interface SourceProps {

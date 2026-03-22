@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import type { Event } from "@oboapp/shared";
-import sources from "@/lib/sources.json";
+import sources from "@/lib/sources";
 import { stripMarkdown } from "@/lib/markdown-utils";
 import { getButtonClasses } from "@/lib/theme";
 import { formatTimespan } from "@/lib/date-format";
@@ -114,7 +114,7 @@ export default function EventsPage() {
   } = useInfiniteQuery({
     queryKey: ["events"],
     queryFn: fetchEvents,
-    initialPageParam: undefined as EventsCursor | undefined,
+    initialPageParam: undefined satisfies EventsCursor | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { trackEvent } from "@/lib/analytics";
 import { Message } from "@/lib/types";
-import sources from "@/lib/sources.json";
+import sources from "@/lib/sources";
 import { stripMarkdown } from "@/lib/markdown-utils";
 import { classifyMessage } from "@/lib/message-classification";
 import CategoryChips from "@/components/CategoryChips";

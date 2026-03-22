@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { SourceConfig } from "@/lib/types";
-import sourcesData from "@/lib/sources.json";
+import sourcesData from "@/lib/sources";
 
 interface Props {
   children: React.ReactNode;

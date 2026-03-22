@@ -1,15 +1,29 @@
+import rawSources from "./sources.json";
+
+/** Shape of a source entry in sources.json */
+export interface SourceDefinition {
+  readonly id: string;
+  readonly url: string;
+  readonly name: string;
+  readonly localities: readonly string[];
+  /** When true, notifications from this source require the user to opt-in */
+  readonly experimental?: boolean;
+}
+
+/**
+ * All source definitions loaded from sources.json.
+ */
+export const SOURCES: readonly SourceDefinition[] = rawSources;
+
 /**
  * Source IDs that are marked as experimental.
  *
- * Experimental sources are not included in notifications for users
- * who have not enabled experimental features in their settings.
- *
- * To mark a source as experimental, add its ID to this set.
+ * Derived from `sources.json` — to mark a source as experimental,
+ * set `"experimental": true` on its entry in that file.
  */
-export const EXPERIMENTAL_SOURCE_IDS: ReadonlySet<string> = new Set([
-  // Add experimental source IDs here, e.g.:
-  // "some-new-source",
-]);
+export const EXPERIMENTAL_SOURCE_IDS: ReadonlySet<string> = new Set(
+  SOURCES.filter((s) => s.experimental).map((s) => s.id),
+);
 
 /**
  * Check if a source is experimental.

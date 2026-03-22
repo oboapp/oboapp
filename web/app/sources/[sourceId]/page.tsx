@@ -13,7 +13,7 @@ import Image from "next/image";
 import { Message, SourceConfig } from "@/lib/types";
 import MessagesGrid from "@/components/MessagesGrid";
 import MessageDetailView from "@/components/MessageDetailView/MessageDetailView";
-import sourcesData from "@/lib/sources.json";
+import sourcesData from "@/lib/sources";
 import { extractHostname } from "@/lib/url-utils";
 import { navigateBackOrReplace } from "@/lib/navigation-utils";
 

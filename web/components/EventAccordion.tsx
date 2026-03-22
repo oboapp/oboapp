@@ -4,7 +4,7 @@ import { useState, useId } from "react";
 import { ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Event, Message, EventMessage } from "@oboapp/shared";
-import sources from "@/lib/sources.json";
+import sources from "@/lib/sources";
 import { stripMarkdown } from "@/lib/markdown-utils";
 import { createSnippet } from "@/lib/text-utils";
 import { formatTimespan } from "@/lib/date-format";

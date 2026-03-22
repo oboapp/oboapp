@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import sources from "@/lib/sources.json";
+import sources from "@/lib/sources";
 
 interface SourceLogoProps {
   readonly sourceId: string;
