@@ -49,6 +49,7 @@ if (require.main === module) {
   crawl().catch((error) => {
     logger.error("Fatal error", {
       error: error instanceof Error ? error.message : String(error),
+      sourceType: SOURCE_TYPE,
     });
     process.exit(1);
   });
