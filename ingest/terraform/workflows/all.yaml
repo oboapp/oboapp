@@ -336,7 +336,7 @@ main:
                           - log18:
                               call: sys.log
                               args:
-                                text: '${"Crawler nadezhda failed: " + string(e)}'
+                                text: '${"Crawler nadezhda-org failed: " + string(e)}'
                                 severity: "ERROR"
     - ingest:
         try:
