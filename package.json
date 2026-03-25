@@ -6,7 +6,8 @@
   "scripts": {
     "build:shared": "pnpm --filter @oboapp/shared build",
     "build:db": "pnpm --filter @oboapp/db build",
-    "build:all": "pnpm build:shared && pnpm build:db && pnpm --filter oboapp-ingest build && pnpm --filter oboapp-web build",
+    "build:api": "pnpm --filter oboapp-api build",
+    "build:all": "pnpm build:shared && pnpm build:db && pnpm --filter oboapp-ingest build && pnpm --filter oboapp-api build && pnpm --filter oboapp-web build",
     "test:all": "pnpm -r --if-present --filter '*' run test:run",
     "lint:all": "pnpm -r --if-present --filter '*' run lint",
     "postinstall": "pnpm build:shared && pnpm build:db",

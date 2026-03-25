@@ -1,0 +1,37 @@
+{
+  "name": "oboapp-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/serve.ts",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
+    "start": "node dist/serve.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^8.4.0",
+    "@hono/node-server": "^1.14.3",
+    "@oboapp/db": "workspace:*",
+    "@oboapp/shared": "workspace:*",
+    "@scalar/hono-api-reference": "^0.5.177",
+    "@turf/center": "^7.3.1",
+    "@turf/helpers": "^7.3.4",
+    "@turf/turf": "^7.3.1",
+    "firebase-admin": "^13.6.0",
+    "hono": "^4.7.12",
+    "openapi3-ts": "^4.5.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "eslint": "^9.18.0",
+    "tsc-alias": "^1.8.16",
+    "tsx": "^4.19.4",
+    "typescript": "^5",
+    "typescript-eslint": "^8.54.0",
+    "vitest": "^4.0.15"
+  }
+}
