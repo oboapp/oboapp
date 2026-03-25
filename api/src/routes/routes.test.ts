@@ -32,7 +32,7 @@ describe("GET /v1/sources", () => {
       headers: API_KEY_HEADER,
     });
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body: any = await res.json();
     expect(body).toHaveProperty("sources");
     expect(Array.isArray(body.sources)).toBe(true);
     expect(body.sources.length).toBeGreaterThan(0);
@@ -94,7 +94,7 @@ describe("GET /v1/messages", () => {
       headers: API_KEY_HEADER,
     });
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body: any = await res.json();
     expect(body).toHaveProperty("messages");
     expect(Array.isArray(body.messages)).toBe(true);
     expect(body.messages[0]).toHaveProperty("id", "msg1");
@@ -107,7 +107,7 @@ describe("GET /v1/messages", () => {
       headers: API_KEY_HEADER,
     });
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body: any = await res.json();
     expect(body.messages).toEqual([]);
   });
 });
@@ -127,7 +127,7 @@ describe("GET /v1/messages/by-id", () => {
       headers: API_KEY_HEADER,
     });
     expect(res.status).toBe(400);
-    const body = await res.json();
+    const body: any = await res.json();
     expect(body.error).toMatch(/Missing id/i);
   });
 
@@ -154,7 +154,7 @@ describe("GET /v1/messages/by-id", () => {
       headers: API_KEY_HEADER,
     });
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body: any = await res.json();
     expect(body.message).toHaveProperty("id", "abcd1234");
   });
 
@@ -183,7 +183,7 @@ describe("GET /v1/openapi", () => {
   it("returns OpenAPI spec without auth", async () => {
     const res = await app.request("/v1/openapi");
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body: any = await res.json();
     expect(body).toHaveProperty("openapi", "3.0.0");
     expect(body?.info?.title).toContain("OboApp");
     expect(body).toHaveProperty("paths");

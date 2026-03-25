@@ -184,7 +184,9 @@ function isInvalidSourceForFilter(
     return false;
   }
 
-  return !doc.source || typeof doc.source !== "string" || !sourceSet.has(doc.source);
+  return (
+    !doc.source || typeof doc.source !== "string" || !sourceSet.has(doc.source)
+  );
 }
 
 async function buildCategoryQueryPlans(
@@ -315,30 +317,32 @@ function simplifyMessagesForClusterZoom(
   return messages.map((message) => {
     if (!message.geoJson?.features) return message;
 
-    const simplifiedFeatures: GeoJsonFeature[] = message.geoJson.features.map((feature) => {
-      if (
-        feature.geometry.type === "LineString" ||
-        feature.geometry.type === "Polygon"
-      ) {
-        const centroid = getCentroid(feature.geometry);
-        if (!centroid) return feature;
+    const simplifiedFeatures: GeoJsonFeature[] = message.geoJson.features.map(
+      (feature) => {
+        if (
+          feature.geometry.type === "LineString" ||
+          feature.geometry.type === "Polygon"
+        ) {
+          const centroid = getCentroid(feature.geometry);
+          if (!centroid) return feature;
 
-        const simplified: GeoJsonFeature = {
-          type: "Feature",
-          geometry: {
-            type: "Point",
-            coordinates: [centroid.lng, centroid.lat],
-          },
-          properties: {
-            ...feature.properties,
-            _originalGeometryType: feature.geometry.type,
-          },
-        };
-        return simplified;
-      }
+          const simplified: GeoJsonFeature = {
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates: [centroid.lng, centroid.lat],
+            },
+            properties: {
+              ...feature.properties,
+              _originalGeometryType: feature.geometry.type,
+            },
+          };
+          return simplified;
+        }
 
-      return feature;
-    });
+        return feature;
+      },
+    );
 
     return {
       ...message,

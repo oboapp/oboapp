@@ -35,11 +35,7 @@ const eslintConfig = [
     },
   },
   {
-    files: [
-      "**/*.test.ts",
-      "**/__tests__/**",
-      "**/__mocks__/**",
-    ],
+    files: ["**/*.test.ts", "**/__tests__/**", "**/__mocks__/**"],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/consistent-type-assertions": "off",
