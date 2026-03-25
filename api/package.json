@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/serve.ts",
-    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json --resolve-full-paths",
     "start": "node dist/serve.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -17,7 +17,6 @@
     "@hono/node-server": "^1.14.3",
     "@oboapp/db": "workspace:*",
     "@oboapp/shared": "workspace:*",
-    "@scalar/hono-api-reference": "^0.5.177",
     "@turf/center": "^7.3.1",
     "@turf/helpers": "^7.3.4",
     "@turf/turf": "^7.3.1",

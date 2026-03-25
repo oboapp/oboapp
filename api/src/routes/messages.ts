@@ -377,10 +377,7 @@ messagesRoute.get("/messages", apiKeyAuth, async (c) => {
     );
 
     if (!parsed.success) {
-      return c.json(
-        { error: "Invalid query parameters", details: parsed.error.flatten() },
-        400,
-      );
+      return c.json({ error: "Invalid query parameters" }, 400);
     }
 
     const {

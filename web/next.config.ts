@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // 301 redirect /api/v1/* → api.oboapp.online/v1/* (issue #259)
+  // 308 redirect /api/v1/* → api.oboapp.online/v1/* (issue #259)
   async redirects() {
     const apiHost = process.env.PUBLIC_API_HOST;
     if (!apiHost) return [];
