@@ -43,6 +43,9 @@ export async function geocodeEducationalFacilities(
             type,
             number,
           });
+          ingestErrors?.warn(
+            `⚠️  Educational facility missing coordinates: ${type} ${number}`,
+          );
         } else {
           const coords = Object.fromEntries(Object.entries(coordsObj));
           if (
@@ -54,6 +57,9 @@ export async function geocodeEducationalFacilities(
               number,
               coordinates: coords,
             });
+            ingestErrors?.warn(
+              `⚠️  Educational facility has invalid coordinates: ${type} ${number}`,
+            );
           } else {
             geometry = {
               name: typeof doc.name === "string" ? doc.name : number,

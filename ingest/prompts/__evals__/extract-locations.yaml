@@ -67,7 +67,7 @@ tests:
       - type: javascript
         value: "file://assertions.ts:assertHasLocations"
 
-  # School disruption — 93 СУ Александър Теодоров – Балан with modular classrooms
+  # School facility reference — 93 СУ Александър Теодоров – Балан with modular classroom expansion
   - vars:
       input: "file://../../__mocks__/fixtures/sources/school-geocoding.md"
     assert:
