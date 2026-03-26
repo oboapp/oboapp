@@ -3,6 +3,7 @@ import {
   geocodeIntersectionsForStreets,
   geocodeCadastralPropertiesFromIdentifiers,
   geocodeBusStops,
+  geocodeEducationalFacilities,
 } from "@/geocoding/router";
 import { overpassGeocodeAddresses } from "@/geocoding/overpass/service";
 import {
@@ -396,6 +397,36 @@ async function geocodeBusStopsFromExtractedData(
 }
 
 /**
+ * Helper: Geocode educational facilities (schools and kindergartens) using local reference data
+ */
+async function geocodeEducationalFacilitiesFromExtractedData(
+  extractedData: ExtractedLocations,
+  preGeocodedMap: Map<string, Coordinates>,
+  addresses: Address[],
+): Promise<void> {
+  if (
+    !extractedData.educationalFacilities ||
+    extractedData.educationalFacilities.length === 0
+  ) {
+    return;
+  }
+
+  const geocoded = await geocodeEducationalFacilities(
+    extractedData.educationalFacilities,
+  );
+  addresses.push(...geocoded);
+
+  geocoded.forEach((addr) => {
+    preGeocodedMap.set(addr.originalText, addr.coordinates);
+  });
+
+  logger.info("Geocoded educational facilities", {
+    geocoded: geocoded.length,
+    total: extractedData.educationalFacilities.length,
+  });
+}
+
+/**
  * Geocode addresses from extracted locations using hybrid approach.
  * Google for pins, Overpass for street intersections, Cadastre for УПИ, GTFS for bus stops.
  * Skips geocoding for geotagged coordinates (pre-resolved by source).
@@ -415,6 +446,11 @@ export async function geocodeAddressesFromExtractedData(
   await geocodeStreetIntersections(extractedData, preGeocodedMap, addresses);
   const cadastralGeometries = await geocodeCadastralProperties(extractedData);
   await geocodeBusStopsFromExtractedData(
+    extractedData,
+    preGeocodedMap,
+    addresses,
+  );
+  await geocodeEducationalFacilitiesFromExtractedData(
     extractedData,
     preGeocodedMap,
     addresses,

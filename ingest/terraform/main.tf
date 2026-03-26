@@ -966,6 +966,94 @@ resource "google_cloud_scheduler_job" "gtfs_sync_schedule" {
   ]
 }
 
+resource "google_cloud_run_v2_job" "educational_facilities_sync" {
+  name     = "educational-facilities-sync"
+  location = var.region
+
+  template {
+    template {
+      service_account = google_service_account.ingest_runner.email
+      timeout         = "300s"  # 5 minutes for sync
+
+      containers {
+        image = local.full_image_url
+        args  = ["pnpm", "run", "prebuilt:educational-facilities-sync"]
+
+        resources {
+          limits = {
+            cpu    = "1"
+            memory = "512Mi"
+          }
+        }
+
+        env {
+          name  = "NODE_ENV"
+          value = "production"
+        }
+
+        env {
+          name = "FIREBASE_SERVICE_ACCOUNT_KEY"
+          value_source {
+            secret_key_ref {
+              secret  = data.google_secret_manager_secret.firebase_sa_key.secret_id
+              version = "latest"
+            }
+          }
+        }
+
+        env {
+          name  = "FIREBASE_PROJECT_ID"
+          value = var.firebase_project_id
+        }
+
+        env {
+          name  = "LOCALITY"
+          value = var.locality
+        }
+      }
+
+      max_retries = 1
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      launch_stage,
+    ]
+  }
+
+  depends_on = [
+    google_project_service.run
+  ]
+}
+
+resource "google_cloud_scheduler_job" "educational_facilities_sync_schedule" {
+  name             = "educational-facilities-sync-schedule"
+  description      = "Sync schools and kindergartens from Sofia open data monthly"
+  schedule         = var.schedules.educational_facilities_sync
+  time_zone        = var.schedule_timezone
+  attempt_deadline = "320s"
+  region           = var.region
+
+  retry_config {
+    retry_count = 2
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://${var.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/educational-facilities-sync:run"
+
+    oauth_token {
+      service_account_email = google_service_account.ingest_runner.email
+    }
+  }
+
+  depends_on = [
+    google_project_service.cloudscheduler,
+    google_cloud_run_v2_job.educational_facilities_sync
+  ]
+}
+
 # ── Alerting ──────────────────────────────────────────────────────────────────
 
 resource "google_monitoring_notification_channel" "email" {

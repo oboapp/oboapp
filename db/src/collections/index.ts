@@ -17,6 +17,10 @@ export {
 } from "./notification-subscriptions";
 export { GtfsStopsRepository, GTFS_STOPS_COLLECTION } from "./gtfs-stops";
 export {
+  EducationalFacilitiesRepository,
+  EDUCATIONAL_FACILITIES_COLLECTION,
+} from "./educational-facilities";
+export {
   UserPreferencesRepository,
   USER_PREFERENCES_COLLECTION,
 } from "./user-preferences";

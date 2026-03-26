@@ -7,6 +7,7 @@
  * GTFS for bus stops (public transport)
  */
 
+import type { EducationalFacilityRef } from "@oboapp/shared";
 import { Address, StreetSection, Coordinates } from "../lib/types";
 import { logger } from "@/lib/logger";
 import { geocodeAddresses as geocodeAddressesTraditional } from "./google/service";
@@ -19,6 +20,7 @@ import {
   type CadastralGeometry,
 } from "./cadastre/service";
 import { geocodeBusStops as geocodeBusStopsService } from "./gtfs/geocoding-service";
+import { geocodeEducationalFacilities as geocodeEducationalFacilitiesService } from "./educational-facilities/geocoding-service";
 import { CadastreMockService } from "../__mocks__/services/cadastre-mock-service";
 
 // Check if mocking is enabled for Cadastre
@@ -238,4 +240,17 @@ export async function geocodeBusStops(stopCodes: string[]): Promise<Address[]> {
   }
 
   return geocodeBusStopsService(stopCodes);
+}
+
+/**
+ * Geocode educational facilities (schools and kindergartens) using local reference data
+ */
+export async function geocodeEducationalFacilities(
+  facilities: EducationalFacilityRef[],
+): Promise<Address[]> {
+  if (facilities.length === 0) {
+    return [];
+  }
+
+  return geocodeEducationalFacilitiesService(facilities);
 }

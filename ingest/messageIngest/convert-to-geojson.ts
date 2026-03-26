@@ -12,12 +12,13 @@ import {
   getIngestErrorRecorder,
   type IngestErrorRecorder,
 } from "@/lib/ingest-errors";
+import { EDUCATIONAL_FACILITY_PREFIX } from "@/geocoding/educational-facilities/geocoding-service";
 
 /**
  * Helper: Validate that all addresses have been geocoded
  * Exported for unit testing
  */
-export function validateAllAddressesGeocoded(
+export function validatePinsAndStreetsGeocoded(
   extractedData: ExtractedLocations,
   preGeocodedMap: Map<string, Coordinates>,
 ): string[] {
@@ -51,6 +52,7 @@ export async function convertMessageGeocodingToGeoJson(
   cadastralGeometries?: Map<string, CadastralGeometry>,
   geocodedBusStops?: Address[],
   ingestErrors?: IngestErrorRecorder,
+  geocodedEducationalFacilities?: Address[],
 ): Promise<GeoJSONFeatureCollection | null> {
   const recorder = getIngestErrorRecorder(ingestErrors);
   if (!extractedData) {
@@ -58,7 +60,7 @@ export async function convertMessageGeocodingToGeoJson(
   }
 
   // Validate that all required addresses have been geocoded
-  const missingAddresses = validateAllAddressesGeocoded(
+  const missingAddresses = validatePinsAndStreetsGeocoded(
     extractedData,
     preGeocodedMap,
   );
@@ -78,7 +80,8 @@ export async function convertMessageGeocodingToGeoJson(
     filteredData.pins.length > 0 ||
     filteredData.streets.length > 0 ||
     (cadastralGeometries && cadastralGeometries.size > 0) ||
-    (geocodedBusStops && geocodedBusStops.length > 0);
+    (geocodedBusStops && geocodedBusStops.length > 0) ||
+    (geocodedEducationalFacilities && geocodedEducationalFacilities.length > 0);
 
   if (!hasFeatures) {
     recorder.error(
@@ -170,6 +173,38 @@ export async function convertMessageGeocodingToGeoJson(
       return {
         type: "FeatureCollection",
         features: busStopFeatures,
+      };
+    }
+  }
+
+  // Add educational facility features
+  if (geocodedEducationalFacilities && geocodedEducationalFacilities.length > 0) {
+    const facilityFeatures: GeoJSONFeature[] = geocodedEducationalFacilities.map(
+      (facility) => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [facility.coordinates.lng, facility.coordinates.lat],
+        },
+        properties: {
+          feature_type: "educational_facility",
+          locationType: "educational_facility",
+          facility_number: facility.originalText.replace(
+            EDUCATIONAL_FACILITY_PREFIX,
+            "",
+          ),
+          facility_name: facility.formattedAddress,
+        },
+      }),
+    );
+
+    if (geoJson) {
+      geoJson.features.push(...facilityFeatures);
+    } else {
+      // Only educational facility features
+      return {
+        type: "FeatureCollection",
+        features: facilityFeatures,
       };
     }
   }

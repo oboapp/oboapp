@@ -35,6 +35,7 @@ export { filterOutlierCoordinates } from "./filter-outliers";
 export { verifyAuthToken, validateMessageText } from "./helpers";
 import { buildMessageResponse } from "./build-response";
 export { buildMessageResponse };
+import { EDUCATIONAL_FACILITY_PREFIX } from "@/geocoding/educational-facilities/geocoding-service";
 
 export interface MessageIngestOptions {
   /**
@@ -710,12 +711,22 @@ async function performGeocodingWithErrorHandling(
           )
         : undefined;
 
+    // Identify geocoded educational facilities for GeoJSON feature creation
+    const geocodedEducationalFacilities =
+      extractedLocations.educationalFacilities &&
+      extractedLocations.educationalFacilities.length > 0
+        ? filteredAddresses.filter((addr) =>
+            addr.originalText.startsWith(EDUCATIONAL_FACILITY_PREFIX),
+          )
+        : undefined;
+
     const geoJson = await convertToGeoJson(
       extractedLocations,
       geocodingResult.preGeocodedMap,
       geocodingResult.cadastralGeometries,
       geocodedBusStops,
       ingestErrors,
+      geocodedEducationalFacilities,
     );
 
     return { addresses: filteredAddresses, geoJson };
@@ -767,6 +778,7 @@ async function convertToGeoJson(
   cadastralGeometries: Map<string, CadastralGeometry> | undefined,
   geocodedBusStops?: Address[],
   ingestErrors?: IngestErrorRecorder,
+  geocodedEducationalFacilities?: Address[],
 ): Promise<GeoJSONFeatureCollection | null> {
   const { convertMessageGeocodingToGeoJson } =
     await import("./convert-to-geojson");
@@ -776,6 +788,7 @@ async function convertToGeoJson(
     cadastralGeometries,
     geocodedBusStops,
     ingestErrors,
+    geocodedEducationalFacilities,
   );
 }
 

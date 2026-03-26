@@ -9,6 +9,7 @@ You must strictly follow the rules below and return only valid JSON. The context
 3.  **No Duplication Within Same Type**: A single location should not appear twice in the same array (e.g., same street in `streets` twice). However, a cadastral property AND an affected street are DIFFERENT location types and should BOTH be extracted.
 4.  **Merge Information**: If multiple restrictions (e.g., parking and traffic) apply to the same location, merge them into a single `pin`, `street`, or `cadastralProperty` object with multiple `timespans`.
 5.  **Extract Bus Stops**: If bus, tram, or trolleybus stop codes or names are mentioned, extract them into `busStops`. These are location identifiers, not route information.
+6.  **Extract Educational Facilities**: If schools or kindergartens are referenced by number (e.g., "93 СУ", "ДГ №45"), extract the type and numeric identifier into `educationalFacilities`.
 
 # Output Format
 
@@ -21,6 +22,7 @@ You must return ONLY a single, valid JSON object. Do not include any explanation
   "withSpecificAddress": true,
   "cityWide": false,
   "busStops": ["string"],
+  "educationalFacilities": [{ "type": "school" | "kindergarten", "number": "string" }],
   "pins": [
     {
       "address": "string",
@@ -87,6 +89,21 @@ An array of bus, tram, or trolleybus stop codes or names mentioned in the messag
 - Extract stop codes (e.g., "спирка 0483") or stop names (e.g., "спирка Хладилника")
 - These are location identifiers used for geocoding, not route information
 - If no stops are mentioned, return an empty array
+
+## `educationalFacilities` (array of objects)
+
+An array of `{ type, number }` objects identifying schools and kindergartens mentioned in the message.
+
+- `type`: `"school"` for schools, `"kindergarten"` for kindergartens
+- `number`: the numeric identifier only
+- Extract from references like:
+  - "93 СУ Александър Теодоров – Балан" → `{ "type": "school", "number": "93" }`
+  - "ДГ №45 Звездичка" → `{ "type": "kindergarten", "number": "45" }`
+  - "133-та детска градина" → `{ "type": "kindergarten", "number": "133" }`
+- School types: СУ (secondary), ОУ (primary), НУ (elementary), ППМГ (math/science), НГ, ПГ → use `"school"`
+- Kindergarten types: ДГ, ЦДГ, детска градина → use `"kindergarten"`
+- Extract only when the facility is an **affected location** (e.g., water shutoff nearby, road work outside, classroom disruption) — not when it appears as a generic landmark
+- If no numbered school or kindergarten is mentioned, return an empty array
 
 ## `pins` (array of objects)
 
@@ -174,6 +191,7 @@ An array of all date and time ranges associated with a location.
     "withSpecificAddress": true,
     "cityWide": false,
     "busStops": [],
+    "educationalFacilities": [],
     "pins": [
       {
         "address": "ул. Оборище 15",
@@ -199,6 +217,7 @@ An array of all date and time ranges associated with a location.
     "withSpecificAddress": true,
     "cityWide": false,
     "busStops": [],
+    "educationalFacilities": [],
     "pins": [],
     "streets": [
       {
@@ -226,6 +245,7 @@ An array of all date and time ranges associated with a location.
     "withSpecificAddress": true,
     "cityWide": false,
     "busStops": [],
+    "educationalFacilities": [],
     "pins": [
       {
         "address": "ул. Оборище 15",
@@ -253,6 +273,7 @@ An array of all date and time ranges associated with a location.
     "withSpecificAddress": true,
     "cityWide": false,
     "busStops": [],
+    "educationalFacilities": [],
     "pins": [],
     "streets": [
       {
@@ -287,6 +308,7 @@ An array of all date and time ranges associated with a location.
     "withSpecificAddress": false,
     "cityWide": true,
     "busStops": [],
+    "educationalFacilities": [],
     "pins": [],
     "streets": [],
     "cadastralProperties": []
@@ -302,6 +324,7 @@ An array of all date and time ranges associated with a location.
     "withSpecificAddress": true,
     "cityWide": false,
     "busStops": ["0483"],
+    "educationalFacilities": [],
     "pins": [],
     "streets": [],
     "cadastralProperties": []
@@ -318,6 +341,7 @@ An array of all date and time ranges associated with a location.
     "withSpecificAddress": true,
     "cityWide": false,
     "busStops": [],
+    "educationalFacilities": [],
     "pins": [
       {
         "address": "бл. 66, ж.к. Дружба",
@@ -335,6 +359,29 @@ An array of all date and time ranges associated with a location.
         "address": "бл. 88, ж.к. Дружба",
         "timespans": [
           { "start": "20.03.2026 09:00", "end": "20.03.2026 17:00" }
+        ]
+      }
+    ],
+    "streets": [],
+    "cadastralProperties": []
+  }
+  ```
+
+## Example 8: Educational Facility Reference
+
+- **Input Text**: "Уведомяваме, че на 15.04.2026 г. от 09:00 до 17:00 ч. ще бъде преустановено водоснабдяването в района на 93 СУ „Александър Теодоров – Балан", ул. Слатинска № 26."
+- **Output**:
+  ```json
+  {
+    "withSpecificAddress": true,
+    "cityWide": false,
+    "busStops": [],
+    "educationalFacilities": [{ "type": "school", "number": "93" }],
+    "pins": [
+      {
+        "address": "ул. Слатинска 26",
+        "timespans": [
+          { "start": "15.04.2026 09:00", "end": "15.04.2026 17:00" }
         ]
       }
     ],

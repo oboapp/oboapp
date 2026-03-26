@@ -16,6 +16,7 @@
     "notify": "tsx notify",
     "sources:clean": "tsx sources-clean",
     "gtfs-stops": "tsx ingest gtfs-stops",
+    "educational-facilities-sync": "tsx ingest educational-facilities-sync",
     "pipeline:emergent": "tsx pipeline --emergent",
     "pipeline:all": "tsx pipeline --all",
     "emulators": "firebase emulators:start --import=./emulator-data --export-on-exit",
@@ -39,6 +40,7 @@
     "prebuilt:ingest": "node dist/ingest.js",
     "prebuilt:notify": "node dist/notify.js",
     "prebuilt:gtfs-stops": "node dist/ingest.js gtfs-stops",
+    "prebuilt:educational-facilities-sync": "node dist/ingest.js educational-facilities-sync",
     "prebuilt:pipeline:emergent": "node dist/pipeline.js --emergent",
     "prebuilt:pipeline:all": "node dist/pipeline.js --all"
   },

@@ -12,9 +12,15 @@ export const CadastralPropertySchema = z.object({
   ),
 });
 
+export const EducationalFacilityRefSchema = z.object({
+  type: z.enum(["school", "kindergarten"]),
+  number: z.string(),
+});
+
 export const ExtractedLocationsSchema = z.object({
   withSpecificAddress: z.boolean().optional(),
   busStops: z.array(z.string()).optional(),
+  educationalFacilities: z.array(EducationalFacilityRefSchema).optional(),
   cityWide: z.boolean().optional(),
   pins: z.array(PinSchema),
   streets: z.array(StreetSectionSchema),
@@ -22,6 +28,7 @@ export const ExtractedLocationsSchema = z.object({
 });
 
 export type CadastralProperty = z.infer<typeof CadastralPropertySchema>;
+export type EducationalFacilityRef = z.infer<typeof EducationalFacilityRefSchema>;
 export type ExtractedLocations = z.infer<typeof ExtractedLocationsSchema>;
 
 // Legacy aliases for backward compatibility with existing imports

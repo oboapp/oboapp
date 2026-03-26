@@ -36,14 +36,16 @@ variable "schedule_timezone" {
 variable "schedules" {
   description = "Cron schedules for each job (in cron format: minute hour day month weekday)"
   type = object({
-    pipeline_emergent = string
-    pipeline_all      = string
-    gtfs_sync         = string
+    pipeline_emergent               = string
+    pipeline_all                    = string
+    gtfs_sync                       = string
+    educational_facilities_sync     = string
   })
   default = {
-    pipeline_emergent = "*/30 7-22 * * *"    # Every 30 minutes, 7:00AM–10:30PM (hours 7-22)
-    pipeline_all      = "0 10,14,16 * * *"   # 3x daily: 10:00, 14:00, 16:00
-    gtfs_sync         = "0 3 * * *"          # Daily at 3:00 AM
+    pipeline_emergent               = "*/30 7-22 * * *"    # Every 30 minutes, 7:00AM–10:30PM (hours 7-22)
+    pipeline_all                    = "0 10,14,16 * * *"   # 3x daily: 10:00, 14:00, 16:00
+    gtfs_sync                       = "0 3 * * *"          # Daily at 3:00 AM
+    educational_facilities_sync     = "0 4 1 * *"          # Monthly on the 1st at 4:00 AM
   }
 }
 

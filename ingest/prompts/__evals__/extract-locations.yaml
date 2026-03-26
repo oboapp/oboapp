@@ -67,6 +67,17 @@ tests:
       - type: javascript
         value: "file://assertions.ts:assertHasLocations"
 
+  # School disruption — 93 СУ Александър Теодоров – Балан with modular classrooms
+  - vars:
+      input: "file://../../__mocks__/fixtures/sources/school-geocoding.md"
+    assert:
+      - type: javascript
+        value: "file://assertions.ts:assertHasLocations"
+      - type: javascript
+        value: "file://assertions.ts:assertHasEducationalFacility"
+        config:
+          value: "school:93"
+
   # Housing complex blocks (ж.к. Дружба, бл. 66/91/88)
   - vars:
       input: "file://../../__mocks__/fixtures/sources/housing-complex-blocks.md"

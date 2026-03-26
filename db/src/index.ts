@@ -19,6 +19,7 @@ import { InterestsRepository } from "./collections/interests";
 import { NotificationMatchesRepository } from "./collections/notification-matches";
 import { NotificationSubscriptionsRepository } from "./collections/notification-subscriptions";
 import { GtfsStopsRepository } from "./collections/gtfs-stops";
+import { EducationalFacilitiesRepository } from "./collections/educational-facilities";
 import { ApiClientsRepository } from "./collections/api-clients";
 import { UserPreferencesRepository } from "./collections/user-preferences";
 import { EventsRepository } from "./collections/events";
@@ -40,6 +41,8 @@ export interface OboDb {
   notificationSubscriptions: NotificationSubscriptionsRepository;
   /** GTFS stops collection */
   gtfsStops: GtfsStopsRepository;
+  /** Educational facilities (schools and kindergartens) */
+  educationalFacilities: EducationalFacilitiesRepository;
   /** Registered external API clients */
   apiClients: ApiClientsRepository;
   /** User preferences (notification filters, etc.) */
@@ -75,6 +78,7 @@ function buildRepositories(client: DbClient): OboDb {
     notificationMatches: new NotificationMatchesRepository(client),
     notificationSubscriptions: new NotificationSubscriptionsRepository(client),
     gtfsStops: new GtfsStopsRepository(client),
+    educationalFacilities: new EducationalFacilitiesRepository(client),
     apiClients: new ApiClientsRepository(client),
     userPreferences: new UserPreferencesRepository(client),
     events: new EventsRepository(client),

@@ -178,7 +178,10 @@ export function assertHasLocations(
     (Array.isArray(data.cadastralProperties)
       ? data.cadastralProperties.length
       : 0) +
-    (Array.isArray(data.busStops) ? data.busStops.length : 0);
+    (Array.isArray(data.busStops) ? data.busStops.length : 0) +
+    (Array.isArray(data.educationalFacilities)
+      ? data.educationalFacilities.length
+      : 0);
 
   return {
     pass: totalLocations > 0,
@@ -186,7 +189,7 @@ export function assertHasLocations(
     reason:
       totalLocations > 0
         ? `Found ${totalLocations} location(s)`
-        : "No locations extracted (expected at least one pin, street, cadastral property, or bus stop)",
+        : "No locations extracted (expected at least one pin, street, cadastral property, bus stop, or educational facility)",
   };
 }
 
@@ -406,6 +409,41 @@ export function assertMinPinCount(
       actual >= expected
         ? `Found ${actual} pin(s) (expected at least ${expected})`
         : `Expected at least ${expected} pin(s), got ${actual}`,
+  };
+}
+
+/**
+ * Asserts that extract-locations output contains a specific educational facility.
+ * Usage in YAML: config.value should be "{type}:{number}", e.g., "school:93"
+ */
+export function assertHasEducationalFacility(
+  output: string,
+  context: AssertionValueFunctionContext,
+): GradingResult {
+  const parsed = parseOutput(output);
+  if (!parsed.success) return parsed.result;
+
+  const data = toRecord(parsed.data);
+  const facilities = Array.isArray(data.educationalFacilities)
+    ? data.educationalFacilities
+    : [];
+
+  const expected = String(context.config?.value ?? "");
+  const [expectedType, expectedNumber] = expected.split(":");
+
+  const found = facilities.some(
+    (f) =>
+      isRecord(f) &&
+      f.type === expectedType &&
+      String(f.number) === expectedNumber,
+  );
+
+  return {
+    pass: found,
+    score: found ? 1 : 0,
+    reason: found
+      ? `Found educational facility ${expected}`
+      : `Expected educational facility ${expected} not found in [${JSON.stringify(facilities)}]`,
   };
 }
 

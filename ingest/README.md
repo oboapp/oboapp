@@ -61,6 +61,11 @@ The system runs two automated pipelines via Cloud Scheduler:
   - Updates bus stop coordinates in Firestore
   - Enables geocoding of messages containing bus stop codes
 
+- **Educational Facilities Sync** (`educational-facilities-sync`) - Monthly on the 1st at 4:00 AM EET
+  - Downloads schools and kindergartens from Sofia open data (sofiaplan.bg)
+  - Updates facility coordinates in Firestore
+  - Enables geocoding of messages referencing numbered schools and kindergartens
+
 - **Emergent Pipeline** (`pipeline:emergent`) - Every 30 minutes, 7:00AM-10:30PM
   - Crawlers: Sources that publish short-lived disruptions
   - Runs ingest and notify after crawling

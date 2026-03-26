@@ -111,4 +111,33 @@ program
     }
   });
 
+program
+  .command("educational-facilities-sync")
+  .description("Sync schools and kindergartens from Sofia open data to Firestore")
+  .action(async () => {
+    dotenv.config({ path: resolve(process.cwd(), ".env.local") });
+    verifyDbEnv();
+
+    try {
+      const { syncEducationalFacilities } = await import(
+        "./geocoding/educational-facilities/service"
+      );
+
+      await syncEducationalFacilities();
+
+      logger.info("✅ Educational facilities sync completed successfully", {
+        step: "educational-facilities-sync",
+      });
+      process.exit(0);
+    } catch (error) {
+      logger.error(
+        `Educational facilities sync failed: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          step: "educational-facilities-sync",
+        },
+      );
+      process.exit(1);
+    }
+  });
+
 program.parse();
