@@ -12,7 +12,7 @@ import {
   getIngestErrorRecorder,
   type IngestErrorRecorder,
 } from "@/lib/ingest-errors";
-import { EDUCATIONAL_FACILITY_PREFIX } from "@/geocoding/educational-facilities/geocoding-service";
+import { EDUCATIONAL_FACILITY_PREFIX } from "@/lib/constants";
 
 /**
  * Helper: Validate that all addresses have been geocoded
@@ -180,22 +180,33 @@ export async function convertMessageGeocodingToGeoJson(
   // Add educational facility features
   if (geocodedEducationalFacilities && geocodedEducationalFacilities.length > 0) {
     const facilityFeatures: GeoJSONFeature[] = geocodedEducationalFacilities.map(
-      (facility) => ({
-        type: "Feature",
-        geometry: {
-          type: "Point",
-          coordinates: [facility.coordinates.lng, facility.coordinates.lat],
-        },
-        properties: {
-          feature_type: "educational_facility",
-          locationType: "educational_facility",
-          facility_number: facility.originalText.replace(
-            EDUCATIONAL_FACILITY_PREFIX,
-            "",
-          ),
-          facility_name: facility.formattedAddress,
-        },
-      }),
+      (facility) => {
+        // originalText format: "Учебно заведение {type}:{number}"
+        const typeAndNumber = facility.originalText.replace(
+          EDUCATIONAL_FACILITY_PREFIX,
+          "",
+        );
+        const colonIdx = typeAndNumber.indexOf(":");
+        const facilityType =
+          colonIdx !== -1 ? typeAndNumber.slice(0, colonIdx) : "";
+        const facilityNumber =
+          colonIdx !== -1 ? typeAndNumber.slice(colonIdx + 1) : typeAndNumber;
+
+        return {
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: [facility.coordinates.lng, facility.coordinates.lat],
+          },
+          properties: {
+            feature_type: "educational_facility",
+            locationType: "educational_facility",
+            facility_type: facilityType,
+            facility_number: facilityNumber,
+            facility_name: facility.formattedAddress,
+          },
+        };
+      },
     );
 
     if (geoJson) {

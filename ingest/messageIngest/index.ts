@@ -35,7 +35,7 @@ export { filterOutlierCoordinates } from "./filter-outliers";
 export { verifyAuthToken, validateMessageText } from "./helpers";
 import { buildMessageResponse } from "./build-response";
 export { buildMessageResponse };
-import { EDUCATIONAL_FACILITY_PREFIX } from "@/geocoding/educational-facilities/geocoding-service";
+import { EDUCATIONAL_FACILITY_PREFIX } from "@/lib/constants";
 
 export interface MessageIngestOptions {
   /**
@@ -678,10 +678,13 @@ function ensureCrawledAtDate(crawledAt: Date | string | undefined): Date {
 /**
  * Perform geocoding on extracted locations
  */
-async function performGeocoding(extractedLocations: ExtractedLocations) {
+async function performGeocoding(
+  extractedLocations: ExtractedLocations,
+  ingestErrors?: IngestErrorRecorder,
+) {
   const { geocodeAddressesFromExtractedData } =
     await import("./geocode-addresses");
-  return await geocodeAddressesFromExtractedData(extractedLocations);
+  return await geocodeAddressesFromExtractedData(extractedLocations, ingestErrors);
 }
 
 /**
@@ -696,7 +699,7 @@ async function performGeocodingWithErrorHandling(
   geoJson: GeoJSONFeatureCollection | null;
 } | null> {
   try {
-    const geocodingResult = await performGeocoding(extractedLocations);
+    const geocodingResult = await performGeocoding(extractedLocations, ingestErrors);
     const filteredAddresses = await filterAndStoreAddresses(
       messageId,
       geocodingResult.addresses,

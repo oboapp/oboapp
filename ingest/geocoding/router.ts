@@ -9,6 +9,7 @@
 
 import type { EducationalFacilityRef } from "@oboapp/shared";
 import { Address, StreetSection, Coordinates } from "../lib/types";
+import type { IngestErrorRecorder } from "@/lib/ingest-errors";
 import { logger } from "@/lib/logger";
 import { geocodeAddresses as geocodeAddressesTraditional } from "./google/service";
 import {
@@ -247,10 +248,11 @@ export async function geocodeBusStops(stopCodes: string[]): Promise<Address[]> {
  */
 export async function geocodeEducationalFacilities(
   facilities: EducationalFacilityRef[],
+  ingestErrors?: IngestErrorRecorder,
 ): Promise<Address[]> {
   if (facilities.length === 0) {
     return [];
   }
 
-  return geocodeEducationalFacilitiesService(facilities);
+  return geocodeEducationalFacilitiesService(facilities, ingestErrors);
 }

@@ -13,6 +13,7 @@ import {
   Coordinates,
 } from "@/lib/types";
 import type { CadastralGeometry } from "@/geocoding/cadastre/service";
+import type { IngestErrorRecorder } from "@/lib/ingest-errors";
 import { logger } from "@/lib/logger";
 import { isWithinBounds } from "@oboapp/shared";
 import { getLocality } from "@/lib/target-locality";
@@ -403,6 +404,7 @@ async function geocodeEducationalFacilitiesFromExtractedData(
   extractedData: ExtractedLocations,
   preGeocodedMap: Map<string, Coordinates>,
   addresses: Address[],
+  ingestErrors?: IngestErrorRecorder,
 ): Promise<void> {
   if (
     !extractedData.educationalFacilities ||
@@ -413,16 +415,12 @@ async function geocodeEducationalFacilitiesFromExtractedData(
 
   const geocoded = await geocodeEducationalFacilities(
     extractedData.educationalFacilities,
+    ingestErrors,
   );
   addresses.push(...geocoded);
 
   geocoded.forEach((addr) => {
     preGeocodedMap.set(addr.originalText, addr.coordinates);
-  });
-
-  logger.info("Geocoded educational facilities", {
-    geocoded: geocoded.length,
-    total: extractedData.educationalFacilities.length,
   });
 }
 
@@ -433,6 +431,7 @@ async function geocodeEducationalFacilitiesFromExtractedData(
  */
 export async function geocodeAddressesFromExtractedData(
   extractedData: ExtractedLocations | null,
+  ingestErrors?: IngestErrorRecorder,
 ): Promise<GeocodingResult> {
   const preGeocodedMap = new Map<string, Coordinates>();
   const addresses: Address[] = [];
@@ -454,6 +453,7 @@ export async function geocodeAddressesFromExtractedData(
     extractedData,
     preGeocodedMap,
     addresses,
+    ingestErrors,
   );
 
   // Deduplicate addresses before returning

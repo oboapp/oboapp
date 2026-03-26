@@ -103,6 +103,10 @@ An array of `{ type, number }` objects identifying schools and kindergartens men
 - School types: СУ (secondary), ОУ (primary), НУ (elementary), ППМГ (math/science), НГ, ПГ → use `"school"`
 - Kindergarten types: ДГ, ЦДГ, детска градина → use `"kindergarten"`
 - Extract only when the facility is an **affected location** (e.g., water shutoff nearby, road work outside, classroom disruption) — not when it appears as a generic landmark
+- **CRITICAL — only extract when a clear numeric identifier is present.** Examples of what to extract: "93 СУ", "ДГ №45", "133-та детска градина". Do NOT extract abbreviations that appear without a leading number, such as:
+  - ВУ (higher education institutions — not schools or kindergartens)
+  - ПМГ, МГ, ЕГ, СГ (specialized secondary school abbreviations without a number)
+  - Any school-type abbreviation that appears alone, e.g. "пред СУ" or "до ПГ" with no number
 - If no numbered school or kindergarten is mentioned, return an empty array
 
 ## `pins` (array of objects)

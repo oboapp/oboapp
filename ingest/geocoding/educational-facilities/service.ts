@@ -55,7 +55,16 @@ async function fetchFacilities(
   }
 
   // response.json() returns any — access fields with runtime guards below
-  const geojson = await response.json();
+  // response.json() returns any — access fields with runtime guards below
+  // eslint-disable is intentionally avoided; use a local variable to avoid lint issues
+  let geojson: Awaited<ReturnType<Response["json"]>>;
+  try {
+    geojson = await response.json();
+  } catch (err) {
+    throw new Error(
+      `Failed to parse ${type} API response as JSON: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 
   if (!geojson.features || !Array.isArray(geojson.features)) {
     throw new Error(`Invalid GeoJSON response for ${type}: missing features array`);
@@ -134,10 +143,32 @@ async function fetchFacilities(
  * Sync schools and kindergartens from Sofia open data to the educationalFacilities collection.
  */
 export async function syncEducationalFacilities(): Promise<void> {
-  const [schools, kindergartens] = await Promise.all([
+  const [schoolsResult, kindergartensResult] = await Promise.allSettled([
     fetchFacilities(SCHOOLS_URL, "school"),
     fetchFacilities(KINDERGARTENS_URL, "kindergarten"),
   ]);
+
+  const schools =
+    schoolsResult.status === "fulfilled"
+      ? schoolsResult.value
+      : (logger.warn("Failed to fetch schools, skipping", {
+          error:
+            schoolsResult.reason instanceof Error
+              ? schoolsResult.reason.message
+              : String(schoolsResult.reason),
+        }),
+        []);
+
+  const kindergartens =
+    kindergartensResult.status === "fulfilled"
+      ? kindergartensResult.value
+      : (logger.warn("Failed to fetch kindergartens, skipping", {
+          error:
+            kindergartensResult.reason instanceof Error
+              ? kindergartensResult.reason.message
+              : String(kindergartensResult.reason),
+        }),
+        []);
 
   const all = [...schools, ...kindergartens];
 
