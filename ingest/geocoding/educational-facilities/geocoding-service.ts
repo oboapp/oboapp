@@ -4,8 +4,6 @@ import type { IngestErrorRecorder } from "@/lib/ingest-errors";
 import { logger } from "@/lib/logger";
 import { EDUCATIONAL_FACILITY_PREFIX } from "@/lib/constants";
 
-export { EDUCATIONAL_FACILITY_PREFIX };
-
 interface FacilityGeometry {
   name: string;
   lat: number;

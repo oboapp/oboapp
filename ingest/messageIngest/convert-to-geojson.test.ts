@@ -4,7 +4,7 @@ import {
   convertMessageGeocodingToGeoJson,
 } from "./convert-to-geojson";
 import type { ExtractedData } from "@/lib/types";
-import { EDUCATIONAL_FACILITY_PREFIX } from "@/geocoding/educational-facilities/geocoding-service";
+import { EDUCATIONAL_FACILITY_PREFIX } from "@/lib/constants";
 
 // Mock dependencies
 vi.mock("@/geocoding/shared/geojson-service");
@@ -334,7 +334,7 @@ describe("convertMessageGeocodingToGeoJson", () => {
     });
 
     const facilityAddress = {
-      originalText: `${EDUCATIONAL_FACILITY_PREFIX}93`,
+      originalText: `${EDUCATIONAL_FACILITY_PREFIX}school:93`,
       formattedAddress: "93 СОУ Балан (93)",
       coordinates: { lat: 42.68, lng: 23.38 },
       geoJson: { type: "Point" as const, coordinates: [23.38, 42.68] as [number, number] },
@@ -354,6 +354,7 @@ describe("convertMessageGeocodingToGeoJson", () => {
       (f) => f.properties?.feature_type === "educational_facility",
     );
     expect(feature).toBeDefined();
+    expect(feature?.properties?.facility_type).toBe("school");
     expect(feature?.properties?.facility_number).toBe("93");
     expect(feature?.geometry).toEqual({
       type: "Point",
@@ -370,7 +371,7 @@ describe("convertMessageGeocodingToGeoJson", () => {
     const geocodedMap = new Map<string, { lat: number; lng: number }>();
 
     const facilityAddress = {
-      originalText: `${EDUCATIONAL_FACILITY_PREFIX}93`,
+      originalText: `${EDUCATIONAL_FACILITY_PREFIX}school:93`,
       formattedAddress: "93 СОУ Балан (93)",
       coordinates: { lat: 42.68, lng: 23.38 },
       geoJson: { type: "Point" as const, coordinates: [23.38, 42.68] as [number, number] },
@@ -391,6 +392,7 @@ describe("convertMessageGeocodingToGeoJson", () => {
     expect(result!.features[0].properties?.feature_type).toBe(
       "educational_facility",
     );
+    expect(result!.features[0].properties?.facility_type).toBe("school");
     expect(result!.features[0].properties?.facility_number).toBe("93");
   });
 });

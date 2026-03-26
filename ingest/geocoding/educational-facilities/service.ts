@@ -47,14 +47,13 @@ async function fetchFacilities(
 ): Promise<EducationalFacility[]> {
   logger.info("Fetching educational facilities", { url, type });
 
-  const response = await fetch(url);
+  const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
   if (!response.ok) {
     throw new Error(
       `Failed to fetch ${type} data: ${response.status} ${response.statusText}`,
     );
   }
 
-  // response.json() returns any — access fields with runtime guards below
   // response.json() returns any — access fields with runtime guards below
   // eslint-disable is intentionally avoided; use a local variable to avoid lint issues
   let geojson: Awaited<ReturnType<Response["json"]>>;
@@ -92,21 +91,30 @@ async function fetchFacilities(
     const geom = feature.geometry;
     if (geom?.type === "Point" && Array.isArray(geom.coordinates)) {
       const coords = geom.coordinates;
-      lng = typeof coords[0] === "number" ? coords[0] : null;
-      lat = typeof coords[1] === "number" ? coords[1] : null;
+      if (coords.length >= 2) {
+        lng = typeof coords[0] === "number" ? coords[0] : null;
+        lat = typeof coords[1] === "number" ? coords[1] : null;
+      }
     } else if (
       geom?.type === "MultiPoint" &&
       Array.isArray(geom.coordinates) &&
       geom.coordinates.length > 0
     ) {
       const first = geom.coordinates[0];
-      if (Array.isArray(first)) {
+      if (Array.isArray(first) && first.length >= 2) {
         lng = typeof first[0] === "number" ? first[0] : null;
         lat = typeof first[1] === "number" ? first[1] : null;
       }
     }
 
-    if (lng === null || lat === null || Number.isNaN(lng) || Number.isNaN(lat)) {
+    if (
+      lng === null ||
+      lat === null ||
+      Number.isNaN(lng) ||
+      Number.isNaN(lat) ||
+      !isFinite(lat) ||
+      !isFinite(lng)
+    ) {
       skippedNoCoords++;
       continue;
     }

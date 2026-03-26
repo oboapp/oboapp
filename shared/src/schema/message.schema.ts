@@ -1,7 +1,7 @@
 import { z } from "../zod-openapi";
 import { AddressSchema } from "./address.schema";
 import { CategoryEnum } from "./category.schema";
-import { CadastralPropertySchema } from "./extracted-data.schema";
+import { CadastralPropertySchema, EducationalFacilityRefSchema } from "./extracted-data.schema";
 import { GeoJsonFeatureCollectionSchema } from "./geojson.schema";
 import { IngestErrorSchema } from "./ingest-error.schema";
 import { PinSchema } from "./pin.schema";
@@ -32,6 +32,7 @@ export const MessageSchema = z.object({
   streets: z.array(StreetSectionSchema).optional(),
   cadastralProperties: z.array(CadastralPropertySchema).optional(),
   busStops: z.array(z.string()).optional(),
+  educationalFacilities: z.array(EducationalFacilityRefSchema).optional(),
   locality: z.string(),
 });
 

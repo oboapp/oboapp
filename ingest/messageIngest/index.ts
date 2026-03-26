@@ -557,6 +557,7 @@ function createLocationExtractionAudit(
       streetsCount: extractedLocations.streets?.length || 0,
       cadastralCount: extractedLocations.cadastralProperties?.length || 0,
       busStopsCount: extractedLocations.busStops?.length || 0,
+      educationalFacilitiesCount: extractedLocations.educationalFacilities?.length || 0,
       cityWide: extractedLocations.cityWide || false,
     },
   };
@@ -614,6 +615,7 @@ async function storeExtractedLocations(
   const streets = extractedLocations?.streets || [];
   const cadastralProperties = extractedLocations?.cadastralProperties || [];
   const busStops = extractedLocations?.busStops || [];
+  const educationalFacilities = extractedLocations?.educationalFacilities || [];
   const cityWide = extractedLocations?.cityWide || false;
 
   // Extract timespans from extracted locations (pins/streets)
@@ -629,6 +631,7 @@ async function storeExtractedLocations(
       streets,
       cadastralProperties,
       busStops,
+      educationalFacilities,
       cityWide,
       timespanStart: validated.timespanStart,
       timespanEnd: validated.timespanEnd,
