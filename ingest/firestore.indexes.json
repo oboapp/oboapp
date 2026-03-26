@@ -98,6 +98,15 @@
       "collectionGroup": "events",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "cityWide", "order": "ASCENDING" },
+        { "fieldPath": "locality", "order": "ASCENDING" },
+        { "fieldPath": "timespanEnd", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "locality", "order": "ASCENDING" },
         { "fieldPath": "timespanEnd", "order": "ASCENDING" }
       ]
