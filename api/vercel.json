@@ -1,11 +1,3 @@
 {
-  "buildCommand": "pnpm run build && mkdir -p public && echo '{}' > public/.keep.json",
-  "outputDirectory": "public",
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
-  "functions": {
-    "api/index.ts": {
-      "maxDuration": 30
-    }
-  },
   "regions": ["fra1"]
 }
