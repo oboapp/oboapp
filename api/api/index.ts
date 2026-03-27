@@ -1,3 +1,3 @@
-import app from "../dist/index.js";
+import app from "../src/index";
 
 export default app.fetch;

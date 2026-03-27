@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm run build",
+  "buildCommand": "echo ok",
   "outputDirectory": "public",
   "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
   "regions": ["fra1"]
