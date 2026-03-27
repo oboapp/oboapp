@@ -1,5 +1,6 @@
 {
-  "buildCommand": null,
+  "buildCommand": "mkdir -p public",
+  "outputDirectory": "public",
   "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
   "functions": {
     "api/index.ts": {
