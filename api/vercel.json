@@ -1,5 +1,6 @@
 {
-  "buildCommand": "echo 'skip'",
+  "buildCommand": "mkdir -p .output",
+  "outputDirectory": ".output",
   "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
   "regions": ["fra1"]
 }
