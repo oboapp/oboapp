@@ -112,10 +112,21 @@ export async function convertMessageGeocodingToGeoJson(
     }
   }
 
+  // Track missing cadastral properties
+  const missingCadastral: string[] = [];
+  if (extractedData.cadastralProperties && extractedData.cadastralProperties.length > 0) {
+    for (const prop of extractedData.cadastralProperties) {
+      if (!cadastralGeometries || !cadastralGeometries.has(prop.identifier)) {
+        missingCadastral.push(`УПИ ${prop.identifier}`);
+      }
+    }
+  }
+
   const allMissing = [
     ...missingAddresses,
     ...missingBusStops,
     ...missingFacilities,
+    ...missingCadastral,
   ];
 
   // Check if we have ANY features to display
