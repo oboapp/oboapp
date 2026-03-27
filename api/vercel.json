@@ -1,6 +1,6 @@
 {
-  "buildCommand": "mkdir -p .output",
-  "outputDirectory": ".output",
+  "buildCommand": "pnpm run build",
+  "outputDirectory": "dist",
   "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
   "regions": ["fra1"]
 }
