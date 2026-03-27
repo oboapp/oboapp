@@ -1,18 +1,18 @@
 import { Hono } from "hono";
 import { SOURCES } from "@oboapp/shared";
-import { getDb } from "@/lib/db";
+import { getDb } from "../lib/db";
 import type { WhereClause } from "@oboapp/db";
-import { recordToMessage } from "@/lib/doc-to-message";
-import { apiKeyAuth } from "@/middleware/api-key";
-import { messagesQuerySchema } from "@/schema/query";
-import type { Message, GeoJsonFeature } from "@/schema/contract";
+import { recordToMessage } from "../lib/doc-to-message";
+import { apiKeyAuth } from "../middleware/api-key";
+import { messagesQuerySchema } from "../schema/query";
+import type { Message, GeoJsonFeature } from "../schema/contract";
 import {
   clampBounds,
   addBuffer,
   featureIntersectsBounds,
   type ViewportBounds,
-} from "@/lib/bounds-utils";
-import { getCentroid } from "@/lib/geometry-utils";
+} from "../lib/bounds-utils";
+import { getCentroid } from "../lib/geometry-utils";
 
 const DEFAULT_RELEVANCE_DAYS = 7;
 const CLUSTER_ZOOM_THRESHOLD = 15;

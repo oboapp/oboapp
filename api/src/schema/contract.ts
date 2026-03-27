@@ -6,7 +6,7 @@
  * Any changes here should be deliberate and versioned.
  */
 
-import { z } from "@/lib/zod-openapi";
+import { z } from "../lib/zod-openapi";
 
 // ---- Coordinates ----
 

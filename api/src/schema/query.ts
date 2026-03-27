@@ -1,5 +1,5 @@
-import { z } from "@/lib/zod-openapi";
-import { CategoryEnum } from "@/schema/contract";
+import { z } from "../lib/zod-openapi";
+import { CategoryEnum } from "./contract";
 
 const UNCATEGORIZED = "uncategorized";
 

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { z } from "@/lib/zod-openapi";
+import { z } from "../lib/zod-openapi";
 import {
   OpenAPIRegistry,
   OpenApiGeneratorV3,
@@ -12,7 +12,7 @@ import {
   MessagesResponseSchema,
   MessageResponseSchema,
   ErrorResponseSchema,
-} from "@/schema/index";
+} from "../schema/index";
 
 const sortRecord = <T>(record: Record<string, T>): Record<string, T> =>
   Object.keys(record)

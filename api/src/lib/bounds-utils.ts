@@ -5,7 +5,7 @@
 
 import { bbox } from "@turf/turf";
 import { getBoundsForLocality } from "@oboapp/shared";
-import type { GeoJsonFeature } from "@/schema/contract";
+import type { GeoJsonFeature } from "../schema/contract";
 
 export interface ViewportBounds {
   north: number;

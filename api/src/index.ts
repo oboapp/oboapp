@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { sourcesRoute } from "@/routes/sources";
-import { messagesRoute } from "@/routes/messages";
-import { messageByIdRoute } from "@/routes/messages-by-id";
-import { openapiRoute } from "@/routes/openapi";
+import { sourcesRoute } from "./routes/sources";
+import { messagesRoute } from "./routes/messages";
+import { messageByIdRoute } from "./routes/messages-by-id";
+import { openapiRoute } from "./routes/openapi";
 
 const app = new Hono();
 

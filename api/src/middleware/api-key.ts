@@ -1,5 +1,5 @@
 import type { Context, Next } from "hono";
-import { getDb } from "@/lib/db";
+import { getDb } from "../lib/db";
 
 let cachedEnvKeys: Set<string> | null = null;
 

@@ -1,5 +1,5 @@
-import { z } from "@/lib/zod-openapi";
-import { MessageSchema, SourceSchema } from "@/schema/contract";
+import { z } from "../lib/zod-openapi";
+import { MessageSchema, SourceSchema } from "./contract";
 
 export const SourcesResponseSchema = z.object({
   sources: z.array(SourceSchema),

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { getDb } from "@/lib/db";
-import { recordToMessage } from "@/lib/doc-to-message";
-import { apiKeyAuth } from "@/middleware/api-key";
+import { getDb } from "../lib/db";
+import { recordToMessage } from "../lib/doc-to-message";
+import { apiKeyAuth } from "../middleware/api-key";
 import { isValidMessageId } from "@oboapp/shared";
 
 /**

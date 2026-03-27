@@ -1,8 +1,8 @@
-import type { Message } from "@/schema/contract";
+import type { Message } from "../schema/contract";
 import {
   toOptionalISOString,
   toRequiredISOString,
-} from "@/lib/date-serialization";
+} from "./date-serialization";
 import {
   getAddresses,
   getBusStops,
@@ -11,7 +11,7 @@ import {
   getFeatureCollection,
   getPins,
   getStreets,
-} from "@/lib/typed-arrays";
+} from "./typed-arrays";
 
 function optionalString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;

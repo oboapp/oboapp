@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { SOURCES } from "@oboapp/shared";
-import { apiKeyAuth } from "@/middleware/api-key";
+import { apiKeyAuth } from "../middleware/api-key";
 
 export const sourcesRoute = new Hono();
 

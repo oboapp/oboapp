@@ -18,7 +18,7 @@ import {
   type CadastralProperty,
   type Category,
   type GeoJsonFeatureCollection,
-} from "@/schema/contract";
+} from "../schema/contract";
 
 export function getCategories(value: unknown): Category[] {
   const result = z.array(CategoryEnum).safeParse(value);
