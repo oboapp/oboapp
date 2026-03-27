@@ -1,10 +1,14 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { IncomingMessage, ServerResponse } from "http";
 import app from "../src/index";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const proto = req.headers["x-forwarded-proto"] || "https";
-  const host = req.headers["x-forwarded-host"] || req.headers.host || "localhost";
-  const url = new URL(req.url || "/", `${proto}://${host}`);
+export default async function handler(req: IncomingMessage, res: ServerResponse) {
+  const proto = Array.isArray(req.headers["x-forwarded-proto"])
+    ? req.headers["x-forwarded-proto"][0]
+    : (req.headers["x-forwarded-proto"] ?? "https");
+  const host = Array.isArray(req.headers["x-forwarded-host"])
+    ? req.headers["x-forwarded-host"][0]
+    : (req.headers["x-forwarded-host"] ?? req.headers.host ?? "localhost");
+  const url = new URL(req.url ?? "/", `${proto}://${host}`);
 
   const headers = new Headers();
   for (const [key, value] of Object.entries(req.headers)) {
@@ -18,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const response = await app.fetch(request);
 
-  res.status(response.status);
+  res.statusCode = response.status;
   response.headers.forEach((value: string, key: string) => {
     res.setHeader(key, value);
   });

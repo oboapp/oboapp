@@ -1,10 +1,4 @@
 {
   "buildCommand": "pnpm run build",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/api"
-    }
-  ],
   "regions": ["fra1"]
 }
