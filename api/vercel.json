@@ -1,6 +1,9 @@
 {
-  "buildCommand": "echo ok",
-  "outputDirectory": "public",
+  "functions": {
+    "api/index.ts": {
+      "maxDuration": 30
+    }
+  },
   "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
   "regions": ["fra1"]
 }
