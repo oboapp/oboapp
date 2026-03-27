@@ -76,6 +76,48 @@ export async function convertMessageGeocodingToGeoJson(
     ),
   };
 
+  // Track missing bus stops
+  const missingBusStops: string[] = [];
+  if (extractedData.busStops && extractedData.busStops.length > 0) {
+    const geocodedStopCodes = new Set(
+      (geocodedBusStops ?? []).map((stop) =>
+        stop.originalText.replace("Спирка ", ""),
+      ),
+    );
+    for (const stopCode of extractedData.busStops) {
+      if (!geocodedStopCodes.has(stopCode)) {
+        missingBusStops.push(`Спирка ${stopCode}`);
+      }
+    }
+  }
+
+  // Track missing educational facilities
+  const missingFacilities: string[] = [];
+  if (
+    extractedData.educationalFacilities &&
+    extractedData.educationalFacilities.length > 0
+  ) {
+    const geocodedFacilityKeys = new Set(
+      (geocodedEducationalFacilities ?? []).map((f) =>
+        f.originalText.replace(EDUCATIONAL_FACILITY_PREFIX, ""),
+      ),
+    );
+    for (const facility of extractedData.educationalFacilities) {
+      const key = `${facility.type}:${facility.number}`;
+      if (!geocodedFacilityKeys.has(key)) {
+        missingFacilities.push(
+          `${EDUCATIONAL_FACILITY_PREFIX}${facility.type}:${facility.number}`,
+        );
+      }
+    }
+  }
+
+  const allMissing = [
+    ...missingAddresses,
+    ...missingBusStops,
+    ...missingFacilities,
+  ];
+
   // Check if we have ANY features to display
   const hasFeatures =
     filteredData.pins.length > 0 ||
@@ -86,17 +128,17 @@ export async function convertMessageGeocodingToGeoJson(
 
   if (!hasFeatures) {
     recorder.error(
-      `❌ No geocoded features available (all ${missingAddresses.length} addresses failed)`,
+      `❌ No geocoded features available (all ${allMissing.length} locations failed)`,
     );
     throw new Error(
-      `Failed to geocode all addresses: ${missingAddresses.join(", ")}`,
+      `Failed to geocode all locations: ${allMissing.join(", ")}`,
     );
   }
 
   // Log partial failures as warnings
-  if (missingAddresses.length > 0) {
+  if (allMissing.length > 0) {
     recorder.warn(
-      `⚠️  Partial geocoding: ${missingAddresses.length} addresses failed (showing ${filteredData.pins.length} pins + ${filteredData.streets.length} streets): ${missingAddresses.join(
+      `⚠️  Partial geocoding: ${allMissing.length} locations failed (showing ${filteredData.pins.length} pins + ${filteredData.streets.length} streets): ${allMissing.join(
         ", ",
       )}`,
     );
