@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm run build && mkdir -p public && echo '{}' > public/_keep.json",
+  "buildCommand": "pnpm run build",
   "outputDirectory": "public",
   "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
   "regions": ["fra1"]
