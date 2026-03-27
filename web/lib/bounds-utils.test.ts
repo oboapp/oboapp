@@ -344,5 +344,48 @@ describe("bounds-utils", () => {
 
       expect(featureIntersectsBounds(pointFeature, viewportBounds)).toBe(true);
     });
+
+    it("should include Polygon partially overlapping viewport edge", () => {
+      // Polygon extends from inside to outside the viewport (partially inside)
+      const partialOverlapFeature = {
+        type: "Feature" as const,
+        geometry: {
+          type: "Polygon" as const,
+          coordinates: [
+            [
+              [23.34, 42.69], // Inside viewport
+              [23.38, 42.69], // Outside viewport (east of 23.35)
+              [23.38, 42.72], // Outside viewport
+              [23.34, 42.72], // Outside viewport (north of 42.7)
+              [23.34, 42.69], // Close the ring
+            ],
+          ] as [number, number][][],
+        },
+        properties: {},
+      };
+
+      expect(
+        featureIntersectsBounds(partialOverlapFeature, viewportBounds),
+      ).toBe(true);
+    });
+
+    it("should include LineString touching viewport boundary edge", () => {
+      // LineString that runs along the south boundary edge
+      const edgeLineFeature = {
+        type: "Feature" as const,
+        geometry: {
+          type: "LineString" as const,
+          coordinates: [
+            [23.31, 42.65], // On south boundary
+            [23.34, 42.65], // On south boundary
+          ] as [number, number][],
+        },
+        properties: {},
+      };
+
+      expect(featureIntersectsBounds(edgeLineFeature, viewportBounds)).toBe(
+        true,
+      );
+    });
   });
 });

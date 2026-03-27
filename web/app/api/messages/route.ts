@@ -283,7 +283,9 @@ function filterMessagesByGeoAndViewport(
   viewportBounds: ViewportBounds | null,
 ): Message[] {
   let filtered = messages.filter(
-    (message) => message.geoJson !== null && message.geoJson !== undefined,
+    (message) =>
+      message.cityWide ||
+      (message.geoJson !== null && message.geoJson !== undefined),
   );
 
   if (!viewportBounds) {

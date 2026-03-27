@@ -126,6 +126,20 @@ describe("bounds", () => {
       expect(isWithinBounds("bg.sofia", 42.7, 23.3)).toBe(true);
     });
 
+    it("should return true for coordinates on boundary edges (inclusive)", () => {
+      const sofia = BOUNDS["bg.sofia"];
+      // All four corners
+      expect(isWithinBounds("bg.sofia", sofia.south, sofia.west)).toBe(true);
+      expect(isWithinBounds("bg.sofia", sofia.south, sofia.east)).toBe(true);
+      expect(isWithinBounds("bg.sofia", sofia.north, sofia.west)).toBe(true);
+      expect(isWithinBounds("bg.sofia", sofia.north, sofia.east)).toBe(true);
+      // Mid-edge points
+      expect(isWithinBounds("bg.sofia", sofia.south, 23.35)).toBe(true);
+      expect(isWithinBounds("bg.sofia", sofia.north, 23.35)).toBe(true);
+      expect(isWithinBounds("bg.sofia", 42.7, sofia.west)).toBe(true);
+      expect(isWithinBounds("bg.sofia", 42.7, sofia.east)).toBe(true);
+    });
+
     it("should return false for coordinates outside Sofia", () => {
       expect(isWithinBounds("bg.sofia", 45.0, 25.0)).toBe(false);
       expect(isWithinBounds("bg.sofia", 0, 0)).toBe(false);
