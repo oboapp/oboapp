@@ -15,7 +15,8 @@ import {
 import { EDUCATIONAL_FACILITY_PREFIX } from "@/lib/constants";
 
 /**
- * Helper: Validate that all addresses have been geocoded
+ * Helper: Validate that all pin addresses and street endpoints have been geocoded
+ * (does not validate bus stops, educational facilities, or cadastral properties)
  * Exported for unit testing
  */
 export function validatePinsAndStreetsGeocoded(
