@@ -22,6 +22,7 @@ import {
   Palette,
   Trophy,
   Construction,
+  GraduationCap,
   CircleHelp,
   type LucideIcon,
 } from "lucide-react";
@@ -128,6 +129,11 @@ export const CATEGORY_STYLES: Record<
     icon: Construction,
     color: "#ea580c", // orange-600
     bgColor: "#ffedd5", // orange-100
+  },
+  education: {
+    icon: GraduationCap,
+    color: "#0d9488", // teal-600
+    bgColor: "#ccfbf1", // teal-100
   },
   // Uncategorized - special UI-only category
   uncategorized: {

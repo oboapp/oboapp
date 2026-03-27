@@ -97,6 +97,7 @@ describe("AI service schema validation", () => {
         "bicycles",
         "construction-and-repairs",
         "culture",
+        "education",
         "electricity",
         "health",
         "heating",
@@ -116,7 +117,7 @@ describe("AI service schema validation", () => {
       });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.categories).toHaveLength(17);
+        expect(result.data.categories).toHaveLength(18);
       }
     });
   });

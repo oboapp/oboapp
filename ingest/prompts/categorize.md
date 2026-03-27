@@ -13,6 +13,7 @@ Analyze the input message and assign categories from the allowed list. Output a 
   - bicycles
   - construction-and-repairs
   - culture
+  - education
   - electricity
   - health
   - heating

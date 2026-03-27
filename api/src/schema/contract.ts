@@ -34,6 +34,7 @@ export const CategoryEnum = z.enum([
   "bicycles",
   "construction-and-repairs",
   "culture",
+  "education",
   "electricity",
   "health",
   "heating",
