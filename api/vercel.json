@@ -1,4 +1,5 @@
 {
+  "buildCommand": "echo 'skip'",
   "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
   "regions": ["fra1"]
 }
