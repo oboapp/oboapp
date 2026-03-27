@@ -260,7 +260,7 @@ flowchart LR
 - `timespanEnd` - Denormalized MAX end time (enables Firestore queries)
 - `embedding` - Text embedding vector (768-dim, from Gemini `gemini-embedding-001`) for event matching similarity
 - `eventId` - Links message to its matched/created Event
-- `geoJson` - Final geometry (determines public visibility)
+- `geoJson` - Final geometry (determines public visibility). City-wide messages use an empty FeatureCollection (non-null) so they pass geoJson null-checks
 - `finalizedAt` - Marks processing complete
 
 **Database Indexes:**
@@ -298,7 +298,7 @@ All four prompts have eval configs in `ingest/prompts/__evals__/` using [promptf
 - **Timespans:** Extract timespans in crawlers and store at source root as `timespanStart/End`.
 - **Scripts:** Use the standard template (shebang, dotenv, dynamic imports). Run via `pnpm tsx tmp/script.ts`.
 - **Precomputed GeoJSON:** If crawler provides GeoJSON, it bypasses all AI processing stages (Filter & Split, Categorize, Extract Locations). Timespans transfer from source to message during ingestion.
-- **City-Wide Messages:** Set `cityWide: true` with empty FeatureCollection for alerts applying to entire city. Bypasses viewport filtering (always visible), uses sofia.geojson for notification matching.
+- **City-Wide Messages:** Set `cityWide: true` with a non-null empty FeatureCollection (`{ type: "FeatureCollection", features: [] }`) for alerts applying to entire city. The geoJson field must be non-null so downstream null-filters don't drop city-wide messages. Bypasses viewport filtering (always visible), uses sofia.geojson for notification matching.
 - **Workflow Sync (CRITICAL):** When adding/removing crawlers, update BOTH locations:
   1. `ingest/crawlers/{source-name}/` - Crawler implementation
   2. `ingest/terraform/workflows/all.yaml` - Add crawler to parallel execution step

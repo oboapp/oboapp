@@ -39,7 +39,7 @@ Utility companies and service providers that publish data with geographic coordi
 
 **Processing**: Source Data → Boundary Check → Store GeoJSON → Finalize
 
-**City-wide messages** (with `cityWide: true` field): Use empty GeoJSON, bypass viewport filtering in web API, use sofia.geojson boundary for notification matching.
+**City-wide messages** (with `cityWide: true` field): Always stored with a non-null empty FeatureCollection (`{ type: "FeatureCollection", features: [] }`) so they pass geoJson null-checks in API routes. Bypass viewport filtering (always visible), use sofia.geojson boundary for notification matching.
 
 ### Slow Path (Text-based Sources)
 
