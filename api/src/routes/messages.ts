@@ -78,9 +78,16 @@ function getCutoffDate(override?: Date): Date {
 async function findRecentMessageDocs(
   db: DbClient,
   cutoffDate: Date,
+  locality?: string,
 ): Promise<MessageRecord[]> {
+  const where: Array<{ field: string; op: string; value: unknown }> = [
+    { field: "timespanEnd", op: ">=", value: cutoffDate },
+  ];
+  if (locality) {
+    where.push({ field: "locality", op: "==", value: locality });
+  }
   return db.messages.findMany({
-    where: [{ field: "timespanEnd", op: ">=", value: cutoffDate }],
+    where,
     orderBy: [{ field: "timespanEnd", direction: "desc" }],
   });
 }
@@ -97,21 +104,26 @@ async function findRecentMessageDocsBySources(
   db: DbClient,
   cutoffDate: Date,
   sources: string[],
+  locality?: string,
 ): Promise<MessageRecord[]> {
   if (sources.length === 0) {
     return [];
   }
 
   const sourceChunks = chunkArray(sources, FIRESTORE_IN_OPERATOR_LIMIT);
-  const chunkQueries = sourceChunks.map((sourceChunk) =>
-    db.messages.findMany({
-      where: [
-        { field: "source", op: "in", value: sourceChunk },
-        { field: "timespanEnd", op: ">=", value: cutoffDate },
-      ],
+  const chunkQueries = sourceChunks.map((sourceChunk) => {
+    const where: Array<{ field: string; op: string; value: unknown }> = [
+      { field: "source", op: "in", value: sourceChunk },
+      { field: "timespanEnd", op: ">=", value: cutoffDate },
+    ];
+    if (locality) {
+      where.push({ field: "locality", op: "==", value: locality });
+    }
+    return db.messages.findMany({
+      where,
       orderBy: [{ field: "timespanEnd", direction: "desc" }],
-    }),
-  );
+    });
+  });
 
   const chunkResults = await Promise.all(chunkQueries);
   return chunkResults.flat();
@@ -121,8 +133,9 @@ async function findMessagesBySources(
   db: DbClient,
   cutoffDate: Date,
   sources: string[],
+  locality?: string,
 ): Promise<Message[]> {
-  const results = await findRecentMessageDocsBySources(db, cutoffDate, sources);
+  const results = await findRecentMessageDocsBySources(db, cutoffDate, sources, locality);
   const messagesMap = new Map<string, Message>();
 
   for (const doc of results) {
@@ -143,11 +156,12 @@ async function findUncategorizedDocs(
   db: DbClient,
   cutoffDate: Date,
   sourceSet?: Set<string>,
+  locality?: string,
 ): Promise<MessageRecord[]> {
   const sourceList = toSourceList(sourceSet);
   const docs = sourceList.length
-    ? await findRecentMessageDocsBySources(db, cutoffDate, sourceList)
-    : await findRecentMessageDocs(db, cutoffDate);
+    ? await findRecentMessageDocsBySources(db, cutoffDate, sourceList, locality)
+    : await findRecentMessageDocs(db, cutoffDate, locality);
 
   return docs.filter((doc) => isUncategorizedDoc(doc));
 }
@@ -197,23 +211,28 @@ async function buildCategoryQueryPlans(
   realCategories: string[],
   includeUncategorized: boolean,
   sourceSet?: Set<string>,
+  locality?: string,
 ): Promise<Array<{ uncategorizedOnly: boolean; docs: MessageRecord[] }>> {
   const plans: Array<
     Promise<{ uncategorizedOnly: boolean; docs: MessageRecord[] }>
   > = [];
 
   if (realCategories.length > 0) {
+    const where: Array<{ field: string; op: string; value: unknown }> = [
+      {
+        field: "categories",
+        op: "array-contains-any",
+        value: realCategories,
+      },
+      { field: "timespanEnd", op: ">=", value: cutoffDate },
+    ];
+    if (locality) {
+      where.push({ field: "locality", op: "==", value: locality });
+    }
     plans.push(
       db.messages
         .findMany({
-          where: [
-            {
-              field: "categories",
-              op: "array-contains-any",
-              value: realCategories,
-            },
-            { field: "timespanEnd", op: ">=", value: cutoffDate },
-          ],
+          where,
           orderBy: [{ field: "timespanEnd", direction: "desc" }],
         })
         .then((docs) => ({ uncategorizedOnly: false, docs })),
@@ -222,7 +241,7 @@ async function buildCategoryQueryPlans(
 
   if (includeUncategorized) {
     plans.push(
-      findUncategorizedDocs(db, cutoffDate, sourceSet).then((docs) => ({
+      findUncategorizedDocs(db, cutoffDate, sourceSet, locality).then((docs) => ({
         uncategorizedOnly: true,
         docs,
       })),
@@ -237,6 +256,7 @@ async function findMessagesByCategoryFilters(
   cutoffDate: Date,
   selectedCategories: string[],
   sourceSet?: Set<string>,
+  locality?: string,
 ): Promise<Message[]> {
   const realCategories = selectedCategories.filter(
     (c) => c !== "uncategorized",
@@ -248,6 +268,7 @@ async function findMessagesByCategoryFilters(
       db,
       cutoffDate,
       sourceSet,
+      locality,
     );
     return dedupeAndMapMessages(uncategorizedDocs);
   }
@@ -258,6 +279,7 @@ async function findMessagesByCategoryFilters(
     realCategories,
     includeUncategorized,
     sourceSet,
+    locality,
   );
   const messagesMap = new Map<string, Message>();
 
@@ -430,16 +452,22 @@ messagesRoute.get("/messages", apiKeyAuth, async (c) => {
         cutoffDate,
         selectedCategories,
         sourceSet,
+        locality,
       );
     } else if (hasSourceFilter) {
       allMessages = await findMessagesBySources(
         db,
         cutoffDate,
         validatedSources,
+        locality,
       );
     } else {
+      const where: Array<{ field: string; op: string; value: unknown }> = [
+        { field: "timespanEnd", op: ">=", value: cutoffDate },
+      ];
+      where.push({ field: "locality", op: "==", value: locality });
       const docs = await db.messages.findMany({
-        where: [{ field: "timespanEnd", op: ">=", value: cutoffDate }],
+        where,
         orderBy: [{ field: "timespanEnd", direction: "desc" }],
       });
 
