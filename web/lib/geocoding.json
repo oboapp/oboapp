@@ -18,5 +18,10 @@
     "id": "gtfs-sofia-traffic",
     "url": "https://urbandata.sofia.bg/dataset/gtfs-static",
     "name": "Статични GTFS данни - Център за градска мобилност ЕАД"
+  },
+  {
+    "id": "sofiaplan-educational-facilities",
+    "url": "https://sofiaplan.bg",
+    "name": "Училища и детски градини - Софияплан"
   }
 ]
