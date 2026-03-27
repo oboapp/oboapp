@@ -54,8 +54,8 @@ async function fetchFacilities(
     );
   }
 
-  // response.json() returns any — access fields with runtime guards below
-  // eslint-disable is intentionally avoided; use a local variable to avoid lint issues
+  // response.json() returns any; we type the raw JSON result here
+  // and rely on the runtime guards below before accessing its fields
   let geojson: Awaited<ReturnType<Response["json"]>>;
   try {
     geojson = await response.json();
