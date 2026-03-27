@@ -1,10 +1,5 @@
 {
   "buildCommand": "pnpm run build",
-  "functions": {
-    "api/index.mjs": {
-      "maxDuration": 30
-    }
-  },
   "rewrites": [
     {
       "source": "/(.*)",
