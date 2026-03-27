@@ -148,6 +148,28 @@ exports[`V1 OpenAPI > matches snapshot 1`] = `
           "createdAt": {
             "type": "string",
           },
+          "educationalFacilities": {
+            "items": {
+              "properties": {
+                "number": {
+                  "type": "string",
+                },
+                "type": {
+                  "enum": [
+                    "school",
+                    "kindergarten",
+                  ],
+                  "type": "string",
+                },
+              },
+              "required": [
+                "type",
+                "number",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
           "finalizedAt": {
             "type": "string",
           },
@@ -591,6 +613,28 @@ exports[`V1 OpenAPI > matches snapshot 1`] = `
               },
               "createdAt": {
                 "type": "string",
+              },
+              "educationalFacilities": {
+                "items": {
+                  "properties": {
+                    "number": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "enum": [
+                        "school",
+                        "kindergarten",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "number",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
               },
               "finalizedAt": {
                 "type": "string",
@@ -1042,6 +1086,28 @@ exports[`V1 OpenAPI > matches snapshot 1`] = `
                 },
                 "createdAt": {
                   "type": "string",
+                },
+                "educationalFacilities": {
+                  "items": {
+                    "properties": {
+                      "number": {
+                        "type": "string",
+                      },
+                      "type": {
+                        "enum": [
+                          "school",
+                          "kindergarten",
+                        ],
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "type",
+                      "number",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
                 },
                 "finalizedAt": {
                   "type": "string",
