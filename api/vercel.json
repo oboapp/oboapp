@@ -1,8 +1,9 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/src/vercel" }],
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
   "functions": {
-    "src/vercel.ts": {
+    "api/index.ts": {
       "maxDuration": 30
     }
-  }
+  },
+  "regions": ["fra1"]
 }
