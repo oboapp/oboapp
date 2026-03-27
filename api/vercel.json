@@ -1,3 +1,5 @@
 {
+  "buildCommand": "pnpm run build",
+  "outputDirectory": "dist",
   "regions": ["fra1"]
 }
