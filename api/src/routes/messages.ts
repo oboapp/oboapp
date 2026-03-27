@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { SOURCES } from "@oboapp/shared";
 import { getDb } from "@/lib/db";
+import type { WhereClause } from "@oboapp/db";
 import { recordToMessage } from "@/lib/doc-to-message";
 import { apiKeyAuth } from "@/middleware/api-key";
 import { messagesQuerySchema } from "@/schema/query";
@@ -80,7 +81,7 @@ async function findRecentMessageDocs(
   cutoffDate: Date,
   locality?: string,
 ): Promise<MessageRecord[]> {
-  const where: Array<{ field: string; op: string; value: unknown }> = [
+  const where: WhereClause[] = [
     { field: "timespanEnd", op: ">=", value: cutoffDate },
   ];
   if (locality) {
@@ -112,7 +113,7 @@ async function findRecentMessageDocsBySources(
 
   const sourceChunks = chunkArray(sources, FIRESTORE_IN_OPERATOR_LIMIT);
   const chunkQueries = sourceChunks.map((sourceChunk) => {
-    const where: Array<{ field: string; op: string; value: unknown }> = [
+    const where: WhereClause[] = [
       { field: "source", op: "in", value: sourceChunk },
       { field: "timespanEnd", op: ">=", value: cutoffDate },
     ];
@@ -218,7 +219,7 @@ async function buildCategoryQueryPlans(
   > = [];
 
   if (realCategories.length > 0) {
-    const where: Array<{ field: string; op: string; value: unknown }> = [
+    const where: WhereClause[] = [
       {
         field: "categories",
         op: "array-contains-any",
@@ -462,7 +463,7 @@ messagesRoute.get("/messages", apiKeyAuth, async (c) => {
         locality,
       );
     } else {
-      const where: Array<{ field: string; op: string; value: unknown }> = [
+      const where: WhereClause[] = [
         { field: "timespanEnd", op: ">=", value: cutoffDate },
       ];
       where.push({ field: "locality", op: "==", value: locality });
