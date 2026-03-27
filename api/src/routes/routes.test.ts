@@ -45,9 +45,6 @@ describe("GET /v1/sources", () => {
 });
 
 describe("GET /v1/messages", () => {
-  beforeEach(() => {
-    vi.resetModules();
-  });
 
   it("returns 401 without API key", async () => {
     const res = await app.request("/v1/messages");

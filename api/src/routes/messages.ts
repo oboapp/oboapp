@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { SOURCES } from "@oboapp/shared";
 import { getDb } from "@/lib/db";
 import { recordToMessage } from "@/lib/doc-to-message";
 import { apiKeyAuth } from "@/middleware/api-key";
@@ -402,7 +403,6 @@ messagesRoute.get("/messages", apiKeyAuth, async (c) => {
     }
 
     // Build set of all known source IDs for validation
-    const { SOURCES } = await import("@oboapp/shared");
     const locality = process.env.LOCALITY || "bg.sofia";
     const allSourceIds = new Set(
       SOURCES.filter((s) => s.localities.includes(locality)).map((s) => s.id),
