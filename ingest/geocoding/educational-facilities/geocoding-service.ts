@@ -75,6 +75,9 @@ export async function geocodeEducationalFacilities(
         number,
         error: error instanceof Error ? error.message : String(error),
       });
+      ingestErrors?.exception(
+        `Failed to geocode educational facility: ${type} ${number} — ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
 
     if (geometry) {
