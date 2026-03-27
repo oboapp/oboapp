@@ -114,7 +114,6 @@ const optionalCoordinatesWithFallback = CoordinatesSchema.optional()
   .openapi({
     type: "object",
     properties: { lat: { type: "number" }, lng: { type: "number" } },
-    required: ["lat", "lng"],
   });
 
 export const StreetSectionSchema = z.object({

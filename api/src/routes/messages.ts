@@ -64,9 +64,10 @@ function getCutoffDate(override?: Date): Date {
     return override;
   }
 
-  const relevanceDays = process.env.MESSAGE_RELEVANCE_DAYS
+  const parsed = process.env.MESSAGE_RELEVANCE_DAYS
     ? Number.parseInt(process.env.MESSAGE_RELEVANCE_DAYS, 10)
     : DEFAULT_RELEVANCE_DAYS;
+  const relevanceDays = Number.isNaN(parsed) ? DEFAULT_RELEVANCE_DAYS : parsed;
 
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - relevanceDays);
@@ -287,7 +288,9 @@ function filterMessagesByGeoAndViewport(
   viewportBounds: ViewportBounds | null,
 ): Message[] {
   let filtered = messages.filter(
-    (message) => message.geoJson !== null && message.geoJson !== undefined,
+    (message) =>
+      message.cityWide ||
+      (message.geoJson !== null && message.geoJson !== undefined),
   );
 
   if (!viewportBounds) {

@@ -6,13 +6,16 @@ export const sourcesRoute = new Hono();
 
 sourcesRoute.get("/sources", apiKeyAuth, (c) => {
   const baseUrl = process.env.BASE_URL || "https://oboapp.online";
+  const locality = process.env.LOCALITY || "bg.sofia";
 
-  const sources = SOURCES.map((source) => ({
+  const sources = SOURCES.filter((source) =>
+    source.localities.includes(locality),
+  ).map((source) => ({
     id: source.id,
     name: source.name,
     url: source.url,
     logoUrl: `${baseUrl}/sources/${source.id}.png`,
-    locality: source.localities[0] ?? "",
+    locality,
   }));
 
   return c.json({ sources });

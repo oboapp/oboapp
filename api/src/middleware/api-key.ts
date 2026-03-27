@@ -23,22 +23,14 @@ async function validateApiKey(key: string): Promise<boolean> {
   if (getEnvKeys().has(normalizedKey)) return true;
 
   // DB path: look up the key in the apiClients collection
-  try {
-    const db = await getDb();
-    const client = await db.apiClients.findByApiKey(normalizedKey);
-    return client !== null;
-  } catch (error) {
-    console.error(
-      "validateApiKey: failed to validate API key due to an internal error",
-      error,
-    );
-    return false;
-  }
+  const db = await getDb();
+  const client = await db.apiClients.findByApiKey(normalizedKey);
+  return client !== null;
 }
 
 export async function apiKeyAuth(c: Context, next: Next) {
   const key = c.req.header("x-api-key");
-  if (!key || !(await validateApiKey(key))) {
+  if (!key) {
     return c.json(
       {
         error:
@@ -47,5 +39,25 @@ export async function apiKeyAuth(c: Context, next: Next) {
       401,
     );
   }
-  await next();
+
+  try {
+    if (await validateApiKey(key)) {
+      await next();
+      return;
+    }
+  } catch (error) {
+    console.error(
+      "apiKeyAuth: failed to validate API key due to an internal error",
+      error,
+    );
+    return c.json({ error: "Internal server error" }, 500);
+  }
+
+  return c.json(
+    {
+      error:
+        "Invalid or missing API key. Provide a valid X-Api-Key request header.",
+    },
+    401,
+  );
 }

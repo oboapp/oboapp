@@ -195,7 +195,7 @@ openapiRoute.get("/docs", (c) => {
 </head>
 <body>
   <script id="api-reference" data-url="/v1/openapi"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.25.59"></script>
 </body>
 </html>`;
   return c.html(html);
