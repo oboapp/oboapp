@@ -1,5 +1,5 @@
 {
-  "buildCommand": "mkdir -p public",
+  "buildCommand": "mkdir -p public && echo '{}' > public/.keep.json",
   "outputDirectory": "public",
   "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
   "functions": {
