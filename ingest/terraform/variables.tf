@@ -39,7 +39,7 @@ variable "schedules" {
     pipeline_emergent               = string
     pipeline_all                    = string
     gtfs_sync                       = string
-    educational_facilities_sync     = string
+    educational_facilities_sync     = optional(string, "0 4 1 * *")
   })
   default = {
     pipeline_emergent               = "*/30 7-22 * * *"    # Every 30 minutes, 7:00AM–10:30PM (hours 7-22)

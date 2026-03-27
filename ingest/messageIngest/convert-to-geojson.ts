@@ -127,20 +127,25 @@ export async function convertMessageGeocodingToGeoJson(
     (geocodedEducationalFacilities && geocodedEducationalFacilities.length > 0);
 
   if (!hasFeatures) {
-    recorder.error(
-      `❌ No geocoded features available (all ${allMissing.length} locations failed)`,
-    );
-    throw new Error(
-      `Failed to geocode all locations: ${allMissing.join(", ")}`,
-    );
+    const detail =
+      allMissing.length > 0
+        ? `Failed to geocode all locations: ${allMissing.join(", ")}`
+        : "No geocodable locations found in extracted data";
+    recorder.error(`❌ ${detail}`);
+    throw new Error(detail);
   }
 
   // Log partial failures as warnings
   if (allMissing.length > 0) {
+    const shownParts = [
+      filteredData.pins.length > 0 && `${filteredData.pins.length} pins`,
+      filteredData.streets.length > 0 && `${filteredData.streets.length} streets`,
+      geocodedBusStops && geocodedBusStops.length > 0 && `${geocodedBusStops.length} bus stops`,
+      geocodedEducationalFacilities && geocodedEducationalFacilities.length > 0 && `${geocodedEducationalFacilities.length} facilities`,
+      cadastralGeometries && cadastralGeometries.size > 0 && `${cadastralGeometries.size} cadastral`,
+    ].filter(Boolean).join(" + ");
     recorder.warn(
-      `⚠️  Partial geocoding: ${allMissing.length} locations failed (showing ${filteredData.pins.length} pins + ${filteredData.streets.length} streets): ${allMissing.join(
-        ", ",
-      )}`,
+      `⚠️  Partial geocoding: ${allMissing.length} locations failed (showing ${shownParts}): ${allMissing.join(", ")}`,
     );
   }
 

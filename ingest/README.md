@@ -63,7 +63,7 @@ The system runs two automated pipelines via Cloud Scheduler:
 
 - **Educational Facilities Sync** (`educational-facilities-sync`) - Monthly on the 1st at 4:00 AM EET
   - Downloads schools and kindergartens from Sofia open data (sofiaplan.bg)
-  - Updates facility coordinates in Firestore
+  - Updates facility coordinates in database
   - Enables geocoding of messages referencing numbered schools and kindergartens
 
 - **Emergent Pipeline** (`pipeline:emergent`) - Every 30 minutes, 7:00AM-10:30PM
