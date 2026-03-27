@@ -24,6 +24,12 @@ await build({
   sourcemap: false,
 });
 
+// Ensure Node.js treats the bundle as ESM
+writeFileSync(
+  resolve(funcDir, "package.json"),
+  JSON.stringify({ type: "module" }, null, 2)
+);
+
 // Function config
 writeFileSync(
   resolve(funcDir, ".vc-config.json"),
