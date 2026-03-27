@@ -1,3 +1,7 @@
 dist/
 node_modules/
 *.tsbuildinfo
+.vercel
+.env*.local
+api/index.mjs
+api/index.mjs.map

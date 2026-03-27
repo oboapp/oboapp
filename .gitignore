@@ -51,3 +51,4 @@ web/coverage
 .claude/settings.local.json
 .playwright-mcp/
 package-lock.json
+.env*.local
