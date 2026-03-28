@@ -100,7 +100,20 @@ function buildAlertUrl(
 }
 
 /**
- * Build notification text with AQI, PM values, and sensor count.
+ * Health guidance based on EAQI level.
+ * Thresholds align with EEA recommendations.
+ */
+function getHealthGuidance(aqi: number): string {
+  if (aqi >= 5) {
+    return "Ограничи престоя на открито, особено при дихателни или сърдечни заболявания.";
+  }
+  return "Хора с дихателни или сърдечни заболявания може да усетят влошаване на симптомите.";
+}
+
+/**
+ * Build notification text with AQI, PM values, sensor count, and health guidance.
+ * The message is self-contained: explains what was detected, how (source + sensor count),
+ * and what to do (health guidance) — so users trust the alert without needing a "learn more" link.
  */
 function buildAlertText(
   eval_: CellEvaluation,
@@ -108,23 +121,28 @@ function buildAlertText(
   const label = getAqiLabel(eval_.currentAqi);
   const pm25Str = eval_.avgPm25.toFixed(1);
   const pm10Str = eval_.avgPm10.toFixed(0);
-  const sensorNote = `(по данни от ${eval_.sensorCount} сензора)`;
   const typeNote =
     eval_.alertType === "immediate"
       ? "Рязко влошаване"
       : "Продължително влошаване";
+  const healthNote = getHealthGuidance(eval_.currentAqi);
 
   const text =
     `${typeNote} на качеството на въздуха. ` +
-    `Европейски индекс за качество на въздуха: ${label}. ` +
-    `PM2.5: ${pm25Str} μg/m³, PM10: ${pm10Str} μg/m³. ${sensorNote}`;
+    `Европейски индекс: ${label}. ` +
+    `PM2.5: ${pm25Str}, PM10: ${pm10Str} μg/m³. ` +
+    `Измерено от ${eval_.sensorCount} сензора от мрежата sensor.community. ` +
+    healthNote;
 
   const markdownText =
     `**${typeNote}** на качеството на въздуха\n\n` +
+    `Данните от гражданската мрежа [sensor.community](https://sensor.community/) ` +
+    `показват влошаване на качеството на въздуха в този район.\n\n` +
     `- Европейски индекс за качество на въздуха: **${label}**\n` +
     `- PM2.5: ${pm25Str} μg/m³\n` +
     `- PM10: ${pm10Str} μg/m³\n` +
-    `- ${sensorNote}`;
+    `- Измерено от ${eval_.sensorCount} независими сензора\n\n` +
+    `⚠️ ${healthNote}`;
 
   return { text, markdownText };
 }
