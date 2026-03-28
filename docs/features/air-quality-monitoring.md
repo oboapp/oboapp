@@ -73,7 +73,7 @@ See the `.env.example` files in the ingest package for all available environment
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `GCS_READINGS_BUCKET` | Production | GCS bucket name for sensor readings storage |
-| `LOCAL_READINGS_PATH` | No | Local filesystem path for development (default: `./data/air-quality`) |
+| `LOCAL_READINGS_PATH` | No | Local filesystem path for development (default: `./tmp/air-quality`) |
 | `LOCALITY` | Yes | Locality identifier that determines the geographic bounds |
 
 ## Storage

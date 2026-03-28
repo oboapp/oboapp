@@ -26,7 +26,7 @@ Readings are stored in a GCS bucket at `air-quality/{locality}/readings.json`. T
 
 ## Development (Local Filesystem)
 
-When `GCS_READINGS_BUCKET` is not set, readings fall back to the local filesystem at `{LOCAL_READINGS_PATH}/{locality}/readings.json`. The default path is `./data/air-quality`. Directories are created automatically on first write.
+When `GCS_READINGS_BUCKET` is not set, readings fall back to the local filesystem at `{LOCAL_READINGS_PATH}/{locality}/readings.json`. The default path is `./tmp/air-quality`. Directories are created automatically on first write.
 
 This enables full local development without GCS emulators or cloud credentials.
 
