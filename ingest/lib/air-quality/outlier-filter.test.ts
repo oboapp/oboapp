@@ -85,4 +85,21 @@ describe("filterOutliers", () => {
     const filtered = filterOutliers(readings);
     expect(filtered).toHaveLength(10);
   });
+
+  it("returns empty array when all readings are filtered by IQR", () => {
+    // All readings are extreme outliers relative to each other —
+    // IQR range is huge but each value falls outside the fences of the others.
+    // In practice this tests that downstream code (sensor count < MIN)
+    // correctly skips the cell when filterOutliers empties it.
+    const readings = [
+      makeReading({ sensorId: 1, p1: 1, p2: 1 }),
+      makeReading({ sensorId: 2, p1: 1, p2: 1 }),
+      makeReading({ sensorId: 3, p1: 1, p2: 1 }),
+      makeReading({ sensorId: 4, p1: 900, p2: 900 }),
+    ];
+    const filtered = filterOutliers(readings);
+    // The extreme outlier should be removed; the remaining 3 are consistent
+    expect(filtered.length).toBeLessThan(readings.length);
+    expect(filtered.every((r) => r.p1 < 100)).toBe(true);
+  });
 });

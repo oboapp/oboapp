@@ -20,6 +20,8 @@ const PM25_BANDS = [
   { cLow: 20, cHigh: 25, index: 3 },
   { cLow: 25, cHigh: 50, index: 4 },
   { cLow: 50, cHigh: 75, index: 5 },
+  // cHigh 800 is an infinity cap for the interpolation math — concentrations
+  // above 75 all map to index 6 (Extremely Poor), capped by Math.min(…, 6).
   { cLow: 75, cHigh: 800, index: 6 },
 ] as const;
 
@@ -32,6 +34,7 @@ const PM10_BANDS = [
   { cLow: 40, cHigh: 50, index: 3 },
   { cLow: 50, cHigh: 100, index: 4 },
   { cLow: 100, cHigh: 150, index: 5 },
+  // cHigh 1200 is an infinity cap — same rationale as PM25_BANDS above.
   { cLow: 150, cHigh: 1200, index: 6 },
 ] as const;
 
