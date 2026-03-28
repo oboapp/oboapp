@@ -321,7 +321,6 @@ main:
                               args:
                                 text: '${"Crawler vrabnitsa-org failed: " + string(e)}'
                                 severity: "ERROR"
-                                severity: "ERROR"
     - ingest:
         try:
           call: http.post
