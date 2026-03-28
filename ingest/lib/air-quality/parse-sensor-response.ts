@@ -108,7 +108,7 @@ export function parseSensorResponse(
     // Apply hard cap
     if (pm10 > PM_HARD_CAP || pm25 > PM_HARD_CAP) continue;
 
-    // Truncate per EPA spec: PM2.5 → 1 decimal, PM10 → integer
+    // Truncate for EAQI-style binning: PM2.5 → 1 decimal, PM10 → integer
     const p1 = Math.floor(pm10);
     const p2 = Math.floor(pm25 * 10) / 10;
 
