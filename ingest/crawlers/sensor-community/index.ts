@@ -116,12 +116,12 @@ function buildAlertText(
 
   const text =
     `${typeNote} на качеството на въздуха. ` +
-    `Оценка на качеството на въздуха: ${eval_.currentAqi} (${label}). ` +
+    `Европейски индекс за качество на въздуха: ${label}. ` +
     `PM2.5: ${pm25Str} μg/m³, PM10: ${pm10Str} μg/m³. ${sensorNote}`;
 
   const markdownText =
     `**${typeNote}** на качеството на въздуха\n\n` +
-    `- Оценка на качеството на въздуха: **${eval_.currentAqi}** (${label})\n` +
+    `- Европейски индекс за качество на въздуха: **${label}**\n` +
     `- PM2.5: ${pm25Str} μg/m³\n` +
     `- PM10: ${pm10Str} μg/m³\n` +
     `- ${sensorNote}`;
@@ -187,6 +187,7 @@ export async function crawl(): Promise<void> {
 
   let saved = 0;
   let skipped = 0;
+  let failed = 0;
 
   for (const [cellId, readings] of cellReadings) {
     const cell = grid.find((c) => c.id === cellId);
@@ -302,12 +303,15 @@ export async function crawl(): Promise<void> {
         cellId,
         error: error instanceof Error ? error.message : String(error),
       });
+      failed++;
     }
   }
 
   logger.info("Crawl complete", {
     sourceType: SOURCE_TYPE,
+    total: cellReadings.size,
     saved,
     skipped,
+    failed,
   });
 }

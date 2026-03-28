@@ -21,6 +21,7 @@ const SOURCE_TRUST: Record<string, SourceTrustEntry> = {
   "sofiyska-voda": { trust: 1.0, geometryQuality: 3 },
   "erm-zapad": { trust: 0.9, geometryQuality: 3 },
   "nimh-severe-weather": { trust: 0.9, geometryQuality: 3 },
+  "sensor-community": { trust: 0.7, geometryQuality: 3 },
 
   // Municipality / district websites (geocoded, quality 2)
   "sofia-bg": { trust: 0.8, geometryQuality: 2 },

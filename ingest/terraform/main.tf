@@ -1068,6 +1068,7 @@ resource "google_cloud_scheduler_job" "educational_facilities_sync_schedule" {
 # ── Air Quality Fetch Job ─────────────────────────────────────────────────────
 
 resource "google_storage_bucket" "air_quality_readings" {
+  count         = var.gcs_readings_bucket != "" ? 1 : 0
   name          = var.gcs_readings_bucket
   project       = var.project_id
   location      = var.region
@@ -1087,12 +1088,14 @@ resource "google_storage_bucket" "air_quality_readings" {
 
 # Grant the ingest service account read/write access to the air quality readings bucket
 resource "google_storage_bucket_iam_member" "readings_bucket_object_admin" {
-  bucket = google_storage_bucket.air_quality_readings.name
+  count  = var.gcs_readings_bucket != "" ? 1 : 0
+  bucket = google_storage_bucket.air_quality_readings[0].name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.ingest_runner.email}"
 }
 
 resource "google_cloud_run_v2_job" "air_quality_fetch" {
+  count    = var.gcs_readings_bucket != "" ? 1 : 0
   name     = "air-quality-fetch"
   location = var.region
 
@@ -1159,6 +1162,7 @@ resource "google_cloud_run_v2_job" "air_quality_fetch" {
 }
 
 resource "google_cloud_scheduler_job" "air_quality_fetch_schedule" {
+  count            = var.gcs_readings_bucket != "" ? 1 : 0
   name             = "air-quality-fetch-schedule"
   description      = "Fetch sensor.community air quality data every 15 minutes"
   schedule         = var.schedules.air_quality_fetch
@@ -1181,7 +1185,6 @@ resource "google_cloud_scheduler_job" "air_quality_fetch_schedule" {
 
   depends_on = [
     google_project_service.cloudscheduler,
-    google_cloud_run_v2_job.air_quality_fetch
   ]
 }
 

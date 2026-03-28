@@ -32,7 +32,7 @@ Loads the last 4 hours of readings from the store and groups them into a grid of
 1. **Outlier filtering** — a hard cap removes malfunctioning sensors, then IQR filtering removes statistical outliers per pollutant.
 2. **Minimum sensor check** — cells with fewer than 3 unique sensors (after filtering) are skipped to avoid noisy single-sensor alerts.
 3. **Hourly coverage check** — at least 50% of hourly time bins must have data.
-4. **NowCast AQI** — the EPA NowCast algorithm computes a weighted average that gives more weight to recent hours, then maps PM concentrations to an AQI index (0–500).
+4. **European AQI** — the NowCast algorithm computes a weighted average that gives more weight to recent hours, then maps PM concentrations to the European Air Quality Index (1–6 scale).
 5. **Alert decision** — two alert types exist (see below).
 
 ## Alert Types
@@ -41,23 +41,23 @@ The 4-hour evaluation window is split into two non-overlapping halves: a **previ
 
 | Alert Type | Condition | Meaning |
 |------------|-----------|---------|
-| **Immediate** | Current half AQI ≥ 151 | Air quality is unhealthy right now |
-| **Sustained** | Both halves AQI ≥ 101 | Air quality has been unhealthy for sensitive groups for an extended period |
+| **Immediate** | Current half EAQI ≥ 5 (Very Poor) | Air quality is very poor right now |
+| **Sustained** | Both halves EAQI ≥ 4 (Poor) | Air quality has been poor for an extended period |
 
 Each alert is created as a source document with the grid cell's polygon geometry, the `air-quality` category, and a timespan covering the current evaluation half.
 
 ## AQI Scale
 
-The system uses the US EPA Air Quality Index with Bulgarian labels:
+The system uses the [European Air Quality Index (EAQI)](https://airindex.eea.europa.eu/AQI/index.html) with Bulgarian labels:
 
-| AQI Range | Level |
-|-----------|-------|
-| 0–50 | Добро (Good) |
-| 51–100 | Умерено (Moderate) |
-| 101–150 | Нездравословно за чувствителни групи |
-| 151–200 | Нездравословно (Unhealthy) |
-| 201–300 | Много нездравословно (Very Unhealthy) |
-| 301–500 | Опасно (Hazardous) |
+| EAQI | Level | PM2.5 (μg/m³) | PM10 (μg/m³) |
+|------|-------|---------------|---------------|
+| 1 | Добро (Good) | 0–10 | 0–20 |
+| 2 | Задоволително (Fair) | 10–20 | 20–40 |
+| 3 | Умерено (Moderate) | 20–25 | 40–50 |
+| 4 | Лошо (Poor) | 25–50 | 50–100 |
+| 5 | Много лошо (Very Poor) | 50–75 | 100–150 |
+| 6 | Изключително лошо (Extremely Poor) | >75 | >150 |
 
 ## Scheduling
 

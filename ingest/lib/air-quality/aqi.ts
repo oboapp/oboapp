@@ -1,33 +1,38 @@
 /**
- * NowCast AQI calculation.
+ * European Air Quality Index (EAQI) calculation with NowCast weighting.
  *
- * NowCast is the EPA's algorithm for computing real-time AQI from short-term
- * particulate matter data (1-3 hour windows), as opposed to the standard AQI
- * which requires 24-hour averages.
+ * Uses the European Environment Agency (EEA) concentration bands for PM2.5/PM10,
+ * mapped to a 1–6 index scale with linear interpolation within each band.
+ * NowCast weighting gives more weight to recent hours for short-term estimation.
  *
- * Reference: https://usepa.servicenowservices.com/airnow?id=kb_article_view&sys_id=bb8b65ef1b06bc10028420eae54bcb98
+ * Reference: https://airindex.eea.europa.eu/AQI/index.html
  */
 
 import { NOWCAST_MIN_WEIGHT } from "./constants";
 
-/** EPA PM2.5 breakpoints (truncated to 1 decimal) */
-const PM25_BREAKPOINTS = [
-  { cLow: 0.0, cHigh: 9.0, iLow: 0, iHigh: 50 },
-  { cLow: 9.1, cHigh: 35.4, iLow: 51, iHigh: 100 },
-  { cLow: 35.5, cHigh: 55.4, iLow: 101, iHigh: 150 },
-  { cLow: 55.5, cHigh: 125.4, iLow: 151, iHigh: 200 },
-  { cLow: 125.5, cHigh: 225.4, iLow: 201, iHigh: 300 },
-  { cLow: 225.5, cHigh: 325.4, iLow: 301, iHigh: 500 },
+/**
+ * EEA PM2.5 concentration bands (μg/m³).
+ * Each band maps to an integer index level (1–6) with interpolation within.
+ */
+const PM25_BANDS = [
+  { cLow: 0, cHigh: 10, index: 1 },
+  { cLow: 10, cHigh: 20, index: 2 },
+  { cLow: 20, cHigh: 25, index: 3 },
+  { cLow: 25, cHigh: 50, index: 4 },
+  { cLow: 50, cHigh: 75, index: 5 },
+  { cLow: 75, cHigh: 800, index: 6 },
 ] as const;
 
-/** EPA PM10 breakpoints (truncated to integer) */
-const PM10_BREAKPOINTS = [
-  { cLow: 0, cHigh: 54, iLow: 0, iHigh: 50 },
-  { cLow: 55, cHigh: 154, iLow: 51, iHigh: 100 },
-  { cLow: 155, cHigh: 254, iLow: 101, iHigh: 150 },
-  { cLow: 255, cHigh: 354, iLow: 151, iHigh: 200 },
-  { cLow: 355, cHigh: 424, iLow: 201, iHigh: 300 },
-  { cLow: 425, cHigh: 604, iLow: 301, iHigh: 500 },
+/**
+ * EEA PM10 concentration bands (μg/m³).
+ */
+const PM10_BANDS = [
+  { cLow: 0, cHigh: 20, index: 1 },
+  { cLow: 20, cHigh: 40, index: 2 },
+  { cLow: 40, cHigh: 50, index: 3 },
+  { cLow: 50, cHigh: 100, index: 4 },
+  { cLow: 100, cHigh: 150, index: 5 },
+  { cLow: 150, cHigh: 1200, index: 6 },
 ] as const;
 
 interface HourlyAverage {
@@ -36,38 +41,24 @@ interface HourlyAverage {
 }
 
 /**
- * Truncate PM2.5 to 1 decimal place (floor, per EPA spec).
+ * Map a PM concentration to an EAQI index (1–6) using the EEA bands.
+ * Interpolates linearly within each band for sub-band granularity.
+ * Returns a fractional value, e.g. 4.3 means "40% into the Poor band".
  */
-function truncatePm25(value: number): number {
-  return Math.floor(value * 10) / 10;
-}
-
-/**
- * Truncate PM10 to integer (floor, per EPA spec).
- */
-function truncatePm10(value: number): number {
-  return Math.floor(value);
-}
-
-/**
- * Look up AQI from concentration using EPA piecewise linear breakpoints.
- * Formula: AQI = ((I_high - I_low) / (C_high - C_low)) × (C - C_low) + I_low
- */
-function aqiFromBreakpoints(
+function eaqiFromBands(
   concentration: number,
-  breakpoints: readonly { cLow: number; cHigh: number; iLow: number; iHigh: number }[],
+  bands: readonly { cLow: number; cHigh: number; index: number }[],
 ): number {
-  for (const bp of breakpoints) {
-    if (concentration >= bp.cLow && concentration <= bp.cHigh) {
-      return Math.round(
-        ((bp.iHigh - bp.iLow) / (bp.cHigh - bp.cLow)) *
-          (concentration - bp.cLow) +
-          bp.iLow,
-      );
+  if (concentration <= 0) return 1;
+
+  for (const band of bands) {
+    if (concentration >= band.cLow && concentration < band.cHigh) {
+      const fraction = (concentration - band.cLow) / (band.cHigh - band.cLow);
+      return band.index + fraction * 0.99; // stay within band
     }
   }
-  // Above all breakpoints — cap at 500
-  return 500;
+  // Above all bands — cap at 6
+  return 6;
 }
 
 /**
@@ -103,11 +94,11 @@ function nowCastWeightedAverage(values: number[]): number {
 }
 
 /**
- * Calculate NowCast AQI from hourly averages.
+ * Calculate EAQI from hourly averages using NowCast weighting.
  *
  * @param hourlyAverages - Array of hourly PM averages, ordered most-recent first.
  *   Missing hours should be omitted (not included as NaN).
- * @returns AQI integer (0-500), or 0 if input is empty/invalid.
+ * @returns EAQI index (1–6 fractional), or 0 if input is empty/invalid.
  */
 export function calculateNowCastAqi(hourlyAverages: HourlyAverage[]): number {
   if (hourlyAverages.length === 0) return 0;
@@ -120,38 +111,39 @@ export function calculateNowCastAqi(hourlyAverages: HourlyAverage[]): number {
 
   if (Number.isNaN(nowCastPm25) && Number.isNaN(nowCastPm10)) return 0;
 
-  const aqiPm25 = Number.isNaN(nowCastPm25)
+  const eaqiPm25 = Number.isNaN(nowCastPm25)
     ? 0
-    : aqiFromBreakpoints(truncatePm25(nowCastPm25), PM25_BREAKPOINTS);
-  const aqiPm10 = Number.isNaN(nowCastPm10)
+    : eaqiFromBands(nowCastPm25, PM25_BANDS);
+  const eaqiPm10 = Number.isNaN(nowCastPm10)
     ? 0
-    : aqiFromBreakpoints(truncatePm10(nowCastPm10), PM10_BREAKPOINTS);
+    : eaqiFromBands(nowCastPm10, PM10_BANDS);
 
-  return Math.max(aqiPm25, aqiPm10);
+  // Round to 1 decimal for readable thresholds, cap at 6
+  return Math.min(Math.round(Math.max(eaqiPm25, eaqiPm10) * 10) / 10, 6);
 }
 
 /**
- * Get a human-readable AQI category label (in Bulgarian).
+ * Get a human-readable EAQI category label (in Bulgarian).
  */
 export function getAqiLabel(aqi: number): string {
-  if (aqi <= 50) return "Добро";
-  if (aqi <= 100) return "Умерено";
-  if (aqi <= 150) return "Нездравословно за чувствителни групи";
-  if (aqi <= 200) return "Нездравословно";
-  if (aqi <= 300) return "Много нездравословно";
-  return "Опасно";
+  if (aqi < 2) return "Добро";
+  if (aqi < 3) return "Задоволително";
+  if (aqi < 4) return "Умерено";
+  if (aqi < 5) return "Лошо";
+  if (aqi < 6) return "Много лошо";
+  return "Изключително лошо";
 }
 
 /**
- * Get AQI category key (for programmatic use).
+ * Get EAQI category key (for programmatic use).
  */
 export function getAqiCategory(
   aqi: number,
-): "good" | "moderate" | "unhealthy-sensitive" | "unhealthy" | "very-unhealthy" | "hazardous" {
-  if (aqi <= 50) return "good";
-  if (aqi <= 100) return "moderate";
-  if (aqi <= 150) return "unhealthy-sensitive";
-  if (aqi <= 200) return "unhealthy";
-  if (aqi <= 300) return "very-unhealthy";
-  return "hazardous";
+): "good" | "fair" | "moderate" | "poor" | "very-poor" | "extremely-poor" {
+  if (aqi < 2) return "good";
+  if (aqi < 3) return "fair";
+  if (aqi < 4) return "moderate";
+  if (aqi < 5) return "poor";
+  if (aqi < 6) return "very-poor";
+  return "extremely-poor";
 }

@@ -3,7 +3,7 @@
 /**
  * Air quality fetch job.
  *
- * Standalone entry point that runs every 30 minutes via Cloud Scheduler.
+ * Standalone entry point that runs every 15 minutes via Cloud Scheduler.
  * Fetches raw PM2.5/PM10 readings from sensor.community API,
  * stores them in a JSON file (GCS in production, local FS in development),
  * and prunes readings older than the retention window.

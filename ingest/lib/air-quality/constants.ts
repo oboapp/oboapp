@@ -19,11 +19,11 @@ export const KM_PER_DEGREE_LAT = 111.0;
 /** Hard cap for PM values — readings above this are from malfunctioning sensors */
 export const PM_HARD_CAP = 999.9;
 
-/** AQI threshold for immediate alert (single window) */
-export const AQI_IMMEDIATE_THRESHOLD = 151;
+/** EAQI threshold for immediate alert (single window) — 5 = Very Poor */
+export const AQI_IMMEDIATE_THRESHOLD = 5;
 
-/** AQI threshold for sustained alert (both non-overlapping halves must exceed) */
-export const AQI_SUSTAINED_THRESHOLD = 101;
+/** EAQI threshold for sustained alert (both non-overlapping halves must exceed) — 4 = Poor */
+export const AQI_SUSTAINED_THRESHOLD = 4;
 
 /** Total evaluation window in hours */
 export const EVALUATION_WINDOW_HOURS = 4;

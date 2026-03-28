@@ -40,7 +40,7 @@ variable "schedules" {
     pipeline_all                    = string
     gtfs_sync                       = string
     educational_facilities_sync     = optional(string, "0 4 1 * *")
-    air_quality_fetch               = string
+    air_quality_fetch               = optional(string, "*/15 * * * *")
   })
   default = {
     pipeline_emergent               = "*/30 7-22 * * *"    # Every 30 minutes, 7:00AM–10:30PM (hours 7-22)
@@ -75,4 +75,5 @@ variable "ci_service_account_email" {
 variable "gcs_readings_bucket" {
   description = "GCS bucket name for raw air quality sensor readings"
   type        = string
+  default     = ""
 }

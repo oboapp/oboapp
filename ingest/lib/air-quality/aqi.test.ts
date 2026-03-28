@@ -6,53 +6,54 @@ describe("calculateNowCastAqi", () => {
     expect(calculateNowCastAqi([])).toBe(0);
   });
 
-  it("returns AQI in 'Good' range for low PM values", () => {
+  it("returns EAQI in 'Good' range for low PM values", () => {
     const hourly = [
       { pm25: 5.0, pm10: 10 },
       { pm25: 4.5, pm10: 12 },
     ];
     const aqi = calculateNowCastAqi(hourly);
-    expect(aqi).toBeGreaterThanOrEqual(0);
-    expect(aqi).toBeLessThanOrEqual(50);
+    expect(aqi).toBeGreaterThanOrEqual(1);
+    expect(aqi).toBeLessThan(2);
   });
 
-  it("returns AQI in 'Unhealthy for Sensitive Groups' range for elevated PM", () => {
+  it("returns EAQI in 'Poor' range for elevated PM", () => {
+    // PM2.5 30-40 μg/m³ → Poor band (25-50), PM10 60-80 → Poor band (50-100)
     const hourly = [
-      { pm25: 45.0, pm10: 160 },
-      { pm25: 40.0, pm10: 155 },
+      { pm25: 35.0, pm10: 70 },
+      { pm25: 30.0, pm10: 65 },
     ];
     const aqi = calculateNowCastAqi(hourly);
-    expect(aqi).toBeGreaterThanOrEqual(101);
-    expect(aqi).toBeLessThanOrEqual(150);
+    expect(aqi).toBeGreaterThanOrEqual(4);
+    expect(aqi).toBeLessThan(5);
   });
 
-  it("returns AQI ≥ 151 for 'Unhealthy' PM values", () => {
+  it("returns EAQI ≥ 5 for 'Very Poor' PM values", () => {
+    // PM2.5 55-70 μg/m³ → Very Poor band (50-75)
     const hourly = [
-      { pm25: 80.0, pm10: 280 },
-      { pm25: 75.0, pm10: 260 },
+      { pm25: 60.0, pm10: 120 },
+      { pm25: 55.0, pm10: 110 },
     ];
     const aqi = calculateNowCastAqi(hourly);
-    expect(aqi).toBeGreaterThanOrEqual(151);
+    expect(aqi).toBeGreaterThanOrEqual(5);
   });
 
-  it("uses max of PM2.5 and PM10 AQI", () => {
-    // High PM10 but low PM2.5
-    const hourly = [{ pm25: 3.0, pm10: 200 }];
+  it("uses max of PM2.5 and PM10 EAQI", () => {
+    // Low PM2.5 but PM10=130 is in Very Poor band (100-150)
+    const hourly = [{ pm25: 3.0, pm10: 130 }];
     const aqi = calculateNowCastAqi(hourly);
-    // PM10=200 is in 155-254 range → AQI 101-150
-    expect(aqi).toBeGreaterThanOrEqual(101);
+    expect(aqi).toBeGreaterThanOrEqual(5);
   });
 
   it("handles single hour of data", () => {
-    const hourly = [{ pm25: 12.0, pm10: 50 }];
+    const hourly = [{ pm25: 12.0, pm10: 25 }];
     const aqi = calculateNowCastAqi(hourly);
     expect(aqi).toBeGreaterThan(0);
   });
 
-  it("caps AQI at 500 for extreme values", () => {
+  it("caps EAQI at 6 for extreme values", () => {
     const hourly = [{ pm25: 500.0, pm10: 700 }];
     const aqi = calculateNowCastAqi(hourly);
-    expect(aqi).toBe(500);
+    expect(aqi).toBe(6);
   });
 
   it("applies NowCast weighting to reduce recent-spike influence", () => {
@@ -71,40 +72,42 @@ describe("calculateNowCastAqi", () => {
     ];
     const spikeAqi = calculateNowCastAqi(spikeHours);
     const steadyAqi = calculateNowCastAqi(steadyHours);
-    // Spike weighting should give lower AQI than steady high
+    // Spike weighting should give lower EAQI than steady high
     expect(spikeAqi).toBeLessThan(steadyAqi);
   });
 });
 
 describe("getAqiLabel", () => {
   it.each([
-    [25, "Добро"],
-    [75, "Умерено"],
-    [125, "Нездравословно за чувствителни групи"],
-    [175, "Нездравословно"],
-    [250, "Много нездравословно"],
-    [400, "Опасно"],
-  ])("returns correct Bulgarian label for AQI %i", (aqi, expected) => {
+    [1.0, "Добро"],
+    [2.5, "Задоволително"],
+    [3.5, "Умерено"],
+    [4.5, "Лошо"],
+    [5.5, "Много лошо"],
+    [6.0, "Изключително лошо"],
+  ])("returns correct Bulgarian label for EAQI %s", (aqi, expected) => {
     expect(getAqiLabel(aqi)).toBe(expected);
   });
 
   it("returns boundary labels correctly", () => {
-    expect(getAqiLabel(50)).toBe("Добро");
-    expect(getAqiLabel(51)).toBe("Умерено");
-    expect(getAqiLabel(100)).toBe("Умерено");
-    expect(getAqiLabel(101)).toBe("Нездравословно за чувствителни групи");
+    expect(getAqiLabel(1.99)).toBe("Добро");
+    expect(getAqiLabel(2.0)).toBe("Задоволително");
+    expect(getAqiLabel(2.99)).toBe("Задоволително");
+    expect(getAqiLabel(3.0)).toBe("Умерено");
+    expect(getAqiLabel(4.0)).toBe("Лошо");
+    expect(getAqiLabel(5.0)).toBe("Много лошо");
   });
 });
 
 describe("getAqiCategory", () => {
   it.each([
-    [25, "good"],
-    [75, "moderate"],
-    [125, "unhealthy-sensitive"],
-    [175, "unhealthy"],
-    [250, "very-unhealthy"],
-    [400, "hazardous"],
-  ] as const)("returns correct category for AQI %i", (aqi, expected) => {
+    [1.0, "good"],
+    [2.5, "fair"],
+    [3.5, "moderate"],
+    [4.5, "poor"],
+    [5.5, "very-poor"],
+    [6.0, "extremely-poor"],
+  ] as const)("returns correct category for EAQI %s", (aqi, expected) => {
     expect(getAqiCategory(aqi)).toBe(expected);
   });
 });
