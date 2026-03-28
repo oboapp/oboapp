@@ -1085,6 +1085,13 @@ resource "google_storage_bucket" "air_quality_readings" {
   }
 }
 
+# Grant the ingest service account read/write access to the air quality readings bucket
+resource "google_storage_bucket_iam_member" "readings_bucket_object_admin" {
+  bucket = google_storage_bucket.air_quality_readings.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.ingest_runner.email}"
+}
+
 resource "google_cloud_run_v2_job" "air_quality_fetch" {
   name     = "air-quality-fetch"
   location = var.region
