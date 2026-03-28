@@ -22,12 +22,13 @@ import { SENSOR_COMMUNITY_API_URL } from "@/lib/air-quality/constants";
 import { createReadingsStore } from "@/lib/air-quality/readings-store";
 
 async function main() {
+  const sourceType = "sensor-community";
   const locality = getLocality();
   const bounds = getBoundsForLocality(locality);
   const apiUrl = `${SENSOR_COMMUNITY_API_URL}${bounds.south},${bounds.west},${bounds.north},${bounds.east}`;
 
-  logger.info(`[air-quality-fetch] Fetching sensor.community data for ${locality}`);
-  logger.info(`[air-quality-fetch] API URL: ${apiUrl}`);
+  logger.info("Starting air-quality-fetch", { sourceType, locality });
+  logger.debug("Fetching sensor.community API", { sourceType, apiUrl });
 
   const response = await fetch(apiUrl);
   if (!response.ok) {
@@ -36,18 +37,22 @@ async function main() {
     );
   }
 
-  const apiData: unknown[] = await response.json();
-  logger.info(`[air-quality-fetch] Received ${apiData.length} raw entries`);
+  const apiDataRaw: unknown = await response.json();
+  if (!Array.isArray(apiDataRaw)) {
+    throw new Error(
+      "sensor.community API returned non-array JSON payload",
+    );
+  }
 
-  const readings = parseSensorResponse(apiData, locality);
-  logger.info(`[air-quality-fetch] Parsed ${readings.length} valid readings`);
+  logger.debug("Received raw entries", { sourceType, count: apiDataRaw.length });
+
+  const readings = parseSensorResponse(apiDataRaw, locality);
+  logger.debug("Parsed valid readings", { sourceType, count: readings.length });
 
   const store = createReadingsStore();
   const { stored, cleaned } = await store.appendAndPrune(locality, readings);
 
-  logger.info(
-    `[air-quality-fetch] Done: ${stored} stored, ${cleaned} cleaned`,
-  );
+  logger.info("Air quality fetch complete", { sourceType, locality, stored, cleaned });
 }
 
 main().catch((err) => {

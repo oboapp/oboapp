@@ -1,6 +1,6 @@
 # Cloud Workflow for Emergent Pipeline
-# Runs emergent crawlers (erm-zapad, toplo, sofiyska-voda) in parallel,
-# then runs ingest and notify sequentially.
+# Runs emergent crawlers (erm-zapad, toplo, sofiyska-voda, sensor-community)
+# in parallel, then runs ingest and notify sequentially.
 # Always continues to ingest/notify even if some crawlers fail.
 
 main:
