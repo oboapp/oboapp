@@ -12,6 +12,7 @@ env:
   FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
   ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
   LOCALITY: ${{ secrets.LOCALITY }}
+  GCS_READINGS_BUCKET: ${{ vars.GCS_READINGS_BUCKET }}
   REGION: europe-west1
   IMAGE_NAME: oborishte-ingest
 
@@ -212,6 +213,7 @@ jobs:
             -var="alert_email=$ALERT_EMAIL" \
             -var="locality=$LOCALITY" \
             -var="ci_service_account_email=${{ secrets.GCP_SERVICE_ACCOUNT }}" \
+            -var="gcs_readings_bucket=$GCS_READINGS_BUCKET" \
             -out=tfplan
 
       - name: Terraform Apply
