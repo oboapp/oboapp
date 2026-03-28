@@ -218,8 +218,16 @@ export async function crawl(): Promise<void> {
     // Apply outlier filtering
     const filtered = filterOutliers(readings);
 
-    // Blocker #3: Check sensor count AFTER filtering
-    const sensorCount = countUniqueSensors(filtered);
+    // Split into non-overlapping halves
+    const previousHalf = filtered.filter(
+      (r) => r.timestamp >= windowStart && r.timestamp < halfPoint,
+    );
+    const currentHalf = filtered.filter((r) => r.timestamp >= halfPoint);
+
+    if (currentHalf.length === 0) continue;
+
+    // Check sensor count from current half (the one used for alerts)
+    const sensorCount = countUniqueSensors(currentHalf);
     if (sensorCount < MIN_SENSORS_PER_CELL) {
       logger.debug("Cell below sensor threshold, skipping", {
         sourceType: SOURCE_TYPE,
@@ -229,14 +237,6 @@ export async function crawl(): Promise<void> {
       });
       continue;
     }
-
-    // Split into non-overlapping halves (Blocker #1)
-    const previousHalf = filtered.filter(
-      (r) => r.timestamp >= windowStart && r.timestamp < halfPoint,
-    );
-    const currentHalf = filtered.filter((r) => r.timestamp >= halfPoint);
-
-    if (currentHalf.length === 0) continue;
 
     // Check hourly bin sparsity
     const currentHourly = computeHourlyAverages(currentHalf);
