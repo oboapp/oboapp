@@ -115,4 +115,11 @@ export const SOURCES: readonly SourceDefinition[] = [
     name: 'Столична община, Район "Връбница"',
     localities: ["bg.sofia"],
   },
+  {
+    id: "sensor-community",
+    url: "https://sensor.community/",
+    name: "sensor.community",
+    localities: ["bg.sofia"],
+    experimental: true,
+  },
 ];
