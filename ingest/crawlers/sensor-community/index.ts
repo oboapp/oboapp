@@ -5,10 +5,13 @@
  * groups them into ~4km grid cells, applies outlier filtering + NowCast AQI,
  * and triggers alerts when thresholds are breached.
  *
- * Blocker fixes from v2 review:
- * - #1: Non-overlapping halves [t-4h, t-2h) and [t-2h, now] for sustained alerts
- * - #2: windowTimestamp uses 30-min floor for deterministic dedup URLs
- * - #3: Sensor count ≥ MIN_SENSORS_PER_CELL checked AFTER outlier filtering
+ * Design notes:
+ * - Sustained alerts compare two non-overlapping halves of the evaluation window:
+ *   [t-4h, t-2h) and [t-2h, now].
+ * - windowTimestamp is floored to 30-minute boundaries for deterministic
+ *   deduplication URLs.
+ * - The minimum sensor count (MIN_SENSORS_PER_CELL) is enforced after outlier
+ *   filtering so that only valid sensors contribute to the threshold check.
  */
 
 import { logger } from "@/lib/logger";

@@ -18,11 +18,13 @@ import { logger } from "@/lib/logger";
 import { getLocality } from "@/lib/target-locality";
 import { getBoundsForLocality } from "@oboapp/shared";
 import { parseSensorResponse } from "@/lib/air-quality/parse-sensor-response";
-import { SENSOR_COMMUNITY_API_URL } from "@/lib/air-quality/constants";
+import { SENSOR_COMMUNITY_API_URL, SOURCE_TYPE } from "@/lib/air-quality/constants";
 import { createReadingsStore } from "@/lib/air-quality/readings-store";
 
+const FETCH_TIMEOUT_MS = 30_000;
+
 async function main() {
-  const sourceType = "sensor-community";
+  const sourceType = SOURCE_TYPE;
   const locality = getLocality();
   const bounds = getBoundsForLocality(locality);
   const apiUrl = `${SENSOR_COMMUNITY_API_URL}${bounds.south},${bounds.west},${bounds.north},${bounds.east}`;
@@ -30,14 +32,21 @@ async function main() {
   logger.info("Starting air-quality-fetch", { sourceType, locality });
   logger.debug("Fetching sensor.community API", { sourceType, apiUrl });
 
-  const response = await fetch(apiUrl);
+  const response = await fetch(apiUrl, {
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
   if (!response.ok) {
     throw new Error(
       `sensor.community API returned ${response.status}: ${response.statusText}`,
     );
   }
 
-  const apiDataRaw: unknown = await response.json();
+  let apiDataRaw: unknown;
+  try {
+    apiDataRaw = await response.json();
+  } catch {
+    throw new Error("sensor.community API returned invalid JSON");
+  }
   if (!Array.isArray(apiDataRaw)) {
     throw new Error(
       "sensor.community API returned non-array JSON payload",
