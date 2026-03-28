@@ -52,7 +52,7 @@ function computeHourlyAverages(
   const hourBins = new Map<number, { pm25Sum: number; pm10Sum: number; count: number }>();
 
   for (const r of readings) {
-    const hour = new Date(r.timestamp).getTime();
+    const hour = r.timestamp.getTime();
     const hourKey = Math.floor(hour / 3_600_000);
     const bin = hourBins.get(hourKey) ?? { pm25Sum: 0, pm10Sum: 0, count: 0 };
     bin.pm25Sum += r.p2;
