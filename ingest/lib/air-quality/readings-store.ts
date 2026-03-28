@@ -2,7 +2,7 @@
  * Readings store — abstracts sensor reading persistence.
  *
  * Production: GCS bucket (one JSON file per locality, overwritten each fetch).
- * Development: Local filesystem (./tmp/air-quality/{locality}.json).
+ * Development: Local filesystem (${basePath}/${locality}/readings.json).
  *
  * The store holds a rolling window of readings (DATA_RETENTION_HOURS).
  * Each fetch appends new readings to the existing window and prunes expired ones.
@@ -84,8 +84,13 @@ export class LocalReadingsBackend implements ReadingsBackend {
     try {
       const content = await readFile(this.filePath(locality), "utf-8");
       return JSON.parse(content);
-    } catch {
-      return null;
+    } catch (err) {
+      if (err instanceof Error && "code" in err && err.code === "ENOENT") {
+        // File does not exist yet: treat as no stored readings.
+        return null;
+      }
+      // Surface unexpected IO/parse errors so corrupted data is not silently ignored.
+      throw err;
     }
   }
 
@@ -195,6 +200,13 @@ export function createReadingsStore(): ReadingsStore {
   if (bucket) {
     return new ReadingsStore(new GcsReadingsBackend(bucket));
   }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "GCS_READINGS_BUCKET must be set in production; refusing to fall back to non-persistent local storage.",
+    );
+  }
+
   const basePath = process.env.LOCAL_READINGS_PATH ?? "./tmp/air-quality";
   return new ReadingsStore(new LocalReadingsBackend(basePath));
 }

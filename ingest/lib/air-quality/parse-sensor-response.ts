@@ -84,6 +84,16 @@ export function parseSensorResponse(
     if (!Array.isArray(entry.sensordatavalues)) continue;
 
     for (const sdv of entry.sensordatavalues) {
+      // Defensive runtime validation in case the API returns malformed entries
+      if (sdv == null || typeof sdv !== "object") continue;
+      if (
+        !("value" in sdv) ||
+        !("value_type" in sdv) ||
+        typeof sdv.value !== "string" ||
+        typeof sdv.value_type !== "string"
+      )
+        continue;
+
       const value = parseFloat(sdv.value);
       if (!Number.isFinite(value) || value < 0) continue;
 

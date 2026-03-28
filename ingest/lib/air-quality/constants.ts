@@ -46,5 +46,8 @@ export const MIN_HOUR_COVERAGE = 0.5;
 /** Dedup window: 30 minutes in milliseconds */
 export const DEDUP_WINDOW_MS = 1_800_000;
 
+/** Maximum staleness: skip cell if newest reading in current half is older than this (ms) */
+export const MAX_STALENESS_MS = 45 * 60 * 1000;
+
 /** Source type identifier */
 export const SOURCE_TYPE = "sensor-community";

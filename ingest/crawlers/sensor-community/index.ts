@@ -30,6 +30,7 @@ import {
   MIN_SENSORS_PER_CELL,
   MIN_HOUR_COVERAGE,
   DEDUP_WINDOW_MS,
+  MAX_STALENESS_MS,
 } from "@/lib/air-quality/constants";
 
 interface CellEvaluation {
@@ -243,6 +244,17 @@ export async function crawl(): Promise<void> {
         cellId,
         hours: currentHourly.length,
         expectedHours,
+      });
+      continue;
+    }
+
+    // Freshness check: skip cell if newest reading in current half is stale
+    const newestTimestamp = Math.max(...currentHalf.map((r) => r.timestamp.getTime()));
+    if (now.getTime() - newestTimestamp > MAX_STALENESS_MS) {
+      logger.debug("Cell data too stale, skipping", {
+        sourceType: SOURCE_TYPE,
+        cellId,
+        stalenessMinutes: Math.round((now.getTime() - newestTimestamp) / 60_000),
       });
       continue;
     }
