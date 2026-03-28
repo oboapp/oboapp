@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { filterOutliers, type SensorReading } from "./outlier-filter";
+import { filterOutliers } from "./outlier-filter";
+import type { ParsedReading } from "./parse-sensor-response";
 
-function makeReading(overrides: Partial<SensorReading> = {}): SensorReading {
+function makeReading(overrides: Partial<ParsedReading> = {}): ParsedReading {
   return {
     sensorId: 1,
+    sensorType: "SDS011",
     timestamp: new Date("2024-01-01T12:00:00Z"),
     lat: 42.7,
     lng: 23.3,

@@ -19,7 +19,7 @@ import type { SourceDocumentWithGeoJson } from "../shared/types";
 import { buildGrid, assignToGridCell } from "@/lib/air-quality/grid";
 import type { GridCell } from "@/lib/air-quality/grid";
 import { filterOutliers } from "@/lib/air-quality/outlier-filter";
-import type { SensorReading } from "@/lib/air-quality/outlier-filter";
+import type { ParsedReading } from "@/lib/air-quality/parse-sensor-response";
 import { calculateNowCastAqi, getAqiLabel } from "@/lib/air-quality/aqi";
 import {
   SOURCE_TYPE,
@@ -47,7 +47,7 @@ interface CellEvaluation {
  * Returns array of { pm25, pm10 } ordered most-recent first.
  */
 function computeHourlyAverages(
-  readings: SensorReading[],
+  readings: ParsedReading[],
 ): { pm25: number; pm10: number }[] {
   const hourBins = new Map<number, { pm25Sum: number; pm10Sum: number; count: number }>();
 
@@ -72,7 +72,7 @@ function computeHourlyAverages(
 /**
  * Compute average PM values from readings.
  */
-function computeAverages(readings: SensorReading[]): { pm25: number; pm10: number } {
+function computeAverages(readings: ParsedReading[]): { pm25: number; pm10: number } {
   if (readings.length === 0) return { pm25: 0, pm10: 0 };
   const pm25 = readings.reduce((sum, r) => sum + r.p2, 0) / readings.length;
   const pm10 = readings.reduce((sum, r) => sum + r.p1, 0) / readings.length;
@@ -82,7 +82,7 @@ function computeAverages(readings: SensorReading[]): { pm25: number; pm10: numbe
 /**
  * Count unique sensors in a set of readings.
  */
-function countUniqueSensors(readings: SensorReading[]): number {
+function countUniqueSensors(readings: ParsedReading[]): number {
   return new Set(readings.map((r) => r.sensorId)).size;
 }
 
@@ -167,10 +167,10 @@ export async function crawl(): Promise<void> {
     return;
   }
 
-  // Group readings by grid cell — ParsedReading fields match SensorReading
-  const cellReadings = new Map<string, SensorReading[]>();
+  // Group readings by grid cell
+  const cellReadings = new Map<string, ParsedReading[]>();
   for (const raw of rawReadings) {
-    const reading: SensorReading = { ...raw };
+    const reading: ParsedReading = { ...raw };
 
     const cell = assignToGridCell(grid, reading.lat, reading.lng);
     if (!cell) continue;

@@ -7,16 +7,7 @@
  */
 
 import { PM_HARD_CAP } from "./constants";
-
-export interface SensorReading {
-  sensorId: number;
-  timestamp: Date;
-  lat: number;
-  lng: number;
-  p1: number; // PM10
-  p2: number; // PM2.5
-  [key: string]: unknown;
-}
+import type { ParsedReading } from "./parse-sensor-response";
 
 /**
  * Filter outlier readings using hard cap + IQR.
@@ -24,7 +15,7 @@ export interface SensorReading {
  * @param readings - Raw sensor readings (already assigned to a single grid cell)
  * @returns Filtered readings with outliers removed
  */
-export function filterOutliers(readings: SensorReading[]): SensorReading[] {
+export function filterOutliers(readings: ParsedReading[]): ParsedReading[] {
   // Stage 1: Hard cap + NaN removal
   const afterHardCap = readings.filter(
     (r) =>
