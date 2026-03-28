@@ -275,7 +275,7 @@ export async function crawl(): Promise<void> {
       sourceType: SOURCE_TYPE,
       locality,
       crawledAt: new Date(),
-      geoJson: JSON.stringify(cell.geoJson),
+      geoJson: cell.geoJson,
       categories: ["air-quality"],
       isRelevant: true,
       timespanStart: halfPoint,

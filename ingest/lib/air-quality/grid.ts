@@ -6,6 +6,7 @@
  */
 
 import type { BoundsDefinition } from "@oboapp/shared";
+import type { GeoJSONFeatureCollection } from "@/lib/types";
 import { CELL_SIZE_KM, KM_PER_DEGREE_LAT } from "./constants";
 
 export interface GridCell {
@@ -16,7 +17,7 @@ export interface GridCell {
   /** Cell center coordinates */
   center: { lat: number; lng: number };
   /** Cell polygon as GeoJSON FeatureCollection */
-  geoJson: GeoJSON.FeatureCollection;
+  geoJson: GeoJSONFeatureCollection;
 }
 
 /**
@@ -108,7 +109,7 @@ export function getGridCellById(
 /**
  * Convert cell bounds to a GeoJSON FeatureCollection with a single Polygon feature.
  */
-function cellToGeoJson(bounds: BoundsDefinition): GeoJSON.FeatureCollection {
+function cellToGeoJson(bounds: BoundsDefinition): GeoJSONFeatureCollection {
   return {
     type: "FeatureCollection",
     features: [
