@@ -1067,6 +1067,24 @@ resource "google_cloud_scheduler_job" "educational_facilities_sync_schedule" {
 
 # ── Air Quality Fetch Job ─────────────────────────────────────────────────────
 
+resource "google_storage_bucket" "air_quality_readings" {
+  name          = var.gcs_readings_bucket
+  project       = var.project_id
+  location      = var.region
+  force_destroy = false
+
+  uniform_bucket_level_access = true
+
+  lifecycle_rule {
+    condition {
+      age = 3  # Data retention is 24h; 3 days gives buffer
+    }
+    action {
+      type = "Delete"
+    }
+  }
+}
+
 resource "google_cloud_run_v2_job" "air_quality_fetch" {
   name     = "air-quality-fetch"
   location = var.region
