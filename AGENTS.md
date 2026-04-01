@@ -82,11 +82,9 @@ For the full implementation guide, see the `long-flow-crawler-generator` skill. 
 
 - **Workflow Sync (CRITICAL):** When adding/removing crawlers, update ALL:
   1. `ingest/crawlers/{source-name}/` — implementation
-  2. `ingest/terraform/workflows/all.yaml` — parallel execution step
+  2. `local.crawlers` in `ingest/terraform/main.tf` — add entry (set `emergent = true` for 30-min crawlers)
   3. `shared/src/sources.ts` — `SOURCES` array (display name, URL, localities)
-  4. If emergent (30-min intervals): also `ingest/terraform/workflows/emergent.yaml` and `EMERGENT_CRAWLERS` in `ingest/pipeline.ts`
-
-- **Unique `logN` Step Names (CRITICAL):** Error-handler steps in `all.yaml` and `emergent.yaml` use sequential `logN` names. GCP Workflows requires these to be **unique within each file**. Always **read the file first**, find the highest `logN`, and use `logN+1`. Numbering resets per file.
+  4. If emergent (30-min intervals): also `EMERGENT_CRAWLERS` in `ingest/pipeline.ts`
 
 - **Emergent Classification:** Emergent crawlers run every 30 minutes; all others run 3× daily. This affects workflow definitions and Cloud Scheduler.
 

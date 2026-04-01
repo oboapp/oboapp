@@ -188,7 +188,9 @@ resource "google_workflows_workflow" "pipeline_emergent" {
   region          = var.region
   description     = "Orchestrates emergent crawlers (erm-zapad, toplo, sofiyska-voda) in parallel, then ingest and notify"
   service_account = google_service_account.ingest_runner.email
-  source_contents = file("${path.module}/workflows/emergent.yaml")
+  source_contents = templatefile("${path.module}/workflows/emergent.yaml.tftpl", {
+    crawler_job_names = [for k, v in local.crawlers : k if lookup(v, "emergent", false)]
+  })
   
   depends_on = [
     google_project_service.workflows,
@@ -202,7 +204,9 @@ resource "google_workflows_workflow" "pipeline_all" {
   region          = var.region
   description     = "Orchestrates all crawlers in parallel, then ingest and notify"
   service_account = google_service_account.ingest_runner.email
-  source_contents = file("${path.module}/workflows/all.yaml")
+  source_contents = templatefile("${path.module}/workflows/all.yaml.tftpl", {
+    crawler_job_names = [for k, v in local.crawlers : k]
+  })
   
   depends_on = [
     google_project_service.workflows,
@@ -232,18 +236,21 @@ locals {
       memory       = "512Mi"
       timeout      = "1800s"
       description  = "Crawl Sofiyska Voda"
+      emergent     = true
     }
     toplo = {
       source       = "toplo-bg"
       memory       = "512Mi"
       timeout      = "1800s"
       description  = "Crawl Toplo BG"
+      emergent     = true
     }
     erm-zapad = {
       source       = "erm-zapad"
       memory       = "512Mi"
       timeout      = "1800s"
       description  = "Crawl ERM-Zapad power outages"
+      emergent     = true
     }
     mladost = {
       source       = "mladost-bg"
@@ -328,6 +335,7 @@ locals {
       memory       = "512Mi"
       timeout      = "600s"
       description  = "Evaluate sensor.community air quality data"
+      emergent     = true
     }
   }
 }

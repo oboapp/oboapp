@@ -207,23 +207,22 @@ Examples:
 
 The pipeline uses Google Cloud Workflows for orchestration:
 
-- **Workflow definitions**: `workflows/emergent.yaml` and `workflows/all.yaml`
+- **Workflow definitions**: `workflows/all.yaml.tftpl` and `workflows/emergent.yaml.tftpl` (Terraform templates)
 - **Triggered by**: Cloud Scheduler (same schedules as before)
-- **Execution**: Crawlers run in parallel, followed by sequential ingest and notify
+- **Execution**: Crawlers run in parallel via `parallel: for:` loop, followed by sequential ingest and notify
 
-**Workflow changes**: When modifying workflow YAML files:
+**Workflow changes**: Workflow YAML is generated from Terraform templates using `templatefile()`. Crawler lists are derived automatically from `local.crawlers` in `main.tf`:
 
 ```bash
 terraform plan   # Workflows will be updated
 terraform apply
 ```
 
-**Adding new crawlers**: Update the appropriate workflow YAML file:
+**Adding new crawlers**: Only update `local.crawlers` in `main.tf`:
 
-1. For all crawlers: Update `workflows/all.yaml`
-2. For emergent crawlers (30-min intervals): Also update `workflows/emergent.yaml` and `EMERGENT_CRAWLERS` in `pipeline.ts`
-3. Add crawler job name to the parallel execution step
-4. `pipeline.ts` syncs automatically (discovers crawlers from filesystem)
+1. Add an entry to `local.crawlers` in `main.tf` — the workflow templates pick it up automatically
+2. For emergent crawlers (30-min intervals): Set `emergent = true` in the crawler entry and update `EMERGENT_CRAWLERS` in `pipeline.ts`
+3. `pipeline.ts` syncs automatically (discovers crawlers from filesystem)
 
 **Manual workflow testing**:
 

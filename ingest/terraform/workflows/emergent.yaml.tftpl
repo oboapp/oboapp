@@ -1,0 +1,67 @@
+# Cloud Workflow for Emergent Pipeline
+# Generated from Terraform template — do not edit by hand.
+# To add an emergent crawler, set emergent = true in local.crawlers in main.tf.
+
+main:
+  steps:
+    - init:
+        assign:
+          - project: '$${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}'
+          - region: '$${sys.get_env("GOOGLE_CLOUD_LOCATION")}'
+          - crawlers:
+%{ for name in crawler_job_names ~}
+              - "${name}"
+%{ endfor ~}
+    - crawlEmergent:
+        parallel:
+          for:
+            value: crawler
+            in: $${crawlers}
+            steps:
+              - callCrawler:
+                  try:
+                    call: http.post
+                    args:
+                      url: '$${"https://" + region + "-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/" + project + "/jobs/crawl-" + crawler + ":run"}'
+                      auth:
+                        type: OAuth2
+                  except:
+                    as: e
+                    steps:
+                      - logCrawlerError:
+                          call: sys.log
+                          args:
+                            text: '$${"Crawler " + crawler + " failed: " + string(e)}'
+                            severity: "ERROR"
+    - ingest:
+        try:
+          call: http.post
+          args:
+            url: '$${"https://" + region + "-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/" + project + "/jobs/ingest-messages:run"}'
+            auth:
+              type: OAuth2
+        except:
+          as: e
+          steps:
+            - logIngestError:
+                call: sys.log
+                args:
+                  text: '$${"Ingest failed: " + string(e)}'
+                  severity: "ERROR"
+    - notify:
+        try:
+          call: http.post
+          args:
+            url: '$${"https://" + region + "-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/" + project + "/jobs/send-notifications:run"}'
+            auth:
+              type: OAuth2
+        except:
+          as: e
+          steps:
+            - logNotifyError:
+                call: sys.log
+                args:
+                  text: '$${"Notify failed: " + string(e)}'
+                  severity: "ERROR"
+    - done:
+        return: "completed"
