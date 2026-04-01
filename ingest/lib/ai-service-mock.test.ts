@@ -47,7 +47,7 @@ describe("MOCK_GEMINI_API flag - integration tests", () => {
           "Using Gemini mock for filter & split",
         );
         expect(fnSource).toContain(
-          "return mockService.filterAndSplit(text)",
+          "return mockService.filterAndSplit(processedText)",
         );
       }
     });
@@ -129,7 +129,7 @@ describe("MOCK_GEMINI_API flag - integration tests", () => {
       const documentedBehavior = {
         filterAndSplit: {
           mockCheck: "if (USE_MOCK && mockService)",
-          mockReturn: "mockService.filterAndSplit(text)",
+          mockReturn: "mockService.filterAndSplit(processedText)",
           logMessage: "[MOCK] Using Gemini mock for filter & split",
         },
         categorize: {

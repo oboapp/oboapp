@@ -38,11 +38,6 @@ export async function filterAndSplit(
   text: string,
   ingestErrors?: IngestErrorRecorder,
 ): Promise<FilterSplitResult | null> {
-  if (USE_MOCK && mockService) {
-    logger.info("Using Gemini mock for filter & split");
-    return mockService.filterAndSplit(text);
-  }
-
   const processedText = truncateText(text, {
     maxLength: FILTER_SPLIT_MAX_LENGTH,
     truncateTo: FILTER_SPLIT_TRUNCATE_TO,
@@ -56,6 +51,11 @@ export async function filterAndSplit(
     )
   ) {
     return null;
+  }
+
+  if (USE_MOCK && mockService) {
+    logger.info("Using Gemini mock for filter & split");
+    return mockService.filterAndSplit(processedText);
   }
 
   const modelConfig = validateModelConfig(ingestErrors);

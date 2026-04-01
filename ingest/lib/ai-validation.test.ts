@@ -1,15 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+
+// Mock logger to suppress output during tests
+vi.mock("@/lib/logger", () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+
 import {
   validateText,
   validateModelConfig,
   sanitizeText,
   truncateText,
 } from "./ai-validation";
-
-// Mock logger to suppress output during tests
-vi.mock("@/lib/logger", () => ({
-  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-}));
 
 describe("ai-validation", () => {
   let originalEnv: NodeJS.ProcessEnv;
