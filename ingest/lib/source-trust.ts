@@ -37,6 +37,7 @@ const SOURCE_TRUST: Record<string, SourceTrustEntry> = {
   "triaditsa-org": { trust: 0.8, geometryQuality: 2 },
   "krasna-polyana-org": { trust: 0.8, geometryQuality: 2 },
   "vrabnitsa-org": { trust: 0.8, geometryQuality: 2 },
+  "nadezhda-org": { trust: 0.8, geometryQuality: 2 },
 };
 
 const DEFAULT_TRUST: SourceTrustEntry = { trust: 0.5, geometryQuality: 0 };
