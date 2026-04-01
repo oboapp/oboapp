@@ -43,6 +43,13 @@ export async function filterAndSplit(
     truncateTo: FILTER_SPLIT_TRUNCATE_TO,
   });
 
+  if (processedText !== text) {
+    logger.warn("Filter & split input was truncated", {
+      originalLength: text.length,
+      truncatedLength: processedText.length,
+    });
+  }
+
   if (
     !validateText(
       processedText,
