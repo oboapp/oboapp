@@ -38,12 +38,16 @@ See [web/](web) for details.
 
 ## Tech Stack
 
-- **Frontend**: Next.js 16, React 19, TypeScript, Google Maps API
-- **Backend**: Node.js, Firebase (Auth, Cloud Messaging), Firestore, MongoDB
-- **Database**: `@oboapp/db` abstraction with dual-write support (see [Database Layer](docs/features/database-layer.md))
-- **AI**: Google Gemini for address extraction
-- **Infrastructure**: Google Cloud Run, Terraform, Docker, Vercel
-- **Automation**: Playwright for web scraping
+- **Frontend**: Next.js, React, TypeScript, Tailwind CSS, Google Maps API, Leaflet, TanStack React Query, MDX
+- **BFF**: Next.js Route Handlers, Firebase Auth
+- **Public API**: Hono (on Vercel), Zod, OpenAPI auto-generation, API key auth
+- **Pipeline**: Node.js, Playwright, Google Cloud Run Jobs, Cloud Workflows
+- **Database**: Firebase (Auth, Firestore, Cloud Messaging), MongoDB, `@oboapp/db` dual-write abstraction (see [Database Layer](docs/features/database-layer.md))
+- **AI**: Google Gemini (filtering, categorization, location extraction, embeddings), promptfoo for evaluation
+- **Geospatial**: Google Geocoding, OpenStreetMap Overpass, Bulgarian Cadastre, Turf.js
+- **Infrastructure**: Google Cloud (Run, Workflows, Scheduler, Storage), Terraform, Docker, Vercel
+- **Testing**: Vitest, Testing Library, MSW, Playwright
+- **Tooling**: pnpm workspaces, ESLint, esbuild, TypeScript (strict)
 
 ## Documentation
 
