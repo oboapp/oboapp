@@ -104,6 +104,7 @@ Add screenshot companions in `ingest/crawlers/{{source-name}}/`:
 - `_message.png` - full-page screenshot of a representative message/detail page
 
 Notes:
+
 - Preferred naming is `_entry.png` and `_message.png`; source-specific names are acceptable when page types differ.
 - If screenshots cannot be captured in the current environment, add a TODO item in your final report and block completion until artifacts are provided.
 
@@ -175,12 +176,11 @@ Include:
 
 ## Phase 6: Front-End Integration
 
-Add the new source to `web/lib/sources.json`:
+Add the new source to `shared/src/sources.ts` (`SOURCES` array):
 
-- Read existing entries to understand the schema
-- Add entry with matching `sourceType` identifier
-- Include logo filename (must match `web/public/sources/{{source-name}}.png`)
-- Provide display name and description
+- Read existing entries to understand the `SourceDefinition` interface
+- Add entry with matching `id`, `url`, `name`, and `localities`
+- Add logo at `web/public/sources/{{source-name}}.png`
 
 ## Critical Rules from AGENTS.md
 
@@ -192,6 +192,8 @@ Add the new source to `web/lib/sources.json`:
 - **Logging**: Follow the `logging-conventions` skill — use `logger.debug` for per-item steps, `logger.info` only for start/summary with `sourceType` and counts
 - **Testing**: Unit tests only for extractors, no integration/e2e tests
 - **Theme**: If adding UI, use theme colors from `web/lib/colors.ts`
+- **Precomputed GeoJSON**: Crawlers that provide `precomputedGeoJson` bypass all AI processing stages (Filter & Split, Categorize, Extract Locations). Timespans transfer from source to message during ingestion.
+- **City-Wide Messages**: Set `cityWide: true` with a non-null empty FeatureCollection (`{ type: "FeatureCollection", features: [] }`) for alerts applying to the entire city. The `geoJson` field must be non-null so downstream null-filters don't drop city-wide messages. Bypasses viewport filtering (always visible), uses `sofia.geojson` for notification matching.
 
 ## Running the Crawler
 

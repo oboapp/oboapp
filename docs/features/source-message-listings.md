@@ -106,7 +106,7 @@ The following user actions are tracked for operational monitoring:
 
 ### Sources Management
 
-**Configuration**: Source metadata managed centrally in `/lib/sources.json` file.
+**Configuration**: Source metadata managed centrally in `shared/src/sources.ts` (`SOURCES` array).
 
 **Logo Assets**: Source logos expected at `/public/sources/{source-id}.png` with fallback handling.
 
