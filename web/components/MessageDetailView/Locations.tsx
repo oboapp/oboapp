@@ -30,6 +30,19 @@ function findMatchingAddress(
   );
 }
 
+// Find matching address for a bus stop code/name.
+// Bus stops may be stored as raw codes (e.g. "0529") while geocoded
+// addresses use "Спирка 0529" as originalText, so we try both forms.
+function findBusStopAddress(
+  busStop: string,
+  addresses: Address[] | null | undefined,
+): Address | null {
+  return (
+    findMatchingAddress(busStop, addresses) ??
+    findMatchingAddress(`Спирка ${busStop}`, addresses)
+  );
+}
+
 // Find coordinates for a text by matching against addresses
 function findCoordinates(
   text: string,
@@ -158,7 +171,7 @@ export default function Locations({
         <DetailItem title="Спирки">
           <div className="space-y-2">
             {busStops.map((busStop, index) => {
-              const matchedAddress = findMatchingAddress(busStop, addresses);
+              const matchedAddress = findBusStopAddress(busStop, addresses);
               const coords = matchedAddress?.coordinates ?? null;
               const displayName = matchedAddress?.formattedAddress ?? busStop;
               return (
@@ -166,7 +179,7 @@ export default function Locations({
                   key={`busstop-${busStop}-${index}`}
                   onClick={
                     coords && onLocationClick
-                      ? () => handleClick(busStop)
+                      ? () => handleClickCoords(coords.lat, coords.lng)
                       : undefined
                   }
                 >

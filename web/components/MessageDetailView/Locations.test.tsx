@@ -67,6 +67,46 @@ describe("Locations – bus stops", () => {
     expect(onLocationClick).toHaveBeenCalledWith(42.6977, 23.3219);
   });
 
+  it("resolves raw stop code via Спирка prefix fallback", () => {
+    render(
+      <Locations
+        busStops={["0529"]}
+        addresses={[
+          createAddress({
+            originalText: "Спирка 0529",
+            formattedAddress: "Ул. Хаджи Димитър (0529)",
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("Ул. Хаджи Димитър (0529)")).toBeInTheDocument();
+    expect(screen.queryByText("0529")).not.toBeInTheDocument();
+  });
+
+  it("clicking a raw stop code navigates to correct coordinates", async () => {
+    const onLocationClick = vi.fn();
+    render(
+      <Locations
+        busStops={["0529"]}
+        addresses={[
+          createAddress({
+            originalText: "Спирка 0529",
+            formattedAddress: "Ул. Хаджи Димитър (0529)",
+            coordinates: { lat: 42.7, lng: 23.35 },
+          }),
+        ]}
+        onLocationClick={onLocationClick}
+      />,
+    );
+
+    const button = screen.getByRole("button", {
+      name: "Ул. Хаджи Димитър (0529)",
+    });
+    await userEvent.click(button);
+    expect(onLocationClick).toHaveBeenCalledWith(42.7, 23.35);
+  });
+
   it("displays multiple bus stops with resolved names", () => {
     const addresses = [
       createAddress({
