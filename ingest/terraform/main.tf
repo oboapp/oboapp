@@ -186,7 +186,7 @@ data "google_secret_manager_secret" "google_embedding_model" {
 resource "google_workflows_workflow" "pipeline_emergent" {
   name            = "pipeline-emergent"
   region          = var.region
-  description     = "Orchestrates emergent crawlers (erm-zapad, toplo, sofiyska-voda) in parallel, then ingest and notify"
+  description     = "Orchestrates emergent crawlers in parallel, then ingest and notify"
   service_account = google_service_account.ingest_runner.email
   source_contents = templatefile("${path.module}/workflows/emergent.yaml.tftpl", {
     crawler_job_names = [for k, v in local.crawlers : k if lookup(v, "emergent", false)]

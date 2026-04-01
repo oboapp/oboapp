@@ -220,9 +220,9 @@ terraform apply
 
 **Adding new crawlers**: Only update `local.crawlers` in `main.tf`:
 
-1. Add an entry to `local.crawlers` in `main.tf` — the workflow templates pick it up automatically
-2. For emergent crawlers (30-min intervals): Set `emergent = true` in the crawler entry and update `EMERGENT_CRAWLERS` in `pipeline.ts`
-3. `pipeline.ts` syncs automatically (discovers crawlers from filesystem)
+1. Add an entry to `local.crawlers` in `main.tf` — the workflow templates pick it up automatically.
+2. For emergent crawlers (30-min intervals): set `emergent = true` in the crawler entry and update `EMERGENT_CRAWLERS` in `pipeline.ts`. This is a manual allowlist keyed by crawler source/directory names (not Terraform job keys).
+3. `pipeline.ts` automatically discovers the full list of available crawlers from the filesystem; only membership in the emergent group is controlled manually via `EMERGENT_CRAWLERS`.
 
 **Manual workflow testing**:
 
