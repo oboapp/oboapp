@@ -16,17 +16,26 @@ interface LocationsProps {
   onLocationClick?: (lat: number, lng: number) => void;
 }
 
+// Find matching address for a text by matching against addresses
+function findMatchingAddress(
+  text: string,
+  addresses: Address[] | null | undefined,
+): Address | null {
+  if (!addresses) return null;
+  const normalized = text.toLowerCase().trim();
+  return (
+    addresses.find(
+      (addr) => addr.originalText.toLowerCase().trim() === normalized,
+    ) ?? null
+  );
+}
+
 // Find coordinates for a text by matching against addresses
 function findCoordinates(
   text: string,
   addresses: Address[] | null | undefined,
 ): { lat: number; lng: number } | null {
-  if (!addresses) return null;
-  const normalized = text.toLowerCase().trim();
-  const match = addresses.find(
-    (addr) => addr.originalText.toLowerCase().trim() === normalized,
-  );
-  return match?.coordinates ?? null;
+  return findMatchingAddress(text, addresses)?.coordinates ?? null;
 }
 
 interface ClickableCardProps {
@@ -149,7 +158,9 @@ export default function Locations({
         <DetailItem title="Спирки">
           <div className="space-y-2">
             {busStops.map((busStop, index) => {
-              const coords = findCoordinates(busStop, addresses);
+              const matchedAddress = findMatchingAddress(busStop, addresses);
+              const coords = matchedAddress?.coordinates ?? null;
+              const displayName = matchedAddress?.formattedAddress ?? busStop;
               return (
                 <ClickableCard
                   key={`busstop-${busStop}-${index}`}
@@ -160,7 +171,7 @@ export default function Locations({
                   }
                 >
                   <p className="text-sm font-medium text-foreground">
-                    {busStop}
+                    {displayName}
                   </p>
                 </ClickableCard>
               );
