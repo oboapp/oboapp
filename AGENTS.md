@@ -45,8 +45,8 @@ async function main() {
 ### TypeScript
 
 - **Strict mode** — no implicit `any`.
-- **Named exports** — no default exports.
-- **No barrel files** — import directly (e.g., `import Button from "@/components/Button"`, not `from "@/components"`).
+- **Exports:** Prefer **named exports** in libraries and shared modules. Use **default exports** where required by frameworks (e.g., Next.js pages/layouts/components in `web/app/**`) or to match existing framework entrypoints.
+- **Imports / barrel files:** Avoid "barrel" re-export files in application code; import from the concrete module path instead (e.g., `import { Button } from "@/components/Button"`, not `from "@/components"`).
 
 ### ESLint
 
