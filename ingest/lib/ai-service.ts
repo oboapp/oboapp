@@ -8,6 +8,7 @@ import {
   validateText,
   validateModelConfig,
   sanitizeText,
+  truncateText,
 } from "./ai-validation";
 import {
   parseFilterSplitResponse,
@@ -30,6 +31,9 @@ const mockService = USE_MOCK ? new GeminiMockService() : null;
  * Splits a notification into individual messages, assesses relevance,
  * normalizes text, and extracts metadata (responsibleEntity, markdownText).
  */
+const FILTER_SPLIT_MAX_LENGTH = 30000;
+const FILTER_SPLIT_TRUNCATE_TO = 15000;
+
 export async function filterAndSplit(
   text: string,
   ingestErrors?: IngestErrorRecorder,
@@ -39,10 +43,15 @@ export async function filterAndSplit(
     return mockService.filterAndSplit(text);
   }
 
+  const processedText = truncateText(text, {
+    maxLength: FILTER_SPLIT_MAX_LENGTH,
+    truncateTo: FILTER_SPLIT_TRUNCATE_TO,
+  });
+
   if (
     !validateText(
-      text,
-      { maxLength: 10000, purpose: "filter & split" },
+      processedText,
+      { maxLength: FILTER_SPLIT_MAX_LENGTH, purpose: "filter & split" },
       ingestErrors,
     )
   ) {
@@ -57,7 +66,7 @@ export async function filterAndSplit(
   const responseText = await callGeminiApi(
     {
       model: modelConfig.model!,
-      contents: text,
+      contents: processedText,
       systemInstruction: getFilterSplitPrompt(),
     },
     ingestErrors,

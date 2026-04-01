@@ -1,5 +1,6 @@
 import type { IngestErrorRecorder } from "./ingest-errors";
 import { getIngestErrorRecorder } from "./ingest-errors";
+import { logger } from "@/lib/logger";
 
 export interface TextValidationOptions {
   readonly maxLength: number;
@@ -51,6 +52,37 @@ export function validateModelConfig(
   }
 
   return { isValid: true, model };
+}
+
+export interface TruncationOptions {
+  readonly maxLength: number;
+  readonly truncateTo: number;
+}
+
+/**
+ * Truncates text that exceeds maxLength, appending a notice.
+ * Returns original text unchanged if within limit.
+ */
+export function truncateText(
+  text: string,
+  options: TruncationOptions,
+): string {
+  if (options.truncateTo >= options.maxLength) {
+    throw new Error("truncateTo must be less than maxLength");
+  }
+
+  if (text.length <= options.maxLength) {
+    return text;
+  }
+
+  logger.warn("Truncating long text for AI processing", {
+    originalLength: text.length,
+    truncatedTo: options.truncateTo,
+    maxLength: options.maxLength,
+  });
+
+  const truncated = text.slice(0, options.truncateTo);
+  return `${truncated}\n\n... [Пълното съобщение е по-дълго от ${options.maxLength} символа. Съкратено до ${options.truncateTo}]`;
 }
 
 /**
