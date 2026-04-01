@@ -75,14 +75,23 @@ export function truncateText(
     return text;
   }
 
+  const notice = `\n\n... [Пълното съобщение е по-дълго от ${options.maxLength} символа. Съкратено до ${options.truncateTo}]`;
+  const maxContentLength = options.maxLength - notice.length;
+
+  if (maxContentLength <= 0) {
+    throw new Error("maxLength is too small to accommodate truncation notice");
+  }
+
+  const effectiveTruncateTo = Math.min(options.truncateTo, maxContentLength);
+
   logger.warn("Truncating long text for AI processing", {
     originalLength: text.length,
-    truncatedTo: options.truncateTo,
+    truncatedTo: effectiveTruncateTo,
     maxLength: options.maxLength,
   });
 
-  const truncated = text.slice(0, options.truncateTo);
-  return `${truncated}\n\n... [Пълното съобщение е по-дълго от ${options.maxLength} символа. Съкратено до ${options.truncateTo}]`;
+  const truncated = text.slice(0, effectiveTruncateTo);
+  return `${truncated}${notice}`;
 }
 
 /**

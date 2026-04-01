@@ -1,10 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   validateText,
   validateModelConfig,
   sanitizeText,
   truncateText,
 } from "./ai-validation";
+
+// Mock logger to suppress output during tests
+vi.mock("@/lib/logger", () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
 
 describe("ai-validation", () => {
   let originalEnv: NodeJS.ProcessEnv;
@@ -182,6 +187,12 @@ describe("ai-validation", () => {
       const notice =
         "\n\n... [Пълното съобщение е по-дълго от 1000 символа. Съкратено до 600]";
       expect(result).toBe("a".repeat(600) + notice);
+    });
+
+    it("should ensure total output does not exceed maxLength", () => {
+      const text = "a".repeat(2000);
+      const result = truncateText(text, { maxLength: 1000, truncateTo: 600 });
+      expect(result.length).toBeLessThanOrEqual(1000);
     });
 
     it("should throw if truncateTo >= maxLength", () => {
