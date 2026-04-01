@@ -38,7 +38,7 @@ keywords:
 
 ## Button Styling
 
-Use `getButtonClasses(variant, size, radius)` from `lib/theme.ts`.
+Use `getButtonClasses(variant, size, radius)` from `web/lib/theme.ts`.
 
 | Parameter    | Options                                                                                         |
 | ------------ | ----------------------------------------------------------------------------------------------- |
@@ -80,11 +80,11 @@ import { buttonStyles, buttonSizes, borderRadius } from "@/lib/theme";
 
 ## Opacity & Border Radius
 
-Import from `lib/colors.ts`: `opacity`, `borderRadius`. Use for consistent spacing and transparency across the app.
+Import from `web/lib/colors.ts`: `opacity`, `borderRadius`. Use for consistent spacing and transparency across the app.
 
 ## Quick Checks
 
 - [ ] No hardcoded Tailwind color classes (`bg-blue-*`, `text-gray-*`, `border-red-*`, etc.)
-- [ ] Buttons use `getButtonClasses()` or `buttonStyles.*` from `lib/theme.ts`
+- [ ] Buttons use `getButtonClasses()` or `buttonStyles.*` from `web/lib/theme.ts`
 - [ ] Color tokens match the semantic intent (e.g., `error-*` for errors, not `destructive-*`)
-- [ ] New colors added to `lib/colors.ts` first, then consumed via CSS variables
+- [ ] New colors added to `web/lib/colors.ts` first, then consumed via CSS variables

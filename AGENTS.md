@@ -54,7 +54,7 @@ async function main() {
 
 ### Tailwind Theme
 
-**Never hardcode color classes** (`bg-blue-*`, `text-gray-*`). Use theme tokens from `lib/colors.ts` and `lib/theme.ts`. See the `tailwind-theme` skill for the full color system and button API.
+**Never hardcode color classes** (`bg-blue-*`, `text-gray-*`). Use theme tokens from `web/lib/colors.ts` and `web/lib/theme.ts`. See the `tailwind-theme` skill for the full color system and button API.
 
 ### Adding Dependencies
 

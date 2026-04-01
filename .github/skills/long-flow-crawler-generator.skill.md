@@ -192,8 +192,8 @@ Add the new source to `shared/src/sources.ts` (`SOURCES` array):
 - **Logging**: Follow the `logging-conventions` skill — use `logger.debug` for per-item steps, `logger.info` only for start/summary with `sourceType` and counts
 - **Testing**: Unit tests only for extractors, no integration/e2e tests
 - **Theme**: If adding UI, use theme colors from `web/lib/colors.ts`
-- **Precomputed GeoJSON**: Crawlers that provide `precomputedGeoJson` bypass all AI processing stages (Filter & Split, Categorize, Extract Locations). Timespans transfer from source to message during ingestion.
-- **City-Wide Messages**: Set `cityWide: true` with a non-null empty FeatureCollection (`{ type: "FeatureCollection", features: [] }`) for alerts applying to the entire city. The `geoJson` field must be non-null so downstream null-filters don't drop city-wide messages. Bypasses viewport filtering (always visible), uses `sofia.geojson` for notification matching.
+- **Precomputed GeoJSON (non-long-flow crawlers only)**: For crawlers that explicitly provide `precomputedGeoJson` (not generated via this long-flow crawler skill), ingestion bypasses all AI processing stages (Filter & Split, Categorize, Extract Locations). Timespans transfer from source to message during ingestion.
+- **City-Wide Messages (non-long-flow crawlers only)**: For non-long-flow crawlers that manage `geoJson` directly, set `cityWide: true` with a non-null empty FeatureCollection (`{ type: "FeatureCollection", features: [] }`) for alerts applying to the entire city. The `geoJson` field must be non-null so downstream null-filters don't drop city-wide messages. This bypasses viewport filtering (always visible) and uses `sofia.geojson` for notification matching.
 
 ## Running the Crawler
 
