@@ -38,6 +38,34 @@ function loadPromptFile(filename: string): string {
   return readFileSync(join(PROMPTS_DIR, filename), "utf-8");
 }
 
+/**
+ * Loads the JSON schema matching a prompt file, for Gemini structured output.
+ * Returns undefined if no schema is defined for the prompt.
+ */
+async function loadResponseSchema(
+  promptFile: string,
+): Promise<unknown | undefined> {
+  switch (promptFile) {
+    case "filter-split.md": {
+      const { FILTER_SPLIT_JSON_SCHEMA } =
+        await import("../../lib/filter-split.schema");
+      return FILTER_SPLIT_JSON_SCHEMA;
+    }
+    case "categorize.md": {
+      const { CATEGORIZE_JSON_SCHEMA } =
+        await import("../../lib/categorize.schema");
+      return CATEGORIZE_JSON_SCHEMA;
+    }
+    case "extract-locations.md": {
+      const { EXTRACT_LOCATIONS_JSON_SCHEMA } =
+        await import("../../lib/extract-locations.schema");
+      return EXTRACT_LOCATIONS_JSON_SCHEMA;
+    }
+    default:
+      return undefined;
+  }
+}
+
 // Lazy singleton — same pattern as production ai-client.ts
 let ai: GoogleGenAI | null = null;
 function getClient(): GoogleGenAI {
@@ -90,6 +118,7 @@ class GeminiPipelineProvider {
     }
 
     const systemInstruction = loadPromptFile(this.promptFile);
+    const responseSchema = await loadResponseSchema(this.promptFile);
 
     try {
       const client = getClient();
@@ -99,6 +128,7 @@ class GeminiPipelineProvider {
         config: {
           systemInstruction,
           responseMimeType: "application/json",
+          ...(responseSchema ? { responseJsonSchema: responseSchema } : {}),
         },
       });
 

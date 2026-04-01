@@ -1,6 +1,9 @@
 import type { FilterSplitResult } from "./filter-split.schema";
+import { FILTER_SPLIT_JSON_SCHEMA } from "./filter-split.schema";
 import type { CategorizationResult } from "./categorize.schema";
+import { CATEGORIZE_JSON_SCHEMA } from "./categorize.schema";
 import type { ExtractedLocations } from "./extract-locations.schema";
+import { EXTRACT_LOCATIONS_JSON_SCHEMA } from "./extract-locations.schema";
 import type { IngestErrorRecorder } from "./ingest-errors";
 import { logger } from "@/lib/logger";
 import { GeminiMockService } from "../__mocks__/services/gemini-mock-service";
@@ -75,6 +78,7 @@ export async function filterAndSplit(
       model: modelConfig.model!,
       contents: processedText,
       systemInstruction: getFilterSplitPrompt(),
+      responseSchema: FILTER_SPLIT_JSON_SCHEMA,
     },
     ingestErrors,
   );
@@ -91,6 +95,9 @@ export async function filterAndSplit(
  * Classifies a single pre-split message into categories.
  * Input should be a plainText from Step 1.
  */
+const CATEGORIZE_MAX_LENGTH = 30000;
+const CATEGORIZE_TRUNCATE_TO = 8000;
+
 export async function categorize(
   text: string,
   ingestErrors?: IngestErrorRecorder,
@@ -100,10 +107,22 @@ export async function categorize(
     return mockService.categorize(text);
   }
 
+  const processedText = truncateText(text, {
+    maxLength: CATEGORIZE_MAX_LENGTH,
+    truncateTo: CATEGORIZE_TRUNCATE_TO,
+  });
+
+  if (processedText !== text) {
+    logger.warn("Categorization input was truncated", {
+      originalLength: text.length,
+      truncatedLength: processedText.length,
+    });
+  }
+
   if (
     !validateText(
-      text,
-      { maxLength: 10000, purpose: "message categorization" },
+      processedText,
+      { maxLength: CATEGORIZE_MAX_LENGTH, purpose: "message categorization" },
       ingestErrors,
     )
   ) {
@@ -118,8 +137,9 @@ export async function categorize(
   const responseText = await callGeminiApi(
     {
       model: modelConfig.model!,
-      contents: text,
+      contents: processedText,
       systemInstruction: getCategorizePrompt(),
+      responseSchema: CATEGORIZE_JSON_SCHEMA,
     },
     ingestErrors,
   );
@@ -137,6 +157,9 @@ export async function categorize(
  * pins, streets, cadastralProperties, busStops, cityWide, withSpecificAddress.
  * Input should be a plainText from Step 1.
  */
+const EXTRACT_LOCATIONS_MAX_LENGTH = 30000;
+const EXTRACT_LOCATIONS_TRUNCATE_TO = 4000;
+
 export async function extractLocations(
   text: string,
   ingestErrors?: IngestErrorRecorder,
@@ -146,17 +169,32 @@ export async function extractLocations(
     return mockService.extractLocations(text);
   }
 
+  const processedText = truncateText(text, {
+    maxLength: EXTRACT_LOCATIONS_MAX_LENGTH,
+    truncateTo: EXTRACT_LOCATIONS_TRUNCATE_TO,
+  });
+
+  if (processedText !== text) {
+    logger.warn("Location extraction input was truncated", {
+      originalLength: text.length,
+      truncatedLength: processedText.length,
+    });
+  }
+
   if (
     !validateText(
-      text,
-      { maxLength: 5000, purpose: "location extraction" },
+      processedText,
+      {
+        maxLength: EXTRACT_LOCATIONS_MAX_LENGTH,
+        purpose: "location extraction",
+      },
       ingestErrors,
     )
   ) {
     return null;
   }
 
-  const sanitizedText = sanitizeText(text);
+  const sanitizedText = sanitizeText(processedText);
 
   const modelConfig = validateModelConfig(ingestErrors);
   if (!modelConfig.isValid) {
@@ -168,6 +206,7 @@ export async function extractLocations(
       model: modelConfig.model!,
       contents: sanitizedText,
       systemInstruction: getExtractLocationsPrompt(),
+      responseSchema: EXTRACT_LOCATIONS_JSON_SCHEMA,
     },
     ingestErrors,
   );

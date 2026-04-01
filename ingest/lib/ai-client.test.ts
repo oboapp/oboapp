@@ -241,4 +241,29 @@ describe("callGeminiApi", () => {
     const result = await callGeminiApi(options);
     expect(result).toBe("recovered");
   });
+
+  it("passes responseJsonSchema to config when responseSchema is provided", async () => {
+    const schema = { type: "array", items: { type: "object" } };
+    mockGenerateContent.mockResolvedValueOnce({ text: "[]" });
+
+    await callGeminiApi({ ...options, responseSchema: schema });
+
+    expect(mockGenerateContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({
+          responseMimeType: "application/json",
+          responseJsonSchema: schema,
+        }),
+      }),
+    );
+  });
+
+  it("does not include responseJsonSchema when responseSchema is omitted", async () => {
+    mockGenerateContent.mockResolvedValueOnce({ text: "ok" });
+
+    await callGeminiApi(options);
+
+    const callConfig = mockGenerateContent.mock.calls[0][0].config;
+    expect(callConfig).not.toHaveProperty("responseJsonSchema");
+  });
 });

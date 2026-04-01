@@ -110,4 +110,10 @@ Example:
 
 </translation>
 
+<json-escaping>
+When producing JSON string values that contain Bulgarian quotation marks (the pairs „ and " or „ and "), keep them as literal UTF-8 characters inside the JSON string. Do NOT replace the closing " (U+201C) with a backslash-escaped ASCII double quote (\"). The ASCII double quote (") is the only quote character that must be escaped in JSON strings.
+
+For very long messages with many quoted street names, be especially careful to maintain consistent escaping throughout the entire response. Every JSON string value must be properly opened and closed with ASCII double quotes ("), and only ASCII double quotes inside the value need escaping.
+</json-escaping>
+
 **ALWAYS Return ONLY valid JSON**

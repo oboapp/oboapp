@@ -28,6 +28,7 @@ export interface GeminiApiOptions {
   readonly model: string;
   readonly contents: string;
   readonly systemInstruction: string;
+  readonly responseSchema?: unknown;
 }
 
 /**
@@ -65,6 +66,9 @@ export async function callGeminiApi(
         config: {
           systemInstruction: options.systemInstruction,
           responseMimeType: "application/json",
+          ...(options.responseSchema
+            ? { responseJsonSchema: options.responseSchema }
+            : {}),
         },
       });
 
