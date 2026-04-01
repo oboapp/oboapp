@@ -95,7 +95,6 @@ function shouldTryFallback(error: Error, statusCode?: number): boolean {
 // Multiple Overpass API instances for fallback
 const OVERPASS_INSTANCES = [
   "https://overpass.private.coffee/api/interpreter", // No rate limit
-  "https://maps.mail.ru/osm/tools/overpass/api/interpreter", // No rate limit (Russia)
   "https://overpass-api.de/api/interpreter", // Main instance (10k queries/day)
   "https://overpass.osm.jp/api/interpreter", // Japan instance
 ];
