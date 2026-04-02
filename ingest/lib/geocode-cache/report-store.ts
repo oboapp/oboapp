@@ -10,6 +10,7 @@ export interface FrequencyEntry {
   originalText: string;
   count: number;
   cached: boolean;
+  messageIds: string[];
 }
 
 export interface GeocodeCacheFrequencyReport {
@@ -54,6 +55,8 @@ export async function loadFrequencyReport(): Promise<GeocodeCacheFrequencyReport
   const [exists] = await file.exists();
   if (!exists) return null;
   const [content] = await file.download();
-  const data: GeocodeCacheFrequencyReport = JSON.parse(content.toString("utf-8"));
+  const data: GeocodeCacheFrequencyReport = JSON.parse(
+    content.toString("utf-8"),
+  );
   return data;
 }

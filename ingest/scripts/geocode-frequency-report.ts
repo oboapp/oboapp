@@ -14,7 +14,7 @@
 import { Command } from "commander";
 import dotenv from "dotenv";
 import { resolve } from "node:path";
-import type { Address, StreetSection } from "@/lib/types";
+import type { Pin, StreetSection } from "@/lib/types";
 import type { FrequencyEntry } from "@/lib/geocode-cache/report-store";
 
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
@@ -33,7 +33,7 @@ async function buildReport(dryRun: boolean): Promise<void> {
     console.log("Fetching messages...");
     const messages = await db.messages.findMany({
       where: [{ field: "finalizedAt", op: "!=", value: null }],
-      select: ["_id", "addresses", "streets"],
+      select: ["_id", "pins", "streets"],
     });
 
     console.log(`Analyzing ${messages.length} messages...`);
@@ -49,24 +49,25 @@ async function buildReport(dryRun: boolean): Promise<void> {
     // ── Aggregate pin frequencies ───────────────────────────────────────────
     const pinCounts = new Map<
       string,
-      { originalText: string; count: number }
+      { originalText: string; count: number; messageIds: string[] }
     >();
     for (const msg of messages) {
-      const addresses = (msg.addresses ?? []) as Address[];
+      const msgId = msg._id as string;
+      const pins = (msg.pins ?? []) as Pin[];
       const seen = new Set<string>();
-      for (const addr of addresses) {
-        const key = normalizePinAddress(
-          addr.formattedAddress || addr.originalText,
-        );
+      for (const pin of pins) {
+        const key = normalizePinAddress(pin.address);
         if (!seen.has(key)) {
           seen.add(key);
           const existing = pinCounts.get(key);
           if (existing) {
             existing.count++;
+            existing.messageIds.push(msgId);
           } else {
             pinCounts.set(key, {
-              originalText: addr.formattedAddress || addr.originalText,
+              originalText: pin.address,
               count: 1,
+              messageIds: [msgId],
             });
           }
         }
@@ -76,9 +77,10 @@ async function buildReport(dryRun: boolean): Promise<void> {
     // ── Aggregate street frequencies ────────────────────────────────────────
     const streetCounts = new Map<
       string,
-      { originalText: string; count: number }
+      { originalText: string; count: number; messageIds: string[] }
     >();
     for (const msg of messages) {
+      const msgId = msg._id as string;
       const streets = (msg.streets ?? []) as StreetSection[];
       const seen = new Set<string>();
       for (const s of streets) {
@@ -88,8 +90,13 @@ async function buildReport(dryRun: boolean): Promise<void> {
           const existing = streetCounts.get(key);
           if (existing) {
             existing.count++;
+            existing.messageIds.push(msgId);
           } else {
-            streetCounts.set(key, { originalText: s.street, count: 1 });
+            streetCounts.set(key, {
+              originalText: s.street,
+              count: 1,
+              messageIds: [msgId],
+            });
           }
         }
       }
@@ -97,20 +104,22 @@ async function buildReport(dryRun: boolean): Promise<void> {
 
     // ── Build sorted entries ────────────────────────────────────────────────
     const pins: FrequencyEntry[] = Array.from(pinCounts.entries())
-      .map(([key, { originalText, count }]) => ({
+      .map(([key, { originalText, count, messageIds }]) => ({
         key,
         originalText,
         count,
         cached: cachedPinKeys.has(key),
+        messageIds,
       }))
       .sort((a, b) => b.count - a.count);
 
     const streets: FrequencyEntry[] = Array.from(streetCounts.entries())
-      .map(([key, { originalText, count }]) => ({
+      .map(([key, { originalText, count, messageIds }]) => ({
         key,
         originalText,
         count,
         cached: cachedStreetKeys.has(key),
+        messageIds,
       }))
       .sort((a, b) => b.count - a.count);
 

@@ -39,11 +39,19 @@ export default function SourcesPage() {
         </div>
 
         <h2
-          className="text-2xl font-semibold text-gray-900 mb-6 mt-12"
+          className="text-2xl font-semibold text-gray-900 mb-2 mt-12"
           lang="en"
         >
           Geocoding
         </h2>
+        <p className="text-sm mb-6">
+          <Link
+            href="/geocode-cache"
+            className="text-link hover:text-link-hover hover:underline"
+          >
+            Преглед на кеша →
+          </Link>
+        </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {geocodingSources.map((source) => (

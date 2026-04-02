@@ -1,0 +1,147 @@
+import { NextResponse } from "next/server";
+import { getDb } from "@/lib/db";
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function isRecordArray(v: unknown): v is Record<string, unknown>[] {
+  return Array.isArray(v) && v.every(isRecord);
+}
+
+function isCoordinates(v: unknown): v is { lat: number; lng: number } {
+  return isRecord(v) && typeof v.lat === "number" && typeof v.lng === "number";
+}
+
+interface ProcessStep {
+  step: string;
+  result: unknown;
+}
+
+function isProcessStep(v: unknown): v is ProcessStep {
+  return isRecord(v) && typeof v.step === "string";
+}
+
+interface StoredStreetGeometry {
+  originalName: string;
+  geometry: {
+    type: "Feature";
+    geometry: { type: string; coordinates: number[][][] };
+  };
+}
+
+function isStoredStreetGeometry(v: unknown): v is StoredStreetGeometry {
+  if (!isRecord(v)) return false;
+  if (typeof v.originalName !== "string") return false;
+  const geo = v.geometry;
+  if (!isRecord(geo)) return false;
+  const inner = geo.geometry;
+  return isRecord(inner) && inner.type === "MultiLineString";
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const type = searchParams.get("type");
+  const originalText = searchParams.get("originalText");
+  const messageIdsParam = searchParams.get("messageIds");
+
+  if (type !== "pin" && type !== "street") {
+    return NextResponse.json(
+      { error: "type must be pin or street" },
+      { status: 400 },
+    );
+  }
+  if (!originalText || !messageIdsParam) {
+    return NextResponse.json(
+      { error: "originalText and messageIds are required" },
+      { status: 400 },
+    );
+  }
+
+  const messageIds = messageIdsParam
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean)
+    .slice(0, 20); // guard against abuse
+
+  try {
+    const db = await getDb();
+
+    if (type === "pin") {
+      const items: {
+        messageId: string;
+        lat: number;
+        lng: number;
+        formattedAddress: string;
+      }[] = [];
+
+      for (const id of messageIds) {
+        const msg = await db.messages.findById(id);
+        if (!msg) continue;
+
+        const rawAddresses = msg.addresses ?? [];
+        if (!isRecordArray(rawAddresses)) continue;
+
+        const match = rawAddresses.find((a) => a.originalText === originalText);
+        if (!match) continue;
+
+        if (!isCoordinates(match.coordinates)) continue;
+
+        items.push({
+          messageId: id,
+          lat: match.coordinates.lat,
+          lng: match.coordinates.lng,
+          formattedAddress:
+            typeof match.formattedAddress === "string"
+              ? match.formattedAddress
+              : originalText,
+        });
+      }
+
+      return NextResponse.json({ items });
+    }
+
+    // type === "street"
+    const items: {
+      messageId: string;
+      coordinates: { lat: number; lng: number }[][];
+    }[] = [];
+
+    for (const id of messageIds) {
+      const msg = await db.messages.findById(id);
+      if (!msg) continue;
+
+      const rawProcess = msg.process ?? [];
+      if (!Array.isArray(rawProcess)) continue;
+
+      const step = rawProcess
+        .filter(isProcessStep)
+        .find((s) => s.step === "streetGeometries");
+      if (!step) continue;
+
+      const rawGeometries = Array.isArray(step.result) ? step.result : [];
+      const entry = rawGeometries
+        .filter(isStoredStreetGeometry)
+        .find((g) => g.originalName === originalText);
+      if (!entry) continue;
+
+      const multiLine = entry.geometry.geometry;
+      if (multiLine.type !== "MultiLineString") continue;
+
+      // Convert GeoJSON [lng, lat] → Google Maps { lat, lng }
+      const coordinates = multiLine.coordinates.map((line) =>
+        line.map(([lng, lat]) => ({ lat: lat ?? 0, lng: lng ?? 0 })),
+      );
+
+      items.push({ messageId: id, coordinates });
+    }
+
+    return NextResponse.json({ items });
+  } catch (err) {
+    console.error("Failed to fetch geocode geometries", err);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
