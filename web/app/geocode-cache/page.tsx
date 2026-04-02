@@ -155,13 +155,13 @@ function GeometryPanel({
       {/* Header */}
       <div className="flex items-start justify-between px-4 py-3 border-b border-neutral-border">
         <div className="min-w-0">
-          <p className="text-xs text-neutral/60 uppercase tracking-wide mb-0.5">
+          <p className="text-xs text-neutral uppercase tracking-wide mb-0.5">
             {type === "pin" ? "Адрес (пин)" : "Улица"}
           </p>
-          <p className="font-semibold text-neutral truncate">
+          <p className="text-lg font-semibold text-foreground truncate">
             {entry.originalText}
           </p>
-          <p className="text-xs text-neutral/50 mt-0.5">
+          <p className="text-sm text-neutral mt-0.5">
             {entry.count}× в {entry.messageIds.length} съобщени
             {entry.messageIds.length === 1 ? "е" : "я"}
           </p>
@@ -169,7 +169,7 @@ function GeometryPanel({
         <button
           type="button"
           onClick={onClose}
-          className="ml-3 mt-0.5 shrink-0 text-neutral hover:text-neutral/60 transition-colors cursor-pointer"
+          className="ml-3 mt-0.5 shrink-0 text-foreground hover:text-neutral transition-colors cursor-pointer"
           aria-label="Затвори"
         >
           <svg
@@ -242,10 +242,10 @@ function GeometryPanel({
 
       {/* Message list */}
       <div className="flex-1 overflow-y-auto px-4 py-3">
-        {loading && <p className="text-sm text-neutral/60">Зарежда се...</p>}
-        {fetchError && <p className="text-sm text-destructive">{fetchError}</p>}
+        {loading && <p className="text-base text-neutral">Зарежда се...</p>}
+        {fetchError && <p className="text-base text-destructive">{fetchError}</p>}
         {!loading && !fetchError && data && data.items.length === 0 && (
-          <p className="text-sm text-neutral/60">
+          <p className="text-base text-neutral">
             Няма запазена геометрия в тези съобщения. Вероятно са по-стари от
             функционалността с кеширане.
           </p>
@@ -254,7 +254,7 @@ function GeometryPanel({
           <ul className="space-y-2">
             {data.type === "pin"
               ? data.items.map((item, i) => (
-                  <li key={item.messageId} className="flex items-center gap-2 text-sm">
+                  <li key={item.messageId} className="flex items-center gap-2">
                     <span
                       className="inline-block w-3 h-3 rounded-full shrink-0"
                       style={{ background: COLORS[i % COLORS.length] }}
@@ -263,15 +263,18 @@ function GeometryPanel({
                       href={`/m/${item.messageId}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-info hover:underline font-mono"
+                      className="text-info hover:underline font-mono shrink-0"
                     >
                       {item.messageId}
                     </a>
-                    <span className="text-neutral/60 truncate">{item.formattedAddress}</span>
+                    <span className="text-neutral truncate flex-1">{item.formattedAddress}</span>
+                    {!entry.cached && (
+                      <CopyCommand entry={entry} messageId={item.messageId} type={type} />
+                    )}
                   </li>
                 ))
               : data.items.map((item, i) => (
-                  <li key={item.messageId} className="flex items-center gap-2 text-sm">
+                  <li key={item.messageId} className="flex items-center gap-2">
                     <span
                       className="inline-block w-3 h-3 rounded-full shrink-0"
                       style={{ background: COLORS[i % COLORS.length] }}
@@ -280,20 +283,56 @@ function GeometryPanel({
                       href={`/m/${item.messageId}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-info hover:underline font-mono"
+                      className="text-info hover:underline font-mono shrink-0"
                     >
                       {item.messageId}
                     </a>
-                    <span className="text-neutral/60">
+                    <span className="text-neutral shrink-0">
                       {item.coordinates.length} сегмент
                       {item.coordinates.length !== 1 ? "а" : ""}
                     </span>
+                    {!entry.cached && (
+                      <CopyCommand entry={entry} messageId={item.messageId} type={type} />
+                    )}
                   </li>
                 ))}
           </ul>
         )}
       </div>
     </div>
+  );
+}
+
+function CopyCommand({
+  entry,
+  messageId,
+  type,
+}: {
+  entry: FrequencyEntry;
+  messageId: string;
+  type: "pin" | "street";
+}) {
+  const [copied, setCopied] = useState(false);
+  const cmd = `pnpm geocode-cache:add -- --message ${messageId} --address "${entry.originalText}" --type ${type}`;
+
+  function handleClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    void navigator.clipboard.writeText(cmd).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      title={cmd}
+      className="shrink-0 flex items-center gap-1 text-neutral hover:text-info transition-colors text-sm font-mono"
+    >
+      <span>geocode-cache:add</span>
+      <span>{copied ? "✓" : "⧉"}</span>
+    </button>
   );
 }
 
