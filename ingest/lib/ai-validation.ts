@@ -75,7 +75,7 @@ export function truncateText(
     return text;
   }
 
-  const notice = `\n\n... [TRUNCATED: original >${options.maxLength} chars, kept ${options.truncateTo}]`;
+  const notice = `\n\n... [This message was originally ${text.length} characters long but was programmatically truncated. Some content is missing.]`;
   const maxContentLength = options.maxLength - notice.length;
 
   if (maxContentLength <= 0) {
@@ -84,7 +84,7 @@ export function truncateText(
 
   const effectiveTruncateTo = Math.min(options.truncateTo, maxContentLength);
 
-  const accurateNotice = `\n\n... [TRUNCATED: original >${options.maxLength} chars, kept ${effectiveTruncateTo}]`;
+  const accurateNotice = notice;
 
   logger.warn("Truncating long text for AI processing", {
     originalLength: text.length,

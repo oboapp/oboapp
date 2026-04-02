@@ -178,14 +178,16 @@ describe("ai-validation", () => {
       const text = "a".repeat(1500);
       const result = truncateText(text, { maxLength: 1000, truncateTo: 500 });
       expect(result).toContain("a".repeat(500));
-      expect(result).toContain("TRUNCATED: original >1000 chars, kept 500");
+      expect(result).toContain(
+        "This message was originally 1500 characters long but was programmatically truncated",
+      );
     });
 
     it("should truncate to truncateTo length plus notice", () => {
       const text = "a".repeat(2000);
       const result = truncateText(text, { maxLength: 1000, truncateTo: 600 });
       const notice =
-        "\n\n... [TRUNCATED: original >1000 chars, kept 600]";
+        "\n\n... [This message was originally 2000 characters long but was programmatically truncated. Some content is missing.]";
       expect(result).toBe("a".repeat(600) + notice);
     });
 
