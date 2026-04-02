@@ -6,13 +6,38 @@
  */
 
 import type { Feature, MultiLineString } from "geojson";
-import type { Address, Coordinates, GeoJsonPoint } from "@/lib/types";
+import type { Address } from "@/lib/types";
+import { getString, getCoordinates, isRecord } from "@/lib/record-fields";
 
 // Pin cache: normalized address string → Address
 let pinCache: Map<string, Address> | null = null;
 
 // Street cache seeding flag (streetGeometryCache lives in overpass/service.ts)
 let streetCacheSeeded = false;
+
+function isFeatureMultiLineString(v: unknown): v is Feature<MultiLineString> {
+  return (
+    isRecord(v) &&
+    (v.type === "Feature") &&
+    isRecord(v.geometry) &&
+    (v.geometry.type === "MultiLineString" || v.geometry.type === "LineString")
+  );
+}
+
+function recordToAddress(e: Record<string, unknown>): [string, Address] | null {
+  const key = getString(e.key);
+  if (!key) return null;
+  const coordinates = getCoordinates(e.coordinates);
+  if (!coordinates) return null;
+  return [
+    key,
+    {
+      originalText: getString(e.originalText),
+      formattedAddress: getString(e.formattedAddress),
+      coordinates,
+    },
+  ];
+}
 
 /**
  * Look up a pre-cached pin (Google Geocoding result) by normalized address key.
@@ -26,15 +51,10 @@ export async function lookupCachedPin(
     const db = await getDb();
     const entries = await db.geocodeCachePins.findAll();
     pinCache = new Map(
-      entries.map((e) => [
-        e.key as string,
-        {
-          originalText: e.originalText as string,
-          formattedAddress: e.formattedAddress as string,
-          coordinates: e.coordinates as Coordinates,
-          geoJson: e.geoJson as GeoJsonPoint,
-        },
-      ]),
+      entries.flatMap((e) => {
+        const pair = recordToAddress(e);
+        return pair ? [pair] : [];
+      }),
     );
   }
   return pinCache.get(normalizedAddress) ?? null;
@@ -55,10 +75,12 @@ export async function seedStreetCacheFromDb(): Promise<void> {
 
   const { seedStreetGeometryCache } = await import("./overpass/service");
   seedStreetGeometryCache(
-    entries.map((e) => ({
-      originalName: e.originalText as string,
-      geometry: e.geoJson as Feature<MultiLineString>,
-    })),
+    entries.flatMap((e) => {
+      const originalName = getString(e.originalText);
+      const geometry = e.geoJson;
+      if (!originalName || !isFeatureMultiLineString(geometry)) return [];
+      return [{ originalName, geometry }];
+    }),
   );
 }
 

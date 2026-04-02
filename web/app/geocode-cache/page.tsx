@@ -77,13 +77,16 @@ export default function GeocodeCachePage() {
   const [filterUncached, setFilterUncached] = useState(false);
 
   useEffect(() => {
-    fetch("/api/geocode-cache/report")
-      .then((r) => {
+    void (async () => {
+      try {
+        const r = await fetch("/api/geocode-cache/report");
         if (!r.ok) throw new Error(`Грешка ${r.status}`);
-        return r.json() as Promise<Report>;
-      })
-      .then(setReport)
-      .catch((e: Error) => setError(e.message));
+        const data: Report = await r.json();
+        setReport(data);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    })();
   }, []);
 
   if (error) {
@@ -133,12 +136,14 @@ export default function GeocodeCachePage() {
 
       <div className="flex gap-3 mb-6">
         <button
+          type="button"
           className="text-xs px-3 py-1.5 rounded border border-neutral-border hover:bg-neutral-light transition-colors cursor-pointer"
           onClick={() => setFilterUncached((v) => !v)}
         >
           {filterUncached ? "Покажи всички" : "Само некеширани"}
         </button>
         <button
+          type="button"
           className="text-xs px-3 py-1.5 rounded border border-neutral-border hover:bg-neutral-light transition-colors cursor-pointer"
           onClick={() => setShowAll((v) => !v)}
         >

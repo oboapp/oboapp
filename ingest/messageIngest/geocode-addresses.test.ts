@@ -34,6 +34,10 @@ vi.mock("@/geocoding/overpass/service", () => ({
   overpassGeocodeAddresses: vi.fn().mockResolvedValue([]),
 }));
 
+vi.mock("@/geocoding/cache", () => ({
+  seedStreetCacheFromDb: vi.fn().mockResolvedValue(undefined),
+}));
+
 describe(findMissingStreetEndpoints, () => {
   it("should return empty array when all endpoints are geocoded", () => {
     const streets: StreetSection[] = [
