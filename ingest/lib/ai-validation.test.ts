@@ -178,15 +178,14 @@ describe("ai-validation", () => {
       const text = "a".repeat(1500);
       const result = truncateText(text, { maxLength: 1000, truncateTo: 500 });
       expect(result).toContain("a".repeat(500));
-      expect(result).toContain("Пълното съобщение е по-дълго от 1000 символа");
-      expect(result).toContain("Съкратено до 500");
+      expect(result).toContain("TRUNCATED: original >1000 chars, kept 500");
     });
 
     it("should truncate to truncateTo length plus notice", () => {
       const text = "a".repeat(2000);
       const result = truncateText(text, { maxLength: 1000, truncateTo: 600 });
       const notice =
-        "\n\n... [Пълното съобщение е по-дълго от 1000 символа. Съкратено до 600]";
+        "\n\n... [TRUNCATED: original >1000 chars, kept 600]";
       expect(result).toBe("a".repeat(600) + notice);
     });
 

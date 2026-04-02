@@ -46,13 +46,6 @@ export async function filterAndSplit(
     truncateTo: FILTER_SPLIT_TRUNCATE_TO,
   });
 
-  if (processedText !== text) {
-    logger.warn("Filter & split input was truncated", {
-      originalLength: text.length,
-      truncatedLength: processedText.length,
-    });
-  }
-
   if (
     !validateText(
       processedText,
@@ -106,13 +99,6 @@ export async function categorize(
     maxLength: CATEGORIZE_MAX_LENGTH,
     truncateTo: CATEGORIZE_TRUNCATE_TO,
   });
-
-  if (processedText !== text) {
-    logger.warn("Categorization input was truncated", {
-      originalLength: text.length,
-      truncatedLength: processedText.length,
-    });
-  }
 
   if (
     !validateText(
@@ -168,13 +154,6 @@ export async function extractLocations(
     maxLength: EXTRACT_LOCATIONS_MAX_LENGTH,
     truncateTo: EXTRACT_LOCATIONS_TRUNCATE_TO,
   });
-
-  if (processedText !== text) {
-    logger.warn("Location extraction input was truncated", {
-      originalLength: text.length,
-      truncatedLength: processedText.length,
-    });
-  }
 
   if (
     !validateText(
