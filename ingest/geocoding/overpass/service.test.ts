@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   normalizeAddressForNominatim,
   normalizeStreetName,
   toOverpassRegex,
+  clearStreetGeometryCache,
 } from "./service";
 
 describe("overpass-geocoding-service", () => {
@@ -295,6 +296,22 @@ describe("overpass-geocoding-service", () => {
       expect(normalizeAddressForNominatim("бл. 12, ж.к. Младост")).toBe(
         "бл. 12, ж.к. Младост",
       );
+    });
+  });
+
+  describe("clearStreetGeometryCache", () => {
+    beforeEach(() => {
+      clearStreetGeometryCache();
+    });
+
+    it("does not throw when cache is empty", () => {
+      expect(() => clearStreetGeometryCache()).not.toThrow();
+    });
+
+    it("can be called multiple times safely", () => {
+      clearStreetGeometryCache();
+      clearStreetGeometryCache();
+      expect(() => clearStreetGeometryCache()).not.toThrow();
     });
   });
 });

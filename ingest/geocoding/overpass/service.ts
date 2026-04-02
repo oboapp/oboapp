@@ -27,6 +27,14 @@ const OVERPASS_DELAY_MS = 500; // 500ms for Overpass API (generous limits)
 const OVERPASS_TIMEOUT_MS = 25000; // 25 seconds timeout for HTTP requests
 const BUFFER_DISTANCE_METERS = 30; // Buffer distance for street geometries
 
+// In-memory cache for street geometry lookups (keyed on normalized street name)
+const streetGeometryCache = new Map<string, Feature<MultiLineString> | null>();
+
+/** Clear the street geometry cache. Exported for test isolation. */
+export function clearStreetGeometryCache(): void {
+  streetGeometryCache.clear();
+}
+
 /**
  * Parse Overpass XML error response to extract error message
  */
@@ -128,6 +136,13 @@ async function getStreetGeometryFromOverpass(
   try {
     // Normalize street name for better OSM matching
     const normalizedName = normalizeStreetName(streetName);
+
+    // Return cached result if available (includes null for streets not found in OSM)
+    if (streetGeometryCache.has(normalizedName)) {
+      logger.info("Street geometry cache hit", { streetName, normalizedName });
+      return streetGeometryCache.get(normalizedName)!;
+    }
+
     const queryRegex = toOverpassRegex(normalizedName);
 
     // Check if this is a square/plaza (площад/пл.)
@@ -267,6 +282,7 @@ async function getStreetGeometryFromOverpass(
     if (!responseData.elements || responseData.elements.length === 0) {
       // No OSM ways found - API request succeeded but no data for this street name
       logger.info("Could not find street in OSM", { streetName });
+      streetGeometryCache.set(normalizedName, null);
       return null;
     }
 
@@ -309,6 +325,7 @@ async function getStreetGeometryFromOverpass(
 
     if (lineStrings.length === 0) {
       logger.info("No valid geometries in response", { streetName });
+      streetGeometryCache.set(normalizedName, null);
       return null;
     }
 
@@ -327,6 +344,7 @@ async function getStreetGeometryFromOverpass(
       },
     };
 
+    streetGeometryCache.set(normalizedName, multiLineString);
     return multiLineString;
   } catch (error) {
     logger.error("Error fetching from Overpass", {
