@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 
 // Mock Firebase-dependent imports to avoid initialization errors
+vi.mock("@/lib/logger", () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+
 vi.mock("./gtfs/geocoding-service", () => ({
   geocodeBusStops: vi.fn(),
 }));
@@ -311,15 +315,17 @@ describe("geocodeIntersectionsForStreets", () => {
     expect(result.get("Cross B")).toEqual({ lat: 42.7, lng: 23.3 });
   });
 
-  it("should skip empty 'from' and 'to' endpoints without calling Overpass", async () => {
+  it("should not call Overpass for empty or whitespace-only endpoints", async () => {
     const { geocodeIntersectionsForStreets } = await import("./router");
     const { overpassGeocodeIntersections, overpassGeocodeAddresses } =
       await import("./overpass/service");
+    const { logger } = await import("@/lib/logger");
 
     const mockOverpassGeocodeIntersections = vi.mocked(
       overpassGeocodeIntersections,
     );
     const mockOverpassGeocodeAddresses = vi.mocked(overpassGeocodeAddresses);
+    const mockWarn = vi.mocked(logger.warn);
 
     mockOverpassGeocodeIntersections.mockResolvedValue([]);
     mockOverpassGeocodeAddresses.mockResolvedValue([]);
@@ -341,10 +347,20 @@ describe("geocodeIntersectionsForStreets", () => {
 
     await geocodeIntersectionsForStreets(streets);
 
-    // Only Cross B should produce an intersection query; empty / blank endpoints must not
+    // Valid endpoints still produce intersection queries; empty/blank ones do not
     expect(mockOverpassGeocodeIntersections).toHaveBeenCalledWith([
       "ул. Main ∩ Cross B",
       "ул. Second ∩ Cross C",
     ]);
+
+    // A warn must be emitted for each skipped endpoint
+    expect(mockWarn).toHaveBeenCalledWith(
+      "Skipping empty endpoint in intersection geocoding",
+      { street: "ул. Main", endpoint: "" },
+    );
+    expect(mockWarn).toHaveBeenCalledWith(
+      "Skipping empty endpoint in intersection geocoding",
+      { street: "ул. Second", endpoint: "   " },
+    );
   });
 });

@@ -132,6 +132,7 @@ export async function geocodeIntersectionsForStreets(
     if (!endpoint.trim()) {
       logger.warn("Skipping empty endpoint in intersection geocoding", {
         street: streetName,
+        endpoint,
       });
     } else if (hasHouseNumber(endpoint)) {
       houseNumberEndpoints.set(endpoint, streetName);
