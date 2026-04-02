@@ -59,8 +59,7 @@ export async function getStreetGeometry(
   startCoords: Coordinates,
   endCoords: Coordinates,
 ): Promise<[number, number][] | null> {
-  const { getStreetSectionGeometry } =
-    await import("./overpass/service");
+  const { getStreetSectionGeometry } = await import("./overpass/service");
   const geometry = await getStreetSectionGeometry(
     streetName,
     startCoords,
@@ -128,36 +127,26 @@ export async function geocodeIntersectionsForStreets(
   const intersections: string[] = [];
   const houseNumberEndpoints = new Map<string, string>(); // endpoint -> street name
 
-  streets.forEach((street) => {
-    // "from" endpoint - only process if not already geocoded
-    // Skip endpoints already in preGeocodedMap to avoid redundant Overpass/Nominatim API calls
-    if (!preGeocodedMap?.has(street.from)) {
-      if (hasHouseNumber(street.from)) {
-        // Track street context for house-number endpoints to avoid ambiguous queries
-        houseNumberEndpoints.set(street.from, street.street);
-      } else {
-        const fromIntersection = `${street.street} ∩ ${street.from}`;
-        if (!intersectionSet.has(fromIntersection)) {
-          intersectionSet.add(fromIntersection);
-          intersections.push(fromIntersection);
-        }
+  function processEndpoint(endpoint: string, streetName: string): void {
+    if (preGeocodedMap?.has(endpoint)) return;
+    if (!endpoint.trim()) {
+      logger.warn("Skipping empty endpoint in intersection geocoding", {
+        street: streetName,
+      });
+    } else if (hasHouseNumber(endpoint)) {
+      houseNumberEndpoints.set(endpoint, streetName);
+    } else {
+      const intersection = `${streetName} ∩ ${endpoint}`;
+      if (!intersectionSet.has(intersection)) {
+        intersectionSet.add(intersection);
+        intersections.push(intersection);
       }
     }
+  }
 
-    // "to" endpoint - only process if not already geocoded
-    // Skip endpoints already in preGeocodedMap to avoid redundant Overpass/Nominatim API calls
-    if (!preGeocodedMap?.has(street.to)) {
-      if (hasHouseNumber(street.to)) {
-        // Track street context for house-number endpoints to avoid ambiguous queries
-        houseNumberEndpoints.set(street.to, street.street);
-      } else {
-        const toIntersection = `${street.street} ∩ ${street.to}`;
-        if (!intersectionSet.has(toIntersection)) {
-          intersectionSet.add(toIntersection);
-          intersections.push(toIntersection);
-        }
-      }
-    }
+  streets.forEach((street) => {
+    processEndpoint(street.from, street.street);
+    processEndpoint(street.to, street.street);
   });
 
   // Geocode cross-street intersections via Overpass
