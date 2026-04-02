@@ -21,6 +21,15 @@ export async function geocodeAddress(address: string): Promise<Address | null> {
     return mockService.geocodeAddress(address);
   }
 
+  // Check pin cache before calling Google Geocoding API
+  const { normalizePinAddress } = await import("../shared/normalize-address");
+  const { lookupCachedPin } = await import("../cache");
+  const cached = await lookupCachedPin(normalizePinAddress(address));
+  if (cached) {
+    logger.info("Pin cache hit, skipping Google Geocoding API", { address });
+    return cached;
+  }
+
   try {
     const locality = getLocality();
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;

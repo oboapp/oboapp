@@ -440,6 +440,10 @@ export async function geocodeAddressesFromExtractedData(
     return { preGeocodedMap, addresses };
   }
 
+  // Pre-populate in-memory street geometry cache from DB (no-op after first call)
+  const { seedStreetCacheFromDb } = await import("@/geocoding/cache");
+  await seedStreetCacheFromDb();
+
   // Geocode each location type using specialized services
   await geocodePins(extractedData, preGeocodedMap, addresses);
   await geocodeStreetIntersections(extractedData, preGeocodedMap, addresses);

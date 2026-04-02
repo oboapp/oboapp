@@ -70,6 +70,29 @@ export function getStreetGeometryCached(
 }
 
 /**
+ * Pre-populate the in-memory street geometry cache from externally stored entries
+ * (e.g. the geocode cache DB collection). Entries already present are not overwritten.
+ */
+export function seedStreetGeometryCache(
+  entries: Array<{ originalName: string; geometry: Feature<MultiLineString> }>,
+): void {
+  for (const { originalName, geometry } of entries) {
+    const normalizedName = normalizeStreetName(originalName);
+    const isSquare = Boolean(originalName.toLowerCase().match(/^(площад|пл\.)\s*/));
+    const isStreet = !isSquare && originalName.toLowerCase().includes("ул.");
+    const featureType: StreetGeometryFeatureType = isSquare
+      ? "square"
+      : isStreet
+        ? "street"
+        : "boulevard";
+    const cacheKey = makeStreetGeometryCacheKey(featureType, normalizedName);
+    if (!streetGeometryCache.has(cacheKey)) {
+      streetGeometryCache.set(cacheKey, geometry);
+    }
+  }
+}
+
+/**
  * Parse Overpass XML error response to extract error message
  */
 function parseOverpassError(responseText: string): string | null {
