@@ -102,11 +102,6 @@ export async function categorize(
   text: string,
   ingestErrors?: IngestErrorRecorder,
 ): Promise<CategorizationResult | null> {
-  if (USE_MOCK && mockService) {
-    logger.info("Using Gemini mock for categorization");
-    return mockService.categorize(text);
-  }
-
   const processedText = truncateText(text, {
     maxLength: CATEGORIZE_MAX_LENGTH,
     truncateTo: CATEGORIZE_TRUNCATE_TO,
@@ -127,6 +122,11 @@ export async function categorize(
     )
   ) {
     return null;
+  }
+
+  if (USE_MOCK && mockService) {
+    logger.info("Using Gemini mock for categorization");
+    return mockService.categorize(processedText);
   }
 
   const modelConfig = validateModelConfig(ingestErrors);
@@ -164,11 +164,6 @@ export async function extractLocations(
   text: string,
   ingestErrors?: IngestErrorRecorder,
 ): Promise<ExtractedLocations | null> {
-  if (USE_MOCK && mockService) {
-    logger.info("Using Gemini mock for location extraction");
-    return mockService.extractLocations(text);
-  }
-
   const processedText = truncateText(text, {
     maxLength: EXTRACT_LOCATIONS_MAX_LENGTH,
     truncateTo: EXTRACT_LOCATIONS_TRUNCATE_TO,
@@ -192,6 +187,11 @@ export async function extractLocations(
     )
   ) {
     return null;
+  }
+
+  if (USE_MOCK && mockService) {
+    logger.info("Using Gemini mock for location extraction");
+    return mockService.extractLocations(processedText);
   }
 
   const sanitizedText = sanitizeText(processedText);
