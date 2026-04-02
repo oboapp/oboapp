@@ -1,8 +1,19 @@
 /**
  * Geocode cache for streets (Overpass API results).
  *
- * Stores pre-cached street intersection → coordinates mappings to avoid
- * redundant Overpass API calls for frequently repeated street sections.
+ * Stores pre-cached street name → full geometry mappings. The cache key
+ * is the normalized street name alone (e.g. "витоша"). The stored geometry
+ * is the complete LineString or MultiLineString for that street, so any
+ * intersection involving the street can be computed locally without an
+ * additional Overpass API call.
+ *
+ * Document shape:
+ *   key            — normalized street name (cache lookup key, unique)
+ *   originalText   — original street name before normalization
+ *   geoJson        — full street geometry (LineString or MultiLineString)
+ *   sourceService  — always "overpass"
+ *   sourceMessageId — message ID used as the source for this entry
+ *   cachedAt       — timestamp of insertion
  */
 
 import type { DbClient, WhereClause } from "../types";
