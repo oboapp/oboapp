@@ -51,6 +51,25 @@ export function clearStreetGeometryCache(): void {
 }
 
 /**
+ * Return a street geometry from the in-memory cache without making a network request.
+ * Returns null if the geometry was not fetched in the current run.
+ */
+export function getStreetGeometryCached(
+  streetName: string,
+): Feature<MultiLineString> | null {
+  const normalizedName = normalizeStreetName(streetName);
+  const isSquare = Boolean(streetName.toLowerCase().match(/^(площад|пл\.)\s*/));
+  const isStreet = !isSquare && streetName.toLowerCase().includes("ул.");
+  const featureType: StreetGeometryFeatureType = isSquare
+    ? "square"
+    : isStreet
+      ? "street"
+      : "boulevard";
+  const cacheKey = makeStreetGeometryCacheKey(featureType, normalizedName);
+  return streetGeometryCache.get(cacheKey) ?? null;
+}
+
+/**
  * Parse Overpass XML error response to extract error message
  */
 function parseOverpassError(responseText: string): string | null {

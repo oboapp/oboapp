@@ -735,6 +735,26 @@ async function performGeocodingWithErrorHandling(
       geocodedEducationalFacilities,
     );
 
+    // Persist full street geometries to message.process for cache pre-population and reporting.
+    // getStreetGeometryCached() reads the in-memory map that was populated during performGeocoding()
+    // above, so no additional Overpass requests are made here.
+    if (extractedLocations.streets.length > 0) {
+      const { getStreetGeometryCached } = await import("@/geocoding/overpass/service");
+      const { normalizePinAddress } = await import("@/geocoding/shared/normalize-address");
+      const streetGeometries = [];
+      for (const s of extractedLocations.streets) {
+        const geometry = getStreetGeometryCached(s.street);
+        if (geometry) {
+          streetGeometries.push({ key: normalizePinAddress(s.street), originalName: s.street, geometry });
+        }
+      }
+      if (streetGeometries.length > 0) {
+        await updateMessage(messageId, {
+          $addToSet: { process: { step: "streetGeometries", result: streetGeometries } },
+        });
+      }
+    }
+
     return { addresses: filteredAddresses, geoJson };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

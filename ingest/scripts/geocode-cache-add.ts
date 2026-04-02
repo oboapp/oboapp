@@ -3,16 +3,16 @@
  * Manually pre-cache a single geocoded location for a given message.
  *
  * Reads an existing geocoded address (pin) from a message document, or
- * fetches the full street geometry from Overpass for a street name that
- * appears in a message, and stores the result in the geocode cache
- * collection so future ingestion runs skip the API call entirely.
+ * reads the full street geometry stored in message.process during ingestion,
+ * and stores the result in the geocode cache collection so future ingestion
+ * runs skip the API call entirely.
  *
  * Usage:
  *   # Cache a pin address (reads geometry from message.addresses[])
  *   pnpm tsx ingest/scripts/geocode-cache-add.ts \
  *     --message <messageId> --address "ул. Граф Игнатиев 10" --type pin
  *
- *   # Cache a full street geometry (fetches from Overpass once)
+ *   # Cache a full street geometry (reads from message.process[].streetGeometries)
  *   pnpm tsx ingest/scripts/geocode-cache-add.ts \
  *     --message <messageId> --address "бул. Витоша" --type street
  */
@@ -20,6 +20,7 @@
 import { Command } from "commander";
 import dotenv from "dotenv";
 import { resolve } from "node:path";
+import type { Feature, MultiLineString } from "geojson";
 import type { Address, StreetSection } from "@/lib/types";
 
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
@@ -108,9 +109,6 @@ async function cacheStreet(
   const { normalizePinAddress } = await import(
     "@/geocoding/shared/normalize-address"
   );
-  const { getStreetGeometryFromOverpass } = await import(
-    "@/geocoding/overpass/service"
-  );
 
   const msg = await db.messages.findById(messageId);
   if (!msg) {
@@ -145,6 +143,23 @@ async function cacheStreet(
     return;
   }
 
+  // Read pre-stored street geometry from message.process (written during ingestion)
+  type ProcessStep = { step: string; result: unknown };
+  type StoredStreetGeometry = { key: string; originalName: string; geometry: Feature<MultiLineString> };
+  const processSteps = ((msg as Record<string, unknown>).process as ProcessStep[] | undefined) ?? [];
+  const streetGeometriesStep = processSteps.find((s) => s.step === "streetGeometries");
+  const storedGeometries = (streetGeometriesStep?.result ?? []) as StoredStreetGeometry[];
+  const storedEntry = storedGeometries.find((g) => g.key === normalized);
+
+  if (!storedEntry) {
+    console.error(
+      `❌ No geometry found for "${streetName}" in message.process.`,
+    );
+    console.error(`   Re-ingest the message first to populate street geometries.`);
+    process.exitCode = 1;
+    return;
+  }
+
   const existing = await db.geocodeCacheStreets.findByKey(normalized);
   if (existing) {
     console.error(
@@ -154,18 +169,7 @@ async function cacheStreet(
     return;
   }
 
-  console.log(
-    `Fetching full geometry for "${streetName}" from Overpass (one API call)...`,
-  );
-  const geometry = await getStreetGeometryFromOverpass(streetName);
-  if (!geometry) {
-    console.error(
-      `❌ Overpass returned no geometry for "${streetName}". Street may not exist in OSM.`,
-    );
-    process.exitCode = 1;
-    return;
-  }
-
+  const geometry = storedEntry.geometry;
   await db.geocodeCacheStreets.insertOne({
     key: normalized,
     originalText: matchedStreet.street,
