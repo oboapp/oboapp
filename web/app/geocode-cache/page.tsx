@@ -39,12 +39,49 @@ type GeometryData =
 
 const SOFIA_CENTER = { lat: 42.6977, lng: 23.3219 };
 const MAP_CONTAINER_STYLE = { width: "100%", height: "360px" };
+const MAP_STYLES: google.maps.MapTypeStyle[] = [
+  { elementType: "geometry", stylers: [{ saturation: -60 }] },
+  {
+    elementType: "labels.text.fill",
+    stylers: [{ saturation: -40 }, { lightness: 10 }],
+  },
+  {
+    elementType: "labels.text.stroke",
+    stylers: [{ visibility: "on" }, { saturation: -100 }, { lightness: 60 }],
+  },
+  {
+    featureType: "poi",
+    elementType: "geometry",
+    stylers: [{ saturation: -100 }, { lightness: 40 }],
+  },
+  {
+    featureType: "poi",
+    elementType: "labels.icon",
+    stylers: [{ saturation: -100 }, { lightness: 20 }],
+  },
+  {
+    featureType: "poi",
+    elementType: "labels.text.fill",
+    stylers: [{ saturation: -100 }, { lightness: 20 }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ saturation: -60 }, { lightness: 20 }],
+  },
+  {
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ saturation: -40 }, { lightness: 30 }],
+  },
+];
 const MAP_OPTIONS: google.maps.MapOptions = {
   streetViewControl: false,
   fullscreenControl: false,
   mapTypeControl: false,
   zoomControl: true,
   clickableIcons: false,
+  styles: MAP_STYLES,
 };
 
 // Distinct colors for up to 5 source messages
