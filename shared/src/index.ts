@@ -5,3 +5,4 @@ export * from "./bounds";
 export * from "./coordinate-utils";
 export * from "./experimental-sources";
 export * from "./normalize-address";
+export * from "./air-quality/aqi";
