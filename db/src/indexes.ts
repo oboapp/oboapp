@@ -79,6 +79,11 @@ export const INDEX_DEFINITIONS: IndexDefinition[] = [
     spec: { userId: 1, notified: 1, readAt: 1 },
     options: { name: "userId_notified_readAt" },
   },
+  {
+    collection: "notificationMatches",
+    spec: { "messageSnapshot.source": 1 },
+    options: { name: "notificationMatches_messageSnapshot_source" },
+  },
 
   // --- notificationSubscriptions ---
   {
