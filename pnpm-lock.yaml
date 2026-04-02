@@ -191,7 +191,7 @@ importers:
         version: 10.1.0
       eslint-config-next:
         specifier: ^16.0.10
-        version: 16.1.6(@typescript-eslint/parser@8.55.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
+        version: 16.1.6(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       firebase-tools:
         specifier: ^15.5.1
         version: 15.5.1(@swc/core@1.15.17)(@types/node@20.19.33)(encoding@0.1.13)(typescript@5.9.3)
@@ -244,6 +244,9 @@ importers:
       '@asteasolutions/zod-to-openapi':
         specifier: ^8.4.0
         version: 8.4.0(zod@4.3.6)
+      '@google-cloud/storage':
+        specifier: ^7.19.0
+        version: 7.19.0(encoding@0.1.13)
       '@google/genai':
         specifier: ^1.33.0
         version: 1.40.0(@modelcontextprotocol/sdk@1.26.0(zod@4.3.6))
@@ -291,7 +294,7 @@ importers:
         version: 0.563.0(react@19.2.1)
       next:
         specifier: ^16.1.6
-        version: 16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+        version: 16.1.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
       openapi3-ts:
         specifier: ^4.5.0
         version: 4.5.0
@@ -370,7 +373,7 @@ importers:
         version: 4.0.18(vitest@4.0.18)
       eslint-config-next:
         specifier: ^16.0.10
-        version: 16.1.6(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
+        version: 16.1.6(@typescript-eslint/parser@8.55.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       eslint-plugin-react-hooks-addons:
         specifier: ^0.5.0
         version: 0.5.1(eslint@9.39.2(jiti@2.6.1))
@@ -18471,7 +18474,7 @@ snapshots:
 
   netmask@2.0.2: {}
 
-  next@16.1.6(@opentelemetry/api@1.9.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1):
+  next@16.1.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1):
     dependencies:
       '@next/env': 16.1.6
       '@swc/helpers': 0.5.15
@@ -18480,7 +18483,7 @@ snapshots:
       postcss: 8.4.31
       react: 19.2.1
       react-dom: 19.2.1(react@19.2.1)
-      styled-jsx: 5.1.6(react@19.2.1)
+      styled-jsx: 5.1.6(@babel/core@7.29.0)(react@19.2.1)
     optionalDependencies:
       '@next/swc-darwin-arm64': 16.1.6
       '@next/swc-darwin-x64': 16.1.6
@@ -20326,10 +20329,12 @@ snapshots:
     dependencies:
       inline-style-parser: 0.2.7
 
-  styled-jsx@5.1.6(react@19.2.1):
+  styled-jsx@5.1.6(@babel/core@7.29.0)(react@19.2.1):
     dependencies:
       client-only: 0.0.1
       react: 19.2.1
+    optionalDependencies:
+      '@babel/core': 7.29.0
 
   supercluster@8.0.1:
     dependencies:
