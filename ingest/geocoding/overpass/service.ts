@@ -144,7 +144,7 @@ export function toOverpassRegex(normalizedName: string): string {
  * Get street geometry from Overpass API (OpenStreetMap)
  * Returns actual LineString geometries from OSM, preserving way structure
  */
-async function getStreetGeometryFromOverpass(
+export async function getStreetGeometryFromOverpass(
   streetName: string,
 ): Promise<Feature<MultiLineString> | null> {
   try {
