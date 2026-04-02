@@ -84,8 +84,6 @@ export function truncateText(
 
   const effectiveTruncateTo = Math.min(options.truncateTo, maxContentLength);
 
-  const accurateNotice = notice;
-
   logger.warn("Truncating long text for AI processing", {
     originalLength: text.length,
     truncatedTo: effectiveTruncateTo,
@@ -93,7 +91,7 @@ export function truncateText(
   });
 
   const truncated = text.slice(0, effectiveTruncateTo);
-  return `${truncated}${accurateNotice}`;
+  return `${truncated}${notice}`;
 }
 
 /**
