@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import {
   useRouter,
@@ -51,7 +52,7 @@ interface AirQualityStatus {
     isStale: boolean;
   };
   cells: AqiCell[];
-  maxAqi: number;
+  maxAqi: number | null;
   stats: {
     messageCount: number;
     notificationCount: number;
@@ -108,7 +109,7 @@ function StatCard({
   return (
     <Card>
       <p className="text-sm text-neutral mb-1">{label}</p>
-      <p className={`text-3xl font-bold ${valueClassName ?? "text-gray-900"}`}>
+      <p className={`text-3xl font-bold ${valueClassName ?? "text-foreground"}`}>
         {value}
       </p>
       {sub && <p className="text-sm text-neutral mt-1">{sub}</p>}
@@ -174,7 +175,7 @@ export default function AirQualityPage() {
   const maxAqiCategory = status ? status.cells[0]?.aqiCategory ?? "good" : null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-neutral-light">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Back link */}
         <div className="mb-6">
@@ -196,19 +197,19 @@ export default function AirQualityPage() {
                   <span className="text-2xl">🌫️</span>
                 </div>
               ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <Image
                   src={`/sources/${SOURCE_ID}.png`}
                   alt="sensor.community"
                   width={96}
                   height={96}
                   className="w-24 h-24 object-contain rounded-lg"
                   onError={() => setLogoError(true)}
+                  unoptimized
                 />
               )}
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1">
                 Мониторинг: sensor.community
               </h1>
               <p className="text-neutral text-sm">
@@ -250,7 +251,7 @@ export default function AirQualityPage() {
                           maxAqiCategory === "poor"
                         ? "text-warning"
                         : "text-error"
-                    : "text-gray-900"
+                    : "text-foreground"
                 }
               />
               <StatCard
@@ -272,7 +273,7 @@ export default function AirQualityPage() {
 
         {/* GCS data summary */}
         <div className="mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
+          <h2 className="text-xl font-bold text-foreground mb-4">
             Данни в прозореца за наблюдение
           </h2>
           <Card>
@@ -300,13 +301,13 @@ export default function AirQualityPage() {
                 </div>
                 <div>
                   <dt className="text-sm text-neutral">Последно показание</dt>
-                  <dd className="mt-1 text-sm font-medium text-gray-900">
+                  <dd className="mt-1 text-sm font-medium text-foreground">
                     {formatTimestamp(status.readings.newestAt)}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-sm text-neutral">Най-старо показание</dt>
-                  <dd className="mt-1 text-sm font-medium text-gray-900">
+                  <dd className="mt-1 text-sm font-medium text-foreground">
                     {formatTimestamp(status.readings.oldestAt)}
                   </dd>
                 </div>
@@ -319,7 +320,7 @@ export default function AirQualityPage() {
 
         {/* Grid cells map */}
         <div className="mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
+          <h2 className="text-xl font-bold text-foreground mb-4">
             ЕАКИ по мрежови клетки (последни 4 ч.)
           </h2>
           {status && status.cells.length > 0 ? (
@@ -329,9 +330,11 @@ export default function AirQualityPage() {
               <div className="mt-3 flex flex-wrap gap-3 text-xs text-neutral">
                 {[
                   { label: "Добро (1–2)", cat: "good" },
+                  { label: "Задоволително (2–3)", cat: "fair" },
                   { label: "Умерено (3–4)", cat: "moderate" },
                   { label: "Лошо (4–5)", cat: "poor" },
                   { label: "Много лошо (5–6)", cat: "very-poor" },
+                  { label: "Изключително лошо (6)", cat: "extremely-poor" },
                 ].map(({ label, cat }) => (
                   <span key={cat} className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${aqiCategoryClasses(cat)}`}>
                     {label}
@@ -348,7 +351,7 @@ export default function AirQualityPage() {
 
         {/* Recent alerts */}
         <div className="mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
+          <h2 className="text-xl font-bold text-foreground mb-4">
             Последни сигнали
           </h2>
           <MessagesGrid

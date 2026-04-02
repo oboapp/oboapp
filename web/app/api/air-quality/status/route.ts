@@ -13,6 +13,8 @@ const KM_PER_DEGREE_LAT = 111.0;
 const EVALUATION_WINDOW_HOURS = 4;
 const MAX_STALENESS_MS = 45 * 60 * 1000;
 const SOURCE_ID = "sensor-community";
+// GCS data updates every 30 min — cache for 5 min to reduce latency/cost
+const GCS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 interface StoredReading {
   sensorId: number;
@@ -30,6 +32,12 @@ interface GridCell {
   west: number;
   east: number;
 }
+
+// In-memory cache keyed by locality
+const gcsCache = new Map<
+  string,
+  { data: StoredReading[] | null; fetchedAt: number }
+>();
 
 function buildGrid(locality: string): GridCell[] {
   const bounds = getBoundsForLocality(locality);
@@ -76,37 +84,80 @@ function assignToCell(
 async function readGcsReadings(
   locality: string,
 ): Promise<StoredReading[] | null> {
+  // Serve from cache if still fresh
+  const cached = gcsCache.get(locality);
+  if (cached && Date.now() - cached.fetchedAt < GCS_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  let data: StoredReading[] | null = null;
+
   const bucket = process.env.GCS_READINGS_BUCKET;
   if (bucket) {
     const { Storage } = await import("@google-cloud/storage");
     // Reuse FIREBASE_SERVICE_ACCOUNT_KEY when present (same key already used by the
     // Firebase Admin SDK in this process). Falls back to ADC in GCP-managed environments.
     const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    const storage = serviceAccountKey
-      ? new Storage({ credentials: JSON.parse(serviceAccountKey) })
-      : new Storage();
+    let credentials: object | undefined;
+    if (serviceAccountKey) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(serviceAccountKey);
+      } catch (parseErr) {
+        throw new Error(
+          `FIREBASE_SERVICE_ACCOUNT_KEY contains invalid JSON: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`,
+        );
+      }
+      if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+        credentials = parsed;
+      } else {
+        throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY must be a JSON object");
+      }
+    }
+    const storage = credentials ? new Storage({ credentials }) : new Storage();
     const file = storage
       .bucket(bucket)
       .file(`air-quality/${locality}/readings.json`);
-    const [exists] = await file.exists();
-    if (!exists) return null;
-    const [content] = await file.download();
-    return JSON.parse(content.toString("utf-8"));
+    try {
+      const [content] = await file.download();
+      try {
+        const parsed = JSON.parse(content.toString("utf-8"));
+        data = Array.isArray(parsed) ? parsed : null;
+      } catch {
+        // Malformed JSON in GCS file — treat as no data
+        data = null;
+      }
+    } catch (err: unknown) {
+      const isNotFound =
+        err !== null &&
+        typeof err === "object" &&
+        "code" in err &&
+        (err.code === 404 || err.code === "404");
+      if (isNotFound) {
+        data = null;
+      } else {
+        throw err;
+      }
+    }
+  } else {
+    // Local dev fallback
+    const basePath =
+      process.env.LOCAL_READINGS_PATH ?? "./tmp/air-quality";
+    const { readFile } = await import("node:fs/promises");
+    try {
+      const content = await readFile(
+        `${basePath}/${locality}/readings.json`,
+        "utf-8",
+      );
+      const parsed = JSON.parse(content);
+      data = Array.isArray(parsed) ? parsed : null;
+    } catch {
+      data = null;
+    }
   }
 
-  // Local dev fallback
-  const basePath =
-    process.env.LOCAL_READINGS_PATH ?? "./tmp/air-quality";
-  const { readFile } = await import("node:fs/promises");
-  try {
-    const content = await readFile(
-      `${basePath}/${locality}/readings.json`,
-      "utf-8",
-    );
-    return JSON.parse(content);
-  } catch {
-    return null;
-  }
+  gcsCache.set(locality, { data, fetchedAt: Date.now() });
+  return data;
 }
 
 export async function GET(request: Request) {
@@ -131,14 +182,15 @@ export async function GET(request: Request) {
     // Summary stats over the full 24h retention window
     const readings: StoredReading[] = allReadings ?? [];
     const uniqueSensors = new Set(readings.map((r) => r.sensorId)).size;
-    const timestamps = readings.map((r) => new Date(r.timestamp).getTime());
+    const rawTimestamps = readings.map((r) => new Date(r.timestamp).getTime());
+    const validTimestamps = rawTimestamps.filter((t) => Number.isFinite(t));
     const oldestAt =
-      timestamps.length > 0
-        ? new Date(Math.min(...timestamps)).toISOString()
+      validTimestamps.length > 0
+        ? new Date(Math.min(...validTimestamps)).toISOString()
         : null;
     const newestAt =
-      timestamps.length > 0
-        ? new Date(Math.max(...timestamps)).toISOString()
+      validTimestamps.length > 0
+        ? new Date(Math.max(...validTimestamps)).toISOString()
         : null;
     const isStale =
       newestAt === null ||
@@ -208,7 +260,7 @@ export async function GET(request: Request) {
       })
       .sort((a, b) => b.aqi - a.aqi);
 
-    const maxAqi = cells.length > 0 ? cells[0].aqi : 0;
+    const maxAqi = cells.length > 0 ? cells[0].aqi : null;
 
     const [messageCount, notificationCount] = await Promise.all([
       db.messages.count([{ field: "source", op: "==", value: SOURCE_ID }]),

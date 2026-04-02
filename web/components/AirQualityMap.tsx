@@ -129,7 +129,7 @@ export default function AirQualityMap({ cells, locality: _locality }: AirQuality
       );
 
       rect.bindTooltip(
-        `<strong>${cell.id}</strong><br/>ЕАКИ: ${cell.aqi.toFixed(1)}<br/>${cell.aqiLabel}<br/>Сензори: ${cell.sensorCount}`,
+        `ЕАКИ: ${cell.aqi.toFixed(1)} — ${cell.aqiLabel}<br/>Сензори: ${cell.sensorCount}`,
         { sticky: true },
       );
 

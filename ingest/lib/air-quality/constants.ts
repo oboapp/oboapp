@@ -2,6 +2,8 @@
  * Air quality monitoring constants.
  */
 
+export { NOWCAST_MIN_WEIGHT } from "@oboapp/shared";
+
 /** sensor.community API endpoint. Coordinates: south,west,north,east */
 export const SENSOR_COMMUNITY_API_URL =
   "https://data.sensor.community/airrohr/v1/filter/area=";
@@ -36,9 +38,6 @@ export const DATA_RETENTION_HOURS = 24;
 
 /** Minimum number of sensors per grid cell AFTER outlier filtering */
 export const MIN_SENSORS_PER_CELL = 3;
-
-/** Minimum NowCast weight factor (floor) */
-export const NOWCAST_MIN_WEIGHT = 0.5;
 
 /** Minimum fraction of hours that must have data for a reliable NowCast computation */
 export const MIN_HOUR_COVERAGE = 0.5;
