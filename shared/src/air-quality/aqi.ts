@@ -8,7 +8,8 @@
  * Reference: https://airindex.eea.europa.eu/AQI/index.html
  */
 
-const NOWCAST_MIN_WEIGHT = 0.5;
+/** Minimum NowCast weight factor (floor). Shared with ingest constants. */
+export const NOWCAST_MIN_WEIGHT = 0.5;
 
 /**
  * EEA PM2.5 concentration bands (μg/m³).
