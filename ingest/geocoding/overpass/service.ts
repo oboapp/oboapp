@@ -27,7 +27,22 @@ const OVERPASS_DELAY_MS = 500; // 500ms for Overpass API (generous limits)
 const OVERPASS_TIMEOUT_MS = 25000; // 25 seconds timeout for HTTP requests
 const BUFFER_DISTANCE_METERS = 30; // Buffer distance for street geometries
 
-// In-memory cache for street geometry lookups (keyed on normalized street name)
+type StreetGeometryFeatureType = "way" | "square" | "area";
+
+/**
+ * Build a cache key for street geometry lookups that includes both the
+ * detected feature type and the normalized street name. This avoids
+ * collisions between different feature types that share the same
+ * normalized name (e.g. "ул. Свобода" vs "пл. Свобода").
+ */
+export function makeStreetGeometryCacheKey(
+  featureType: StreetGeometryFeatureType,
+  normalizedStreetName: string,
+): string {
+  return `${featureType}:${normalizedStreetName}`;
+}
+
+// In-memory cache for street geometry lookups (keyed on type + normalized street name)
 const streetGeometryCache = new Map<string, Feature<MultiLineString> | null>();
 
 /** Clear the street geometry cache. Exported for test isolation. */
@@ -137,16 +152,20 @@ async function getStreetGeometryFromOverpass(
     // Normalize street name for better OSM matching
     const normalizedName = normalizeStreetName(streetName);
 
+    // Determine feature type — needed both for the cache key and the Overpass query
+    const isSquare = Boolean(
+      streetName.toLowerCase().match(/^(площад|пл\.)\s*/),
+    );
+    const featureType: StreetGeometryFeatureType = isSquare ? "square" : "way";
+    const cacheKey = makeStreetGeometryCacheKey(featureType, normalizedName);
+
     // Return cached result if available (includes null for streets not found in OSM)
-    if (streetGeometryCache.has(normalizedName)) {
-      logger.info("Street geometry cache hit", { streetName, normalizedName });
-      return streetGeometryCache.get(normalizedName)!;
+    if (streetGeometryCache.has(cacheKey)) {
+      logger.debug("Street geometry cache hit", { streetName, normalizedName });
+      return streetGeometryCache.get(cacheKey)!;
     }
 
     const queryRegex = toOverpassRegex(normalizedName);
-
-    // Check if this is a square/plaza (площад/пл.)
-    const isSquare = streetName.toLowerCase().match(/^(площад|пл\.)\s*/);
 
     // Overpass QL query to find the street by name
     // For squares, search for place=square nodes/areas
@@ -282,7 +301,7 @@ async function getStreetGeometryFromOverpass(
     if (!responseData.elements || responseData.elements.length === 0) {
       // No OSM ways found - API request succeeded but no data for this street name
       logger.info("Could not find street in OSM", { streetName });
-      streetGeometryCache.set(normalizedName, null);
+      streetGeometryCache.set(cacheKey, null);
       return null;
     }
 
@@ -325,7 +344,7 @@ async function getStreetGeometryFromOverpass(
 
     if (lineStrings.length === 0) {
       logger.info("No valid geometries in response", { streetName });
-      streetGeometryCache.set(normalizedName, null);
+      streetGeometryCache.set(cacheKey, null);
       return null;
     }
 
@@ -344,7 +363,7 @@ async function getStreetGeometryFromOverpass(
       },
     };
 
-    streetGeometryCache.set(normalizedName, multiLineString);
+    streetGeometryCache.set(cacheKey, multiLineString);
     return multiLineString;
   } catch (error) {
     logger.error("Error fetching from Overpass", {

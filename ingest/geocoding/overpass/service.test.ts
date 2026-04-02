@@ -1,10 +1,14 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   normalizeAddressForNominatim,
   normalizeStreetName,
   toOverpassRegex,
   clearStreetGeometryCache,
+  overpassGeocodeIntersections,
 } from "./service";
+
+// Prevent the 500ms inter-item delay from slowing down the test suite
+vi.mock("../../lib/delay", () => ({ delay: vi.fn().mockResolvedValue(undefined) }));
 
 describe("overpass-geocoding-service", () => {
   describe("parseOverpassError", () => {
@@ -299,19 +303,72 @@ describe("overpass-geocoding-service", () => {
     });
   });
 
-  describe("clearStreetGeometryCache", () => {
+  describe("streetGeometryCache", () => {
+    const wayResponse = JSON.stringify({
+      elements: [
+        {
+          type: "way",
+          geometry: [
+            { lat: 42.6977, lon: 23.3219 },
+            { lat: 42.698, lon: 23.3225 },
+          ],
+        },
+      ],
+    });
+    const emptyResponse = JSON.stringify({ elements: [] });
+
+    function mockFetch(responseBody: string) {
+      return vi.fn().mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve(responseBody),
+      });
+    }
+
     beforeEach(() => {
       clearStreetGeometryCache();
     });
 
-    it("does not throw when cache is empty", () => {
-      expect(() => clearStreetGeometryCache()).not.toThrow();
+    afterEach(() => {
+      vi.unstubAllGlobals();
     });
 
-    it("can be called multiple times safely", () => {
-      clearStreetGeometryCache();
-      clearStreetGeometryCache();
-      expect(() => clearStreetGeometryCache()).not.toThrow();
+    it("deduplicates Overpass fetches when the same street appears in multiple intersections", async () => {
+      vi.stubGlobal("fetch", mockFetch(wayResponse));
+
+      await overpassGeocodeIntersections([
+        "ул. Пример ∩ ул. Фоо",
+        "ул. Пример ∩ ул. Бар",
+      ]);
+
+      // 3 unique streets (ул. Пример, ул. Фоо, ул. Бар) — ул. Пример fetched only once
+      expect(fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("caches null results and skips re-fetching streets not found in OSM", async () => {
+      vi.stubGlobal("fetch", mockFetch(emptyResponse));
+
+      await overpassGeocodeIntersections([
+        "ул. Пример ∩ ул. Фоо",
+        "ул. Пример ∩ ул. Бар",
+      ]);
+
+      // Same deduplication applies even when results are null
+      expect(fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("uses separate cache entries for streets vs squares with the same normalized name", async () => {
+      const fetchMock = mockFetch(wayResponse);
+      vi.stubGlobal("fetch", fetchMock);
+
+      // Both normalize to the same string, but use different Overpass queries
+      await overpassGeocodeIntersections(["ул. Свобода ∩ ул. Фоо"]);
+      fetchMock.mockClear();
+
+      // A square lookup for the same normalized name should still go to the network
+      await overpassGeocodeIntersections(["пл. Свобода ∩ ул. Фоо"]);
+      // пл. Свобода is a square — NOT served from the way cache (different key square:свобода vs way:свобода)
+      // ул. Фоо is already cached (way:фоо) → only 1 fresh fetch
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
 });
