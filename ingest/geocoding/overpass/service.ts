@@ -70,6 +70,23 @@ export function getStreetGeometryCached(
 }
 
 /**
+ * Returns true if Overpass has already been queried for this street in the current run
+ * (regardless of whether it was found or not). Used to determine whether a rate-limiting
+ * delay is needed before a subsequent Overpass call.
+ */
+export function hasStreetGeometryQueried(streetName: string): boolean {
+  const normalizedName = normalizeStreetName(streetName);
+  const isSquare = Boolean(streetName.toLowerCase().match(/^(площад|пл\.)\s*/));
+  const isStreet = !isSquare && streetName.toLowerCase().includes("ул.");
+  const featureType: StreetGeometryFeatureType = isSquare
+    ? "square"
+    : isStreet
+      ? "street"
+      : "boulevard";
+  return streetGeometryCache.has(makeStreetGeometryCacheKey(featureType, normalizedName));
+}
+
+/**
  * Pre-populate the in-memory street geometry cache from externally stored entries
  * (e.g. the geocode cache DB collection). Entries already present are not overwritten.
  */

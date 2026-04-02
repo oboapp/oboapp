@@ -148,7 +148,7 @@ async function cacheStreet(
   type StoredStreetGeometry = {
     key: string;
     originalName: string;
-    geometry: Feature<MultiLineString>;
+    geometry: Feature<MultiLineString> | string;
   };
   const processSteps =
     ((msg as Record<string, unknown>).process as ProcessStep[] | undefined) ??
@@ -180,7 +180,10 @@ async function cacheStreet(
     return;
   }
 
-  const geometry = storedEntry.geometry;
+  const geometry: Feature<MultiLineString> =
+    typeof storedEntry.geometry === "string"
+      ? (JSON.parse(storedEntry.geometry) as Feature<MultiLineString>)
+      : storedEntry.geometry;
   await db.geocodeCacheStreets.insertOne({
     key: normalized,
     originalText: matchedStreet.street,

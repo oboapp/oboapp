@@ -762,21 +762,37 @@ async function performGeocodingWithErrorHandling(
     );
 
     // Persist full street geometries to message.process for cache pre-population and reporting.
-    // getStreetGeometryCached() reads the in-memory map that was populated during performGeocoding()
-    // above, so no additional Overpass requests are made here.
+    // Reads from the in-memory cache populated during performGeocoding(). For streets geocoded via
+    // geotagged coordinates (Overpass was skipped), we make an explicit Overpass fetch here so their
+    // geometry ends up in the cache too.
     if (extractedLocations.streets.length > 0) {
-      const { getStreetGeometryCached } =
-        await import("@/geocoding/overpass/service");
+      const {
+        getStreetGeometryCached,
+        getStreetGeometryFromOverpass,
+        hasStreetGeometryQueried,
+      } = await import("@/geocoding/overpass/service");
       const { normalizePinAddress } =
         await import("@/geocoding/shared/normalize-address");
+      const { delay } = await import("@/lib/delay");
       const streetGeometries = [];
+      let overpassFetchCount = 0;
       for (const s of extractedLocations.streets) {
-        const geometry = getStreetGeometryCached(s.street);
+        let geometry = getStreetGeometryCached(s.street);
+        if (!geometry && !hasStreetGeometryQueried(s.street)) {
+          // This street was geocoded via geotagged coordinates (Overpass was skipped).
+          // Fetch Overpass geometry explicitly so it can be pre-populated into the geocode cache.
+          if (overpassFetchCount > 0) {
+            await delay(500); // Respect Overpass fair-use rate limit between consecutive fetches
+          }
+          geometry = await getStreetGeometryFromOverpass(s.street);
+          overpassFetchCount++;
+        }
         if (geometry) {
           streetGeometries.push({
             key: normalizePinAddress(s.street),
             originalName: s.street,
-            geometry,
+            // Stringify to avoid Firestore nested-array rejection (coordinates: number[][][])
+            geometry: JSON.stringify(geometry),
           });
         }
       }

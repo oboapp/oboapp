@@ -24,15 +24,29 @@ function isProcessStep(v: unknown): v is ProcessStep {
 
 interface StoredStreetGeometry {
   originalName: string;
-  geometry: {
-    type: "Feature";
-    geometry: { type: string; coordinates: number[][][] };
-  };
+  geometry:
+    | { type: "Feature"; geometry: { type: string; coordinates: number[][][] } }
+    | string;
+}
+
+interface GeoJsonFeature {
+  type: string;
+  geometry: { type: string; coordinates: number[][][] };
+}
+
+function isGeoJsonFeature(v: unknown): v is GeoJsonFeature {
+  if (!isRecord(v)) return false;
+  const geom = v.geometry;
+  if (!isRecord(geom)) return false;
+  if (typeof geom.type !== "string") return false;
+  return Array.isArray(geom.coordinates);
 }
 
 function isStoredStreetGeometry(v: unknown): v is StoredStreetGeometry {
   if (!isRecord(v)) return false;
   if (typeof v.originalName !== "string") return false;
+  // geometry stored as JSON string (new format) or object (legacy)
+  if (typeof v.geometry === "string") return true;
   const geo = v.geometry;
   if (!isRecord(geo)) return false;
   const inner = geo.geometry;
@@ -125,7 +139,15 @@ export async function GET(request: Request) {
         .find((g) => g.originalName === originalText);
       if (!entry) continue;
 
-      const multiLine = entry.geometry.geometry;
+      // geometry may be stored as a JSON string (new) or object (legacy)
+      let multiLine: { type: string; coordinates: number[][][] } | null = null;
+      if (typeof entry.geometry === "string") {
+        const parsed: unknown = JSON.parse(entry.geometry);
+        if (!isGeoJsonFeature(parsed)) continue;
+        multiLine = parsed.geometry;
+      } else {
+        multiLine = entry.geometry.geometry;
+      }
       if (multiLine.type !== "MultiLineString") continue;
 
       // Convert GeoJSON [lng, lat] → Google Maps { lat, lng }
