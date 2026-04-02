@@ -11,13 +11,6 @@ export { CategorizationResponseSchema };
 export type Category = z.infer<typeof CategoryEnum>;
 export type CategorizationResult = z.infer<typeof CategorizationResponseSchema>;
 
-export const CATEGORIZE_JSON_SCHEMA = {
-  type: "object",
-  properties: {
-    categories: {
-      type: "array",
-      items: { type: "string" },
-    },
-  },
-  required: ["categories"],
-} as const;
+export const CATEGORIZE_JSON_SCHEMA = z
+  .object({ categories: z.array(CategoryEnum) })
+  .toJSONSchema();
