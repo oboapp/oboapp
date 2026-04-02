@@ -39,10 +39,10 @@ Loads the last 4 hours of readings from the store and groups them into a grid of
 
 The 4-hour evaluation window is split into two non-overlapping halves: a **previous half** (t−4h to t−2h) and a **current half** (t−2h to now).
 
-| Alert Type | Condition | Meaning |
-|------------|-----------|---------|
-| **Immediate** | Current half EAQI ≥ 5 (Very Poor) | Air quality is very poor right now |
-| **Sustained** | Both halves EAQI ≥ 4 (Poor) | Air quality has been poor for an extended period |
+| Alert Type    | Condition                         | Meaning                                          |
+| ------------- | --------------------------------- | ------------------------------------------------ |
+| **Immediate** | Current half EAQI ≥ 5 (Very Poor) | Air quality is very poor right now               |
+| **Sustained** | Both halves EAQI ≥ 4 (Poor)       | Air quality has been poor for an extended period |
 
 Each alert is created as a source document with the grid cell's polygon geometry, the `air-quality` category, and a timespan covering the current evaluation half.
 
@@ -50,31 +50,31 @@ Each alert is created as a source document with the grid cell's polygon geometry
 
 The system uses the [European Air Quality Index (EAQI)](https://airindex.eea.europa.eu/AQI/index.html) with Bulgarian labels:
 
-| EAQI | Level | PM2.5 (μg/m³) | PM10 (μg/m³) |
-|------|-------|---------------|---------------|
-| 1 | Добро (Good) | 0–10 | 0–20 |
-| 2 | Задоволително (Fair) | 10–20 | 20–40 |
-| 3 | Умерено (Moderate) | 20–25 | 40–50 |
-| 4 | Лошо (Poor) | 25–50 | 50–100 |
-| 5 | Много лошо (Very Poor) | 50–75 | 100–150 |
-| 6 | Изключително лошо (Extremely Poor) | >75 | >150 |
+| EAQI | Level                              | PM2.5 (μg/m³) | PM10 (μg/m³) |
+| ---- | ---------------------------------- | ------------- | ------------ |
+| 1    | Добро (Good)                       | 0–10          | 0–20         |
+| 2    | Задоволително (Fair)               | 10–20         | 20–40        |
+| 3    | Умерено (Moderate)                 | 20–25         | 40–50        |
+| 4    | Лошо (Poor)                        | 25–50         | 50–100       |
+| 5    | Много лошо (Very Poor)             | 50–75         | 100–150      |
+| 6    | Изключително лошо (Extremely Poor) | >75           | >150         |
 
 ## Scheduling
 
-| Job | Schedule | Notes |
-|-----|----------|-------|
-| Fetch | `*/15 * * * *` (every 15 min, 24/7) | Standalone Cloud Run job |
+| Job        | Schedule                              | Notes                                           |
+| ---------- | ------------------------------------- | ----------------------------------------------- |
+| Fetch      | `*/15 * * * *` (every 15 min, 24/7)   | Standalone Cloud Run job                        |
 | Evaluation | Part of the emergent crawler workflow | Runs every 30 min, 7 AM–10:30 PM (Europe/Sofia) |
 
 ## Configuration
 
 See the `.env.example` files in the ingest package for all available environment variables. Key settings:
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `GCS_READINGS_BUCKET` | Production | GCS bucket name for sensor readings storage |
-| `LOCAL_READINGS_PATH` | No | Local filesystem path for development (default: `./tmp/air-quality`) |
-| `LOCALITY` | Yes | Locality identifier that determines the geographic bounds |
+| Variable              | Required   | Description                                                          |
+| --------------------- | ---------- | -------------------------------------------------------------------- |
+| `GCS_GENERIC_BUCKET`  | Production | GCS bucket name for general-purpose file storage                     |
+| `LOCAL_READINGS_PATH` | No         | Local filesystem path for development (default: `./tmp/air-quality`) |
+| `LOCALITY`            | Yes        | Locality identifier that determines the geographic bounds            |
 
 ## Storage
 

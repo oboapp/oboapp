@@ -24,3 +24,11 @@ export {
   UserPreferencesRepository,
   USER_PREFERENCES_COLLECTION,
 } from "./user-preferences";
+export {
+  GeocodeCachePinsRepository,
+  GEOCODE_CACHE_PINS_COLLECTION,
+} from "./geocode-cache-pins";
+export {
+  GeocodeCacheStreetsRepository,
+  GEOCODE_CACHE_STREETS_COLLECTION,
+} from "./geocode-cache-streets";

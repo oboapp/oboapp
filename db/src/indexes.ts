@@ -147,6 +147,20 @@ export const INDEX_DEFINITIONS: IndexDefinition[] = [
     spec: { messageId: 1 },
     options: { name: "messageId" },
   },
+
+  // --- geocodeCachePins ---
+  {
+    collection: "geocodeCachePins",
+    spec: { key: 1 },
+    options: { name: "key", unique: true },
+  },
+
+  // --- geocodeCacheStreets ---
+  {
+    collection: "geocodeCacheStreets",
+    spec: { key: 1 },
+    options: { name: "key", unique: true },
+  },
 ];
 
 /**

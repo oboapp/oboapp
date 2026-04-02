@@ -12,8 +12,8 @@ region             = "europe-west1"
 # image_tag = "v1.0.0"
 # schedule_timezone = "UTC"
 
-# Air quality monitoring (leave empty to disable)
-# gcs_readings_bucket = "your-project-air-quality-readings"
+# GCS bucket for general-purpose file storage (leave empty to disable)
+# gcs_generic_bucket = "your-project-gcs-bucket"
 
 # Customize schedules (cron format: minute hour day month weekday)
 # Examples:

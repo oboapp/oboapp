@@ -72,13 +72,13 @@ variable "ci_service_account_email" {
   type        = string
 }
 
-variable "gcs_readings_bucket" {
-  description = "GCS bucket name for raw air quality sensor readings"
+variable "gcs_generic_bucket" {
+  description = "GCS bucket name for general-purpose file storage (air quality readings, geocode cache reports, etc.)"
   type        = string
   default     = ""
 
   validation {
-    condition     = var.gcs_readings_bucket == "" || length(var.gcs_readings_bucket) > 3
-    error_message = "gcs_readings_bucket must be empty (disabled) or a valid GCS bucket name (>3 chars)."
+    condition     = var.gcs_generic_bucket == "" || length(var.gcs_generic_bucket) > 3
+    error_message = "gcs_generic_bucket must be empty (disabled) or a valid GCS bucket name (>3 chars)."
   }
 }

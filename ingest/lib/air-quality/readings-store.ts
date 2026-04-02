@@ -62,7 +62,9 @@ export class GcsReadingsBackend implements ReadingsBackend {
   async write(locality: string, readings: StoredReading[]): Promise<void> {
     const storage = await this.getStorage();
     const file = storage.bucket(this.bucket).file(this.filePath(locality));
-    await file.save(JSON.stringify(readings), { contentType: "application/json" });
+    await file.save(JSON.stringify(readings), {
+      contentType: "application/json",
+    });
   }
 }
 
@@ -118,9 +120,7 @@ export class ReadingsStore {
     newReadings: ParsedReading[],
   ): Promise<{ stored: number; cleaned: number }> {
     const existing = (await this.backend.read(locality)) ?? [];
-    const cutoff = new Date(
-      Date.now() - DATA_RETENTION_HOURS * 60 * 60 * 1000,
-    );
+    const cutoff = new Date(Date.now() - DATA_RETENTION_HOURS * 60 * 60 * 1000);
 
     // Build set of existing keys for O(1) dedup lookup
     const existingKeys = new Set(
@@ -149,9 +149,7 @@ export class ReadingsStore {
     }
 
     // Prune expired
-    const retained = existing.filter(
-      (r) => new Date(r.timestamp) >= cutoff,
-    );
+    const retained = existing.filter((r) => new Date(r.timestamp) >= cutoff);
     const cleaned = beforeCount + stored - retained.length;
 
     await this.backend.write(locality, retained);
@@ -192,18 +190,18 @@ export class ReadingsStore {
 /**
  * Create a ReadingsStore from environment variables.
  *
- * - GCS_READINGS_BUCKET → GCS backend (production)
+ * - GCS_GENERIC_BUCKET → GCS backend (production)
  * - Otherwise → local filesystem at ./tmp/air-quality (development)
  */
 export function createReadingsStore(): ReadingsStore {
-  const bucket = process.env.GCS_READINGS_BUCKET;
+  const bucket = process.env.GCS_GENERIC_BUCKET;
   if (bucket) {
     return new ReadingsStore(new GcsReadingsBackend(bucket));
   }
 
   if (process.env.NODE_ENV === "production") {
     throw new Error(
-      "GCS_READINGS_BUCKET must be set in production; refusing to fall back to non-persistent local storage.",
+      "GCS_GENERIC_BUCKET must be set in production; refusing to fall back to non-persistent local storage.",
     );
   }
 

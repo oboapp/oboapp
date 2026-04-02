@@ -11,7 +11,7 @@ flowchart TD
     A[Fetch Job] -->|appendAndPrune| B[Readings Store]
     C[Evaluation Crawler] -->|getReadingsInRange| B
     B --> D{Environment}
-    D -->|GCS_READINGS_BUCKET set| E[Google Cloud Storage]
+    D -->|GCS_GENERIC_BUCKET set| E[Google Cloud Storage]
     D -->|otherwise| F[Local Filesystem]
 ```
 
@@ -22,11 +22,11 @@ The store provides two operations:
 
 ## Production (GCS)
 
-Readings are stored in a GCS bucket at `air-quality/{locality}/readings.json`. The bucket name is configured via the `GCS_READINGS_BUCKET` environment variable. Each write overwrites the entire file with the updated rolling window.
+Readings are stored in a GCS bucket at `air-quality/{locality}/readings.json`. The bucket name is configured via the `GCS_GENERIC_BUCKET` environment variable. Each write overwrites the entire file with the updated rolling window.
 
 ## Development (Local Filesystem)
 
-When `GCS_READINGS_BUCKET` is not set, readings fall back to the local filesystem at `{LOCAL_READINGS_PATH}/{locality}/readings.json`. The default path is `./tmp/air-quality`. Directories are created automatically on first write.
+When `GCS_GENERIC_BUCKET` is not set, readings fall back to the local filesystem at `{LOCAL_READINGS_PATH}/{locality}/readings.json`. The default path is `./tmp/air-quality`. Directories are created automatically on first write.
 
 This enables full local development without GCS emulators or cloud credentials.
 
