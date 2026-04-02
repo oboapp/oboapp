@@ -22,7 +22,10 @@ export function normalizePinAddress(address: string): string {
   return address
     .toLowerCase()
     .replaceAll(/^(бул\.|ул\.|площад|пл\.)\s*/g, "")
-    .replaceAll(/(?<=\d)-(?:ти|та|ви|ва|ри|ра|ми|ма|то|и)(?=\s|$|[^а-яa-z])/gi, "")
+    .replaceAll(
+      /(?<=\d)-(?:ти|та|ви|ва|ри|ра|ми|ма|то|и)(?=\s|$|[^а-яa-z])/gi,
+      "",
+    )
     .replaceAll(/["\u201c\u201d\u201e'`\u2018\u2019\u201a«»\u2039\u203a]/g, "")
     .replaceAll(/\.([а-яa-z])/gi, ". $1")
     .replaceAll(/\s+/g, " ")

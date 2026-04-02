@@ -30,9 +30,8 @@ async function cachePin(
   messageId: string,
   address: string,
 ): Promise<void> {
-  const { normalizePinAddress } = await import(
-    "@/geocoding/shared/normalize-address"
-  );
+  const { normalizePinAddress } =
+    await import("@/geocoding/shared/normalize-address");
 
   const msg = await db.messages.findById(messageId);
   if (!msg) {
@@ -97,7 +96,9 @@ async function cachePin(
 
   const count = await db.geocodeCachePins.count();
   console.log(`✅ Cached pin "${normalized}" from message "${messageId}"`);
-  console.log(`   Coordinates: ${match.coordinates.lat}, ${match.coordinates.lng}`);
+  console.log(
+    `   Coordinates: ${match.coordinates.lat}, ${match.coordinates.lng}`,
+  );
   console.log(`   Total pins in cache: ${count}`);
 }
 
@@ -106,9 +107,8 @@ async function cacheStreet(
   messageId: string,
   streetName: string,
 ): Promise<void> {
-  const { normalizePinAddress } = await import(
-    "@/geocoding/shared/normalize-address"
-  );
+  const { normalizePinAddress } =
+    await import("@/geocoding/shared/normalize-address");
 
   const msg = await db.messages.findById(messageId);
   if (!msg) {
@@ -145,17 +145,28 @@ async function cacheStreet(
 
   // Read pre-stored street geometry from message.process (written during ingestion)
   type ProcessStep = { step: string; result: unknown };
-  type StoredStreetGeometry = { key: string; originalName: string; geometry: Feature<MultiLineString> };
-  const processSteps = ((msg as Record<string, unknown>).process as ProcessStep[] | undefined) ?? [];
-  const streetGeometriesStep = processSteps.find((s) => s.step === "streetGeometries");
-  const storedGeometries = (streetGeometriesStep?.result ?? []) as StoredStreetGeometry[];
+  type StoredStreetGeometry = {
+    key: string;
+    originalName: string;
+    geometry: Feature<MultiLineString>;
+  };
+  const processSteps =
+    ((msg as Record<string, unknown>).process as ProcessStep[] | undefined) ??
+    [];
+  const streetGeometriesStep = processSteps.find(
+    (s) => s.step === "streetGeometries",
+  );
+  const storedGeometries = (streetGeometriesStep?.result ??
+    []) as StoredStreetGeometry[];
   const storedEntry = storedGeometries.find((g) => g.key === normalized);
 
   if (!storedEntry) {
     console.error(
       `❌ No geometry found for "${streetName}" in message.process.`,
     );
-    console.error(`   Re-ingest the message first to populate street geometries.`);
+    console.error(
+      `   Re-ingest the message first to populate street geometries.`,
+    );
     process.exitCode = 1;
     return;
   }
@@ -180,9 +191,7 @@ async function cacheStreet(
   });
 
   const count = await db.geocodeCacheStreets.count();
-  console.log(
-    `✅ Cached street "${normalized}" from message "${messageId}"`,
-  );
+  console.log(`✅ Cached street "${normalized}" from message "${messageId}"`);
   console.log(
     `   Geometry: ${geometry.geometry.coordinates.length} line segment(s)`,
   );

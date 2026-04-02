@@ -35,8 +35,16 @@ describe("normalizePinAddress", () => {
 
   it("removes typographic quotes", () => {
     // Use single-quoted strings so U+201D (looks like ") doesn't close the literal
-    expect(normalizePinAddress('ул. \u201e\u0414\u043e\u043d\u0434\u0443\u043a\u043e\u0432\u201d')).toBe('\u0434\u043e\u043d\u0434\u0443\u043a\u043e\u0432');
-    expect(normalizePinAddress('ул. \u00ab\u0414\u043e\u043d\u0434\u0443\u043a\u043e\u0432\u00bb')).toBe('\u0434\u043e\u043d\u0434\u0443\u043a\u043e\u0432');
+    expect(
+      normalizePinAddress(
+        "ул. \u201e\u0414\u043e\u043d\u0434\u0443\u043a\u043e\u0432\u201d",
+      ),
+    ).toBe("\u0434\u043e\u043d\u0434\u0443\u043a\u043e\u0432");
+    expect(
+      normalizePinAddress(
+        "ул. \u00ab\u0414\u043e\u043d\u0434\u0443\u043a\u043e\u0432\u00bb",
+      ),
+    ).toBe("\u0434\u043e\u043d\u0434\u0443\u043a\u043e\u0432");
   });
 
   it("adds space after dot-letter abbreviations", () => {

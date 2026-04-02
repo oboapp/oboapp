@@ -21,12 +21,10 @@ dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 
 async function buildReport(dryRun: boolean): Promise<void> {
   const { getDb, closeDb } = await import("@/lib/db");
-  const { normalizePinAddress } = await import(
-    "@/geocoding/shared/normalize-address"
-  );
-  const { saveFrequencyReport } = await import(
-    "@/lib/geocode-cache/report-store"
-  );
+  const { normalizePinAddress } =
+    await import("@/geocoding/shared/normalize-address");
+  const { saveFrequencyReport } =
+    await import("@/lib/geocode-cache/report-store");
 
   const db = await getDb();
 
@@ -49,12 +47,17 @@ async function buildReport(dryRun: boolean): Promise<void> {
     );
 
     // ── Aggregate pin frequencies ───────────────────────────────────────────
-    const pinCounts = new Map<string, { originalText: string; count: number }>();
+    const pinCounts = new Map<
+      string,
+      { originalText: string; count: number }
+    >();
     for (const msg of messages) {
       const addresses = (msg.addresses ?? []) as Address[];
       const seen = new Set<string>();
       for (const addr of addresses) {
-        const key = normalizePinAddress(addr.formattedAddress || addr.originalText);
+        const key = normalizePinAddress(
+          addr.formattedAddress || addr.originalText,
+        );
         if (!seen.has(key)) {
           seen.add(key);
           const existing = pinCounts.get(key);
@@ -71,7 +74,10 @@ async function buildReport(dryRun: boolean): Promise<void> {
     }
 
     // ── Aggregate street frequencies ────────────────────────────────────────
-    const streetCounts = new Map<string, { originalText: string; count: number }>();
+    const streetCounts = new Map<
+      string,
+      { originalText: string; count: number }
+    >();
     for (const msg of messages) {
       const streets = (msg.streets ?? []) as StreetSection[];
       const seen = new Set<string>();
@@ -119,12 +125,16 @@ async function buildReport(dryRun: boolean): Promise<void> {
     const topUncachedPins = pins.filter((p) => !p.cached).slice(0, 10);
     const topUncachedStreets = streets.filter((s) => !s.cached).slice(0, 10);
 
-    console.log(`\n📍 Top uncached pins (${pins.filter((p) => !p.cached).length} total):`);
+    console.log(
+      `\n📍 Top uncached pins (${pins.filter((p) => !p.cached).length} total):`,
+    );
     for (const p of topUncachedPins) {
       console.log(`   ${p.count}x  "${p.originalText}"  (key: ${p.key})`);
     }
 
-    console.log(`\n🛣️  Top uncached streets (${streets.filter((s) => !s.cached).length} total):`);
+    console.log(
+      `\n🛣️  Top uncached streets (${streets.filter((s) => !s.cached).length} total):`,
+    );
     for (const s of topUncachedStreets) {
       console.log(`   ${s.count}x  "${s.originalText}"  (key: ${s.key})`);
     }
@@ -135,7 +145,9 @@ async function buildReport(dryRun: boolean): Promise<void> {
     }
 
     await saveFrequencyReport(report);
-    console.log(`\n✅ Report saved (${pins.length} pins, ${streets.length} streets)`);
+    console.log(
+      `\n✅ Report saved (${pins.length} pins, ${streets.length} streets)`,
+    );
   } finally {
     await closeDb();
   }

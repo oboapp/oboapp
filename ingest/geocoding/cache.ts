@@ -18,7 +18,7 @@ let streetCacheSeeded = false;
 function isFeatureMultiLineString(v: unknown): v is Feature<MultiLineString> {
   return (
     isRecord(v) &&
-    (v.type === "Feature") &&
+    v.type === "Feature" &&
     isRecord(v.geometry) &&
     (v.geometry.type === "MultiLineString" || v.geometry.type === "LineString")
   );

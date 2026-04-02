@@ -211,11 +211,20 @@ async function processSingleMessage(
     }
     // Boundary filtering rejected this message — delete the unfinalized document
     // to honor the boundaryFilter contract ("message is not stored").
-    logger.info("Message excluded by boundary filter, deleting document", { messageId, error });
+    logger.info("Message excluded by boundary filter, deleting document", {
+      messageId,
+      error,
+    });
     const { getDb } = await import("@/lib/db");
     const db = await getDb();
     await db.messages.deleteOne(messageId);
-    return await buildMessageResponse(messageId, text, options.locality, addresses, null);
+    return await buildMessageResponse(
+      messageId,
+      text,
+      options.locality,
+      addresses,
+      null,
+    );
   }
 
   await finalizeMessageWithResults(messageId, geoJson, ingestErrors);
@@ -264,7 +273,12 @@ async function processPrecomputedGeoJsonMessage(
 
   const precomputedIngestErrors = createIngestErrorCollector();
 
-  await storeEmbeddingForMessage(storedMessageId, text, source, precomputedIngestErrors);
+  await storeEmbeddingForMessage(
+    storedMessageId,
+    text,
+    source,
+    precomputedIngestErrors,
+  );
 
   const message = await processSingleMessage(
     storedMessageId,
@@ -375,7 +389,12 @@ async function processWithAIPipeline(
       continue;
     }
 
-    await storeEmbeddingForMessage(storedMessageId, filteredMessage.plainText, source, ingestErrors);
+    await storeEmbeddingForMessage(
+      storedMessageId,
+      filteredMessage.plainText,
+      source,
+      ingestErrors,
+    );
 
     // Step 2: Categorize (using plainText which is now guaranteed non-empty)
     const categorizationResult = await categorize(
@@ -557,7 +576,8 @@ function createLocationExtractionAudit(
       streetsCount: extractedLocations.streets?.length || 0,
       cadastralCount: extractedLocations.cadastralProperties?.length || 0,
       busStopsCount: extractedLocations.busStops?.length || 0,
-      educationalFacilitiesCount: extractedLocations.educationalFacilities?.length || 0,
+      educationalFacilitiesCount:
+        extractedLocations.educationalFacilities?.length || 0,
       cityWide: extractedLocations.cityWide || false,
     },
   };
@@ -687,7 +707,10 @@ async function performGeocoding(
 ) {
   const { geocodeAddressesFromExtractedData } =
     await import("./geocode-addresses");
-  return await geocodeAddressesFromExtractedData(extractedLocations, ingestErrors);
+  return await geocodeAddressesFromExtractedData(
+    extractedLocations,
+    ingestErrors,
+  );
 }
 
 /**
@@ -702,7 +725,10 @@ async function performGeocodingWithErrorHandling(
   geoJson: GeoJSONFeatureCollection | null;
 } | null> {
   try {
-    const geocodingResult = await performGeocoding(extractedLocations, ingestErrors);
+    const geocodingResult = await performGeocoding(
+      extractedLocations,
+      ingestErrors,
+    );
     const filteredAddresses = await filterAndStoreAddresses(
       messageId,
       geocodingResult.addresses,
@@ -739,18 +765,26 @@ async function performGeocodingWithErrorHandling(
     // getStreetGeometryCached() reads the in-memory map that was populated during performGeocoding()
     // above, so no additional Overpass requests are made here.
     if (extractedLocations.streets.length > 0) {
-      const { getStreetGeometryCached } = await import("@/geocoding/overpass/service");
-      const { normalizePinAddress } = await import("@/geocoding/shared/normalize-address");
+      const { getStreetGeometryCached } =
+        await import("@/geocoding/overpass/service");
+      const { normalizePinAddress } =
+        await import("@/geocoding/shared/normalize-address");
       const streetGeometries = [];
       for (const s of extractedLocations.streets) {
         const geometry = getStreetGeometryCached(s.street);
         if (geometry) {
-          streetGeometries.push({ key: normalizePinAddress(s.street), originalName: s.street, geometry });
+          streetGeometries.push({
+            key: normalizePinAddress(s.street),
+            originalName: s.street,
+            geometry,
+          });
         }
       }
       if (streetGeometries.length > 0) {
         await updateMessage(messageId, {
-          $addToSet: { process: { step: "streetGeometries", result: streetGeometries } },
+          $addToSet: {
+            process: { step: "streetGeometries", result: streetGeometries },
+          },
         });
       }
     }
@@ -889,9 +923,7 @@ export function computeGeoJsonCentroidAddress(
           const first = ring[0];
           const last = ring[ring.length - 1];
           const isClosed =
-            ring.length > 1 &&
-            first[0] === last[0] &&
-            first[1] === last[1];
+            ring.length > 1 && first[0] === last[0] && first[1] === last[1];
           const vertices = isClosed ? ring.slice(0, -1) : ring;
           for (const coord of vertices) {
             totalLng += coord[0];
@@ -992,7 +1024,8 @@ async function applyBoundaryFilteringIfNeeded(
     return geoJson;
   }
 
-  const { filterFeaturesByBoundaries } = await import("../geocoding/shared/boundary-utils");
+  const { filterFeaturesByBoundaries } =
+    await import("../geocoding/shared/boundary-utils");
   const filteredGeoJson = filterFeaturesByBoundaries(geoJson, boundaryFilter);
 
   if (!filteredGeoJson) {
@@ -1167,7 +1200,10 @@ async function runEventMatching(
     await updateMessage(messageId, {
       $addToSet: {
         process: createEventMatchingAudit(false, undefined, errorMessage),
-        ingestErrors: { text: `Event matching failed: ${errorMessage}`, type: "error" as const },
+        ingestErrors: {
+          text: `Event matching failed: ${errorMessage}`,
+          type: "error" as const,
+        },
       },
     }).catch(() => {
       // Best-effort — don't let audit storage failure mask the real error
@@ -1190,9 +1226,8 @@ async function tryPreGeocodeMatch(
 ): Promise<InternalMessage | null> {
   try {
     const { getDb } = await import("@/lib/db");
-    const { preGeocodeMatch, attachMessageToEvent } = await import(
-      "@/event-matching"
-    );
+    const { preGeocodeMatch, attachMessageToEvent } =
+      await import("@/event-matching");
 
     const db = await getDb();
 

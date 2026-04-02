@@ -78,7 +78,9 @@ export function seedStreetGeometryCache(
 ): void {
   for (const { originalName, geometry } of entries) {
     const normalizedName = normalizeStreetName(originalName);
-    const isSquare = Boolean(originalName.toLowerCase().match(/^(площад|пл\.)\s*/));
+    const isSquare = Boolean(
+      originalName.toLowerCase().match(/^(площад|пл\.)\s*/),
+    );
     const isStreet = !isSquare && originalName.toLowerCase().includes("ул.");
     const featureType: StreetGeometryFeatureType = isSquare
       ? "square"

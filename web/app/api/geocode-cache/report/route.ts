@@ -32,7 +32,9 @@ export async function GET() {
     const [content] = await file.download();
     const report = JSON.parse(content.toString("utf-8"));
     return NextResponse.json(report, {
-      headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" },
+      headers: {
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+      },
     });
   } catch (err) {
     console.error("Failed to load geocode frequency report", err);
