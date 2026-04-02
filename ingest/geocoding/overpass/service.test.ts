@@ -370,5 +370,20 @@ describe("overpass-geocoding-service", () => {
       // ул. Фоо is already cached (way:фоо) → only 1 fresh fetch
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
+
+    it("clearing the cache causes a subsequent lookup to hit the network again", async () => {
+      const fetchMock = mockFetch(wayResponse);
+      vi.stubGlobal("fetch", fetchMock);
+
+      await overpassGeocodeIntersections(["ул. Пример ∩ ул. Фоо"]);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      clearStreetGeometryCache();
+      fetchMock.mockClear();
+
+      // Both streets were cleared — should fetch them again
+      await overpassGeocodeIntersections(["ул. Пример ∩ ул. Фоо"]);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
   });
 });

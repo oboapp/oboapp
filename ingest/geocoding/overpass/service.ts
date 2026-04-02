@@ -27,15 +27,15 @@ const OVERPASS_DELAY_MS = 500; // 500ms for Overpass API (generous limits)
 const OVERPASS_TIMEOUT_MS = 25000; // 25 seconds timeout for HTTP requests
 const BUFFER_DISTANCE_METERS = 30; // Buffer distance for street geometries
 
-type StreetGeometryFeatureType = "way" | "square" | "area";
+type StreetGeometryFeatureType = "street" | "boulevard" | "square";
 
 /**
- * Build a cache key for street geometry lookups that includes both the
- * detected feature type and the normalized street name. This avoids
- * collisions between different feature types that share the same
- * normalized name (e.g. "ул. Свобода" vs "пл. Свобода").
+ * Build a cache key that encodes both the query variant and the normalized
+ * street name, preventing collisions between lookups that use different
+ * Overpass queries for the same normalized name
+ * (e.g. "ул. България" uses a wider highway filter than "бул. България").
  */
-export function makeStreetGeometryCacheKey(
+function makeStreetGeometryCacheKey(
   featureType: StreetGeometryFeatureType,
   normalizedStreetName: string,
 ): string {
@@ -152,11 +152,18 @@ async function getStreetGeometryFromOverpass(
     // Normalize street name for better OSM matching
     const normalizedName = normalizeStreetName(streetName);
 
-    // Determine feature type — needed both for the cache key and the Overpass query
+    // Determine query variant — needed both for the cache key and the Overpass query.
+    // isSquare uses place=square OSM tags; isStreet broadens the highway filter to
+    // include residential/unclassified/living_street (prefixed with "ул.").
     const isSquare = Boolean(
       streetName.toLowerCase().match(/^(площад|пл\.)\s*/),
     );
-    const featureType: StreetGeometryFeatureType = isSquare ? "square" : "way";
+    const isStreet = !isSquare && streetName.toLowerCase().includes("ул.");
+    const featureType: StreetGeometryFeatureType = isSquare
+      ? "square"
+      : isStreet
+        ? "street"
+        : "boulevard";
     const cacheKey = makeStreetGeometryCacheKey(featureType, normalizedName);
 
     // Return cached result if available (includes null for streets not found in OSM)
@@ -170,7 +177,6 @@ async function getStreetGeometryFromOverpass(
     // Overpass QL query to find the street by name
     // For squares, search for place=square nodes/areas
     // For streets (ул.), include residential roads in addition to main highways
-    const isStreet = streetName.toLowerCase().includes("ул.");
 
     let query: string;
 
