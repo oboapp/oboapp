@@ -197,25 +197,12 @@ export async function GET(request: Request) {
     const now = Date.now();
     const windowStart = now - EVALUATION_WINDOW_HOURS * 60 * 60 * 1000;
 
-    // Summary stats over the full 24h retention window
+    // Single pass: compute summary stats and build per-cell hour bins simultaneously.
+    // Parse r.timestamp once per reading to avoid redundant Date allocations.
     const readings: StoredReading[] = allReadings ?? [];
     const uniqueSensors = new Set(readings.map((r) => r.sensorId)).size;
     let oldestTimestamp: number | null = null;
     let newestTimestamp: number | null = null;
-    for (const r of readings) {
-      const t = new Date(r.timestamp).getTime();
-      if (!Number.isFinite(t)) continue;
-      if (oldestTimestamp === null || t < oldestTimestamp) oldestTimestamp = t;
-      if (newestTimestamp === null || t > newestTimestamp) newestTimestamp = t;
-    }
-    const oldestAt = oldestTimestamp !== null ? new Date(oldestTimestamp).toISOString() : null;
-    const newestAt = newestTimestamp !== null ? new Date(newestTimestamp).toISOString() : null;
-    const isStale = newestTimestamp === null || now - newestTimestamp > MAX_STALENESS_MS;
-
-    // Per-cell AQI using the last 4-hour evaluation window
-    const windowReadings = readings.filter(
-      (r) => new Date(r.timestamp).getTime() >= windowStart,
-    );
 
     const grid = buildGrid(locality);
     const gridMaxNorth = grid.reduce((m, c) => Math.max(m, c.north), -Infinity);
@@ -225,7 +212,17 @@ export async function GET(request: Request) {
       { sensorIds: Set<number>; hourBins: Map<number, { p1: number[]; p2: number[] }> }
     >();
 
-    for (const r of windowReadings) {
+    for (const r of readings) {
+      const t = Date.parse(r.timestamp);
+      if (!Number.isFinite(t)) continue;
+
+      // Update 24h summary stats
+      if (oldestTimestamp === null || t < oldestTimestamp) oldestTimestamp = t;
+      if (newestTimestamp === null || t > newestTimestamp) newestTimestamp = t;
+
+      // Accumulate into cells only for the evaluation window
+      if (t < windowStart) continue;
+
       const cell = assignToCell(grid, r.lat, r.lng, gridMaxNorth, gridMaxEast);
       if (!cell) continue;
 
@@ -238,7 +235,7 @@ export async function GET(request: Request) {
       const entry = cellMap.get(cell.id)!;
       entry.sensorIds.add(r.sensorId);
 
-      const hourBin = Math.floor(new Date(r.timestamp).getTime() / 3_600_000);
+      const hourBin = Math.floor(t / 3_600_000);
       if (!entry.hourBins.has(hourBin)) {
         entry.hourBins.set(hourBin, { p1: [], p2: [] });
       }
@@ -246,6 +243,10 @@ export async function GET(request: Request) {
       bin.p1.push(r.p1);
       bin.p2.push(r.p2);
     }
+
+    const oldestAt = oldestTimestamp !== null ? new Date(oldestTimestamp).toISOString() : null;
+    const newestAt = newestTimestamp !== null ? new Date(newestTimestamp).toISOString() : null;
+    const isStale = newestTimestamp === null || now - newestTimestamp > MAX_STALENESS_MS;
 
     // Build a lookup from cell id → GridCell for bounds
     const gridById = new Map(grid.map((c) => [c.id, c]));
