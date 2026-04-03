@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { GET } from "../route";
 
 // Hoist mocks so they are available inside vi.mock factory closures
@@ -63,10 +63,18 @@ function gcsNotFound(): Error {
 describe("GET /api/air-quality/status", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: no data — works for both GCS and local-fallback paths
+    // Pin env vars so tests are hermetic regardless of the host environment.
+    // Force the GCS path so mockGcsDownload controls data supply consistently.
+    vi.stubEnv("GCS_GENERIC_BUCKET", "test-bucket");
+    vi.stubEnv("FIREBASE_SERVICE_ACCOUNT_KEY", "");
+    // Default: no data — GCS file not found
     mockGcsDownload.mockRejectedValue(gcsNotFound());
     mockReadFile.mockRejectedValue(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
     mockCalcAqi.mockReturnValue(3.5);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   describe("locality validation", () => {
@@ -120,7 +128,7 @@ describe("GET /api/air-quality/status", () => {
     const readingsBuffer = Buffer.from(JSON.stringify(readings));
 
     beforeEach(() => {
-      // Supply data via both paths — whichever the route uses depends on GCS_GENERIC_BUCKET
+      // Supply data via GCS path (GCS_GENERIC_BUCKET is pinned to "test-bucket" in the outer beforeEach)
       mockGcsDownload.mockResolvedValue([readingsBuffer]);
       mockReadFile.mockResolvedValue(JSON.stringify(readings));
     });

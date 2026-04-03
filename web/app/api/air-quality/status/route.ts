@@ -9,6 +9,8 @@ import {
 import type { HourlyAverage } from "@oboapp/shared";
 import type { Storage } from "@google-cloud/storage";
 
+export const runtime = "nodejs";
+
 const CELL_SIZE_KM = 4;
 const KM_PER_DEGREE_LAT = 111.0;
 const EVALUATION_WINDOW_HOURS = 4;
