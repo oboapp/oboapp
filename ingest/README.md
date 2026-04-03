@@ -28,6 +28,7 @@ graph LR
 
 - **[crawlers/](crawlers/README.md)** - Automated scrapers that fetch raw data from external sources
 - **[messageIngest/](messageIngest/README.md)** - Processing pipeline: AI extraction → geocoding → GeoJSON conversion
+- **[geocoding/](geocoding/README.md)** - Geocoding services (Google, Overpass, Cadastre, GTFS) with persistent cache
 - **[notifications/](notifications/README.md)** - Geographic matching and push notification delivery
 
 ## Usage
@@ -50,6 +51,12 @@ pnpm pipeline:emergent
 
 # Run full pipeline (all crawlers + ingest + notify)
 pnpm pipeline:all
+
+# Generate geocoding frequency report (uploads to GCS)
+pnpm geocode-cache:report
+
+# Pre-cache a geocoded address/street from an existing message
+pnpm geocode-cache:add -- --message <id> --address "..." --type pin|street
 ```
 
 ## Pipeline Schedules

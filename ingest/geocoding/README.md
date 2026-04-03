@@ -15,6 +15,12 @@ All results are validated against the configured locality boundary before use. R
 
 Some sources practice [geotagging](https://en.wikipedia.org/wiki/Geotagging) — embedding coordinates directly in their messages (e.g. Rayon Oborishte). When geotagged coordinates are present, geocoding is skipped for that location and the coordinates are used directly.
 
+## Cache
+
+Frequently repeated addresses and streets can be pre-cached in the database to skip API calls entirely. On each ingestion run, the cache is loaded into memory at startup. When a location matches a cached entry, the stored geometry is used directly — no external API call is made.
+
+The cache covers pins (Google Geocoding results) and streets (Overpass geometries). Entries are populated manually via a CLI tool after reviewing a frequency report. See [Geocode Cache](../../docs/features/geocode-cache.md) for the full workflow.
+
 ## Event-based skip
 
 When [event matching](../lib/event-matching/) finds a high-quality match before geocoding, the matched event's geometry is reused and all geocoding API calls are skipped.

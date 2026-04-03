@@ -454,7 +454,7 @@ export default function GeocodeCachePage() {
             {error === "not-generated" && (
               <>
                 <p className="text-sm text-neutral mb-3">
-                  Отчетът не е генериран още. Стартирайте:
+                  Отчетът още не е генериран. За генериране изпълни:
                 </p>
                 <pre className="bg-neutral-light text-neutral font-mono text-xs rounded px-4 py-3 select-all">
                   pnpm tsx scripts/geocode-frequency-report.ts

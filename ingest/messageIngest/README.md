@@ -81,10 +81,11 @@ Prompt: [`prompts/extract-locations.md`](../prompts/extract-locations.md)
 Converts extracted locations to map coordinates using four specialized services:
 
 - **Geocode Addresses** - Google API for pins, Overpass API for streets, Cadastre API for УПИ properties, GTFS data for bus stops
+- **Cache Lookup** - Pre-cached pins and streets are resolved from memory, skipping API calls entirely
 - **Filter Outliers** - Remove coordinates >1km from others
 - **Store Geocoding** - Save validated coordinates
 
-See [Geocoding](../geocoding/README.md) for service details, rate limiting, and configuration.
+See [Geocoding](../geocoding/README.md) for service details, rate limiting, caching, and configuration.
 
 ### GeoJSON Stage
 
