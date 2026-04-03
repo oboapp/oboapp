@@ -48,7 +48,7 @@ pnpm geocode-cache:add -- --message <id> --address "ул. Граф Игнати�
 pnpm geocode-cache:add -- --message <id> --address "бул. Витоша" --type street
 ```
 
-The frequency report script supports `--dry-run` to preview results without uploading.
+The frequency report script supports `--dry-run` to print the top uncached pins and streets to stdout without uploading to GCS.
 
 ## Admin Page
 
