@@ -170,20 +170,26 @@ describe("GET /api/air-quality/status", () => {
     });
 
     it("sorts cells with null aqi after cells with a valid aqi", async () => {
+      // Two readings in distinct grid cells so calculateNowCastAqi is called once per cell.
+      // (42.61, 23.21) → cell r0c0; (42.75, 23.45) → cell r4c5 (grid step ≈ lat 0.033, lng 0.043).
+      const twoDistinctCellReadings = [
+        { sensorId: 1, timestamp: recentIso, lat: 42.61, lng: 23.21, p1: 30, p2: 20 },
+        { sensorId: 2, timestamp: recentIso, lat: 42.75, lng: 23.45, p1: 35, p2: 22 },
+      ];
+      const buf = Buffer.from(JSON.stringify(twoDistinctCellReadings));
+      mockGcsDownload.mockResolvedValue([buf]);
+      mockReadFile.mockResolvedValue(JSON.stringify(twoDistinctCellReadings));
+
+      // First cell (r0c0, sensor 1) gets aqi=4.2; second cell (r4c5, sensor 2) gets aqi=null (0).
       mockCalcAqi.mockReturnValueOnce(4.2).mockReturnValueOnce(0);
       const res = await GET(makeRequest({ locality: freshLocality() }));
       const body = await res.json();
+      expect(body.cells).toHaveLength(2);
       const aqis: (number | null)[] = body.cells.map(
         (c: { aqi: number | null }) => c.aqi,
       );
-      const firstNull = aqis.indexOf(null);
-      const lastNonNull = aqis.reduceRight(
-        (acc: number, v: number | null, i: number) => (acc === -1 && v !== null ? i : acc),
-        -1,
-      );
-      if (firstNull !== -1 && lastNonNull !== -1) {
-        expect(firstNull).toBeGreaterThan(lastNonNull);
-      }
+      expect(aqis[0]).toBe(4.2);
+      expect(aqis[1]).toBeNull();
     });
   });
 });
