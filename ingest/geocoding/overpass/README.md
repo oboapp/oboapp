@@ -14,12 +14,41 @@ Retrieves street geometries and calculates intersection points from OpenStreetMa
 
 ## Multiple Servers
 
-Uses fallback chain with 4 OpenStreetMap Overpass servers for reliability:
+Uses a two-instance fallback chain for reliability:
 
 1. **Primary**: overpass.private.coffee (no rate limit applied)
-2. **Fallback servers**: Automatically retried on failure
+2. **Fallback**: overpass-api.de (main instance, ~10k queries/day)
 
-**Auto-Retry**: Requests failing on primary server automatically retry on fallback servers.
+Requests failing on the primary server automatically fall through to the fallback.
+
+## Adaptive Retry Policy
+
+For transient failures on a single instance (429 Too Many Requests or request timeouts), the service retries the **same instance** up to `OVERPASS_RETRY_MAX_ATTEMPTS = 3` times before falling back to the next instance.
+
+**Backoff**: exponential with ±25% jitter, starting at 1 s, capped at 30 s.
+
+```
+attempt 1 → fail → wait ~1s
+attempt 2 → fail → wait ~2s
+attempt 3 → fail → move to next instance
+```
+
+**`Retry-After` header**: honoured on 429 responses (supports both delta-seconds and HTTP-date formats, capped at 30 s).
+
+Other transient errors (5xx, network errors) skip per-instance retry and immediately try the next instance.
+
+## Run-Scoped Circuit Breaker
+
+To prevent a saturated run from hammering Overpass with hundreds of failing requests, each geocoding run tracks consecutive transient failures via `AsyncLocalStorage`.
+
+After **`CIRCUIT_BREAKER_THRESHOLD = 5`** consecutive transient failures:
+- The circuit opens for the current run.
+- Subsequent street geometry lookups are **deferred** (no network call) until the retry pass.
+- The circuit **resets** on the first successful response.
+
+The two-pass structure of `overpassGeocodeIntersections` naturally accommodates this: the first pass collects deferred streets, the circuit resets, and deferred streets are retried in the second pass.
+
+Cached streets (already in memory from a previous lookup) are **always served** regardless of circuit state — no network call needed.
 
 ## Street Name Normalization
 

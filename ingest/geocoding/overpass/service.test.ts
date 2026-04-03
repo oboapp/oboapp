@@ -344,8 +344,8 @@ describe("overpass-geocoding-service", () => {
       const targetDelayMs = 10_000;
       const futureDate = new Date(Date.now() + targetDelayMs).toUTCString();
       const result = parseRetryAfterMs(futureDate);
-      // Allow ±500ms tolerance for execution time
-      expect(result).toBeGreaterThanOrEqual(targetDelayMs - 500);
+      // toUTCString() truncates to second precision; allow up to 1500ms tolerance
+      expect(result).toBeGreaterThanOrEqual(targetDelayMs - 1500);
       expect(result).toBeLessThanOrEqual(targetDelayMs);
     });
 
@@ -613,10 +613,9 @@ describe("overpass-geocoding-service", () => {
 
         await overpassGeocodeIntersections(intersections);
 
-        // This test assumes the current production configuration uses 2 Overpass instances.
-        const overpassInstanceCount = 2;
         // Without circuit breaker every street would be tried on every instance in both passes.
         // With circuit breaker, at most threshold × instances calls occur per pass before it opens.
+        const overpassInstanceCount = OVERPASS_INSTANCES.length;
         const maxExpectedCallsPerPass = CIRCUIT_BREAKER_THRESHOLD * overpassInstanceCount;
         expect(vi.mocked(fetch).mock.calls.length).toBeLessThan(
           intersections.length * 2 * overpassInstanceCount,
@@ -629,7 +628,7 @@ describe("overpass-geocoding-service", () => {
       it("resets after a successful request so subsequent streets are attempted", async () => {
         // All instances fail for the first threshold streets, then requests start succeeding
         // — the circuit should reset on the first successful response.
-        const overpassInstanceCount = 2;
+        const overpassInstanceCount = OVERPASS_INSTANCES.length;
         let fetchCallCount = 0;
         vi.stubGlobal(
           "fetch",
