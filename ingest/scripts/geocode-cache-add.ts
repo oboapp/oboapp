@@ -192,10 +192,10 @@ async function cacheStreet(
       geometry = JSON.parse(storedEntry.geometry) as Feature<MultiLineString>;
     } catch {
       console.error(
-        `❌ Невалидна street geometry стойност в message.process за messageId "${messageId}" и key "${normalized}".`,
+        `❌ Invalid street geometry value in message.process for messageId "${messageId}" and key "${normalized}".`,
       );
       console.error(
-        `   Записаната geometry стойност не може да бъде прочетена като JSON. Провери данните и опитай отново.`,
+        `   The stored geometry value could not be parsed as JSON. Check the data and try again.`,
       );
       process.exitCode = 1;
       return;

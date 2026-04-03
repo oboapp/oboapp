@@ -9,6 +9,7 @@ import type { Feature, MultiLineString } from "geojson";
 import type { Address } from "@/lib/types";
 import { getString, getCoordinates, isRecord } from "@/lib/record-fields";
 import { normalizePinAddress } from "@oboapp/shared";
+import { logger } from "@/lib/logger";
 
 // Pin cache: normalized address string → Address
 let pinCache: Map<string, Address> | null = null;
@@ -27,9 +28,15 @@ function isFeatureMultiLineString(v: unknown): v is Feature<MultiLineString> {
 
 function recordToAddress(e: Record<string, unknown>): [string, Address] | null {
   const key = getString(e.key);
-  if (!key) return null;
+  if (!key) {
+    logger.warn("Geocode cache pin entry missing key, skipping", { entry: e });
+    return null;
+  }
   const coordinates = getCoordinates(e.coordinates);
-  if (!coordinates) return null;
+  if (!coordinates) {
+    logger.warn("Geocode cache pin entry missing coordinates, skipping", { key });
+    return null;
+  }
   const rawGeoJson = e.geoJson;
   let geoJson: Address["geoJson"];
   if (isRecord(rawGeoJson) && rawGeoJson.type === "Point") {
@@ -102,6 +109,10 @@ export async function seedStreetCacheFromDb(): Promise<void> {
       // stored key. A mismatch means the DB entry was written inconsistently,
       // and seeding it would populate the wrong in-memory cache key.
       if (storedKey && normalizePinAddress(originalName) !== storedKey) {
+        logger.warn(
+          "Geocode cache street entry key mismatch — skipping inconsistent DB entry",
+          { originalText: originalName, storedKey, recomputedKey: normalizePinAddress(originalName) },
+        );
         return [];
       }
       return [{ originalName, geometry }];

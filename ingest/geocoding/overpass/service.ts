@@ -42,6 +42,14 @@ function makeStreetGeometryCacheKey(
   return `${featureType}:${normalizedStreetName}`;
 }
 
+function getStreetFeatureType(streetName: string): StreetGeometryFeatureType {
+  const lower = streetName.toLowerCase();
+  if (Boolean(lower.match(/^(площад|пл\.)\s*/))) return "square";
+  if (lower.includes("бул.")) return "boulevard";
+  if (lower.includes("ул.")) return "street";
+  return "boulevard";
+}
+
 // In-memory cache for street geometry lookups (keyed on type + normalized street name)
 const streetGeometryCache = new Map<string, Feature<MultiLineString> | null>();
 
@@ -57,15 +65,10 @@ export function clearStreetGeometryCache(): void {
 export function getStreetGeometryCached(
   streetName: string,
 ): Feature<MultiLineString> | null {
-  const normalizedName = normalizeStreetName(streetName);
-  const isSquare = Boolean(streetName.toLowerCase().match(/^(площад|пл\.)\s*/));
-  const isStreet = !isSquare && streetName.toLowerCase().includes("ул.");
-  const featureType: StreetGeometryFeatureType = isSquare
-    ? "square"
-    : isStreet
-      ? "street"
-      : "boulevard";
-  const cacheKey = makeStreetGeometryCacheKey(featureType, normalizedName);
+  const cacheKey = makeStreetGeometryCacheKey(
+    getStreetFeatureType(streetName),
+    normalizeStreetName(streetName),
+  );
   return streetGeometryCache.get(cacheKey) ?? null;
 }
 
@@ -75,15 +78,12 @@ export function getStreetGeometryCached(
  * delay is needed before a subsequent Overpass call.
  */
 export function hasStreetGeometryQueried(streetName: string): boolean {
-  const normalizedName = normalizeStreetName(streetName);
-  const isSquare = Boolean(streetName.toLowerCase().match(/^(площад|пл\.)\s*/));
-  const isStreet = !isSquare && streetName.toLowerCase().includes("ул.");
-  const featureType: StreetGeometryFeatureType = isSquare
-    ? "square"
-    : isStreet
-      ? "street"
-      : "boulevard";
-  return streetGeometryCache.has(makeStreetGeometryCacheKey(featureType, normalizedName));
+  return streetGeometryCache.has(
+    makeStreetGeometryCacheKey(
+      getStreetFeatureType(streetName),
+      normalizeStreetName(streetName),
+    ),
+  );
 }
 
 /**
@@ -94,17 +94,10 @@ export function seedStreetGeometryCache(
   entries: Array<{ originalName: string; geometry: Feature<MultiLineString> }>,
 ): void {
   for (const { originalName, geometry } of entries) {
-    const normalizedName = normalizeStreetName(originalName);
-    const isSquare = Boolean(
-      originalName.toLowerCase().match(/^(площад|пл\.)\s*/),
+    const cacheKey = makeStreetGeometryCacheKey(
+      getStreetFeatureType(originalName),
+      normalizeStreetName(originalName),
     );
-    const isStreet = !isSquare && originalName.toLowerCase().includes("ул.");
-    const featureType: StreetGeometryFeatureType = isSquare
-      ? "square"
-      : isStreet
-        ? "street"
-        : "boulevard";
-    const cacheKey = makeStreetGeometryCacheKey(featureType, normalizedName);
     if (!streetGeometryCache.has(cacheKey)) {
       streetGeometryCache.set(cacheKey, geometry);
     }
@@ -213,17 +206,11 @@ export async function getStreetGeometryFromOverpass(
     const normalizedName = normalizeStreetName(streetName);
 
     // Determine query variant — needed both for the cache key and the Overpass query.
-    // isSquare uses place=square OSM tags; isStreet broadens the highway filter to
+    // "square" uses place=square OSM tags; "street" broadens the highway filter to
     // include residential/unclassified/living_street (prefixed with "ул.").
-    const isSquare = Boolean(
-      streetName.toLowerCase().match(/^(площад|пл\.)\s*/),
-    );
-    const isStreet = !isSquare && streetName.toLowerCase().includes("ул.");
-    const featureType: StreetGeometryFeatureType = isSquare
-      ? "square"
-      : isStreet
-        ? "street"
-        : "boulevard";
+    const featureType = getStreetFeatureType(streetName);
+    const isSquare = featureType === "square";
+    const isStreet = featureType === "street";
     const cacheKey = makeStreetGeometryCacheKey(featureType, normalizedName);
 
     // Return cached result if available (includes null for streets not found in OSM)

@@ -84,8 +84,13 @@ const MAP_OPTIONS: google.maps.MapOptions = {
   styles: MAP_STYLES,
 };
 
-// Distinct colors for up to 5 source messages
-const COLORS = ["#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6"];
+// Distinct colors for up to 20 source messages
+const COLORS = [
+  "#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6",
+  "#EC4899", "#06B6D4", "#84CC16", "#F97316", "#6366F1",
+  "#14B8A6", "#F43F5E", "#A855F7", "#22C55E", "#EAB308",
+  "#0EA5E9", "#D946EF", "#64748B", "#E11D48", "#7C3AED",
+];
 
 function GeometryPanel({
   entry,

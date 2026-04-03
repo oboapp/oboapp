@@ -765,48 +765,57 @@ async function performGeocodingWithErrorHandling(
     // Reads from the in-memory cache populated during performGeocoding(). For streets geocoded via
     // geotagged coordinates (Overpass was skipped), we make an explicit Overpass fetch here so their
     // geometry ends up in the cache too.
-    if (extractedLocations.streets.length > 0) {
-      const {
-        getStreetGeometryCached,
-        getStreetGeometryFromOverpass,
-        hasStreetGeometryQueried,
-      } = await import("@/geocoding/overpass/service");
-      const { normalizePinAddress } =
-        await import("@oboapp/shared");
-      const { delay } = await import("@/lib/delay");
-      const streetGeometries = [];
-      let overpassFetchCount = 0;
-      for (const s of extractedLocations.streets) {
-        let geometry = getStreetGeometryCached(s.street);
-        if (!geometry && !hasStreetGeometryQueried(s.street)) {
-          // This street was geocoded via geotagged coordinates (Overpass was skipped).
-          // Fetch Overpass geometry explicitly so it can be pre-populated into the geocode cache.
-          if (overpassFetchCount > 0) {
-            await delay(500); // Respect Overpass fair-use rate limit between consecutive fetches
+    // Wrapped in its own try/catch so a failure here doesn't invalidate the geocoding result above.
+    try {
+      if (extractedLocations.streets.length > 0) {
+        const {
+          getStreetGeometryCached,
+          getStreetGeometryFromOverpass,
+          hasStreetGeometryQueried,
+        } = await import("@/geocoding/overpass/service");
+        const { normalizePinAddress } =
+          await import("@oboapp/shared");
+        const { delay } = await import("@/lib/delay");
+        const streetGeometries = [];
+        let overpassFetchCount = 0;
+        for (const s of extractedLocations.streets) {
+          let geometry = getStreetGeometryCached(s.street);
+          if (!geometry && !hasStreetGeometryQueried(s.street)) {
+            // This street was geocoded via geotagged coordinates (Overpass was skipped).
+            // Fetch Overpass geometry explicitly so it can be pre-populated into the geocode cache.
+            if (overpassFetchCount > 0) {
+              await delay(500); // Respect Overpass fair-use rate limit between consecutive fetches
+            }
+            geometry = await getStreetGeometryFromOverpass(s.street);
+            overpassFetchCount++;
           }
-          geometry = await getStreetGeometryFromOverpass(s.street);
-          overpassFetchCount++;
+          if (geometry) {
+            streetGeometries.push({
+              key: normalizePinAddress(s.street),
+              originalName: s.street,
+              // Stringify to avoid Firestore nested-array rejection (coordinates: number[][][])
+              geometry: JSON.stringify(geometry),
+            });
+          }
         }
-        if (geometry) {
-          streetGeometries.push({
-            key: normalizePinAddress(s.street),
-            originalName: s.street,
-            // Stringify to avoid Firestore nested-array rejection (coordinates: number[][][])
-            geometry: JSON.stringify(geometry),
+        if (streetGeometries.length > 0) {
+          await updateMessage(messageId, {
+            $addToSet: {
+              process: {
+                step: "streetGeometries",
+                timestamp: new Date().toISOString(),
+                result: streetGeometries,
+              },
+            },
           });
         }
       }
-      if (streetGeometries.length > 0) {
-        await updateMessage(messageId, {
-          $addToSet: {
-            process: {
-              step: "streetGeometries",
-              timestamp: new Date().toISOString(),
-              result: streetGeometries,
-            },
-          },
-        });
-      }
+    } catch (geometryError) {
+      const { logger } = await import("@/lib/logger");
+      logger.warn("Failed to persist street geometries to message.process — geocoding result unaffected", {
+        messageId,
+        error: geometryError instanceof Error ? geometryError.message : String(geometryError),
+      });
     }
 
     return { addresses: filteredAddresses, geoJson };
