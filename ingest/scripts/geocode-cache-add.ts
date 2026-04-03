@@ -88,20 +88,47 @@ function extractGeocodingData(msg: Record<string, unknown>): {
     (s): s is Record<string, unknown> & { runId: string } =>
       s["step"] === "geocodingBatch" && typeof s["runId"] === "string",
   );
-  if (batchSteps.length === 0) return { pins: [], streets: [] };
+  if (batchSteps.length > 0) {
+    const lastRunId = batchSteps[batchSteps.length - 1].runId;
+    const batchesForRun = batchSteps.filter((s) => s["runId"] === lastRunId);
+    return {
+      pins: batchesForRun.flatMap((s) =>
+        Array.isArray(s["pins"]) ? s["pins"].filter(isGeocodingPinEntry) : [],
+      ),
+      streets: batchesForRun.flatMap((s) =>
+        Array.isArray(s["streets"])
+          ? s["streets"].filter(isGeocodingStreetEntry)
+          : [],
+      ),
+    };
+  }
 
-  const lastRunId = batchSteps[batchSteps.length - 1].runId;
-  const batchesForRun = batchSteps.filter((s) => s["runId"] === lastRunId);
-  return {
-    pins: batchesForRun.flatMap((s) =>
-      Array.isArray(s["pins"]) ? s["pins"].filter(isGeocodingPinEntry) : [],
-    ),
-    streets: batchesForRun.flatMap((s) =>
-      Array.isArray(s["streets"])
-        ? s["streets"].filter(isGeocodingStreetEntry)
-        : [],
-    ),
-  };
+  // Legacy fallback: read street geometries from the old streetGeometries process step
+  // (messages ingested before the geocoding step was introduced)
+  const legacySteps = steps.filter((s) => s["step"] === "streetGeometries");
+  if (legacySteps.length > 0) {
+    const last = legacySteps[legacySteps.length - 1];
+    const rawGeometries = Array.isArray(last["result"]) ? last["result"] : [];
+    const legacyStreets: GeocodingStreetEntry[] = rawGeometries
+      .filter(
+        (g): g is Record<string, unknown> =>
+          isRecord(g) &&
+          typeof g["key"] === "string" &&
+          typeof g["originalName"] === "string" &&
+          (typeof g["geometry"] === "string" || isRecord(g["geometry"])),
+      )
+      .map((g) => ({
+        key: g["key"] as string,
+        originalName: g["originalName"] as string,
+        geometry:
+          typeof g["geometry"] === "string"
+            ? (g["geometry"] as string)
+            : JSON.stringify(g["geometry"]),
+      }));
+    return { pins: [], streets: legacyStreets };
+  }
+
+  return { pins: [], streets: [] };
 }
 
 async function cachePin(
