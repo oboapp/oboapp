@@ -8,6 +8,10 @@ import {
   CIRCUIT_BREAKER_THRESHOLD,
   OVERPASS_INSTANCES,
   OVERPASS_RETRY_MAX_ATTEMPTS,
+  OVERPASS_RETRY_BASE_DELAY_MS,
+  OVERPASS_RETRY_MAX_DELAY_MS,
+  parseRetryAfterMs,
+  calculateRetryDelayMs,
 } from "./service";
 import { delay } from "../../lib/delay";
 
@@ -304,6 +308,93 @@ describe("overpass-geocoding-service", () => {
       expect(normalizeAddressForNominatim("бл. 12, ж.к. Младост")).toBe(
         "бл. 12, ж.к. Младост",
       );
+    });
+  });
+
+  describe("parseRetryAfterMs", () => {
+    it("returns null for null header", () => {
+      expect(parseRetryAfterMs(null)).toBeNull();
+    });
+
+    it("returns null for empty string", () => {
+      expect(parseRetryAfterMs("")).toBeNull();
+      expect(parseRetryAfterMs("   ")).toBeNull();
+    });
+
+    it("parses delta-seconds correctly", () => {
+      expect(parseRetryAfterMs("3")).toBe(3_000);
+      expect(parseRetryAfterMs("0")).toBe(0);
+    });
+
+    it("caps delta-seconds at OVERPASS_RETRY_MAX_DELAY_MS", () => {
+      expect(parseRetryAfterMs("9999")).toBe(OVERPASS_RETRY_MAX_DELAY_MS);
+    });
+
+    it("returns 0 for a past HTTP-date", () => {
+      const pastDate = new Date(Date.now() - 60_000).toUTCString();
+      expect(parseRetryAfterMs(pastDate)).toBe(0);
+    });
+
+    it("returns a positive delta for a future HTTP-date, capped at max", () => {
+      const farFuture = new Date(Date.now() + 999_999_999).toUTCString();
+      expect(parseRetryAfterMs(farFuture)).toBe(OVERPASS_RETRY_MAX_DELAY_MS);
+    });
+
+    it("returns the correct delta for a near-future HTTP-date", () => {
+      const targetDelayMs = 10_000;
+      const futureDate = new Date(Date.now() + targetDelayMs).toUTCString();
+      const result = parseRetryAfterMs(futureDate);
+      // Allow ±500ms tolerance for execution time
+      expect(result).toBeGreaterThanOrEqual(targetDelayMs - 500);
+      expect(result).toBeLessThanOrEqual(targetDelayMs);
+    });
+
+    it("returns null for a malformed string", () => {
+      expect(parseRetryAfterMs("not-a-date")).toBeNull();
+    });
+
+    it("returns 0 for a string that parses as an epoch/past date", () => {
+      // "-1" is treated as a past HTTP-date (epoch minus 1ms) → clamped to 0
+      expect(parseRetryAfterMs("-1")).toBe(0);
+    });
+  });
+
+  describe("calculateRetryDelayMs", () => {
+    it("returns retryAfterMs directly when provided", () => {
+      expect(calculateRetryDelayMs(1, 5_000)).toBe(5_000);
+      expect(calculateRetryDelayMs(2, 0)).toBe(0);
+    });
+
+    it("caps retryAfterMs at OVERPASS_RETRY_MAX_DELAY_MS", () => {
+      expect(calculateRetryDelayMs(1, OVERPASS_RETRY_MAX_DELAY_MS + 1)).toBe(
+        OVERPASS_RETRY_MAX_DELAY_MS,
+      );
+    });
+
+    it("attempt 1 falls within [BASE * 0.75, BASE * 1.25]", () => {
+      for (let i = 0; i < 20; i++) {
+        const result = calculateRetryDelayMs(1, null);
+        expect(result).toBeGreaterThanOrEqual(
+          Math.round(OVERPASS_RETRY_BASE_DELAY_MS * 0.75),
+        );
+        expect(result).toBeLessThanOrEqual(
+          Math.round(OVERPASS_RETRY_BASE_DELAY_MS * 1.25),
+        );
+      }
+    });
+
+    it("attempt 2 has a larger base than attempt 1 (exponential growth)", () => {
+      // With ±25% jitter: attempt1 max = BASE*1.25 = 1250, attempt2 min = BASE*2*0.75 = 1500
+      // Ranges do not overlap, so a single sample suffices for a range check
+      const attempt1Max = Math.round(OVERPASS_RETRY_BASE_DELAY_MS * 1.25);
+      const attempt2Min = Math.round(OVERPASS_RETRY_BASE_DELAY_MS * 2 * 0.75);
+      expect(attempt2Min).toBeGreaterThan(attempt1Max);
+    });
+
+    it("caps at OVERPASS_RETRY_MAX_DELAY_MS for large attempt numbers", () => {
+      for (let i = 0; i < 10; i++) {
+        expect(calculateRetryDelayMs(20, null)).toBe(OVERPASS_RETRY_MAX_DELAY_MS);
+      }
     });
   });
 

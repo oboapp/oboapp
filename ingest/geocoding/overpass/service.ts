@@ -30,8 +30,8 @@ const BUFFER_DISTANCE_METERS = 30; // Buffer distance for street geometries
 
 // Adaptive retry policy for per-instance 429 / AbortError retries
 export const OVERPASS_RETRY_MAX_ATTEMPTS = 3; // Total attempts per instance (including first)
-const OVERPASS_RETRY_BASE_DELAY_MS = 1_000;
-const OVERPASS_RETRY_MAX_DELAY_MS = 30_000;
+export const OVERPASS_RETRY_BASE_DELAY_MS = 1_000;
+export const OVERPASS_RETRY_MAX_DELAY_MS = 30_000;
 const OVERPASS_RETRY_BACKOFF_FACTOR = 2;
 const OVERPASS_RETRY_JITTER_FACTOR = 0.25;
 
@@ -96,7 +96,7 @@ function recordSuccess(ctx: OverpassRunContext): void {
   }
 }
 
-function parseRetryAfterMs(header: string | null): number | null {
+export function parseRetryAfterMs(header: string | null): number | null {
   if (header === null) return null;
   const trimmed = header.trim();
   if (trimmed.length === 0) return null;
@@ -113,7 +113,7 @@ function parseRetryAfterMs(header: string | null): number | null {
   return Math.min(Math.max(retryAtMs - Date.now(), 0), OVERPASS_RETRY_MAX_DELAY_MS);
 }
 
-function calculateRetryDelayMs(attempt: number, retryAfterMs: number | null): number {
+export function calculateRetryDelayMs(attempt: number, retryAfterMs: number | null): number {
   if (retryAfterMs !== null) return Math.min(retryAfterMs, OVERPASS_RETRY_MAX_DELAY_MS);
   const base =
     OVERPASS_RETRY_BASE_DELAY_MS * Math.pow(OVERPASS_RETRY_BACKOFF_FACTOR, attempt - 1);
