@@ -193,6 +193,8 @@ function shouldTryFallback(error: Error, statusCode?: number): boolean {
   return true;
 }
 
+type ErrorWithStatusCode = Error & { statusCode?: number };
+
 // Multiple Overpass API instances for fallback
 const OVERPASS_INSTANCES = [
   "https://overpass.private.coffee/api/interpreter", // No rate limit
@@ -334,7 +336,10 @@ export async function getStreetGeometryFromOverpass(
           // Try to extract XML error message
           const text = await response.text();
           const errorMsg = parseOverpassError(text) || response.statusText;
-          const error = new Error(`HTTP ${response.status}: ${errorMsg}`);
+          const error: ErrorWithStatusCode = new Error(
+            `HTTP ${response.status}: ${errorMsg}`,
+          );
+          error.statusCode = response.status;
 
           if (!shouldTryFallback(error, response.status)) {
             // Client-side error - don't try other servers
@@ -374,10 +379,11 @@ export async function getStreetGeometryFromOverpass(
       } catch (error) {
         clearTimeout(timeoutId);
 
-        const err = error instanceof Error ? error : new Error(String(error));
+        const err: ErrorWithStatusCode =
+          error instanceof Error ? error : new Error(String(error));
 
         // Check if this is a client-side error
-        if (!shouldTryFallback(err)) {
+        if (!shouldTryFallback(err, err.statusCode)) {
           logger.error("Client error (query issue)", { error: err.message });
           throw err;
         }
@@ -473,13 +479,14 @@ export async function getStreetGeometryFromOverpass(
     deferredStreetGeometryKeys.delete(cacheKey);
     return multiLineString;
   } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
+    const err: ErrorWithStatusCode =
+      error instanceof Error ? error : new Error(String(error));
     logger.error("Error fetching from Overpass", {
       streetName,
       error: err.message,
     });
 
-    if (shouldTryFallback(err)) {
+    if (shouldTryFallback(err, err.statusCode)) {
       if (deferredScopeDepth > 0) {
         deferredStreetGeometryKeys.add(cacheKey);
         logger.info("Deferring street geometry after transient failure", {

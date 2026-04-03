@@ -333,30 +333,34 @@ describe("overpass-geocoding-service", () => {
     });
 
     it("retries deferred intersections after transient network failures", async () => {
-      const fetchMock = vi
-        .fn()
-        .mockRejectedValueOnce(new Error("Network request failed"))
-        .mockRejectedValueOnce(new Error("Network request failed"))
-        .mockRejectedValueOnce(new Error("Network request failed"))
-        .mockRejectedValueOnce(new Error("Network request failed"))
-        .mockResolvedValueOnce({
+      const attemptsByInstanceAndQuery = new Map<string, number>();
+      const fetchMock = vi.fn(async (input: string | URL, init?: RequestInit) => {
+        const instance = input instanceof URL ? input.toString() : String(input);
+        const query = typeof init?.body === "string" ? init.body : "";
+        const key = `${instance}|${query}`;
+        const attempts = attemptsByInstanceAndQuery.get(key) ?? 0;
+        attemptsByInstanceAndQuery.set(key, attempts + 1);
+
+        if (attempts === 0) {
+          throw new Error("Network request failed");
+        }
+
+        return {
           ok: true,
           text: () => Promise.resolve(wayResponse),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          text: () => Promise.resolve(wayResponse),
-        });
+        };
+      });
       vi.stubGlobal("fetch", fetchMock);
 
       const results = await overpassGeocodeIntersections([
         "ул. Пример ∩ ул. Фоо",
       ]);
 
-      // The deferred retry pass should trigger additional calls beyond the
-      // initial transient-failure attempts, without depending on exact
-      // OVERPASS_INSTANCES size.
-      expect(fetchMock.mock.calls.length).toBeGreaterThan(4);
+      expect(
+        [...attemptsByInstanceAndQuery.values()].some(
+          (attempts) => attempts > 1,
+        ),
+      ).toBe(true);
       expect(results).toHaveLength(1);
     });
 
