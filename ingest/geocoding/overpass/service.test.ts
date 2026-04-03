@@ -5,7 +5,9 @@ import {
   toOverpassRegex,
   clearStreetGeometryCache,
   overpassGeocodeIntersections,
+  CIRCUIT_BREAKER_THRESHOLD,
 } from "./service";
+import { delay } from "../../lib/delay";
 
 // Prevent the 500ms inter-item delay from slowing down the test suite
 vi.mock("../../lib/delay", () => ({ delay: vi.fn().mockResolvedValue(undefined) }));
@@ -416,6 +418,149 @@ describe("overpass-geocoding-service", () => {
       // Both streets were cleared — should fetch them again
       await overpassGeocodeIntersections(["ул. Пример ∩ ул. Фоо"]);
       expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    describe("adaptive retry policy", () => {
+      const OVERPASS_INSTANCES_COUNT = 2; // number of instances in OVERPASS_INSTANCES
+
+      it("retries 429 on the same instance with backoff before falling back to the next", async () => {
+        // Instance 1 (private.coffee) always returns 429; instance 2 succeeds
+        let instance1Calls = 0;
+        let instance2Calls = 0;
+        vi.stubGlobal(
+          "fetch",
+          vi.fn(async (url: string | URL) => {
+            if (String(url).includes("private.coffee")) {
+              instance1Calls++;
+              return {
+                ok: false,
+                status: 429,
+                statusText: "Too Many Requests",
+                headers: { get: (_: string) => null },
+                text: () => Promise.resolve(""),
+              };
+            }
+            instance2Calls++;
+            return { ok: true, text: () => Promise.resolve(wayResponse) };
+          }),
+        );
+
+        const results = await overpassGeocodeIntersections(["ул. Пример ∩ ул. Фоо"]);
+
+        // 2 streets × OVERPASS_RETRY_MAX_ATTEMPTS retries on instance1 before fallback
+        expect(instance1Calls).toBeGreaterThan(OVERPASS_INSTANCES_COUNT);
+        // Instance 2 handles both streets after instance 1 exhausts its attempts
+        expect(instance2Calls).toBe(2);
+        expect(results).toHaveLength(1);
+      });
+
+      it("respects Retry-After header when backing off on 429", async () => {
+        vi.mocked(delay).mockClear();
+        let fetchCount = 0;
+        vi.stubGlobal(
+          "fetch",
+          vi.fn(async (url: string | URL) => {
+            if (String(url).includes("private.coffee") && fetchCount++ === 0) {
+              return {
+                ok: false,
+                status: 429,
+                statusText: "Too Many Requests",
+                headers: { get: (name: string) => (name === "Retry-After" ? "3" : null) },
+                text: () => Promise.resolve(""),
+              };
+            }
+            return { ok: true, text: () => Promise.resolve(wayResponse) };
+          }),
+        );
+
+        await overpassGeocodeIntersections(["ул. Пример ∩ ул. Фоо"]);
+
+        // delay must have been called with exactly 3000 ms for the Retry-After header
+        const delayCalls = vi.mocked(delay).mock.calls.map(([ms]) => ms);
+        expect(delayCalls).toContain(3000);
+      });
+
+      it("retries AbortError (timeout) on the same instance with backoff", async () => {
+        // Instance 1 always times out; instance 2 succeeds
+        let instance1Calls = 0;
+        let instance2Calls = 0;
+        vi.stubGlobal(
+          "fetch",
+          vi.fn(async (url: string | URL) => {
+            if (String(url).includes("private.coffee")) {
+              instance1Calls++;
+              const err = new Error("The operation was aborted");
+              err.name = "AbortError";
+              throw err;
+            }
+            instance2Calls++;
+            return { ok: true, text: () => Promise.resolve(wayResponse) };
+          }),
+        );
+
+        const results = await overpassGeocodeIntersections(["ул. Пример ∩ ул. Фоо"]);
+
+        expect(instance1Calls).toBeGreaterThan(OVERPASS_INSTANCES_COUNT);
+        expect(instance2Calls).toBe(2);
+        expect(results).toHaveLength(1);
+      });
+    });
+
+    describe("circuit breaker", () => {
+      it("opens after threshold consecutive transient failures and defers remaining streets", async () => {
+        vi.stubGlobal(
+          "fetch",
+          vi.fn().mockRejectedValue(new Error("Network request failed")),
+        );
+
+        // Enough unique intersections to exceed the threshold (each has 2 unique streets)
+        const intersections = Array.from(
+          { length: CIRCUIT_BREAKER_THRESHOLD + 2 },
+          (_, i) => `ул. А${i} ∩ ул. Б${i}`,
+        );
+
+        await overpassGeocodeIntersections(intersections);
+
+        // Without circuit breaker every street would be tried on all instances.
+        // With circuit breaker, only (threshold) failures fire before the circuit opens.
+        // Each failure = 1 street × 2 instances (no per-instance retry for plain network errors).
+        const maxExpectedCalls = CIRCUIT_BREAKER_THRESHOLD * 2; // × 2 passes
+        expect(vi.mocked(fetch).mock.calls.length).toBeLessThan(
+          intersections.length * 2 * 2,
+        );
+        expect(vi.mocked(fetch).mock.calls.length).toBeLessThanOrEqual(
+          maxExpectedCalls * 2, // retry pass also resets and can trip again
+        );
+      });
+
+      it("resets after a successful request so subsequent streets are attempted", async () => {
+        // All instances fail for the first street (circuit will open at threshold),
+        // then instance 2 starts succeeding — circuit should reset on first success.
+        let fetchCallCount = 0;
+        vi.stubGlobal(
+          "fetch",
+          vi.fn(async (url: string | URL) => {
+            fetchCallCount++;
+            // First CIRCUIT_BREAKER_THRESHOLD * 2 calls (threshold streets × 2 instances) fail
+            if (fetchCallCount <= CIRCUIT_BREAKER_THRESHOLD * 2) {
+              throw new Error("Network request failed");
+            }
+            return { ok: true, text: () => Promise.resolve(wayResponse) };
+          }),
+        );
+
+        // Provide threshold+2 intersections: first threshold streets fail (trip circuit),
+        // retry pass resets circuit — the retry streets should now succeed
+        const intersections = Array.from(
+          { length: CIRCUIT_BREAKER_THRESHOLD + 2 },
+          (_, i) => `ул. А${i} ∩ ул. Б${i}`,
+        );
+
+        const results = await overpassGeocodeIntersections(intersections);
+
+        // After the circuit resets, some intersections should be resolved
+        expect(results.length).toBeGreaterThan(0);
+      });
     });
   });
 });

@@ -28,6 +28,16 @@ const OVERPASS_DELAY_MS = 500; // 500ms for Overpass API (generous limits)
 const OVERPASS_TIMEOUT_MS = 25000; // 25 seconds timeout for HTTP requests
 const BUFFER_DISTANCE_METERS = 30; // Buffer distance for street geometries
 
+// Adaptive retry policy for per-instance 429 / AbortError retries
+const OVERPASS_RETRY_MAX_ATTEMPTS = 3; // Total attempts per instance (including first)
+const OVERPASS_RETRY_BASE_DELAY_MS = 1_000;
+const OVERPASS_RETRY_MAX_DELAY_MS = 30_000;
+const OVERPASS_RETRY_BACKOFF_FACTOR = 2;
+const OVERPASS_RETRY_JITTER_FACTOR = 0.25;
+
+// Number of consecutive transient failures in a run needed to open the circuit
+export const CIRCUIT_BREAKER_THRESHOLD = 5;
+
 type StreetGeometryFeatureType = "street" | "boulevard" | "square";
 
 /**
@@ -53,7 +63,52 @@ function getStreetFeatureType(streetName: string): StreetGeometryFeatureType {
 
 // In-memory cache for street geometry lookups (keyed on type + normalized street name)
 const streetGeometryCache = new Map<string, Feature<MultiLineString> | null>();
-const deferredScopeStorage = new AsyncLocalStorage<Set<string>>();
+
+interface OverpassRunContext {
+  deferredKeys: Set<string>;
+  consecutiveTransientFailures: number;
+  circuitOpen: boolean;
+}
+
+const runContextStorage = new AsyncLocalStorage<OverpassRunContext>();
+
+function getRunContext(): OverpassRunContext | undefined {
+  return runContextStorage.getStore();
+}
+
+function recordTransientFailure(ctx: OverpassRunContext): void {
+  ctx.consecutiveTransientFailures++;
+  if (ctx.consecutiveTransientFailures >= CIRCUIT_BREAKER_THRESHOLD && !ctx.circuitOpen) {
+    ctx.circuitOpen = true;
+    logger.warn("Overpass circuit breaker opened after consecutive transient failures", {
+      threshold: CIRCUIT_BREAKER_THRESHOLD,
+    });
+  }
+}
+
+function recordSuccess(ctx: OverpassRunContext): void {
+  if (ctx.consecutiveTransientFailures > 0 || ctx.circuitOpen) {
+    if (ctx.circuitOpen) {
+      logger.info("Overpass circuit breaker closed after successful request");
+    }
+    ctx.consecutiveTransientFailures = 0;
+    ctx.circuitOpen = false;
+  }
+}
+
+function parseRetryAfterMs(header: string | null): number | null {
+  if (header === null) return null;
+  const seconds = parseInt(header, 10);
+  return isNaN(seconds) ? null : seconds * 1_000;
+}
+
+function calculateRetryDelayMs(attempt: number, retryAfterMs: number | null): number {
+  if (retryAfterMs !== null) return retryAfterMs;
+  const base =
+    OVERPASS_RETRY_BASE_DELAY_MS * Math.pow(OVERPASS_RETRY_BACKOFF_FACTOR, attempt - 1);
+  const jitter = base * OVERPASS_RETRY_JITTER_FACTOR * (Math.random() * 2 - 1);
+  return Math.min(Math.round(base + jitter), OVERPASS_RETRY_MAX_DELAY_MS);
+}
 
 function getStreetGeometryCacheKey(streetName: string): string {
   return makeStreetGeometryCacheKey(
@@ -85,10 +140,10 @@ export function getStreetGeometryCached(
  */
 export function hasStreetGeometryQueried(streetName: string): boolean {
   const cacheKey = getStreetGeometryCacheKey(streetName);
-  const deferredKeys = getCurrentDeferredStreetGeometryKeys();
+  const ctx = getRunContext();
   return (
     streetGeometryCache.has(cacheKey) ||
-    Boolean(deferredKeys?.has(cacheKey))
+    Boolean(ctx?.deferredKeys.has(cacheKey))
   );
 }
 
@@ -111,29 +166,34 @@ export function seedStreetGeometryCache(
 }
 
 function isStreetGeometryDeferred(streetName: string): boolean {
-  const deferredKeys = getCurrentDeferredStreetGeometryKeys();
-  return Boolean(deferredKeys?.has(getStreetGeometryCacheKey(streetName)));
+  const ctx = getRunContext();
+  return Boolean(ctx?.deferredKeys.has(getStreetGeometryCacheKey(streetName)));
 }
 
 function clearDeferredStreetGeometryKeys(): void {
-  const deferredKeys = getCurrentDeferredStreetGeometryKeys();
-  deferredKeys?.clear();
-}
-
-function getCurrentDeferredStreetGeometryKeys(): Set<string> | undefined {
-  return deferredScopeStorage.getStore();
+  const ctx = getRunContext();
+  if (ctx) {
+    ctx.deferredKeys.clear();
+    // Reset circuit breaker for the retry pass so deferred streets get a fair attempt
+    ctx.consecutiveTransientFailures = 0;
+    ctx.circuitOpen = false;
+  }
 }
 
 async function runWithDeferredRetryScope<T>(
   work: () => Promise<T>,
 ): Promise<T> {
-  const existingScope = deferredScopeStorage.getStore();
+  const existingScope = runContextStorage.getStore();
   if (existingScope !== undefined) {
     return work();
   }
 
-  const deferredKeys = new Set<string>();
-  return deferredScopeStorage.run(deferredKeys, work);
+  const ctx: OverpassRunContext = {
+    deferredKeys: new Set<string>(),
+    consecutiveTransientFailures: 0,
+    circuitOpen: false,
+  };
+  return runContextStorage.run(ctx, work);
 }
 
 function parseIntersectionStreetNames(intersection: string): [string, string] {
@@ -250,10 +310,20 @@ export async function getStreetGeometryFromOverpass(
   streetName: string,
 ): Promise<Feature<MultiLineString> | null> {
   const cacheKey = getStreetGeometryCacheKey(streetName);
-  const deferredKeys = getCurrentDeferredStreetGeometryKeys();
+  const runCtx = getRunContext();
+  const deferredKeys = runCtx?.deferredKeys;
 
   if (deferredKeys?.has(cacheKey)) {
     logger.debug("Street geometry deferred for retry", { streetName });
+    return null;
+  }
+
+  // Circuit breaker — stop hammering Overpass when saturated
+  if (runCtx?.circuitOpen) {
+    deferredKeys?.add(cacheKey);
+    logger.warn("Overpass circuit open, deferring street without network attempt", {
+      streetName,
+    });
     return null;
   }
 
@@ -312,102 +382,123 @@ export async function getStreetGeometryFromOverpass(
       `;
     }
 
-    // Try each Overpass instance until one works
+    // Try each Overpass instance; retry within the same instance for 429 and AbortError (timeout)
     let responseData: OverpassResponse | null = null;
     let lastError: Error | null = null;
 
-    for (const instance of OVERPASS_INSTANCES) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        OVERPASS_TIMEOUT_MS,
-      );
+    outerLoop: for (const instance of OVERPASS_INSTANCES) {
+      for (let attempt = 1; attempt <= OVERPASS_RETRY_MAX_ATTEMPTS; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(
+          () => controller.abort(),
+          OVERPASS_TIMEOUT_MS,
+        );
 
-      try {
-        const response = await fetch(instance, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: `data=${encodeURIComponent(query)}`,
-          signal: controller.signal,
-        });
+        try {
+          const response = await fetch(instance, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: `data=${encodeURIComponent(query)}`,
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
 
-        if (!response.ok) {
-          // Try to extract XML error message
-          const text = await response.text();
-          const errorMsg = parseOverpassError(text) || response.statusText;
-          const error: ErrorWithStatusCode = new Error(
-            `HTTP ${response.status}: ${errorMsg}`,
-          );
-          error.statusCode = response.status;
+          if (!response.ok) {
+            const text = await response.text();
+            const errorMsg = parseOverpassError(text) || response.statusText;
+            const err: ErrorWithStatusCode = new Error(
+              `HTTP ${response.status}: ${errorMsg}`,
+            );
+            err.statusCode = response.status;
 
-          if (!shouldTryFallback(error, response.status)) {
-            // Client-side error - don't try other servers
-            clearTimeout(timeoutId);
-            logger.error("Client error (query issue)", { errorMsg });
-            throw error;
+            if (!shouldTryFallback(err, response.status)) {
+              logger.error("Client error (query issue)", { errorMsg });
+              throw err;
+            }
+
+            // 429: retry this instance with backoff
+            if (response.status === 429 && attempt < OVERPASS_RETRY_MAX_ATTEMPTS) {
+              const retryAfterMs = parseRetryAfterMs(
+                response.headers.get("Retry-After"),
+              );
+              const waitMs = calculateRetryDelayMs(attempt, retryAfterMs);
+              logger.info("Rate limited by Overpass instance, retrying with backoff", {
+                hostname: new URL(instance).hostname,
+                attempt,
+                waitMs,
+              });
+              await delay(waitMs);
+              continue; // retry this instance
+            }
+
+            logger.info("Server error from Overpass instance", {
+              hostname: new URL(instance).hostname,
+              errorMsg,
+            });
+            lastError = err;
+            continue outerLoop; // try next instance
           }
 
-          logger.info("Server error from Overpass instance", {
-            hostname: new URL(instance).hostname,
-            errorMsg,
-          });
-          lastError = error;
-          clearTimeout(timeoutId);
-          continue;
-        }
+          // Parse JSON defensively - buffer as text first
+          const text = await response.text();
+          try {
+            responseData = JSON.parse(text);
+          } catch (parseError) {
+            // Failed to parse JSON - might be XML error with HTTP 200
+            const errorMsg = parseOverpassError(text);
+            if (errorMsg) throw new Error(errorMsg);
+            throw parseError;
+          }
 
-        // Parse JSON defensively - buffer as text first
-        const text = await response.text();
-        try {
-          responseData = JSON.parse(text);
           logger.info("Response from Overpass instance", {
             hostname: new URL(instance).hostname,
           });
-        } catch (parseError) {
-          // Failed to parse JSON - might be XML error with HTTP 200
-          const errorMsg = parseOverpassError(text);
-          if (errorMsg) {
-            throw new Error(errorMsg);
+          break outerLoop; // success
+        } catch (error) {
+          clearTimeout(timeoutId);
+
+          const err: ErrorWithStatusCode =
+            error instanceof Error ? error : new Error(String(error));
+
+          if (!shouldTryFallback(err, err.statusCode)) {
+            logger.error("Client error (query issue)", { error: err.message });
+            throw err;
           }
-          // Re-throw the original parse error
-          throw parseError;
+
+          // AbortError (timeout): retry this instance with backoff
+          const isAbort = err.name === "AbortError";
+          if (isAbort && attempt < OVERPASS_RETRY_MAX_ATTEMPTS) {
+            const waitMs = calculateRetryDelayMs(attempt, null);
+            logger.info("Timeout from Overpass instance, retrying with backoff", {
+              hostname: new URL(instance).hostname,
+              attempt,
+              waitMs,
+            });
+            await delay(waitMs);
+            continue; // retry this instance
+          }
+
+          logger.info(
+            isAbort ? "Timeout with Overpass instance" : "Failed with Overpass instance",
+            {
+              hostname: new URL(instance).hostname,
+              ...(isAbort ? {} : { error: err.message }),
+            },
+          );
+          lastError = err;
+          continue outerLoop; // try next instance
         }
-
-        clearTimeout(timeoutId);
-        break; // Success, exit loop
-      } catch (error) {
-        clearTimeout(timeoutId);
-
-        const err: ErrorWithStatusCode =
-          error instanceof Error ? error : new Error(String(error));
-
-        // Check if this is a client-side error
-        if (!shouldTryFallback(err, err.statusCode)) {
-          logger.error("Client error (query issue)", { error: err.message });
-          throw err;
-        }
-
-        // Server-side error or timeout - try next instance
-        if (err.name === "AbortError") {
-          logger.info("Timeout with Overpass instance", {
-            hostname: new URL(instance).hostname,
-          });
-        } else {
-          logger.info("Failed with Overpass instance", {
-            hostname: new URL(instance).hostname,
-            error: err.message,
-          });
-        }
-        lastError = err;
-        continue; // Try next instance
       }
     }
 
     if (!responseData) {
       throw lastError || new Error("All Overpass instances failed");
     }
+
+    // API responded — count as success to reset the circuit breaker
+    if (runCtx) recordSuccess(runCtx);
 
     if (!responseData.elements || responseData.elements.length === 0) {
       // No OSM ways found - API request succeeded but no data for this street name
@@ -490,10 +581,11 @@ export async function getStreetGeometryFromOverpass(
     if (shouldTryFallback(err, err.statusCode)) {
       if (deferredKeys) {
         deferredKeys.add(cacheKey);
-        logger.info("Deferring street geometry after transient failure", {
-          streetName,
-        });
       }
+      if (runCtx) recordTransientFailure(runCtx);
+      logger.info("Deferring street geometry after transient failure", {
+        streetName,
+      });
       return null;
     }
     logger.error("Non-retryable Overpass error while resolving street", {
