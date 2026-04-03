@@ -5,9 +5,9 @@ import { colors } from "@/lib/colors";
 
 export interface AirQualityCell {
   id: string;
-  aqi: number;
-  aqiLabel: string;
-  aqiCategory: string;
+  aqi: number | null;
+  aqiLabel: string | null;
+  aqiCategory: string | null;
   sensorCount: number;
   bounds: { south: number; north: number; west: number; east: number } | null;
 }
@@ -112,7 +112,7 @@ export default function AirQualityMap({ cells, locality: _locality }: AirQuality
 
     for (const cell of cellsWithBounds) {
       const { south, north, west, east } = cell.bounds!;
-      const cellStyle = CATEGORY_COLORS[cell.aqiCategory] ?? {
+      const cellStyle = (cell.aqiCategory !== null ? CATEGORY_COLORS[cell.aqiCategory] : undefined) ?? {
         fill: "#E5E7EB",
         stroke: "#9CA3AF",
       };
@@ -131,7 +131,7 @@ export default function AirQualityMap({ cells, locality: _locality }: AirQuality
       );
 
       rect.bindTooltip(
-        `ЕАКИ: ${cell.aqi.toFixed(1)} — ${cell.aqiLabel}<br/>Сензори: ${cell.sensorCount}`,
+        `ЕАКИ: ${cell.aqi !== null ? cell.aqi.toFixed(1) : "—"} — ${cell.aqiLabel ?? "—"}<br/>Сензори: ${cell.sensorCount}`,
         { sticky: true },
       );
 

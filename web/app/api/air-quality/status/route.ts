@@ -199,19 +199,17 @@ export async function GET(request: Request) {
     // Summary stats over the full 24h retention window
     const readings: StoredReading[] = allReadings ?? [];
     const uniqueSensors = new Set(readings.map((r) => r.sensorId)).size;
-    const rawTimestamps = readings.map((r) => new Date(r.timestamp).getTime());
-    const validTimestamps = rawTimestamps.filter((t) => Number.isFinite(t));
-    const oldestAt =
-      validTimestamps.length > 0
-        ? new Date(Math.min(...validTimestamps)).toISOString()
-        : null;
-    const newestAt =
-      validTimestamps.length > 0
-        ? new Date(Math.max(...validTimestamps)).toISOString()
-        : null;
-    const isStale =
-      newestAt === null ||
-      now - new Date(newestAt).getTime() > MAX_STALENESS_MS;
+    let oldestTimestamp: number | null = null;
+    let newestTimestamp: number | null = null;
+    for (const r of readings) {
+      const t = new Date(r.timestamp).getTime();
+      if (!Number.isFinite(t)) continue;
+      if (oldestTimestamp === null || t < oldestTimestamp) oldestTimestamp = t;
+      if (newestTimestamp === null || t > newestTimestamp) newestTimestamp = t;
+    }
+    const oldestAt = oldestTimestamp !== null ? new Date(oldestTimestamp).toISOString() : null;
+    const newestAt = newestTimestamp !== null ? new Date(newestTimestamp).toISOString() : null;
+    const isStale = newestTimestamp === null || now - newestTimestamp > MAX_STALENESS_MS;
 
     // Per-cell AQI using the last 4-hour evaluation window
     const windowReadings = readings.filter(
@@ -262,22 +260,28 @@ export async function GET(request: Request) {
           }),
         );
 
-        const aqi = calculateNowCastAqi(hourlyAverages);
+        const rawAqi = calculateNowCastAqi(hourlyAverages);
+        const aqi = rawAqi > 0 ? rawAqi : null;
         const cell = gridById.get(id);
         return {
           id,
           aqi,
-          aqiLabel: getAqiLabel(aqi),
-          aqiCategory: getAqiCategory(aqi),
+          aqiLabel: aqi !== null ? getAqiLabel(aqi) : null,
+          aqiCategory: aqi !== null ? getAqiCategory(aqi) : null,
           sensorCount: sensorIds.size,
           bounds: cell
             ? { south: cell.south, north: cell.north, west: cell.west, east: cell.east }
             : null,
         };
       })
-      .sort((a, b) => b.aqi - a.aqi);
+      .sort((a, b) => {
+        if (a.aqi === null && b.aqi === null) return 0;
+        if (a.aqi === null) return 1;
+        if (b.aqi === null) return -1;
+        return b.aqi - a.aqi;
+      });
 
-    const maxAqi = cells.length > 0 ? cells[0].aqi : null;
+    const maxAqi = cells.find((cell) => cell.aqi !== null)?.aqi ?? null;
 
     const [messageCount, notificationCount] = await Promise.all([
       db.messages.count([{ field: "source", op: "==", value: SOURCE_ID }]),

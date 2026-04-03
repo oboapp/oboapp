@@ -34,9 +34,9 @@ const SOURCE_ID = "sensor-community";
 
 interface AqiCell {
   id: string;
-  aqi: number;
-  aqiLabel: string;
-  aqiCategory: string;
+  aqi: number | null;
+  aqiLabel: string | null;
+  aqiCategory: string | null;
   sensorCount: number;
   bounds: { south: number; north: number; west: number; east: number } | null;
 }
@@ -255,7 +255,7 @@ export default function AirQualityPage() {
               <StatCard
                 label="Макс. ЕАКИ"
                 value={status?.maxAqi ?? "—"}
-                sub={status?.cells[0]?.aqiLabel}
+                sub={status?.cells[0]?.aqiLabel ?? undefined}
                 valueClassName={
                   maxAqiCategory
                     ? maxAqiCategory === "good" || maxAqiCategory === "fair"
