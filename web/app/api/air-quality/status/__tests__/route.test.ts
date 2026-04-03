@@ -2,13 +2,25 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GET } from "../route";
 
 // Hoist mocks so they are available inside vi.mock factory closures
-const { mockReadFile, mockCalcAqi } = vi.hoisted(() => ({
+const { mockReadFile, mockCalcAqi, mockGcsDownload } = vi.hoisted(() => ({
   mockReadFile: vi.fn(),
   mockCalcAqi: vi.fn(() => 3.5),
+  mockGcsDownload: vi.fn(),
 }));
 
 vi.mock("node:fs/promises", () => ({
   readFile: mockReadFile,
+}));
+
+// Mock GCS so tests work whether or not GCS_READINGS_BUCKET is set in the environment.
+// The route does: const [content] = await file.download(), then content.toString("utf-8").
+// Must use a class (not an arrow function) because the route calls `new Storage(...)`.
+vi.mock("@google-cloud/storage", () => ({
+  Storage: class {
+    bucket() {
+      return { file: () => ({ download: mockGcsDownload }) };
+    }
+  },
 }));
 
 vi.mock("@oboapp/shared", () => ({
@@ -44,12 +56,16 @@ function makeRequest(params?: Record<string, string>): Request {
   return new Request(url.toString());
 }
 
+function gcsNotFound(): Error {
+  return Object.assign(new Error("Not Found"), { code: 404 });
+}
+
 describe("GET /api/air-quality/status", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: no local readings file
+    // Default: no data — works for both GCS and local-fallback paths
+    mockGcsDownload.mockRejectedValue(gcsNotFound());
     mockReadFile.mockRejectedValue(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
-    // Default: valid aqi
     mockCalcAqi.mockReturnValue(3.5);
   });
 
@@ -101,8 +117,11 @@ describe("GET /api/air-quality/status", () => {
       { sensorId: 1, timestamp: recentIso, lat: 42.7, lng: 23.3, p1: 30, p2: 20 },
       { sensorId: 2, timestamp: recentIso, lat: 42.7, lng: 23.3, p1: 35, p2: 22 },
     ];
+    const readingsBuffer = Buffer.from(JSON.stringify(readings));
 
     beforeEach(() => {
+      // Supply data via both paths — whichever the route uses depends on GCS_READINGS_BUCKET
+      mockGcsDownload.mockResolvedValue([readingsBuffer]);
       mockReadFile.mockResolvedValue(JSON.stringify(readings));
     });
 
