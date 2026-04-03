@@ -230,7 +230,7 @@ describe("filterByAge", () => {
   const createSource = (daysAgo: number): SourceDocument => {
     const date = new Date();
     date.setUTCHours(0, 0, 0, 0); // Set to midnight UTC to avoid timezone issues
-    date.setDate(date.getDate() - daysAgo);
+    date.setUTCDate(date.getUTCDate() - daysAgo);
 
     return {
       url: `https://example.com/post-${daysAgo}`,

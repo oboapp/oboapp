@@ -430,10 +430,11 @@ async function geocodeStreetIntersections(
   // Streets whose both endpoints were pre-resolved from geotagged coordinates
   // never enter streetsNeedingGeocoding, so their geometry wasn't fetched above.
   // Record them now using an explicit Overpass lookup with per-request rate limiting.
+  // Use the complement of streetsNeedingGeocoding (computed before any Overpass
+  // queries ran) to avoid double-recording streets that were just geocoded above.
   if (tracker) {
     const geotaggedStreets = extractedData.streets.filter(
-      (street) =>
-        preGeocodedMap.has(street.from) && preGeocodedMap.has(street.to),
+      (street) => !streetsNeedingGeocoding.includes(street),
     );
 
     if (geotaggedStreets.length > 0) {
