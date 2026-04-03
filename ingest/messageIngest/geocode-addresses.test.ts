@@ -5,8 +5,15 @@ import {
   geocodeAddressesFromExtractedData,
   getValidPreResolvedCoordinates,
 } from "./geocode-addresses";
+import type { GeocodingProgressTracker } from "./geocoding-progress-tracker";
 import type { StreetSection, Address, ExtractedLocations } from "@/lib/types";
 import { BOUNDS } from "@oboapp/shared";
+import { geocodeIntersectionsForStreets } from "@/geocoding/router";
+import {
+  getStreetGeometryCached,
+  getStreetGeometryFromOverpass,
+  hasStreetGeometryQueried,
+} from "@/geocoding/overpass/service";
 
 // Set LOCALITY for tests
 beforeEach(() => {
@@ -32,6 +39,13 @@ vi.mock("@/geocoding/router", () => ({
 
 vi.mock("@/geocoding/overpass/service", () => ({
   overpassGeocodeAddresses: vi.fn().mockResolvedValue([]),
+  getStreetGeometryCached: vi.fn().mockReturnValue(null),
+  getStreetGeometryFromOverpass: vi.fn().mockResolvedValue(null),
+  hasStreetGeometryQueried: vi.fn().mockReturnValue(false),
+}));
+
+vi.mock("@/lib/delay", () => ({
+  delay: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/geocoding/cache", () => ({
@@ -423,5 +437,104 @@ describe("getValidPreResolvedCoordinates", () => {
     expect(result).not.toBeNull();
     expect(result!.lat).toBe(42.693576);
     expect(result!.lng).toBe(23.35161);
+  });
+});
+
+describe("geocodeStreetIntersections tracker recording", () => {
+  function createMockTracker(): GeocodingProgressTracker {
+    return {
+      recordPins: vi.fn().mockResolvedValue(undefined),
+      recordStreet: vi.fn().mockResolvedValue(undefined),
+      recordAttempted: vi.fn(),
+      flushPending: vi.fn().mockResolvedValue(undefined),
+      finalize: vi.fn().mockResolvedValue(undefined),
+    };
+  }
+
+  beforeEach(() => {
+    vi.mocked(geocodeIntersectionsForStreets).mockResolvedValue(new Map());
+    vi.mocked(getStreetGeometryCached).mockReturnValue(null);
+    vi.mocked(hasStreetGeometryQueried).mockReturnValue(false);
+    vi.mocked(getStreetGeometryFromOverpass).mockResolvedValue(null);
+  });
+
+  it("records geometry exactly once for a street with valid geotagged coordinates", async () => {
+    const mockGeometry = {
+      type: "Feature" as const,
+      geometry: { type: "MultiLineString" as const, coordinates: [] },
+      properties: null,
+    };
+    vi.mocked(getStreetGeometryFromOverpass).mockResolvedValue(mockGeometry);
+
+    const tracker = createMockTracker();
+    const extractedData: ExtractedLocations = {
+      withSpecificAddress: true,
+      cityWide: false,
+      busStops: [],
+      pins: [],
+      streets: [
+        {
+          street: "ул. Оборище",
+          from: "бул. Дондуков",
+          fromCoordinates: { lat: 42.693576, lng: 23.35161 }, // valid Sofia coords
+          to: "ул. Г. С. Раковски",
+          toCoordinates: { lat: 42.693259, lng: 23.354973 }, // valid Sofia coords
+          timespans: [{ start: "01.02.2026 00:00", end: "02.02.2026 00:00" }],
+        },
+      ],
+      cadastralProperties: [],
+    };
+
+    await geocodeAddressesFromExtractedData(extractedData, undefined, tracker);
+
+    // Both endpoints pre-resolved → street enters only the geotagged pass,
+    // not streetsNeedingGeocoding → geometry recorded exactly once
+    expect(tracker.recordStreet).toHaveBeenCalledTimes(1);
+    expect(tracker.recordAttempted).not.toHaveBeenCalled();
+    // Overpass geometry fetch called exactly once (from geotagged pass)
+    expect(getStreetGeometryFromOverpass).toHaveBeenCalledTimes(1);
+    expect(getStreetGeometryFromOverpass).toHaveBeenCalledWith("ул. Оборище");
+  });
+
+  it("does not double-record a street whose geotagged coordinates fail bounds validation", async () => {
+    // Overpass intersection geocoding succeeds (endpoints resolved via Overpass)
+    vi.mocked(geocodeIntersectionsForStreets).mockResolvedValue(
+      new Map([
+        ["Corner A", { lat: 42.69, lng: 23.32 }],
+        ["Corner B", { lat: 42.695, lng: 23.325 }],
+      ]),
+    );
+    // No street geometry found for this street
+    vi.mocked(getStreetGeometryFromOverpass).mockResolvedValue(null);
+
+    const tracker = createMockTracker();
+    const extractedData: ExtractedLocations = {
+      withSpecificAddress: true,
+      cityWide: false,
+      busStops: [],
+      pins: [],
+      streets: [
+        {
+          street: "ул. Оборище",
+          from: "Corner A",
+          fromCoordinates: { lat: 43.0, lng: 23.3 }, // outside Sofia bounds → rejected by validation
+          to: "Corner B",
+          toCoordinates: { lat: 43.1, lng: 23.3 }, // outside Sofia bounds → rejected by validation
+          timespans: [{ start: "01.02.2026 00:00", end: "02.02.2026 00:00" }],
+        },
+      ],
+      cadastralProperties: [],
+    };
+
+    await geocodeAddressesFromExtractedData(extractedData, undefined, tracker);
+
+    // Invalid coords → endpoints not in preGeocodedMap after geotagged pass →
+    // fullyPreResolvedStreets is empty → geotagged tracker pass is skipped.
+    // Street enters streetsNeedingGeocoding and is recorded exactly once there.
+    expect(tracker.recordAttempted).toHaveBeenCalledTimes(1);
+    expect(tracker.recordAttempted).toHaveBeenCalledWith(1);
+    expect(tracker.recordStreet).not.toHaveBeenCalled();
+    // Geometry fetch attempted exactly once, not twice
+    expect(getStreetGeometryFromOverpass).toHaveBeenCalledTimes(1);
   });
 });

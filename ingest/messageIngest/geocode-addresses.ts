@@ -377,6 +377,14 @@ async function geocodeStreetIntersections(
     addresses,
   );
 
+  // Snapshot streets whose BOTH endpoints were successfully pre-resolved from source
+  // geotags. Must be captured here, before Overpass geocoding adds more entries to
+  // preGeocodedMap. Streets with invalid geotagged coordinates (rejected by bounds
+  // validation) will not have their endpoints in the map and will not appear here.
+  const fullyPreResolvedStreets = extractedData.streets.filter(
+    (street) => preGeocodedMap.has(street.from) && preGeocodedMap.has(street.to),
+  );
+
   // Import Overpass service only when a tracker is active — these fetchers are only used
   // for tracker recording; the static overpassGeocodeAddresses handles the geocoding itself
   const overpassFetchers = tracker
@@ -430,32 +438,24 @@ async function geocodeStreetIntersections(
   // Streets whose both endpoints were pre-resolved from geotagged coordinates
   // never enter streetsNeedingGeocoding, so their geometry wasn't fetched above.
   // Record them now using an explicit Overpass lookup with per-request rate limiting.
-  // Use fromCoordinates/toCoordinates (source-provided geotags) to identify this
-  // set, since preGeocodedMap is also populated with Overpass results at this point.
-  if (tracker) {
-    const geotaggedStreets = extractedData.streets.filter(
-      (street) => !!street.fromCoordinates && !!street.toCoordinates,
-    );
+  if (tracker && fullyPreResolvedStreets.length > 0) {
+    logger.debug("Recording geotagged streets in progress tracker", {
+      count: fullyPreResolvedStreets.length,
+    });
 
-    if (geotaggedStreets.length > 0) {
-      logger.debug("Recording geotagged streets in progress tracker", {
-        count: geotaggedStreets.length,
-      });
+    const { delay } = await import("@/lib/delay");
+    let fetchCount = 0;
 
-      const { delay } = await import("@/lib/delay");
-      let fetchCount = 0;
-
-      for (const street of geotaggedStreets) {
-        await recordStreetGeometryInTracker(
-          street,
-          tracker,
-          overpassFetchers!,
-          async () => {
-            if (fetchCount > 0) await delay(500);
-            fetchCount++;
-          },
-        );
-      }
+    for (const street of fullyPreResolvedStreets) {
+      await recordStreetGeometryInTracker(
+        street,
+        tracker,
+        overpassFetchers!,
+        async () => {
+          if (fetchCount > 0) await delay(500);
+          fetchCount++;
+        },
+      );
     }
   }
 
