@@ -521,36 +521,38 @@ describe("overpass-geocoding-service", () => {
 
         await overpassGeocodeIntersections(intersections);
 
-        // Without circuit breaker every street would be tried on all instances.
-        // With circuit breaker, only (threshold) failures fire before the circuit opens.
-        // Each failure = 1 street × 2 instances (no per-instance retry for plain network errors).
-        const maxExpectedCalls = CIRCUIT_BREAKER_THRESHOLD * 2; // × 2 passes
+        // This test assumes the current production configuration uses 2 Overpass instances.
+        const overpassInstanceCount = 2;
+        // Without circuit breaker every street would be tried on every instance in both passes.
+        // With circuit breaker, at most threshold × instances calls occur per pass before it opens.
+        const maxExpectedCallsPerPass = CIRCUIT_BREAKER_THRESHOLD * overpassInstanceCount;
         expect(vi.mocked(fetch).mock.calls.length).toBeLessThan(
-          intersections.length * 2 * 2,
+          intersections.length * 2 * overpassInstanceCount,
         );
         expect(vi.mocked(fetch).mock.calls.length).toBeLessThanOrEqual(
-          maxExpectedCalls * 2, // retry pass also resets and can trip again
+          maxExpectedCallsPerPass * 2, // retry pass also resets and can trip again
         );
       });
 
       it("resets after a successful request so subsequent streets are attempted", async () => {
-        // All instances fail for the first street (circuit will open at threshold),
-        // then instance 2 starts succeeding — circuit should reset on first success.
+        // All instances fail for the first threshold streets, then requests start succeeding
+        // — the circuit should reset on the first successful response.
+        const overpassInstanceCount = 2;
         let fetchCallCount = 0;
         vi.stubGlobal(
           "fetch",
           vi.fn(async (url: string | URL) => {
             fetchCallCount++;
-            // First CIRCUIT_BREAKER_THRESHOLD * 2 calls (threshold streets × 2 instances) fail
-            if (fetchCallCount <= CIRCUIT_BREAKER_THRESHOLD * 2) {
+            // First threshold × instances calls fail (enough to open the circuit)
+            if (fetchCallCount <= CIRCUIT_BREAKER_THRESHOLD * overpassInstanceCount) {
               throw new Error("Network request failed");
             }
             return { ok: true, text: () => Promise.resolve(wayResponse) };
           }),
         );
 
-        // Provide threshold+2 intersections: first threshold streets fail (trip circuit),
-        // retry pass resets circuit — the retry streets should now succeed
+        // Provide threshold+2 intersections: after threshold × instances failures the
+        // circuit opens, then the retry pass resets it once requests start succeeding.
         const intersections = Array.from(
           { length: CIRCUIT_BREAKER_THRESHOLD + 2 },
           (_, i) => `ул. А${i} ∩ ул. Б${i}`,

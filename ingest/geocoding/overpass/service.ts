@@ -330,7 +330,7 @@ export async function getStreetGeometryFromOverpass(
   // Circuit breaker — stop hammering Overpass when saturated
   if (runCtx?.circuitOpen) {
     deferredKeys?.add(cacheKey);
-    logger.warn("Overpass circuit open, deferring street without network attempt", {
+    logger.debug("Overpass circuit open, deferring street without network attempt", {
       streetName,
     });
     return null;
