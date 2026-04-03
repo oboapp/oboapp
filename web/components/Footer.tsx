@@ -52,7 +52,7 @@ export default function Footer({ className = "" }: FooterProps) {
                 href="/unreadable"
                 className="text-link hover:text-link-hover hover:underline"
               >
-                Нечетими съобщения
+                Нелокализирани съобщения
               </Link>
             </div>
             <div>

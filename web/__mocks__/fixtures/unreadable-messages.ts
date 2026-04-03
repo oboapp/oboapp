@@ -2,7 +2,7 @@ import type { InternalMessage } from "@/lib/types";
 
 /**
  * Mock unreadable messages for MSW development mode.
- * These represent messages where the institution published only a PDF/DOCX link.
+ * These represent messages that could not be geolocated.
  */
 export const MOCK_UNREADABLE_MESSAGES: InternalMessage[] = [
   {

@@ -112,11 +112,11 @@ export default function UnreadablePage() {
         <div className="bg-white rounded-lg shadow-md p-6 mb-8 border border-neutral-border">
           <div className="space-y-2">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-              Нечетими съобщения
+              Нелокализирани съобщения
             </h1>
             <p className="text-sm text-neutral">
-              Съобщения, при които институцията е публикувала само линк към PDF
-              или DOCX документ без четимо текстово съдържание.
+              Съобщения, за които не беше възможно да се определи географско
+              местоположение — без адреси или координати за показване на картата.
             </p>
           </div>
         </div>

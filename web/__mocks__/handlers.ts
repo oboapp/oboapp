@@ -556,7 +556,7 @@ export const handlers = [
     return HttpResponse.json({ success: true });
   }),
 
-  // GET /api/messages/unreadable - Return messages flagged as unreadable (PDF/DOCX only)
+  // GET /api/messages/unreadable - Return messages that could not be geolocated
   http.get("/api/messages/unreadable", () => {
     return HttpResponse.json({
       messages: MOCK_UNREADABLE_MESSAGES,
