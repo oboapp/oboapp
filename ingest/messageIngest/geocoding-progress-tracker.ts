@@ -136,7 +136,12 @@ export function createGeocodingProgressTracker(
 
       const rawProcess = Array.isArray(msg.process) ? msg.process : [];
       const withoutBatches = rawProcess.filter(
-        (s) => !(isRecord(s) && s["step"] === "geocodingBatch" && s["runId"] === runId),
+        (s) =>
+          !(
+            isRecord(s) &&
+            s["step"] === "geocodingBatch" &&
+            s["runId"] === runId
+          ),
       );
 
       withoutBatches.push({

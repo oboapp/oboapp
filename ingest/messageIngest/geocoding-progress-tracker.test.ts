@@ -43,8 +43,9 @@ function updateCalls(): Array<[string, UpdateOp]> {
 /** Calls that wrote a geocodingBatch step ($addToSet). */
 function batchWrites() {
   return updateCalls()
-    .filter((c): c is [string, { $addToSet: { process: ProcessStep } }] =>
-      "$addToSet" in c[1],
+    .filter(
+      (c): c is [string, { $addToSet: { process: ProcessStep } }] =>
+        "$addToSet" in c[1],
     )
     .map(([, u]) => u.$addToSet.process);
 }
@@ -52,8 +53,9 @@ function batchWrites() {
 /** Calls that wrote a final geocoding step ($set). */
 function finalWrites() {
   return updateCalls()
-    .filter((c): c is [string, { $set: { process: ProcessStep[] } }] =>
-      "$set" in c[1],
+    .filter(
+      (c): c is [string, { $set: { process: ProcessStep[] } }] =>
+        "$set" in c[1],
     )
     .map(([, u]) => u.$set.process);
 }
@@ -71,7 +73,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockUpdateMessage.mockResolvedValue(undefined);
 });
-
 
 describe("createGeocodingProgressTracker", () => {
   describe("recordPins batching", () => {
@@ -138,9 +139,13 @@ describe("createGeocodingProgressTracker", () => {
       mockUpdateMessage.mockRejectedValueOnce(new Error("network error"));
 
       const tracker = createGeocodingProgressTracker("msg1", 20);
-      const pins = Array.from({ length: 10 }, (_, i) => makeAddress(`Addr ${i}`));
+      const pins = Array.from({ length: 10 }, (_, i) =>
+        makeAddress(`Addr ${i}`),
+      );
 
-      await expect(tracker.recordPins(pins, 10)).rejects.toThrow("network error");
+      await expect(tracker.recordPins(pins, 10)).rejects.toThrow(
+        "network error",
+      );
 
       // After failure, fix the mock and finalize — the failed items should still appear
       mockFindById.mockResolvedValue({ process: [] });
@@ -172,7 +177,9 @@ describe("createGeocodingProgressTracker", () => {
       const writes = finalWrites();
       expect(writes).toHaveLength(1);
       const process = writes[0];
-      expect(process.filter((s) => s["step"] === "filterAndSplit")).toHaveLength(1);
+      expect(
+        process.filter((s) => s["step"] === "filterAndSplit"),
+      ).toHaveLength(1);
       expect(
         process.filter(
           (s) => s["step"] === "geocodingBatch" && s["runId"] === "other-run",

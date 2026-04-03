@@ -815,10 +815,16 @@ async function performGeocodingWithErrorHandling(
         }
       }
     } catch (streetError) {
-      logger.warn("Failed to record street geometries in progress tracker — geocoding result unaffected", {
-        messageId,
-        error: streetError instanceof Error ? streetError.message : String(streetError),
-      });
+      logger.warn(
+        "Failed to record street geometries in progress tracker — geocoding result unaffected",
+        {
+          messageId,
+          error:
+            streetError instanceof Error
+              ? streetError.message
+              : String(streetError),
+        },
+      );
     }
 
     return { addresses: filteredAddresses, geoJson };
@@ -831,10 +837,16 @@ async function performGeocodingWithErrorHandling(
     try {
       await tracker.finalize();
     } catch (finalizeError) {
-      logger.warn("Failed to finalize geocoding progress tracker — partial progress may be lost", {
-        messageId,
-        error: finalizeError instanceof Error ? finalizeError.message : String(finalizeError),
-      });
+      logger.warn(
+        "Failed to finalize geocoding progress tracker — partial progress may be lost",
+        {
+          messageId,
+          error:
+            finalizeError instanceof Error
+              ? finalizeError.message
+              : String(finalizeError),
+        },
+      );
     }
   }
 }
