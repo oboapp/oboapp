@@ -737,6 +737,7 @@ async function performGeocodingWithErrorHandling(
     (extractedLocations.busStops?.length ?? 0) +
     (extractedLocations.educationalFacilities?.length ?? 0);
   const tracker = createGeocodingProgressTracker(messageId, toDo);
+  let geocodingSucceeded = false;
 
   try {
     const geocodingResult = await performGeocoding(
@@ -827,6 +828,7 @@ async function performGeocodingWithErrorHandling(
       );
     }
 
+    geocodingSucceeded = true;
     return { addresses: filteredAddresses, geoJson };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -834,19 +836,21 @@ async function performGeocodingWithErrorHandling(
     await finalizeMessageWithoutGeoJson(messageId, ingestErrors);
     return null;
   } finally {
-    try {
-      await tracker.finalize();
-    } catch (finalizeError) {
-      logger.warn(
-        "Failed to finalize geocoding progress tracker — partial progress may be lost",
-        {
-          messageId,
-          error:
-            finalizeError instanceof Error
-              ? finalizeError.message
-              : String(finalizeError),
-        },
-      );
+    if (geocodingSucceeded) {
+      try {
+        await tracker.finalize();
+      } catch (finalizeError) {
+        logger.warn(
+          "Failed to finalize geocoding progress tracker — partial progress may be lost",
+          {
+            messageId,
+            error:
+              finalizeError instanceof Error
+                ? finalizeError.message
+                : String(finalizeError),
+          },
+        );
+      }
     }
   }
 }
