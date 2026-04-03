@@ -29,9 +29,35 @@ flowchart TD
 3. **Pre-cache via CLI** — for each high-frequency uncached entry, run the `geocode-cache:add` script pointing at a message that already has valid geometry for that address.
 4. **Automatic pickup** — the next ingestion run loads the new cache entries and skips API calls for those locations.
 
+## Geocoding Progress
+
+Geocoding calls external APIs and can take several minutes for messages with many locations. To avoid losing work if the ingestion process is interrupted, results are persisted to the database incrementally as they arrive. This means partial geocoding results are available in the admin page immediately — without waiting for a full ingestion run to complete.
+
+When a run finishes successfully, the incremental entries are consolidated into a single final record for that message. If the run is interrupted, the partial entries remain and are still visible in the admin page geometry panel, so they can be promoted to the persistent cache right away.
+
+## Recovery After Interrupted Runs
+
+```mermaid
+flowchart TD
+    Crash([Run interrupted]) --> DB[(Partial geocoding results persisted)]
+    DB --> Page[Admin opens /geocode-cache page]
+    Page --> Freq[Generate/refresh frequency report]
+    Freq --> Review[Review uncached entries\nand verify geometry in panel]
+    Review --> CLI[Run geocode-cache:add for each entry]
+    CLI --> Cache[(Persistent cache populated)]
+    Cache --> NextRun([Next ingestion run uses cache ✓])
+```
+
+1. Open the `/geocode-cache` page and generate a fresh frequency report if needed.
+2. For each address or street that appears uncached, open the geometry panel and verify the geometry looks correct.
+3. Copy the `geocode-cache:add` command from the panel and run it.
+4. On the next ingestion run, those addresses will be served from cache.
+
+The interrupted message itself still needs to be re-ingested to produce a finalized result. This workflow is specifically about preserving the expensive API results so re-ingestion is cheap.
+
 ## Scheduling
 
-The frequency report is generated automatically on a recurring weekly schedule via the cloud scheduler/job pipeline. The exact timing is configurable per environment; check the current infrastructure configuration for the active schedule if verification is needed.
+The frequency report is generated automatically on a weekly schedule. The exact timing is configurable per environment.
 
 ## CLI Scripts
 
@@ -41,14 +67,12 @@ Both scripts run from the `ingest/` directory:
 # Generate + upload frequency report to GCS
 pnpm geocode-cache:report
 
-# Pre-cache a single address from an existing message
+# Pre-cache a pin or street geometry from an existing message
 pnpm geocode-cache:add -- --message <id> --address "ул. Граф Игнатиев 10" --type pin
-
-# Pre-cache a street geometry from an existing message
 pnpm geocode-cache:add -- --message <id> --address "бул. Витоша" --type street
 ```
 
-The frequency report script supports `--dry-run` to print the top uncached pins and streets to stdout without uploading to GCS.
+The frequency report script supports `--dry-run` to print results to stdout without uploading to GCS.
 
 ## Admin Page
 
@@ -56,11 +80,10 @@ The `/geocode-cache` page (linked from `/sources`) provides:
 
 - **Frequency tables** for pins and streets — entries appearing more than once, sorted by count
 - **Filters** — toggle between top 50 / all entries, and filter to uncached-only
-- **Geometry visualization** — clicking an entry opens a side panel with a Google Map showing color-coded markers (pins) or polylines (streets) from the source messages
-- **Copy command** — each message row has a button that copies the `geocode-cache:add` CLI command to the clipboard
+- **Geometry visualization** — clicking an entry opens a side panel with a map showing markers (pins) or polylines (streets) from source messages. Partial results from interrupted runs appear here as soon as they are persisted.
+- **Copy command** — each message row has a button that copies the ready-to-run `geocode-cache:add` command to the clipboard
 
 ## Related
 
 - [Geocoding](../../ingest/geocoding/README.md) — routing, services, and rate limits
 - [Message Ingest Pipeline](../../ingest/messageIngest/README.md) — where geocoding fits in the pipeline
-- [Air Quality Storage](air-quality-storage.md) — uses the same `GCS_GENERIC_BUCKET` for file storage

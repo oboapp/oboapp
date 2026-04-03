@@ -13,22 +13,6 @@ function isRecordArray(v: unknown): v is Record<string, unknown>[] {
 function isCoordinates(v: unknown): v is { lat: number; lng: number } {
   return isRecord(v) && typeof v.lat === "number" && typeof v.lng === "number";
 }
-interface ProcessStep {
-  step: string;
-  result: unknown;
-}
-
-function isProcessStep(v: unknown): v is ProcessStep {
-  return isRecord(v) && typeof v.step === "string";
-}
-
-interface StoredStreetGeometry {
-  key: string;
-  originalName: string;
-  geometry:
-    | { type: "Feature"; geometry: { type: string; coordinates: number[][][] } }
-    | string;
-}
 
 interface GeoJsonFeature {
   type: string;
@@ -43,16 +27,83 @@ function isGeoJsonFeature(v: unknown): v is GeoJsonFeature {
   return Array.isArray(geom.coordinates);
 }
 
-function isStoredStreetGeometry(v: unknown): v is StoredStreetGeometry {
-  if (!isRecord(v)) return false;
-  if (typeof v.key !== "string") return false;
-  if (typeof v.originalName !== "string") return false;
-  // geometry stored as JSON string (new format) or object (legacy)
-  if (typeof v.geometry === "string") return true;
-  const geo = v.geometry;
-  if (!isRecord(geo)) return false;
-  const inner = geo.geometry;
-  return isRecord(inner) && inner.type === "MultiLineString";
+interface GeocodingPinEntry {
+  key: string;
+  formattedAddress?: string;
+  coordinates: unknown;
+}
+
+interface GeocodingStreetEntry {
+  key: string;
+  geometry: string;
+}
+
+function isGeocodingPinEntry(v: unknown): v is GeocodingPinEntry {
+  return isRecord(v) && typeof v["key"] === "string";
+}
+
+function isGeocodingStreetEntry(v: unknown): v is GeocodingStreetEntry {
+  return (
+    isRecord(v) &&
+    typeof v["key"] === "string" &&
+    typeof v["geometry"] === "string"
+  );
+}
+
+type GeocodingStepData = {
+  pins: GeocodingPinEntry[];
+  streets: GeocodingStreetEntry[];
+};
+
+/**
+ * Extract geocoded pins and streets from a message's process[] array.
+ * Prefers the final `geocoding` step. For interrupted runs (no `geocoding` step),
+ * falls back to merging all `geocodingBatch` entries for the most recent runId.
+ */
+function extractGeocodingData(
+  msg: Record<string, unknown>,
+): GeocodingStepData {
+  const rawProcess = msg["process"];
+  if (!Array.isArray(rawProcess)) return { pins: [], streets: [] };
+
+  const steps = rawProcess.filter(
+    (s): s is Record<string, unknown> =>
+      isRecord(s) && typeof s["step"] === "string",
+  );
+
+  // Prefer last completed geocoding step
+  const geocodingSteps = steps.filter((s) => s["step"] === "geocoding");
+  if (geocodingSteps.length > 0) {
+    const last = geocodingSteps[geocodingSteps.length - 1];
+    return {
+      pins: Array.isArray(last["pins"])
+        ? last["pins"].filter(isGeocodingPinEntry)
+        : [],
+      streets: Array.isArray(last["streets"])
+        ? last["streets"].filter(isGeocodingStreetEntry)
+        : [],
+    };
+  }
+
+  // Fall back: merge geocodingBatch entries for the most recent runId (interrupted run)
+  const batchSteps = steps.filter(
+    (s): s is Record<string, unknown> & { runId: string } =>
+      s["step"] === "geocodingBatch" && typeof s["runId"] === "string",
+  );
+  if (batchSteps.length === 0) return { pins: [], streets: [] };
+
+  const lastRunId = batchSteps[batchSteps.length - 1].runId;
+  const batchesForRun = batchSteps.filter((s) => s.runId === lastRunId);
+  return {
+    pins: batchesForRun.flatMap((s) =>
+      Array.isArray(s["pins"]) ? s["pins"].filter(isGeocodingPinEntry) : [],
+    ),
+    streets: batchesForRun.flatMap((s) =>
+      Array.isArray(s["streets"])
+        ? s["streets"].filter(isGeocodingStreetEntry)
+        : [],
+    ),
+  };
 }
 
 export async function GET(request: Request) {
@@ -82,6 +133,9 @@ export async function GET(request: Request) {
 
   try {
     const db = await getDb();
+    const messages = await Promise.all(
+      messageIds.map((id) => db.messages.findById(id)),
+    );
 
     if (type === "pin") {
       const items: {
@@ -91,16 +145,29 @@ export async function GET(request: Request) {
         formattedAddress: string;
       }[] = [];
 
-      const pinMessages = await Promise.all(
-        messageIds.map((id) => db.messages.findById(id)),
-      );
-      for (const [index, msg] of pinMessages.entries()) {
+      for (const [index, msg] of messages.entries()) {
         if (!msg) continue;
         const id = messageIds[index];
 
+        // Primary: geocoding step pins (supports both complete and interrupted runs)
+        const { pins } = extractGeocodingData(msg);
+        const pinEntry = pins.find((p) => p.key === key);
+        if (pinEntry && isCoordinates(pinEntry.coordinates)) {
+          items.push({
+            messageId: id,
+            lat: pinEntry.coordinates.lat,
+            lng: pinEntry.coordinates.lng,
+            formattedAddress:
+              typeof pinEntry.formattedAddress === "string"
+                ? pinEntry.formattedAddress
+                : key,
+          });
+          continue;
+        }
+
+        // Fallback: message.addresses[] (for messages ingested before the geocoding step)
         const rawAddresses = msg.addresses ?? [];
         if (!isRecordArray(rawAddresses)) continue;
-
         const match = rawAddresses.find(
           (a) =>
             normalizePinAddress(
@@ -111,9 +178,7 @@ export async function GET(request: Request) {
             ) === key,
         );
         if (!match) continue;
-
         if (!isCoordinates(match.coordinates)) continue;
-
         items.push({
           messageId: id,
           lat: match.coordinates.lat,
@@ -134,45 +199,23 @@ export async function GET(request: Request) {
       coordinates: { lat: number; lng: number }[][];
     }[] = [];
 
-    const streetMessages = await Promise.all(
-      messageIds.map((id) => db.messages.findById(id)),
-    );
-    for (const [index, msg] of streetMessages.entries()) {
+    for (const [index, msg] of messages.entries()) {
       if (!msg) continue;
       const id = messageIds[index];
 
-      const rawProcess = msg.process ?? [];
-      if (!Array.isArray(rawProcess)) continue;
-
-      // Use the last streetGeometries step in case the message was re-ingested
-      const processSteps = rawProcess.filter(isProcessStep);
-      const streetGeometrySteps = processSteps.filter(
-        (s) => s.step === "streetGeometries",
-      );
-      const step = streetGeometrySteps[streetGeometrySteps.length - 1];
-      if (!step) continue;
-
-      const rawGeometries = Array.isArray(step.result) ? step.result : [];
-      const entry = rawGeometries
-        .filter(isStoredStreetGeometry)
-        .find((g) => g.key === key);
+      const { streets } = extractGeocodingData(msg);
+      const entry = streets.find((s) => s.key === key);
       if (!entry) continue;
 
-      // geometry may be stored as a JSON string (new) or object (legacy)
-      let multiLine: { type: string; coordinates: number[][][] } | null = null;
-      if (typeof entry.geometry === "string") {
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(entry.geometry);
-        } catch (err) {
-          console.error("Invalid stored geometry JSON", { messageId: id, err });
-          continue;
-        }
-        if (!isGeoJsonFeature(parsed)) continue;
-        multiLine = parsed.geometry;
-      } else {
-        multiLine = entry.geometry.geometry;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(entry.geometry);
+      } catch (err) {
+        console.error("Invalid stored geometry JSON", { messageId: id, err });
+        continue;
       }
+      if (!isGeoJsonFeature(parsed)) continue;
+      const multiLine = parsed.geometry;
       if (multiLine.type !== "MultiLineString") continue;
 
       // Convert GeoJSON [lng, lat] → Google Maps { lat, lng }

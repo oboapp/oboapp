@@ -2,17 +2,17 @@
 /**
  * Manually pre-cache a single geocoded location for a given message.
  *
- * Reads an existing geocoded address (pin) from a message document, or
- * reads the full street geometry stored in message.process during ingestion,
- * and stores the result in the geocode cache collection so future ingestion
- * runs skip the API call entirely.
+ * Reads geocoded data (pins and street geometries) from a message's
+ * process[] geocoding step (populated during ingestion), and stores the
+ * result in the geocode cache collection so future ingestion runs skip
+ * the API call entirely.
  *
  * Usage:
- *   # Cache a pin address (reads geometry from message.addresses[])
+ *   # Cache a pin address (reads from message.process[] geocoding step, falls back to message.addresses[])
  *   pnpm tsx ingest/scripts/geocode-cache-add.ts \
  *     --message <messageId> --address "ул. Граф Игнатиев 10" --type pin
  *
- *   # Cache a full street geometry (reads from message.process[].streetGeometries)
+ *   # Cache a full street geometry (reads from message.process[] geocoding step)
  *   pnpm tsx ingest/scripts/geocode-cache-add.ts \
  *     --message <messageId> --address "бул. Витоша" --type street
  */
@@ -23,8 +23,59 @@ import { resolve } from "node:path";
 import type { Feature, MultiLineString } from "geojson";
 import { normalizePinAddress } from "@oboapp/shared";
 import type { Address, StreetSection } from "@/lib/types";
+import type {
+  GeocodingPinEntry,
+  GeocodingStreetEntry,
+} from "@/messageIngest/geocoding-progress-tracker";
+import { isRecord } from "@/lib/record-fields";
 
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
+
+/**
+ * Extract geocoded pins and streets from a message's process[] array.
+ * Prefers the final `geocoding` step. For interrupted runs (no `geocoding` step),
+ * falls back to merging all `geocodingBatch` entries for the most recent runId.
+ */
+function extractGeocodingData(msg: Record<string, unknown>): {
+  pins: GeocodingPinEntry[];
+  streets: GeocodingStreetEntry[];
+} {
+  const rawProcess = msg["process"];
+  if (!Array.isArray(rawProcess)) return { pins: [], streets: [] };
+
+  const steps = rawProcess.filter(
+    (s): s is Record<string, unknown> =>
+      isRecord(s) && typeof s["step"] === "string",
+  );
+
+  // Prefer last completed geocoding step
+  const geocodingSteps = steps.filter((s) => s["step"] === "geocoding");
+  if (geocodingSteps.length > 0) {
+    const last = geocodingSteps[geocodingSteps.length - 1];
+    return {
+      pins: (Array.isArray(last["pins"]) ? last["pins"] : []) as GeocodingPinEntry[],
+      streets: (Array.isArray(last["streets"]) ? last["streets"] : []) as GeocodingStreetEntry[],
+    };
+  }
+
+  // Fall back: merge geocodingBatch entries for the most recent runId (interrupted run)
+  const batchSteps = steps.filter(
+    (s): s is Record<string, unknown> & { runId: string } =>
+      s["step"] === "geocodingBatch" && typeof s["runId"] === "string",
+  );
+  if (batchSteps.length === 0) return { pins: [], streets: [] };
+
+  const lastRunId = batchSteps[batchSteps.length - 1].runId;
+  const batchesForRun = batchSteps.filter((s) => s["runId"] === lastRunId);
+  return {
+    pins: batchesForRun.flatMap(
+      (s) => (Array.isArray(s["pins"]) ? s["pins"] : []) as GeocodingPinEntry[],
+    ),
+    streets: batchesForRun.flatMap(
+      (s) => (Array.isArray(s["streets"]) ? s["streets"] : []) as GeocodingStreetEntry[],
+    ),
+  };
+}
 
 async function cachePin(
   db: Awaited<ReturnType<typeof import("@/lib/db").getDb>>,
@@ -38,29 +89,55 @@ async function cachePin(
     return;
   }
 
-  const addresses = (msg.addresses ?? []) as Address[];
-  if (addresses.length === 0) {
-    console.error(
-      `❌ Message "${messageId}" has no geocoded addresses. Has it been ingested?`,
+  const normalized = normalizePinAddress(address);
+
+  // Primary source: geocoding process step (supports both complete and interrupted runs)
+  const { pins } = extractGeocodingData(msg);
+  let match = pins.find((p) => p.key === normalized);
+
+  // Fallback: message.addresses[] (for messages ingested before the geocoding step was added)
+  if (!match) {
+    const legacyAddresses = (msg.addresses ?? []) as Address[];
+    const legacyMatch = legacyAddresses.find(
+      (a) =>
+        normalizePinAddress(a.originalText) === normalized ||
+        normalizePinAddress(a.formattedAddress) === normalized,
     );
-    process.exitCode = 1;
-    return;
+    if (legacyMatch) {
+      match = {
+        key: normalized,
+        originalText: legacyMatch.originalText,
+        formattedAddress: legacyMatch.formattedAddress,
+        coordinates: legacyMatch.coordinates,
+        geoJson: legacyMatch.geoJson,
+      };
+    }
   }
 
-  const normalized = normalizePinAddress(address);
-  const match = addresses.find(
-    (a) =>
-      normalizePinAddress(a.originalText) === normalized ||
-      normalizePinAddress(a.formattedAddress) === normalized,
-  );
-
   if (!match) {
+    const hasPins = pins.length > 0;
     console.error(
-      `❌ Address "${address}" (normalized: "${normalized}") not found in message addresses.`,
+      `❌ Address "${address}" (normalized: "${normalized}") not found in ${
+        hasPins ? "geocoding step pins" : "message addresses"
+      }.`,
     );
-    console.error(`   Available addresses:`);
-    for (const a of addresses) {
-      console.error(`   - "${a.originalText}" / "${a.formattedAddress}"`);
+    if (hasPins) {
+      console.error(`   Available pins:`);
+      for (const p of pins) {
+        console.error(`   - "${p.originalText}" / "${p.formattedAddress}"`);
+      }
+    } else {
+      const legacyAddresses = (msg.addresses ?? []) as Address[];
+      if (legacyAddresses.length > 0) {
+        console.error(`   Available addresses:`);
+        for (const a of legacyAddresses) {
+          console.error(`   - "${a.originalText}" / "${a.formattedAddress}"`);
+        }
+      } else {
+        console.error(
+          `   Message has no geocoded data. Has it been ingested?`,
+        );
+      }
     }
     process.exitCode = 1;
     return;
@@ -112,67 +189,26 @@ async function cacheStreet(
     return;
   }
 
-  const streets = (msg.streets ?? []) as StreetSection[];
-  if (streets.length === 0) {
-    console.error(
-      `❌ Message "${messageId}" has no street sections. Has it been ingested?`,
-    );
-    process.exitCode = 1;
-    return;
-  }
-
   const normalized = normalizePinAddress(streetName);
-  const matchedStreet = streets.find(
-    (s) => normalizePinAddress(s.street) === normalized,
-  );
 
-  if (!matchedStreet) {
-    console.error(
-      `❌ Street "${streetName}" (normalized: "${normalized}") not found in message streets.`,
-    );
-    console.error(`   Available streets:`);
-    for (const s of streets) {
-      console.error(`   - "${s.street}"`);
-    }
-    process.exitCode = 1;
-    return;
-  }
-
-  // Read pre-stored street geometry from message.process (written during ingestion)
-  type ProcessStep = { step: string; result: unknown };
-  type StoredStreetGeometry = {
-    key: string;
-    originalName: string;
-    geometry: Feature<MultiLineString> | string;
-  };
-  const processSteps =
-    ((msg as Record<string, unknown>).process as ProcessStep[] | undefined) ??
-    [];
-  // Use the last streetGeometries step in case the message was re-ingested
-  const streetGeometriesSteps = processSteps.filter(
-    (s) => s.step === "streetGeometries",
-  );
-  const streetGeometriesStep =
-    streetGeometriesSteps[streetGeometriesSteps.length - 1];
-  const storedGeometriesResult = streetGeometriesStep?.result;
-  if (storedGeometriesResult !== undefined && !Array.isArray(storedGeometriesResult)) {
-    console.error(
-      `❌ Invalid street geometries format in message.process for message "${messageId}".`,
-    );
-    console.error(`   Expected an array of stored street geometries.`);
-    process.exitCode = 1;
-    return;
-  }
-  const storedGeometries = (storedGeometriesResult ?? []) as StoredStreetGeometry[];
-  const storedEntry = storedGeometries.find((g) => g.key === normalized);
+  // Read street geometry from the geocoding process step
+  const { streets } = extractGeocodingData(msg);
+  const storedEntry = streets.find((g) => g.key === normalized);
 
   if (!storedEntry) {
     console.error(
-      `❌ No geometry found for "${streetName}" in message.process.`,
+      `❌ No geometry found for "${streetName}" (normalized: "${normalized}") in message.process.`,
     );
-    console.error(
-      `   Re-ingest the message first to populate street geometries.`,
-    );
+    if (streets.length > 0) {
+      console.error(`   Available streets:`);
+      for (const s of streets) {
+        console.error(`   - "${s.originalName}"`);
+      }
+    } else {
+      console.error(
+        `   Message has no geocoded street geometries. Re-ingest the message first.`,
+      );
+    }
     process.exitCode = 1;
     return;
   }
@@ -187,25 +223,27 @@ async function cacheStreet(
   }
 
   let geometry: Feature<MultiLineString>;
-  if (typeof storedEntry.geometry === "string") {
-    try {
-      geometry = JSON.parse(storedEntry.geometry) as Feature<MultiLineString>;
-    } catch {
-      console.error(
-        `❌ Invalid street geometry value in message.process for messageId "${messageId}" and key "${normalized}".`,
-      );
-      console.error(
-        `   The stored geometry value could not be parsed as JSON. Check the data and try again.`,
-      );
-      process.exitCode = 1;
-      return;
-    }
-  } else {
-    geometry = storedEntry.geometry;
+  try {
+    geometry = JSON.parse(storedEntry.geometry) as Feature<MultiLineString>;
+  } catch {
+    console.error(
+      `❌ Invalid street geometry value in message.process for messageId "${messageId}" and key "${normalized}".`,
+    );
+    console.error(
+      `   The stored geometry value could not be parsed as JSON. Check the data and try again.`,
+    );
+    process.exitCode = 1;
+    return;
   }
+
+  const streets2 = (msg.streets ?? []) as StreetSection[];
+  const matchedStreet = streets2.find(
+    (s) => normalizePinAddress(s.street) === normalized,
+  );
+
   await db.geocodeCacheStreets.insertOne({
     key: normalized,
-    originalText: matchedStreet.street,
+    originalText: matchedStreet?.street ?? storedEntry.originalName,
     geoJson: geometry,
     sourceService: "overpass",
     sourceMessageId: messageId,

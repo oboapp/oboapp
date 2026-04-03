@@ -18,6 +18,7 @@ import { logger } from "@/lib/logger";
 import { isWithinBounds } from "@oboapp/shared";
 import { getLocality } from "@/lib/target-locality";
 import { roundCoordinate } from "@/geocoding/shared/coordinate-utils";
+import type { GeocodingProgressTracker } from "./geocoding-progress-tracker";
 
 // Internal types for the geocoding pipeline
 export interface GeocodingResult {
@@ -210,8 +211,11 @@ async function geocodePins(
   extractedData: ExtractedLocations,
   preGeocodedMap: Map<string, Coordinates>,
   addresses: Address[],
+  tracker?: GeocodingProgressTracker,
 ): Promise<void> {
   if (extractedData.pins.length === 0) return;
+
+  const countBefore = addresses.length;
 
   const pinsToGeocode = processPinsWithPreResolvedCoordinates(
     extractedData.pins,
@@ -226,6 +230,12 @@ async function geocodePins(
     geocodedPins.forEach((addr) => {
       preGeocodedMap.set(addr.originalText, addr.coordinates);
     });
+  }
+
+  if (tracker) {
+    // Record all resolved pins (pre-resolved + API-geocoded) with the full input count as attempted
+    const resolvedPins = addresses.slice(countBefore);
+    await tracker.recordPins(resolvedPins, extractedData.pins.length);
   }
 }
 
@@ -432,6 +442,7 @@ async function geocodeEducationalFacilitiesFromExtractedData(
 export async function geocodeAddressesFromExtractedData(
   extractedData: ExtractedLocations | null,
   ingestErrors?: IngestErrorRecorder,
+  tracker?: GeocodingProgressTracker,
 ): Promise<GeocodingResult> {
   const preGeocodedMap = new Map<string, Coordinates>();
   const addresses: Address[] = [];
@@ -445,20 +456,23 @@ export async function geocodeAddressesFromExtractedData(
   await seedStreetCacheFromDb();
 
   // Geocode each location type using specialized services
-  await geocodePins(extractedData, preGeocodedMap, addresses);
+  await geocodePins(extractedData, preGeocodedMap, addresses, tracker);
   await geocodeStreetIntersections(extractedData, preGeocodedMap, addresses);
   const cadastralGeometries = await geocodeCadastralProperties(extractedData);
+  tracker?.recordAttempted(extractedData.cadastralProperties?.length ?? 0);
   await geocodeBusStopsFromExtractedData(
     extractedData,
     preGeocodedMap,
     addresses,
   );
+  tracker?.recordAttempted(extractedData.busStops?.length ?? 0);
   await geocodeEducationalFacilitiesFromExtractedData(
     extractedData,
     preGeocodedMap,
     addresses,
     ingestErrors,
   );
+  tracker?.recordAttempted(extractedData.educationalFacilities?.length ?? 0);
 
   // Deduplicate addresses before returning
   const deduplicatedAddresses = deduplicateAddresses(addresses);

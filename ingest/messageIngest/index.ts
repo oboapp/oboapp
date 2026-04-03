@@ -16,6 +16,10 @@ import {
 } from "@/lib/ingest-errors";
 import { storeIncomingMessage, updateMessage } from "./db";
 import { encodeDocumentId } from "../crawlers/shared/firestore";
+import {
+  createGeocodingProgressTracker,
+  type GeocodingProgressTracker,
+} from "./geocoding-progress-tracker";
 import { logger } from "@/lib/logger";
 import { getLocality } from "@/lib/target-locality";
 import {
@@ -704,12 +708,14 @@ function ensureCrawledAtDate(crawledAt: Date | string | undefined): Date {
 async function performGeocoding(
   extractedLocations: ExtractedLocations,
   ingestErrors?: IngestErrorRecorder,
+  tracker?: GeocodingProgressTracker,
 ) {
   const { geocodeAddressesFromExtractedData } =
     await import("./geocode-addresses");
   return await geocodeAddressesFromExtractedData(
     extractedLocations,
     ingestErrors,
+    tracker,
   );
 }
 
@@ -724,10 +730,19 @@ async function performGeocodingWithErrorHandling(
   addresses: Address[];
   geoJson: GeoJSONFeatureCollection | null;
 } | null> {
+  const toDo =
+    (extractedLocations.pins?.length ?? 0) +
+    (extractedLocations.streets?.length ?? 0) +
+    (extractedLocations.cadastralProperties?.length ?? 0) +
+    (extractedLocations.busStops?.length ?? 0) +
+    (extractedLocations.educationalFacilities?.length ?? 0);
+  const tracker = createGeocodingProgressTracker(messageId, toDo);
+
   try {
     const geocodingResult = await performGeocoding(
       extractedLocations,
       ingestErrors,
+      tracker,
     );
     const filteredAddresses = await filterAndStoreAddresses(
       messageId,
@@ -761,11 +776,11 @@ async function performGeocodingWithErrorHandling(
       geocodedEducationalFacilities,
     );
 
-    // Persist full street geometries to message.process for cache pre-population and reporting.
+    // Record street geometries into the progress tracker.
     // Reads from the in-memory cache populated during performGeocoding(). For streets geocoded via
     // geotagged coordinates (Overpass was skipped), we make an explicit Overpass fetch here so their
-    // geometry ends up in the cache too.
-    // Wrapped in its own try/catch so a failure here doesn't invalidate the geocoding result above.
+    // geometry ends up in the tracker too.
+    // Wrapped in its own try/catch so failures here don't invalidate the geocoding result above.
     try {
       if (extractedLocations.streets.length > 0) {
         const {
@@ -773,10 +788,8 @@ async function performGeocodingWithErrorHandling(
           getStreetGeometryFromOverpass,
           hasStreetGeometryQueried,
         } = await import("@/geocoding/overpass/service");
-        const { normalizePinAddress } =
-          await import("@oboapp/shared");
+        const { normalizePinAddress } = await import("@oboapp/shared");
         const { delay } = await import("@/lib/delay");
-        const streetGeometries = [];
         let overpassFetchCount = 0;
         for (const s of extractedLocations.streets) {
           let geometry = getStreetGeometryCached(s.street);
@@ -790,31 +803,21 @@ async function performGeocodingWithErrorHandling(
             overpassFetchCount++;
           }
           if (geometry) {
-            streetGeometries.push({
+            await tracker.recordStreet({
               key: normalizePinAddress(s.street),
               originalName: s.street,
               // Stringify to avoid Firestore nested-array rejection (coordinates: number[][][])
               geometry: JSON.stringify(geometry),
             });
+          } else {
+            tracker.recordAttempted(1);
           }
         }
-        if (streetGeometries.length > 0) {
-          await updateMessage(messageId, {
-            $addToSet: {
-              process: {
-                step: "streetGeometries",
-                timestamp: new Date().toISOString(),
-                result: streetGeometries,
-              },
-            },
-          });
-        }
       }
-    } catch (geometryError) {
-      const { logger } = await import("@/lib/logger");
-      logger.warn("Failed to persist street geometries to message.process — geocoding result unaffected", {
+    } catch (streetError) {
+      logger.warn("Failed to record street geometries in progress tracker — geocoding result unaffected", {
         messageId,
-        error: geometryError instanceof Error ? geometryError.message : String(geometryError),
+        error: streetError instanceof Error ? streetError.message : String(streetError),
       });
     }
 
@@ -824,6 +827,15 @@ async function performGeocodingWithErrorHandling(
     ingestErrors.exception(`Ingestion exception: ${errorMessage}`);
     await finalizeMessageWithoutGeoJson(messageId, ingestErrors);
     return null;
+  } finally {
+    try {
+      await tracker.finalize();
+    } catch (finalizeError) {
+      logger.warn("Failed to finalize geocoding progress tracker — partial progress may be lost", {
+        messageId,
+        error: finalizeError instanceof Error ? finalizeError.message : String(finalizeError),
+      });
+    }
   }
 }
 
