@@ -730,13 +730,13 @@ async function performGeocodingWithErrorHandling(
   addresses: Address[];
   geoJson: GeoJSONFeatureCollection | null;
 } | null> {
-  const toDo =
+  const totalLocations =
     (extractedLocations.pins?.length ?? 0) +
     (extractedLocations.streets?.length ?? 0) +
     (extractedLocations.cadastralProperties?.length ?? 0) +
     (extractedLocations.busStops?.length ?? 0) +
     (extractedLocations.educationalFacilities?.length ?? 0);
-  const tracker = createGeocodingProgressTracker(messageId, toDo);
+  const tracker = createGeocodingProgressTracker(messageId, totalLocations);
   let geocodingSucceeded = false;
 
   try {
@@ -976,35 +976,23 @@ async function handlePrecomputedGeoJsonData(
   const { validateAndFallback } = await import("@/lib/timespan-utils");
   const validated = validateAndFallback(timespanStart, timespanEnd, crawledAt);
 
-  if (!markdownText) {
-    if (addresses.length > 0) {
-      await updateMessage(messageId, {
-        addresses,
-        pins,
-        streets: [],
-        cadastralProperties: [],
-        timespanStart: validated.timespanStart,
-        timespanEnd: validated.timespanEnd,
-      });
-    } else {
-      await updateMessage(messageId, {
-        timespanStart: validated.timespanStart,
-        timespanEnd: validated.timespanEnd,
-      });
-    }
-    return addresses;
-  }
+  const locationFields = { addresses, pins, streets: [], cadastralProperties: [] };
 
-  await updateMessage(messageId, {
-    markdownText,
-    responsibleEntity: "",
-    addresses,
-    pins,
-    streets: [],
-    cadastralProperties: [],
-    timespanStart: validated.timespanStart,
-    timespanEnd: validated.timespanEnd,
-  });
+  if (markdownText) {
+    await updateMessage(messageId, {
+      markdownText,
+      responsibleEntity: "",
+      ...locationFields,
+      timespanStart: validated.timespanStart,
+      timespanEnd: validated.timespanEnd,
+    });
+  } else {
+    await updateMessage(messageId, {
+      ...(addresses.length > 0 ? locationFields : {}),
+      timespanStart: validated.timespanStart,
+      timespanEnd: validated.timespanEnd,
+    });
+  }
 
   return addresses;
 }
