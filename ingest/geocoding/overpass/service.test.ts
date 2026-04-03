@@ -6,6 +6,8 @@ import {
   clearStreetGeometryCache,
   overpassGeocodeIntersections,
   CIRCUIT_BREAKER_THRESHOLD,
+  OVERPASS_INSTANCES,
+  OVERPASS_RETRY_MAX_ATTEMPTS,
 } from "./service";
 import { delay } from "../../lib/delay";
 
@@ -421,16 +423,14 @@ describe("overpass-geocoding-service", () => {
     });
 
     describe("adaptive retry policy", () => {
-      const OVERPASS_INSTANCES_COUNT = 2; // number of instances in OVERPASS_INSTANCES
-
       it("retries 429 on the same instance with backoff before falling back to the next", async () => {
-        // Instance 1 (private.coffee) always returns 429; instance 2 succeeds
+        // First instance always returns 429; second instance succeeds
         let instance1Calls = 0;
         let instance2Calls = 0;
         vi.stubGlobal(
           "fetch",
           vi.fn(async (url: string | URL) => {
-            if (String(url).includes("private.coffee")) {
+            if (String(url) === OVERPASS_INSTANCES[0]) {
               instance1Calls++;
               return {
                 ok: false,
@@ -447,9 +447,9 @@ describe("overpass-geocoding-service", () => {
 
         const results = await overpassGeocodeIntersections(["ул. Пример ∩ ул. Фоо"]);
 
-        // 2 streets × OVERPASS_RETRY_MAX_ATTEMPTS retries on instance1 before fallback
-        expect(instance1Calls).toBeGreaterThan(OVERPASS_INSTANCES_COUNT);
-        // Instance 2 handles both streets after instance 1 exhausts its attempts
+        // 2 streets, each exhausts OVERPASS_RETRY_MAX_ATTEMPTS on instance 1 before falling back
+        expect(instance1Calls).toBe(OVERPASS_RETRY_MAX_ATTEMPTS * 2);
+        // Instance 2 then handles both streets successfully on the first try
         expect(instance2Calls).toBe(2);
         expect(results).toHaveLength(1);
       });
@@ -460,7 +460,7 @@ describe("overpass-geocoding-service", () => {
         vi.stubGlobal(
           "fetch",
           vi.fn(async (url: string | URL) => {
-            if (String(url).includes("private.coffee") && fetchCount++ === 0) {
+            if (String(url) === OVERPASS_INSTANCES[0] && fetchCount++ === 0) {
               return {
                 ok: false,
                 status: 429,
@@ -481,13 +481,13 @@ describe("overpass-geocoding-service", () => {
       });
 
       it("retries AbortError (timeout) on the same instance with backoff", async () => {
-        // Instance 1 always times out; instance 2 succeeds
+        // First instance always times out; second instance succeeds
         let instance1Calls = 0;
         let instance2Calls = 0;
         vi.stubGlobal(
           "fetch",
           vi.fn(async (url: string | URL) => {
-            if (String(url).includes("private.coffee")) {
+            if (String(url) === OVERPASS_INSTANCES[0]) {
               instance1Calls++;
               const err = new Error("The operation was aborted");
               err.name = "AbortError";
@@ -500,7 +500,8 @@ describe("overpass-geocoding-service", () => {
 
         const results = await overpassGeocodeIntersections(["ул. Пример ∩ ул. Фоо"]);
 
-        expect(instance1Calls).toBeGreaterThan(OVERPASS_INSTANCES_COUNT);
+        // 2 streets, each exhausts OVERPASS_RETRY_MAX_ATTEMPTS on instance 1 before falling back
+        expect(instance1Calls).toBe(OVERPASS_RETRY_MAX_ATTEMPTS * 2);
         expect(instance2Calls).toBe(2);
         expect(results).toHaveLength(1);
       });

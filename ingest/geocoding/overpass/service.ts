@@ -29,7 +29,7 @@ const OVERPASS_TIMEOUT_MS = 25000; // 25 seconds timeout for HTTP requests
 const BUFFER_DISTANCE_METERS = 30; // Buffer distance for street geometries
 
 // Adaptive retry policy for per-instance 429 / AbortError retries
-const OVERPASS_RETRY_MAX_ATTEMPTS = 3; // Total attempts per instance (including first)
+export const OVERPASS_RETRY_MAX_ATTEMPTS = 3; // Total attempts per instance (including first)
 const OVERPASS_RETRY_BASE_DELAY_MS = 1_000;
 const OVERPASS_RETRY_MAX_DELAY_MS = 30_000;
 const OVERPASS_RETRY_BACKOFF_FACTOR = 2;
@@ -98,8 +98,19 @@ function recordSuccess(ctx: OverpassRunContext): void {
 
 function parseRetryAfterMs(header: string | null): number | null {
   if (header === null) return null;
-  const seconds = parseInt(header, 10);
-  return isNaN(seconds) ? null : seconds * 1_000;
+  const trimmed = header.trim();
+  if (trimmed.length === 0) return null;
+
+  // Delta-seconds format: "42"
+  if (/^\d+$/.test(trimmed)) {
+    const seconds = Number.parseInt(trimmed, 10);
+    return Math.min(seconds * 1_000, OVERPASS_RETRY_MAX_DELAY_MS);
+  }
+
+  // HTTP-date format: "Sat, 05 Apr 2026 12:34:56 GMT"
+  const retryAtMs = Date.parse(trimmed);
+  if (Number.isNaN(retryAtMs)) return null;
+  return Math.min(Math.max(retryAtMs - Date.now(), 0), OVERPASS_RETRY_MAX_DELAY_MS);
 }
 
 function calculateRetryDelayMs(attempt: number, retryAfterMs: number | null): number {
@@ -256,7 +267,7 @@ function shouldTryFallback(error: Error, statusCode?: number): boolean {
 type ErrorWithStatusCode = Error & { statusCode?: number };
 
 // Multiple Overpass API instances for fallback
-const OVERPASS_INSTANCES = [
+export const OVERPASS_INSTANCES = [
   "https://overpass.private.coffee/api/interpreter", // No rate limit
   "https://overpass-api.de/api/interpreter", // Main instance (10k queries/day)
 ];
