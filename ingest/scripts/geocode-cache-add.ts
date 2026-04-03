@@ -29,6 +29,23 @@ import type {
 } from "@/messageIngest/geocoding-progress-tracker";
 import { isRecord } from "@/lib/record-fields";
 
+function isGeocodingPinEntry(v: unknown): v is GeocodingPinEntry {
+  return (
+    isRecord(v) &&
+    typeof v["key"] === "string" &&
+    typeof v["originalText"] === "string" &&
+    typeof v["formattedAddress"] === "string"
+  );
+}
+
+function isGeocodingStreetEntry(v: unknown): v is GeocodingStreetEntry {
+  return (
+    isRecord(v) &&
+    typeof v["key"] === "string" &&
+    typeof v["geometry"] === "string"
+  );
+}
+
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 
 /**
@@ -53,8 +70,8 @@ function extractGeocodingData(msg: Record<string, unknown>): {
   if (geocodingSteps.length > 0) {
     const last = geocodingSteps[geocodingSteps.length - 1];
     return {
-      pins: (Array.isArray(last["pins"]) ? last["pins"] : []) as GeocodingPinEntry[],
-      streets: (Array.isArray(last["streets"]) ? last["streets"] : []) as GeocodingStreetEntry[],
+      pins: Array.isArray(last["pins"]) ? last["pins"].filter(isGeocodingPinEntry) : [],
+      streets: Array.isArray(last["streets"]) ? last["streets"].filter(isGeocodingStreetEntry) : [],
     };
   }
 
@@ -68,11 +85,11 @@ function extractGeocodingData(msg: Record<string, unknown>): {
   const lastRunId = batchSteps[batchSteps.length - 1].runId;
   const batchesForRun = batchSteps.filter((s) => s["runId"] === lastRunId);
   return {
-    pins: batchesForRun.flatMap(
-      (s) => (Array.isArray(s["pins"]) ? s["pins"] : []) as GeocodingPinEntry[],
+    pins: batchesForRun.flatMap((s) =>
+      Array.isArray(s["pins"]) ? s["pins"].filter(isGeocodingPinEntry) : [],
     ),
-    streets: batchesForRun.flatMap(
-      (s) => (Array.isArray(s["streets"]) ? s["streets"] : []) as GeocodingStreetEntry[],
+    streets: batchesForRun.flatMap((s) =>
+      Array.isArray(s["streets"]) ? s["streets"].filter(isGeocodingStreetEntry) : [],
     ),
   };
 }

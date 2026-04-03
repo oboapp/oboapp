@@ -105,13 +105,13 @@ export function createGeocodingProgressTracker(
 
   return {
     async recordPins(geocoded: Address[], attempted: number): Promise<void> {
+      done += attempted;
       for (const addr of geocoded) {
         const entry = addressToPinEntry(addr);
         allPins.push(entry);
         pendingPins.push(entry);
         await maybeFlush();
       }
-      done += attempted;
     },
 
     async recordStreet(entry: GeocodingStreetEntry): Promise<void> {
