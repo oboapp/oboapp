@@ -452,10 +452,10 @@ describe("geocodeStreetIntersections tracker recording", () => {
   }
 
   beforeEach(() => {
-    vi.mocked(geocodeIntersectionsForStreets).mockResolvedValue(new Map());
-    vi.mocked(getStreetGeometryCached).mockReturnValue(null);
-    vi.mocked(hasStreetGeometryQueried).mockReturnValue(false);
-    vi.mocked(getStreetGeometryFromOverpass).mockResolvedValue(null);
+    vi.mocked(geocodeIntersectionsForStreets).mockReset().mockResolvedValue(new Map());
+    vi.mocked(getStreetGeometryCached).mockReset().mockReturnValue(null);
+    vi.mocked(hasStreetGeometryQueried).mockReset().mockReturnValue(false);
+    vi.mocked(getStreetGeometryFromOverpass).mockReset().mockResolvedValue(null);
   });
 
   it("records geometry exactly once for a street with valid geotagged coordinates", async () => {
