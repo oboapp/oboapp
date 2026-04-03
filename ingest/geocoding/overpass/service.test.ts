@@ -332,6 +332,30 @@ describe("overpass-geocoding-service", () => {
       vi.unstubAllGlobals();
     });
 
+    it("retries deferred intersections after transient network failures", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Network request failed"))
+        .mockRejectedValueOnce(new Error("Network request failed"))
+        .mockRejectedValueOnce(new Error("Network request failed"))
+        .mockRejectedValueOnce(new Error("Network request failed"))
+        .mockResolvedValueOnce({
+          ok: true,
+          text: () => Promise.resolve(wayResponse),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          text: () => Promise.resolve(wayResponse),
+        });
+      vi.stubGlobal("fetch", fetchMock);
+
+      await overpassGeocodeIntersections(["ул. Пример ∩ ул. Фоо"]);
+
+      // First pass: both streets fail on two instances (4 calls).
+      // Retry pass: same intersection is reprocessed once (2 successful calls).
+      expect(fetchMock).toHaveBeenCalledTimes(6);
+    });
+
     it("deduplicates Overpass fetches when the same street appears in multiple intersections", async () => {
       vi.stubGlobal("fetch", mockFetch(wayResponse));
 
