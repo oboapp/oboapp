@@ -25,7 +25,7 @@ export async function geocodeAddress(address: string): Promise<Address | null> {
   const { lookupCachedPin } = await import("../cache");
   const cached = await lookupCachedPin(normalizePinAddress(address));
   if (cached) {
-    logger.info("Pin cache hit, skipping Google Geocoding API", { address });
+    logger.debug("Pin cache hit, skipping Google Geocoding API", { address });
     return cached;
   }
 

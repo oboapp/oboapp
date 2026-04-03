@@ -474,11 +474,17 @@ export default function GeocodeCachePage() {
             {error === "not-generated" && (
               <>
                 <p className="text-sm text-neutral mb-3">
-                  Отчетът още не е генериран. За генериране изпълни:
+                  Отчетът още не е генериран. Виж{" "}
+                  <a
+                    href="https://github.com/vbuch/oboapp/blob/main/docs/features/geocode-cache.md"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline"
+                  >
+                    документацията
+                  </a>{" "}
+                  за инструкции как да го генерираш.
                 </p>
-                <pre className="bg-neutral-light text-neutral font-mono text-xs rounded px-4 py-3 select-all">
-                  pnpm tsx scripts/geocode-frequency-report.ts
-                </pre>
               </>
             )}
             {error === "bucket-missing" && (

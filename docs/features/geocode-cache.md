@@ -31,7 +31,7 @@ flowchart TD
 
 ## Scheduling
 
-The frequency report is generated automatically every Monday at 5:00 AM (Europe/Sofia) via a Cloud Scheduler job (`geocode-frequency-report-schedule`) that triggers a Cloud Run job. The schedule is configurable via `var.schedules.geocode_cache_report` in Terraform (default: `0 5 * * 1`).
+The frequency report is generated automatically on a recurring weekly schedule via the cloud scheduler/job pipeline. The exact timing is configurable per environment; check the current infrastructure configuration for the active schedule if verification is needed.
 
 ## CLI Scripts
 

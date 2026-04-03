@@ -93,9 +93,12 @@ export async function GET(request: Request) {
         formattedAddress: string;
       }[] = [];
 
-      for (const id of messageIds) {
-        const msg = await db.messages.findById(id);
+      const pinMessages = await Promise.all(
+        messageIds.map((id) => db.messages.findById(id)),
+      );
+      for (const [index, msg] of pinMessages.entries()) {
         if (!msg) continue;
+        const id = messageIds[index];
 
         const rawAddresses = msg.addresses ?? [];
         if (!isRecordArray(rawAddresses)) continue;
@@ -133,9 +136,12 @@ export async function GET(request: Request) {
       coordinates: { lat: number; lng: number }[][];
     }[] = [];
 
-    for (const id of messageIds) {
-      const msg = await db.messages.findById(id);
+    const streetMessages = await Promise.all(
+      messageIds.map((id) => db.messages.findById(id)),
+    );
+    for (const [index, msg] of streetMessages.entries()) {
       if (!msg) continue;
+      const id = messageIds[index];
 
       const rawProcess = msg.process ?? [];
       if (!Array.isArray(rawProcess)) continue;
@@ -173,7 +179,12 @@ export async function GET(request: Request) {
 
       // Convert GeoJSON [lng, lat] → Google Maps { lat, lng }
       const coordinates = multiLine.coordinates.map((line) =>
-        line.map(([lng, lat]) => ({ lat: lat ?? 0, lng: lng ?? 0 })),
+        line
+          .filter(
+            ([lng, lat]) =>
+              typeof lng === "number" && typeof lat === "number",
+          )
+          .map(([lng, lat]) => ({ lat, lng })),
       );
 
       items.push({ messageId: id, coordinates });
