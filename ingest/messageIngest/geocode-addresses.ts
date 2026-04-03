@@ -478,6 +478,7 @@ async function geocodeStreetIntersections(
  */
 async function geocodeCadastralProperties(
   extractedData: ExtractedLocations,
+  tracker?: GeocodingProgressTracker,
 ): Promise<Map<string, CadastralGeometry> | undefined> {
   if (
     !extractedData.cadastralProperties ||
@@ -497,6 +498,7 @@ async function geocodeCadastralProperties(
     total: identifiers.length,
   });
 
+  tracker?.recordAttempted(identifiers.length);
   return cadastralGeometries;
 }
 
@@ -507,6 +509,7 @@ async function geocodeBusStopsFromExtractedData(
   extractedData: ExtractedLocations,
   preGeocodedMap: Map<string, Coordinates>,
   addresses: Address[],
+  tracker?: GeocodingProgressTracker,
 ): Promise<void> {
   if (!extractedData.busStops || extractedData.busStops.length === 0) {
     return;
@@ -523,6 +526,8 @@ async function geocodeBusStopsFromExtractedData(
     geocoded: geocodedBusStops.length,
     total: extractedData.busStops.length,
   });
+
+  tracker?.recordAttempted(extractedData.busStops.length);
 }
 
 /**
@@ -533,6 +538,7 @@ async function geocodeEducationalFacilitiesFromExtractedData(
   preGeocodedMap: Map<string, Coordinates>,
   addresses: Address[],
   ingestErrors?: IngestErrorRecorder,
+  tracker?: GeocodingProgressTracker,
 ): Promise<void> {
   if (
     !extractedData.educationalFacilities ||
@@ -550,6 +556,8 @@ async function geocodeEducationalFacilitiesFromExtractedData(
   geocoded.forEach((addr) => {
     preGeocodedMap.set(addr.originalText, addr.coordinates);
   });
+
+  tracker?.recordAttempted(extractedData.educationalFacilities.length);
 }
 
 /**
@@ -576,21 +584,9 @@ export async function geocodeAddressesFromExtractedData(
   // Geocode each location type using specialized services
   await geocodePins(extractedData, preGeocodedMap, addresses, tracker);
   await geocodeStreetIntersections(extractedData, preGeocodedMap, addresses, tracker);
-  const cadastralGeometries = await geocodeCadastralProperties(extractedData);
-  tracker?.recordAttempted(extractedData.cadastralProperties?.length ?? 0);
-  await geocodeBusStopsFromExtractedData(
-    extractedData,
-    preGeocodedMap,
-    addresses,
-  );
-  tracker?.recordAttempted(extractedData.busStops?.length ?? 0);
-  await geocodeEducationalFacilitiesFromExtractedData(
-    extractedData,
-    preGeocodedMap,
-    addresses,
-    ingestErrors,
-  );
-  tracker?.recordAttempted(extractedData.educationalFacilities?.length ?? 0);
+  const cadastralGeometries = await geocodeCadastralProperties(extractedData, tracker);
+  await geocodeBusStopsFromExtractedData(extractedData, preGeocodedMap, addresses, tracker);
+  await geocodeEducationalFacilitiesFromExtractedData(extractedData, preGeocodedMap, addresses, ingestErrors, tracker);
 
   // Deduplicate addresses before returning
   const deduplicatedAddresses = deduplicateAddresses(addresses);
