@@ -308,7 +308,8 @@ function processStreetEndpointsWithPreResolvedCoordinates(
  * Fetch and record street geometry in the progress tracker.
  * If `beforeFetch` is provided it is called immediately before any new Overpass
  * network request (used by callers to apply per-request rate-limiting delays).
- * Tracker errors are caught and logged without affecting geocoding results.
+ * Errors during Overpass fetching or progress-tracker recording are caught and
+ * logged without affecting geocoding results.
  */
 async function recordStreetGeometryInTracker(
   street: StreetSection,
@@ -346,7 +347,7 @@ async function recordStreetGeometryInTracker(
     }
   } catch (trackerError) {
     logger.warn(
-      "Failed to record street in progress tracker — geocoding result unaffected",
+      "Failed to fetch or record street geometry — geocoding result unaffected",
       {
         street: street.street,
         error:
@@ -376,8 +377,11 @@ async function geocodeStreetIntersections(
     addresses,
   );
 
-  // Hoist Overpass service imports once — used for both geocoding and tracker recording below
-  const overpassFetchers = await import("@/geocoding/overpass/service");
+  // Import Overpass service only when a tracker is active — these fetchers are only used
+  // for tracker recording; the static overpassGeocodeAddresses handles the geocoding itself
+  const overpassFetchers = tracker
+    ? await import("@/geocoding/overpass/service")
+    : undefined;
 
   // Filter to streets that still need Overpass geocoding
   const streetsNeedingGeocoding = extractedData.streets.filter(
@@ -418,7 +422,7 @@ async function geocodeStreetIntersections(
         // geometry still isn't cached, the street's endpoints were resolved via
         // geotagged coordinates (Overpass intersection queries were skipped).
         // In that case fetch the geometry explicitly.
-        await recordStreetGeometryInTracker(street, tracker, overpassFetchers);
+        await recordStreetGeometryInTracker(street, tracker, overpassFetchers!);
       }
     }
   }
@@ -444,7 +448,7 @@ async function geocodeStreetIntersections(
         await recordStreetGeometryInTracker(
           street,
           tracker,
-          overpassFetchers,
+          overpassFetchers!,
           async () => {
             if (fetchCount > 0) await delay(500);
             fetchCount++;
