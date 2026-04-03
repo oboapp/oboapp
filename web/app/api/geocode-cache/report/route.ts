@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+export const runtime = "nodejs";
+
 let storage: import("@google-cloud/storage").Storage | null = null;
 
 async function getStorage() {

@@ -8,7 +8,7 @@
  *
  * Usage:
  *   pnpm tsx ingest/scripts/geocode-frequency-report.ts
- *   pnpm tsx ingest/scripts/geocode-frequency-report.ts --dry-run  # print to stdout only
+ *   pnpm tsx ingest/scripts/geocode-frequency-report.ts --dry-run  # print top uncached items, skip GCS upload
  */
 
 import { Command } from "commander";
@@ -164,7 +164,7 @@ async function buildReport(dryRun: boolean): Promise<void> {
 const program = new Command();
 program
   .description("Generate geocode-cache frequency report and save to GCS")
-  .option("--dry-run", "Print report to stdout without saving to GCS")
+  .option("--dry-run", "Print top uncached items to stdout without saving to GCS")
   .action(async (opts: { dryRun?: boolean }) => {
     await buildReport(opts.dryRun ?? false);
   });

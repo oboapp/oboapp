@@ -55,6 +55,9 @@ const eslintConfig = [
 
       // Discourage console statements — use proper error handling instead
       "no-console": "warn",
+
+      // Enforce all static imports at the top of the file
+      "import/first": "error",
     },
   },
   // Allow 'any' and type assertions in test files for mocking purposes

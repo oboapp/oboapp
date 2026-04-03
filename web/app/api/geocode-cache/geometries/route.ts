@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { normalizePinAddress } from "@oboapp/shared";
 import { getDb } from "@/lib/db";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -12,9 +13,6 @@ function isRecordArray(v: unknown): v is Record<string, unknown>[] {
 function isCoordinates(v: unknown): v is { lat: number; lng: number } {
   return isRecord(v) && typeof v.lat === "number" && typeof v.lng === "number";
 }
-
-import { normalizePinAddress } from "@oboapp/shared";
-
 interface ProcessStep {
   step: string;
   result: unknown;

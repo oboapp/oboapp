@@ -154,8 +154,16 @@ async function cacheStreet(
   );
   const streetGeometriesStep =
     streetGeometriesSteps[streetGeometriesSteps.length - 1];
-  const storedGeometries = (streetGeometriesStep?.result ??
-    []) as StoredStreetGeometry[];
+  const storedGeometriesResult = streetGeometriesStep?.result;
+  if (storedGeometriesResult !== undefined && !Array.isArray(storedGeometriesResult)) {
+    console.error(
+      `❌ Invalid street geometries format in message.process for message "${messageId}".`,
+    );
+    console.error(`   Expected an array of stored street geometries.`);
+    process.exitCode = 1;
+    return;
+  }
+  const storedGeometries = (storedGeometriesResult ?? []) as StoredStreetGeometry[];
   const storedEntry = storedGeometries.find((g) => g.key === normalized);
 
   if (!storedEntry) {

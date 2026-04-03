@@ -392,6 +392,14 @@ function FrequencyTable({
                     : "hover:bg-neutral-light/50"
                 }`}
                 onClick={() => onSelect(e, type)}
+                onKeyDown={(ev) => {
+                  if (ev.key === "Enter" || ev.key === " ") {
+                    ev.preventDefault();
+                    onSelect(e, type);
+                  }
+                }}
+                tabIndex={0}
+                role="button"
               >
                 <td className="px-3 py-2">
                   <span className="text-neutral">{e.originalText}</span>
