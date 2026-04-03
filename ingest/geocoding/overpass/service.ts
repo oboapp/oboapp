@@ -52,10 +52,19 @@ function getStreetFeatureType(streetName: string): StreetGeometryFeatureType {
 
 // In-memory cache for street geometry lookups (keyed on type + normalized street name)
 const streetGeometryCache = new Map<string, Feature<MultiLineString> | null>();
+const deferredStreetGeometryKeys = new Set<string>();
+
+function getStreetGeometryCacheKey(streetName: string): string {
+  return makeStreetGeometryCacheKey(
+    getStreetFeatureType(streetName),
+    normalizeStreetName(streetName),
+  );
+}
 
 /** Clear the street geometry cache. Exported for test isolation. */
 export function clearStreetGeometryCache(): void {
   streetGeometryCache.clear();
+  deferredStreetGeometryKeys.clear();
 }
 
 /**
@@ -65,10 +74,7 @@ export function clearStreetGeometryCache(): void {
 export function getStreetGeometryCached(
   streetName: string,
 ): Feature<MultiLineString> | null {
-  const cacheKey = makeStreetGeometryCacheKey(
-    getStreetFeatureType(streetName),
-    normalizeStreetName(streetName),
-  );
+  const cacheKey = getStreetGeometryCacheKey(streetName);
   return streetGeometryCache.get(cacheKey) ?? null;
 }
 
@@ -78,12 +84,7 @@ export function getStreetGeometryCached(
  * delay is needed before a subsequent Overpass call.
  */
 export function hasStreetGeometryQueried(streetName: string): boolean {
-  return streetGeometryCache.has(
-    makeStreetGeometryCacheKey(
-      getStreetFeatureType(streetName),
-      normalizeStreetName(streetName),
-    ),
-  );
+  return streetGeometryCache.has(getStreetGeometryCacheKey(streetName));
 }
 
 /**
@@ -102,6 +103,29 @@ export function seedStreetGeometryCache(
       streetGeometryCache.set(cacheKey, geometry);
     }
   }
+}
+
+function isStreetGeometryDeferred(streetName: string): boolean {
+  return deferredStreetGeometryKeys.has(getStreetGeometryCacheKey(streetName));
+}
+
+function clearDeferredStreetGeometryKeys(): void {
+  deferredStreetGeometryKeys.clear();
+}
+
+function parseIntersectionStreetNames(intersection: string): [string, string] {
+  const [street1Name = "", street2Name = ""] = intersection
+    .split("\u2229")
+    .map((s) => s.trim());
+  return [street1Name, street2Name];
+}
+
+function shouldRetryIntersectionLater(intersection: string): boolean {
+  const [street1Name, street2Name] = parseIntersectionStreetNames(intersection);
+  return (
+    (Boolean(street1Name) && isStreetGeometryDeferred(street1Name)) ||
+    (Boolean(street2Name) && isStreetGeometryDeferred(street2Name))
+  );
 }
 
 /**
@@ -200,6 +224,13 @@ export function toOverpassRegex(normalizedName: string): string {
 export async function getStreetGeometryFromOverpass(
   streetName: string,
 ): Promise<Feature<MultiLineString> | null> {
+  const cacheKey = getStreetGeometryCacheKey(streetName);
+
+  if (deferredStreetGeometryKeys.has(cacheKey)) {
+    logger.debug("Street geometry deferred for retry", { streetName });
+    return null;
+  }
+
   try {
     // Normalize street name for better OSM matching
     const normalizedName = normalizeStreetName(streetName);
@@ -210,8 +241,6 @@ export async function getStreetGeometryFromOverpass(
     const featureType = getStreetFeatureType(streetName);
     const isSquare = featureType === "square";
     const isStreet = featureType === "street";
-    const cacheKey = makeStreetGeometryCacheKey(featureType, normalizedName);
-
     // Return cached result if available (includes null for streets not found in OSM)
     if (streetGeometryCache.has(cacheKey)) {
       logger.debug("Street geometry cache hit", { streetName, normalizedName });
@@ -354,6 +383,7 @@ export async function getStreetGeometryFromOverpass(
       // No OSM ways found - API request succeeded but no data for this street name
       logger.info("Could not find street in OSM", { streetName });
       streetGeometryCache.set(cacheKey, null);
+      deferredStreetGeometryKeys.delete(cacheKey);
       return null;
     }
 
@@ -397,6 +427,7 @@ export async function getStreetGeometryFromOverpass(
     if (lineStrings.length === 0) {
       logger.info("No valid geometries in response", { streetName });
       streetGeometryCache.set(cacheKey, null);
+      deferredStreetGeometryKeys.delete(cacheKey);
       return null;
     }
 
@@ -416,12 +447,24 @@ export async function getStreetGeometryFromOverpass(
     };
 
     streetGeometryCache.set(cacheKey, multiLineString);
+    deferredStreetGeometryKeys.delete(cacheKey);
     return multiLineString;
   } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
     logger.error("Error fetching from Overpass", {
       streetName,
-      error: error instanceof Error ? error.message : String(error),
+      error: err.message,
     });
+
+    if (shouldTryFallback(err)) {
+      deferredStreetGeometryKeys.add(cacheKey);
+      logger.info("Deferring street geometry after transient failure", {
+        streetName,
+      });
+      return null;
+    }
+
+    streetGeometryCache.set(cacheKey, null);
     return null;
   }
 }
@@ -559,9 +602,7 @@ function findGeometricIntersection(
 async function geocodeSingleIntersection(
   intersection: string,
 ): Promise<Address | null> {
-  const [street1Name, street2Name] = intersection
-    .split("∩")
-    .map((s) => s.trim());
+  const [street1Name, street2Name] = parseIntersectionStreetNames(intersection);
 
   if (!street1Name || !street2Name) {
     logger.error("Invalid intersection format", { intersection });
@@ -606,23 +647,45 @@ export async function overpassGeocodeIntersections(
   }
 
   const results: Address[] = [];
+  const retryIntersections: string[] = [];
 
-  for (let i = 0; i < intersections.length; i++) {
-    const intersection = intersections[i];
-    try {
-      const result = await geocodeSingleIntersection(intersection);
-      if (result) results.push(result);
-    } catch (error) {
-      logger.error("Error processing intersection", {
-        intersection,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
+  async function processIntersections(
+    queue: string[],
+    collectRetryCandidates: boolean,
+  ): Promise<void> {
+    for (let i = 0; i < queue.length; i++) {
+      const intersection = queue[i];
+      try {
+        const result = await geocodeSingleIntersection(intersection);
+        if (result) {
+          results.push(result);
+        } else if (
+          collectRetryCandidates &&
+          shouldRetryIntersectionLater(intersection)
+        ) {
+          retryIntersections.push(intersection);
+        }
+      } catch (error) {
+        logger.error("Error processing intersection", {
+          intersection,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
 
-    // Rate limiting between requests
-    if (i < intersections.length - 1) {
-      await delay(OVERPASS_DELAY_MS);
+      if (i < queue.length - 1) {
+        await delay(OVERPASS_DELAY_MS);
+      }
     }
+  }
+
+  await processIntersections(intersections, true);
+
+  if (retryIntersections.length > 0) {
+    logger.info("Retrying deferred intersections", {
+      count: retryIntersections.length,
+    });
+    clearDeferredStreetGeometryKeys();
+    await processIntersections(retryIntersections, false);
   }
 
   return results;
