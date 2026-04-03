@@ -7,6 +7,7 @@ import {
   getAqiCategory,
 } from "@oboapp/shared";
 import type { HourlyAverage } from "@oboapp/shared";
+import type { Storage } from "@google-cloud/storage";
 
 const CELL_SIZE_KM = 4;
 const KM_PER_DEGREE_LAT = 111.0;
@@ -38,6 +39,36 @@ const gcsCache = new Map<
   string,
   { data: StoredReading[] | null; fetchedAt: number }
 >();
+
+// Module-level Storage singleton — created once on first GCS access
+let storageInstance: Storage | null = null;
+
+async function getStorageInstance(): Promise<Storage> {
+  if (storageInstance) return storageInstance;
+
+  const { Storage } = await import("@google-cloud/storage");
+  // Reuse FIREBASE_SERVICE_ACCOUNT_KEY when present (same key already used by the
+  // Firebase Admin SDK in this process). Falls back to ADC in GCP-managed environments.
+  const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  let credentials: object | undefined;
+  if (serviceAccountKey) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(serviceAccountKey);
+    } catch (parseErr) {
+      throw new Error(
+        `FIREBASE_SERVICE_ACCOUNT_KEY contains invalid JSON: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`,
+      );
+    }
+    if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+      credentials = parsed;
+    } else {
+      throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY must be a JSON object");
+    }
+  }
+  storageInstance = credentials ? new Storage({ credentials }) : new Storage();
+  return storageInstance;
+}
 
 function buildGrid(locality: string): GridCell[] {
   const bounds = getBoundsForLocality(locality);
@@ -74,11 +105,17 @@ function assignToCell(
   lat: number,
   lng: number,
 ): GridCell | null {
-  return (
-    grid.find(
-      (c) => lat >= c.south && lat <= c.north && lng >= c.west && lng <= c.east,
-    ) ?? null
-  );
+  for (const cell of grid) {
+    if (
+      lat >= cell.south &&
+      lat <= cell.north &&
+      lng >= cell.west &&
+      lng <= cell.east
+    ) {
+      return cell;
+    }
+  }
+  return null;
 }
 
 async function readGcsReadings(
@@ -94,27 +131,7 @@ async function readGcsReadings(
 
   const bucket = process.env.GCS_READINGS_BUCKET;
   if (bucket) {
-    const { Storage } = await import("@google-cloud/storage");
-    // Reuse FIREBASE_SERVICE_ACCOUNT_KEY when present (same key already used by the
-    // Firebase Admin SDK in this process). Falls back to ADC in GCP-managed environments.
-    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    let credentials: object | undefined;
-    if (serviceAccountKey) {
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(serviceAccountKey);
-      } catch (parseErr) {
-        throw new Error(
-          `FIREBASE_SERVICE_ACCOUNT_KEY contains invalid JSON: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`,
-        );
-      }
-      if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
-        credentials = parsed;
-      } else {
-        throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY must be a JSON object");
-      }
-    }
-    const storage = credentials ? new Storage({ credentials }) : new Storage();
+    const storage = await getStorageInstance();
     const file = storage
       .bucket(bucket)
       .file(`air-quality/${locality}/readings.json`);

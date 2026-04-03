@@ -76,7 +76,7 @@ function eaqiFromBands(
  * Returns NaN if no valid values.
  */
 function nowCastWeightedAverage(values: number[]): number {
-  const valid = values.filter((v) => !Number.isNaN(v) && v >= 0);
+  const valid = values.filter((v) => Number.isFinite(v) && v >= 0);
   if (valid.length === 0) return NaN;
 
   const min = Math.min(...valid);

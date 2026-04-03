@@ -131,13 +131,21 @@ export default function AirQualityPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const { data: status, isLoading: statusLoading } = useQuery({
+  const {
+    data: status,
+    isLoading: statusLoading,
+    isError: statusError,
+  } = useQuery({
     queryKey: ["airQualityStatus", LOCALITY],
     queryFn: () => fetchStatus(LOCALITY),
     refetchInterval: 60_000,
   });
 
-  const { data: messages = [], isLoading: messagesLoading } = useQuery({
+  const {
+    data: messages = [],
+    isLoading: messagesLoading,
+    isError: messagesError,
+  } = useQuery({
     queryKey: ["airQualityMessages"],
     queryFn: fetchMessages,
   });
@@ -226,7 +234,11 @@ export default function AirQualityPage() {
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {statusLoading ? (
+          {statusError ? (
+            <div className="col-span-2 lg:col-span-4 rounded-lg border border-error-border bg-error-light px-4 py-3 text-sm text-error">
+              Грешка при зареждане на данните за качеството на въздуха
+            </div>
+          ) : statusLoading ? (
             <>
               {[...Array(4)].map((_, i) => (
                 <Card key={i}>
@@ -277,7 +289,9 @@ export default function AirQualityPage() {
             Данни в прозореца за наблюдение
           </h2>
           <Card>
-            {statusLoading ? (
+            {statusError ? (
+              <p className="text-error text-sm">Грешка при зареждане на данните</p>
+            ) : statusLoading ? (
               <div className="animate-pulse space-y-3">
                 <div className="h-4 bg-neutral-light rounded w-1/2" />
                 <div className="h-4 bg-neutral-light rounded w-2/3" />
@@ -323,7 +337,9 @@ export default function AirQualityPage() {
           <h2 className="text-xl font-bold text-foreground mb-4">
             ЕАКИ по мрежови клетки (последни 4 ч.)
           </h2>
-          {status && status.cells.length > 0 ? (
+          {statusError ? (
+            <p className="text-error text-sm">Грешка при зареждане на данните</p>
+          ) : status && status.cells.length > 0 ? (
             <>
               <AirQualityMap cells={status.cells} locality={LOCALITY} />
               {/* Legend */}
@@ -354,12 +370,18 @@ export default function AirQualityPage() {
           <h2 className="text-xl font-bold text-foreground mb-4">
             Последни сигнали
           </h2>
-          <MessagesGrid
-            messages={messages}
-            isLoading={messagesLoading}
-            onMessageClick={handleMessageClick}
-            limit={12}
-          />
+          {messagesError ? (
+            <div className="rounded-lg border border-error-border bg-error-light px-4 py-3 text-sm text-error">
+              Грешка при зареждане на сигналите
+            </div>
+          ) : (
+            <MessagesGrid
+              messages={messages}
+              isLoading={messagesLoading}
+              onMessageClick={handleMessageClick}
+              limit={12}
+            />
+          )}
         </div>
       </div>
 

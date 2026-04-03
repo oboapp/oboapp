@@ -110,7 +110,7 @@ export default function AirQualityMap({ cells, locality: _locality }: AirQuality
 
     for (const cell of cellsWithBounds) {
       const { south, north, west, east } = cell.bounds!;
-      const colors = CATEGORY_COLORS[cell.aqiCategory] ?? {
+      const cellStyle = CATEGORY_COLORS[cell.aqiCategory] ?? {
         fill: "#E5E7EB",
         stroke: "#9CA3AF",
       };
@@ -121,9 +121,9 @@ export default function AirQualityMap({ cells, locality: _locality }: AirQuality
           [north, east],
         ],
         {
-          color: colors.stroke,
+          color: cellStyle.stroke,
           weight: 1.5,
-          fillColor: colors.fill,
+          fillColor: cellStyle.fill,
           fillOpacity: 0.55,
         },
       );

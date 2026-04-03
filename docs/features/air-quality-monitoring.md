@@ -68,13 +68,26 @@ The system uses the [European Air Quality Index (EAQI)](https://airindex.eea.eur
 
 ## Configuration
 
-See the `.env.example` files in the ingest package for all available environment variables. Key settings:
+Both the ingest package (for the fetch job and crawler) and the web package (for the `/air-quality` monitoring page) read from environment variables. Key settings:
 
-| Variable              | Required   | Description                                                          |
-| --------------------- | ---------- | -------------------------------------------------------------------- |
-| `GCS_GENERIC_BUCKET`  | Production | GCS bucket name for general-purpose file storage                     |
-| `LOCAL_READINGS_PATH` | No         | Local filesystem path for development (default: `./tmp/air-quality`) |
-| `LOCALITY`            | Yes        | Locality identifier that determines the geographic bounds            |
+| Variable | Package | Required | Description |
+|----------|---------|----------|-------------|
+| `GCS_GENERIC_BUCKET` | ingest, web | Production | GCS bucket name for general-purpose file storage |
+| `LOCAL_READINGS_PATH` | ingest, web | No | Local filesystem path for development (default: `./tmp/air-quality`) |
+| `LOCALITY` | ingest | Yes | Locality identifier that determines the geographic bounds |
+
+See the `.env.example` files in each package for the full list of variables.
+
+## Monitoring Page
+
+The `/air-quality` page in the web app provides a real-time dashboard for the sensor.community pipeline. It displays:
+
+- **Summary stats** — maximum EAQI, number of active sensors, and total message/notification counts.
+- **Data freshness** — whether the most recent reading is fresh (within 45 minutes) or stale.
+- **Grid cell map** — a Leaflet map with colour-coded ~4 km cells showing the current EAQI by area, computed from the last 4 hours of readings.
+- **Recent alerts** — the latest messages produced by the crawler.
+
+The page queries `/api/air-quality/status` every 60 seconds. The API reads the GCS readings file and computes NowCast AQI per grid cell. Results are cached for 5 minutes to limit GCS reads.
 
 ## Storage
 
