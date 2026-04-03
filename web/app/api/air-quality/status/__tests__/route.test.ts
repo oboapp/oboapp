@@ -78,6 +78,15 @@ describe("GET /api/air-quality/status", () => {
   });
 
   describe("locality validation", () => {
+    it("returns 503 in production when GCS_GENERIC_BUCKET is not set", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("GCS_GENERIC_BUCKET", "");
+      const res = await GET(makeRequest({ locality: "bg.sofia" }));
+      expect(res.status).toBe(503);
+      const body = await res.json();
+      expect(body).toHaveProperty("error", "GCS_GENERIC_BUCKET is not configured");
+    });
+
     it("returns 400 for an unknown locality", async () => {
       const res = await GET(makeRequest({ locality: "xx.unknown" }));
       expect(res.status).toBe(400);

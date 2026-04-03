@@ -160,7 +160,9 @@ async function readGcsReadings(
       }
     }
   } else {
-    // Local dev fallback
+    // Local dev fallback — only permitted outside production.
+    // In production a missing GCS_GENERIC_BUCKET is a misconfiguration; callers
+    // should catch the 503 returned by GET() and not reach this branch.
     const basePath =
       process.env.LOCAL_READINGS_PATH ?? "./tmp/air-quality";
     const { readFile } = await import("node:fs/promises");
@@ -183,6 +185,16 @@ async function readGcsReadings(
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const locality = searchParams.get("locality") ?? "bg.sofia";
+
+  if (
+    process.env.NODE_ENV === "production" &&
+    !process.env.GCS_GENERIC_BUCKET
+  ) {
+    return NextResponse.json(
+      { error: "GCS_GENERIC_BUCKET is not configured" },
+      { status: 503 },
+    );
+  }
 
   try {
     getBoundsForLocality(locality); // validate locality
