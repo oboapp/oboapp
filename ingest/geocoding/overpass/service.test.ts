@@ -16,7 +16,9 @@ import {
 import { delay } from "../../lib/delay";
 
 // Prevent the 500ms inter-item delay from slowing down the test suite
-vi.mock("../../lib/delay", () => ({ delay: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("../../lib/delay", () => ({
+  delay: vi.fn().mockResolvedValue(undefined),
+}));
 
 describe("overpass-geocoding-service", () => {
   describe("parseOverpassError", () => {
@@ -393,7 +395,9 @@ describe("overpass-geocoding-service", () => {
 
     it("caps at OVERPASS_RETRY_MAX_DELAY_MS for large attempt numbers", () => {
       for (let i = 0; i < 10; i++) {
-        expect(calculateRetryDelayMs(20, null)).toBe(OVERPASS_RETRY_MAX_DELAY_MS);
+        expect(calculateRetryDelayMs(20, null)).toBe(
+          OVERPASS_RETRY_MAX_DELAY_MS,
+        );
       }
     });
   });
@@ -429,22 +433,25 @@ describe("overpass-geocoding-service", () => {
 
     it("retries deferred intersections after transient network failures", async () => {
       const attemptsByInstanceAndQuery = new Map<string, number>();
-      const fetchMock = vi.fn(async (input: string | URL, init?: RequestInit) => {
-        const instance = input instanceof URL ? input.toString() : String(input);
-        const query = typeof init?.body === "string" ? init.body : "";
-        const key = `${instance}|${query}`;
-        const attempts = attemptsByInstanceAndQuery.get(key) ?? 0;
-        attemptsByInstanceAndQuery.set(key, attempts + 1);
+      const fetchMock = vi.fn(
+        async (input: string | URL, init?: RequestInit) => {
+          const instance =
+            input instanceof URL ? input.toString() : String(input);
+          const query = typeof init?.body === "string" ? init.body : "";
+          const key = `${instance}|${query}`;
+          const attempts = attemptsByInstanceAndQuery.get(key) ?? 0;
+          attemptsByInstanceAndQuery.set(key, attempts + 1);
 
-        if (attempts === 0) {
-          throw new Error("Network request failed");
-        }
+          if (attempts === 0) {
+            throw new Error("Network request failed");
+          }
 
-        return {
-          ok: true,
-          text: () => Promise.resolve(wayResponse),
-        };
-      });
+          return {
+            ok: true,
+            text: () => Promise.resolve(wayResponse),
+          };
+        },
+      );
       vi.stubGlobal("fetch", fetchMock);
 
       const results = await overpassGeocodeIntersections([
@@ -536,7 +543,9 @@ describe("overpass-geocoding-service", () => {
           }),
         );
 
-        const results = await overpassGeocodeIntersections(["ул. Пример ∩ ул. Фоо"]);
+        const results = await overpassGeocodeIntersections([
+          "ул. Пример ∩ ул. Фоо",
+        ]);
 
         // 2 streets, each exhausts OVERPASS_RETRY_MAX_ATTEMPTS on instance 1 before falling back
         expect(instance1Calls).toBe(OVERPASS_RETRY_MAX_ATTEMPTS * 2);
@@ -556,7 +565,9 @@ describe("overpass-geocoding-service", () => {
                 ok: false,
                 status: 429,
                 statusText: "Too Many Requests",
-                headers: { get: (name: string) => (name === "Retry-After" ? "3" : null) },
+                headers: {
+                  get: (name: string) => (name === "Retry-After" ? "3" : null),
+                },
                 text: () => Promise.resolve(""),
               };
             }
@@ -589,7 +600,9 @@ describe("overpass-geocoding-service", () => {
           }),
         );
 
-        const results = await overpassGeocodeIntersections(["ул. Пример ∩ ул. Фоо"]);
+        const results = await overpassGeocodeIntersections([
+          "ул. Пример ∩ ул. Фоо",
+        ]);
 
         // 2 streets, each exhausts OVERPASS_RETRY_MAX_ATTEMPTS on instance 1 before falling back
         expect(instance1Calls).toBe(OVERPASS_RETRY_MAX_ATTEMPTS * 2);
@@ -616,7 +629,8 @@ describe("overpass-geocoding-service", () => {
         // Without circuit breaker every street would be tried on every instance in both passes.
         // With circuit breaker, at most threshold × instances calls occur per pass before it opens.
         const overpassInstanceCount = OVERPASS_INSTANCES.length;
-        const maxExpectedCallsPerPass = CIRCUIT_BREAKER_THRESHOLD * overpassInstanceCount;
+        const maxExpectedCallsPerPass =
+          CIRCUIT_BREAKER_THRESHOLD * overpassInstanceCount;
         expect(vi.mocked(fetch).mock.calls.length).toBeLessThan(
           intersections.length * 2 * overpassInstanceCount,
         );
@@ -635,7 +649,10 @@ describe("overpass-geocoding-service", () => {
           vi.fn(async (url: string | URL) => {
             fetchCallCount++;
             // First threshold × instances calls fail (enough to open the circuit)
-            if (fetchCallCount <= CIRCUIT_BREAKER_THRESHOLD * overpassInstanceCount) {
+            if (
+              fetchCallCount <=
+              CIRCUIT_BREAKER_THRESHOLD * overpassInstanceCount
+            ) {
               throw new Error("Network request failed");
             }
             return { ok: true, text: () => Promise.resolve(wayResponse) };

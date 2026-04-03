@@ -78,11 +78,17 @@ function getRunContext(): OverpassRunContext | undefined {
 
 function recordTransientFailure(ctx: OverpassRunContext): void {
   ctx.consecutiveTransientFailures++;
-  if (ctx.consecutiveTransientFailures >= CIRCUIT_BREAKER_THRESHOLD && !ctx.circuitOpen) {
+  if (
+    ctx.consecutiveTransientFailures >= CIRCUIT_BREAKER_THRESHOLD &&
+    !ctx.circuitOpen
+  ) {
     ctx.circuitOpen = true;
-    logger.warn("Overpass circuit breaker opened after consecutive transient failures", {
-      threshold: CIRCUIT_BREAKER_THRESHOLD,
-    });
+    logger.warn(
+      "Overpass circuit breaker opened after consecutive transient failures",
+      {
+        threshold: CIRCUIT_BREAKER_THRESHOLD,
+      },
+    );
   }
 }
 
@@ -110,13 +116,21 @@ export function parseRetryAfterMs(header: string | null): number | null {
   // HTTP-date format: "Sat, 05 Apr 2026 12:34:56 GMT"
   const retryAtMs = Date.parse(trimmed);
   if (Number.isNaN(retryAtMs)) return null;
-  return Math.min(Math.max(retryAtMs - Date.now(), 0), OVERPASS_RETRY_MAX_DELAY_MS);
+  return Math.min(
+    Math.max(retryAtMs - Date.now(), 0),
+    OVERPASS_RETRY_MAX_DELAY_MS,
+  );
 }
 
-export function calculateRetryDelayMs(attempt: number, retryAfterMs: number | null): number {
-  if (retryAfterMs !== null) return Math.min(retryAfterMs, OVERPASS_RETRY_MAX_DELAY_MS);
+export function calculateRetryDelayMs(
+  attempt: number,
+  retryAfterMs: number | null,
+): number {
+  if (retryAfterMs !== null)
+    return Math.min(retryAfterMs, OVERPASS_RETRY_MAX_DELAY_MS);
   const base =
-    OVERPASS_RETRY_BASE_DELAY_MS * Math.pow(OVERPASS_RETRY_BACKOFF_FACTOR, attempt - 1);
+    OVERPASS_RETRY_BASE_DELAY_MS *
+    Math.pow(OVERPASS_RETRY_BACKOFF_FACTOR, attempt - 1);
   const jitter = base * OVERPASS_RETRY_JITTER_FACTOR * (Math.random() * 2 - 1);
   return Math.min(Math.round(base + jitter), OVERPASS_RETRY_MAX_DELAY_MS);
 }
@@ -341,9 +355,12 @@ export async function getStreetGeometryFromOverpass(
   // Circuit breaker — stop hammering Overpass when saturated
   if (runCtx?.circuitOpen) {
     deferredKeys?.add(cacheKey);
-    logger.debug("Overpass circuit open, deferring street without network attempt", {
-      streetName,
-    });
+    logger.debug(
+      "Overpass circuit open, deferring street without network attempt",
+      {
+        streetName,
+      },
+    );
     return null;
   }
 
@@ -434,16 +451,22 @@ export async function getStreetGeometryFromOverpass(
             }
 
             // 429: retry this instance with backoff
-            if (response.status === 429 && attempt < OVERPASS_RETRY_MAX_ATTEMPTS) {
+            if (
+              response.status === 429 &&
+              attempt < OVERPASS_RETRY_MAX_ATTEMPTS
+            ) {
               const retryAfterMs = parseRetryAfterMs(
                 response.headers.get("Retry-After"),
               );
               const waitMs = calculateRetryDelayMs(attempt, retryAfterMs);
-              logger.info("Rate limited by Overpass instance, retrying with backoff", {
-                hostname: new URL(instance).hostname,
-                attempt,
-                waitMs,
-              });
+              logger.info(
+                "Rate limited by Overpass instance, retrying with backoff",
+                {
+                  hostname: new URL(instance).hostname,
+                  attempt,
+                  waitMs,
+                },
+              );
               await delay(waitMs);
               continue; // retry this instance
             }
@@ -486,17 +509,22 @@ export async function getStreetGeometryFromOverpass(
           const isAbort = err.name === "AbortError";
           if (isAbort && attempt < OVERPASS_RETRY_MAX_ATTEMPTS) {
             const waitMs = calculateRetryDelayMs(attempt, null);
-            logger.info("Timeout from Overpass instance, retrying with backoff", {
-              hostname: new URL(instance).hostname,
-              attempt,
-              waitMs,
-            });
+            logger.info(
+              "Timeout from Overpass instance, retrying with backoff",
+              {
+                hostname: new URL(instance).hostname,
+                attempt,
+                waitMs,
+              },
+            );
             await delay(waitMs);
             continue; // retry this instance
           }
 
           logger.info(
-            isAbort ? "Timeout with Overpass instance" : "Failed with Overpass instance",
+            isAbort
+              ? "Timeout with Overpass instance"
+              : "Failed with Overpass instance",
             {
               hostname: new URL(instance).hostname,
               ...(isAbort ? {} : { error: err.message }),
@@ -880,47 +908,49 @@ export async function getStreetSectionGeometry(
 
       // Try each segment as a potential section
       for (const segment of allSegments) {
-      if (segment.length < 2) continue;
+        if (segment.length < 2) continue;
 
-      const line = turf.lineString(segment);
+        const line = turf.lineString(segment);
 
-      // Check if both points are close to this segment
-      const startSnapped = turf.nearestPointOnLine(line, startPoint);
-      const endSnapped = turf.nearestPointOnLine(line, endPoint);
+        // Check if both points are close to this segment
+        const startSnapped = turf.nearestPointOnLine(line, startPoint);
+        const endSnapped = turf.nearestPointOnLine(line, endPoint);
 
-      const startDist = turf.distance(startPoint, startSnapped, {
-        units: "meters",
-      });
-      const endDist = turf.distance(endPoint, endSnapped, { units: "meters" });
+        const startDist = turf.distance(startPoint, startSnapped, {
+          units: "meters",
+        });
+        const endDist = turf.distance(endPoint, endSnapped, {
+          units: "meters",
+        });
 
-      // If both points are within 50m of this segment, it might be our section
-      if (startDist < 50 && endDist < 50) {
-        const totalDist = startDist + endDist;
+        // If both points are within 50m of this segment, it might be our section
+        if (startDist < 50 && endDist < 50) {
+          const totalDist = startDist + endDist;
 
-        if (totalDist < minTotalDistance) {
-          minTotalDistance = totalDist;
+          if (totalDist < minTotalDistance) {
+            minTotalDistance = totalDist;
 
-          // Extract the subsection between the two snapped points
-          const startIndex = startSnapped.properties.index || 0;
-          const endIndex = endSnapped.properties.index || segment.length - 1;
+            // Extract the subsection between the two snapped points
+            const startIndex = startSnapped.properties.index || 0;
+            const endIndex = endSnapped.properties.index || segment.length - 1;
 
-          const minIndex = Math.min(startIndex, endIndex);
-          const maxIndex = Math.max(startIndex, endIndex);
+            const minIndex = Math.min(startIndex, endIndex);
+            const maxIndex = Math.max(startIndex, endIndex);
 
-          // Extract coordinates between the indices
-          let section = segment.slice(minIndex, maxIndex + 2);
+            // Extract coordinates between the indices
+            let section = segment.slice(minIndex, maxIndex + 2);
 
-          // CRITICAL: Preserve directionality from start→end
-          // If startIndex > endIndex, we need to reverse the section
-          // to maintain the semantic order (from start coords to end coords)
-          if (startIndex > endIndex) {
-            section = section.slice().reverse();
+            // CRITICAL: Preserve directionality from start→end
+            // If startIndex > endIndex, we need to reverse the section
+            // to maintain the semantic order (from start coords to end coords)
+            if (startIndex > endIndex) {
+              section = section.slice().reverse();
+            }
+
+            bestSection = section;
           }
-
-          bestSection = section;
         }
       }
-    }
 
       if (bestSection && bestSection.length >= 2) {
         logger.info("Found street section", { points: bestSection.length });
@@ -936,77 +966,79 @@ export async function getStreetSectionGeometry(
       const usedSegments = new Set<number>();
 
       while (
-      connectedPath.length === 0 ||
-      turf.distance(
-        turf.point(connectedPath[connectedPath.length - 1]),
-        endPoint,
-        { units: "meters" },
-      ) > 10
-    ) {
-      // Find nearest unused segment to current point
-      let nearestSegmentIdx = -1;
-      let nearestDist = Infinity;
+        connectedPath.length === 0 ||
+        turf.distance(
+          turf.point(connectedPath[connectedPath.length - 1]),
+          endPoint,
+          { units: "meters" },
+        ) > 10
+      ) {
+        // Find nearest unused segment to current point
+        let nearestSegmentIdx = -1;
+        let nearestDist = Infinity;
 
-      for (let i = 0; i < allSegments.length; i++) {
-        if (usedSegments.has(i)) continue;
+        for (let i = 0; i < allSegments.length; i++) {
+          if (usedSegments.has(i)) continue;
 
-        const segment = allSegments[i];
-        if (segment.length < 2) continue;
+          const segment = allSegments[i];
+          if (segment.length < 2) continue;
 
-        const line = turf.lineString(segment);
-        const snapped = turf.nearestPointOnLine(line, currentPoint);
-        const dist = turf.distance(currentPoint, snapped, { units: "meters" });
+          const line = turf.lineString(segment);
+          const snapped = turf.nearestPointOnLine(line, currentPoint);
+          const dist = turf.distance(currentPoint, snapped, {
+            units: "meters",
+          });
 
-        if (dist < nearestDist) {
-          nearestDist = dist;
-          nearestSegmentIdx = i;
-          // nearestSnap = snapped; // unused but kept for potential debugging
+          if (dist < nearestDist) {
+            nearestDist = dist;
+            nearestSegmentIdx = i;
+            // nearestSnap = snapped; // unused but kept for potential debugging
+          }
         }
-      }
 
-      if (nearestSegmentIdx === -1 || nearestDist > 50) {
-        logger.info("Cannot connect segments", {
-          minDistanceMeters: nearestDist,
-        });
-        break;
-      }
+        if (nearestSegmentIdx === -1 || nearestDist > 50) {
+          logger.info("Cannot connect segments", {
+            minDistanceMeters: nearestDist,
+          });
+          break;
+        }
 
-      // Add this segment
-      usedSegments.add(nearestSegmentIdx);
-      const segment = allSegments[nearestSegmentIdx];
+        // Add this segment
+        usedSegments.add(nearestSegmentIdx);
+        const segment = allSegments[nearestSegmentIdx];
 
-      // Determine direction and add coordinates
-      if (connectedPath.length === 0) {
-        connectedPath.push(...segment);
-      } else {
-        // Check if we need to reverse
-        const lastPoint = turf.point(connectedPath[connectedPath.length - 1]);
-        const segmentStart = turf.point(segment[0]);
-        const segmentEnd = turf.point(segment[segment.length - 1]);
-
-        const distToStart = turf.distance(lastPoint, segmentStart, {
-          units: "meters",
-        });
-        const distToEnd = turf.distance(lastPoint, segmentEnd, {
-          units: "meters",
-        });
-
-        if (distToEnd < distToStart) {
-          // Reverse and add
-          connectedPath.push(...segment.slice().reverse());
-        } else {
+        // Determine direction and add coordinates
+        if (connectedPath.length === 0) {
           connectedPath.push(...segment);
+        } else {
+          // Check if we need to reverse
+          const lastPoint = turf.point(connectedPath[connectedPath.length - 1]);
+          const segmentStart = turf.point(segment[0]);
+          const segmentEnd = turf.point(segment[segment.length - 1]);
+
+          const distToStart = turf.distance(lastPoint, segmentStart, {
+            units: "meters",
+          });
+          const distToEnd = turf.distance(lastPoint, segmentEnd, {
+            units: "meters",
+          });
+
+          if (distToEnd < distToStart) {
+            // Reverse and add
+            connectedPath.push(...segment.slice().reverse());
+          } else {
+            connectedPath.push(...segment);
+          }
+        }
+
+        currentPoint = turf.point(connectedPath[connectedPath.length - 1]);
+
+        // Safety check
+        if (usedSegments.size > 10) {
+          logger.info("Too many segments, giving up");
+          break;
         }
       }
-
-      currentPoint = turf.point(connectedPath[connectedPath.length - 1]);
-
-      // Safety check
-      if (usedSegments.size > 10) {
-        logger.info("Too many segments, giving up");
-        break;
-      }
-    }
 
       if (connectedPath.length >= 2) {
         logger.info("Connected segments into path", {

@@ -42,6 +42,7 @@ Other transient errors (5xx, network errors) skip per-instance retry and immedia
 To prevent a saturated run from hammering Overpass with hundreds of failing requests, each geocoding run tracks consecutive transient failures via `AsyncLocalStorage`.
 
 After **`CIRCUIT_BREAKER_THRESHOLD = 5`** consecutive transient failures:
+
 - The circuit opens for the current run.
 - Subsequent street geometry lookups are **deferred** (no network call) until the retry pass.
 - The circuit **resets** on the first successful response.
