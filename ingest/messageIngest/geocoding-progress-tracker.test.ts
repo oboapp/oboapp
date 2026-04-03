@@ -249,6 +249,47 @@ describe("createGeocodingProgressTracker", () => {
     });
   });
 
+  describe("flushPending()", () => {
+    it("flushes pending items to geocodingBatch without writing a geocoding step", async () => {
+      const tracker = createGeocodingProgressTracker("msg1", 5);
+      await tracker.recordPins(
+        [makeAddress("A"), makeAddress("B"), makeAddress("C")],
+        3,
+      );
+      // Below BATCH_SIZE — no auto-flush yet
+      expect(batchWrites()).toHaveLength(0);
+
+      await tracker.flushPending();
+
+      expect(batchWrites()).toHaveLength(1);
+      expect(batchWrites()[0]["step"]).toBe("geocodingBatch");
+      expect(batchWrites()[0]["pins"]).toHaveLength(3);
+      // No consolidation — findById and $set must not have been called
+      expect(mockFindById).not.toHaveBeenCalled();
+      expect(finalWrites()).toHaveLength(0);
+    });
+
+    it("is a no-op when there are no pending items", async () => {
+      const tracker = createGeocodingProgressTracker("msg1", 5);
+      await tracker.flushPending();
+      expect(mockUpdateMessage).not.toHaveBeenCalled();
+    });
+
+    it("does not flush already-flushed items again", async () => {
+      const tracker = createGeocodingProgressTracker("msg1", 15);
+      // Trigger an auto-flush at BATCH_SIZE
+      await tracker.recordPins(
+        Array.from({ length: 10 }, (_, i) => makeAddress(`Addr ${i}`)),
+        10,
+      );
+      expect(batchWrites()).toHaveLength(1);
+
+      // flushPending should only flush the remaining 0 pending items (none left)
+      await tracker.flushPending();
+      expect(batchWrites()).toHaveLength(1);
+    });
+  });
+
   describe("progress tracking", () => {
     it("accumulates done count across recordPins, recordStreet, and recordAttempted", async () => {
       mockFindById.mockResolvedValue({ process: [] });

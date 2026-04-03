@@ -836,21 +836,23 @@ async function performGeocodingWithErrorHandling(
     await finalizeMessageWithoutGeoJson(messageId, ingestErrors);
     return null;
   } finally {
-    if (geocodingSucceeded) {
-      try {
+    try {
+      if (geocodingSucceeded) {
         await tracker.finalize();
-      } catch (finalizeError) {
-        logger.warn(
-          "Failed to finalize geocoding progress tracker — partial progress may be lost",
-          {
-            messageId,
-            error:
-              finalizeError instanceof Error
-                ? finalizeError.message
-                : String(finalizeError),
-          },
-        );
+      } else {
+        await tracker.flushPending();
       }
+    } catch (finalizeError) {
+      logger.warn(
+        "Failed to finalize geocoding progress tracker — partial progress may be lost",
+        {
+          messageId,
+          error:
+            finalizeError instanceof Error
+              ? finalizeError.message
+              : String(finalizeError),
+        },
+      );
     }
   }
 }

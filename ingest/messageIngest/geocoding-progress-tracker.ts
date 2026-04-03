@@ -41,10 +41,16 @@ export interface GeocodingProgressTracker {
    */
   recordAttempted(count: number): void;
   /**
+   * Flush any remaining pending items to `geocodingBatch` without consolidating.
+   * Safe to call on both success and failure paths.
+   */
+  flushPending(): Promise<void>;
+  /**
    * Flush any remaining pending items, then replace all intermediate `geocodingBatch`
    * entries for this run with a single final `geocoding` step in `process[]`.
    * If no pins or streets were resolved, batch entries are flushed but no final
    * `geocoding` step is written (the DB read-modify-write is skipped).
+   * Should only be called on the success path.
    */
   finalize(): Promise<void>;
 }
@@ -123,6 +129,10 @@ export function createGeocodingProgressTracker(
 
     recordAttempted(count: number): void {
       done += count;
+    },
+
+    async flushPending(): Promise<void> {
+      await flush();
     },
 
     async finalize(): Promise<void> {
