@@ -1,6 +1,6 @@
 import { Address } from "../../lib/types";
 import { isCenterFallback, isGenericCityAddress } from "./utils";
-import { isWithinBounds } from "@oboapp/shared";
+import { isWithinBounds, normalizePinAddress } from "@oboapp/shared";
 import { getLocality } from "../../lib/target-locality";
 import { delay } from "../../lib/delay";
 import { logger } from "@/lib/logger";
@@ -22,7 +22,6 @@ export async function geocodeAddress(address: string): Promise<Address | null> {
   }
 
   // Check pin cache before calling Google Geocoding API
-  const { normalizePinAddress } = await import("../shared/normalize-address");
   const { lookupCachedPin } = await import("../cache");
   const cached = await lookupCachedPin(normalizePinAddress(address));
   if (cached) {

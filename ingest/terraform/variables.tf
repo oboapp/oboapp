@@ -41,6 +41,7 @@ variable "schedules" {
     gtfs_sync                       = string
     educational_facilities_sync     = optional(string, "0 4 1 * *")
     air_quality_fetch               = optional(string, "*/15 * * * *")
+    geocode_cache_report            = optional(string, "0 5 * * 1")
   })
   default = {
     pipeline_emergent               = "*/30 7-22 * * *"    # Every 30 minutes, 7:00AM–10:30PM (hours 7-22)
@@ -48,6 +49,7 @@ variable "schedules" {
     gtfs_sync                       = "0 3 * * *"          # Daily at 3:00 AM
     educational_facilities_sync     = "0 4 1 * *"          # Monthly on the 1st at 4:00 AM
     air_quality_fetch               = "*/15 * * * *"       # Every 15 minutes, 24/7
+    geocode_cache_report            = "0 5 * * 1"          # Weekly on Monday at 5:00 AM
   }
 }
 

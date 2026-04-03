@@ -772,7 +772,7 @@ async function performGeocodingWithErrorHandling(
         hasStreetGeometryQueried,
       } = await import("@/geocoding/overpass/service");
       const { normalizePinAddress } =
-        await import("@/geocoding/shared/normalize-address");
+        await import("@oboapp/shared");
       const { delay } = await import("@/lib/delay");
       const streetGeometries = [];
       let overpassFetchCount = 0;
@@ -799,7 +799,11 @@ async function performGeocodingWithErrorHandling(
       if (streetGeometries.length > 0) {
         await updateMessage(messageId, {
           $addToSet: {
-            process: { step: "streetGeometries", result: streetGeometries },
+            process: {
+              step: "streetGeometries",
+              timestamp: new Date().toISOString(),
+              result: streetGeometries,
+            },
           },
         });
       }

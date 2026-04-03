@@ -14,6 +14,7 @@
 import { Command } from "commander";
 import dotenv from "dotenv";
 import { resolve } from "node:path";
+import { normalizePinAddress } from "@oboapp/shared";
 import type { Pin, StreetSection } from "@/lib/types";
 import type { FrequencyEntry } from "@/lib/geocode-cache/report-store";
 
@@ -21,8 +22,6 @@ dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 
 async function buildReport(dryRun: boolean): Promise<void> {
   const { getDb, closeDb } = await import("@/lib/db");
-  const { normalizePinAddress } =
-    await import("@/geocoding/shared/normalize-address");
   const { saveFrequencyReport } =
     await import("@/lib/geocode-cache/report-store");
 

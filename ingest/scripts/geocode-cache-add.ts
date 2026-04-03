@@ -21,6 +21,7 @@ import { Command } from "commander";
 import dotenv from "dotenv";
 import { resolve } from "node:path";
 import type { Feature, MultiLineString } from "geojson";
+import { normalizePinAddress } from "@oboapp/shared";
 import type { Address, StreetSection } from "@/lib/types";
 
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
@@ -30,9 +31,6 @@ async function cachePin(
   messageId: string,
   address: string,
 ): Promise<void> {
-  const { normalizePinAddress } =
-    await import("@/geocoding/shared/normalize-address");
-
   const msg = await db.messages.findById(messageId);
   if (!msg) {
     console.error(`❌ Message "${messageId}" not found`);
@@ -107,9 +105,6 @@ async function cacheStreet(
   messageId: string,
   streetName: string,
 ): Promise<void> {
-  const { normalizePinAddress } =
-    await import("@/geocoding/shared/normalize-address");
-
   const msg = await db.messages.findById(messageId);
   if (!msg) {
     console.error(`❌ Message "${messageId}" not found`);
@@ -153,9 +148,12 @@ async function cacheStreet(
   const processSteps =
     ((msg as Record<string, unknown>).process as ProcessStep[] | undefined) ??
     [];
-  const streetGeometriesStep = processSteps.find(
+  // Use the last streetGeometries step in case the message was re-ingested
+  const streetGeometriesSteps = processSteps.filter(
     (s) => s.step === "streetGeometries",
   );
+  const streetGeometriesStep =
+    streetGeometriesSteps[streetGeometriesSteps.length - 1];
   const storedGeometries = (streetGeometriesStep?.result ??
     []) as StoredStreetGeometry[];
   const storedEntry = storedGeometries.find((g) => g.key === normalized);

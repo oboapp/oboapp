@@ -104,10 +104,11 @@ function GeometryPanel({
   // Component is keyed on entry+type in parent, so it remounts on change.
   // No synchronous setState needed here — initial state covers the reset.
   useEffect(() => {
+    const limitedMessageIds = entry.messageIds.slice(0, 20);
     const params = new URLSearchParams({
       type,
-      originalText: entry.originalText,
-      messageIds: entry.messageIds.join(","),
+      key: entry.key,
+      messageIds: limitedMessageIds.join(","),
     });
 
     void fetch(`/api/geocode-cache/geometries?${params.toString()}`)
@@ -313,13 +314,28 @@ function CopyCommand({
   type: "pin" | "street";
 }) {
   const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cmd = `pnpm geocode-cache:add -- --message ${messageId} --address "${entry.originalText}" --type ${type}`;
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current !== null) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   function handleClick(e: React.MouseEvent) {
     e.stopPropagation();
     void navigator.clipboard.writeText(cmd).then(() => {
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      if (copyTimeoutRef.current !== null) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopied(false);
+        copyTimeoutRef.current = null;
+      }, 1500);
     });
   }
 
@@ -421,8 +437,12 @@ export default function GeocodeCachePage() {
     void (async () => {
       try {
         const r = await fetch("/api/geocode-cache/report");
-        if (r.status === 404 || r.status === 503) {
+        if (r.status === 404) {
           setError("not-generated");
+          return;
+        }
+        if (r.status === 503) {
+          setError("bucket-missing");
           return;
         }
         if (!r.ok) throw new Error(`Грешка ${r.status}`);
@@ -434,7 +454,7 @@ export default function GeocodeCachePage() {
     })();
   }, []);
 
-  if (error === "not-generated" || error || !report) {
+  if (error === "not-generated" || error === "bucket-missing" || error || !report) {
     return (
       <div className="min-h-screen bg-neutral-light">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -461,7 +481,12 @@ export default function GeocodeCachePage() {
                 </pre>
               </>
             )}
-            {error && error !== "not-generated" && (
+            {error === "bucket-missing" && (
+              <p className="text-sm text-destructive">
+                Хранилището GCS не е конфигурирано (липсва GCS_GENERIC_BUCKET).
+              </p>
+            )}
+            {error && error !== "not-generated" && error !== "bucket-missing" && (
               <div className="rounded-md border border-error-border bg-error-light p-4 text-error text-sm">
                 {error}
               </div>

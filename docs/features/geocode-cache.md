@@ -24,10 +24,14 @@ flowchart TD
     E -->|cache hit → skip API| F[Faster Geocoding]
 ```
 
-1. **Generate a frequency report** — a CLI script scans finalized messages, counts how often each address/street appears, and uploads the report to GCS.
+1. **Generate a frequency report** — a CLI script (or the weekly Cloud Scheduler job) scans finalized messages, counts how often each address/street appears, and uploads the report to GCS.
 2. **Review in the admin page** — the `/geocode-cache` page shows the report, sorted by frequency, highlighting uncached entries.
 3. **Pre-cache via CLI** — for each high-frequency uncached entry, run the `geocode-cache:add` script pointing at a message that already has valid geometry for that address.
 4. **Automatic pickup** — the next ingestion run loads the new cache entries and skips API calls for those locations.
+
+## Scheduling
+
+The frequency report is generated automatically every Monday at 5:00 AM (Europe/Sofia) via a Cloud Scheduler job (`geocode-frequency-report-schedule`) that triggers a Cloud Run job. The schedule is configurable via `var.schedules.geocode_cache_report` in Terraform (default: `0 5 * * 1`).
 
 ## CLI Scripts
 

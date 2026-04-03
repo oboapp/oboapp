@@ -4,7 +4,7 @@
  * Produces stable, lowercase, whitespace-normalized strings used as
  * lookup keys in the geocode cache collections. The same normalization
  * must be applied consistently at both write time (CLI pre-cache script)
- * and read time (in-memory cache loader).
+ * and read time (in-memory cache loader and API routes).
  *
  * Both pin addresses and street names use `normalizePinAddress` as their
  * cache key. Streets are keyed by their name alone (not by section endpoints)
@@ -13,7 +13,7 @@
  */
 
 /**
- * Normalize an address or street name to a cache key.
+ * Normalize an address or street name to a geocoding cache key.
  *
  * Lowercases, strips street-type prefixes, removes ordinal suffixes,
  * strips quotes, and collapses whitespace.

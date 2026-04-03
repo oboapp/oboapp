@@ -45,7 +45,8 @@
     "prebuilt:educational-facilities-sync": "node dist/ingest.js educational-facilities-sync",
     "prebuilt:pipeline:emergent": "node dist/pipeline.js --emergent",
     "prebuilt:pipeline:all": "node dist/pipeline.js --all",
-    "prebuilt:air-quality-fetch": "node dist/air-quality-fetch.js"
+    "prebuilt:air-quality-fetch": "node dist/air-quality-fetch.js",
+    "prebuilt:geocode-cache-report": "node dist/scripts/geocode-frequency-report.js"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",

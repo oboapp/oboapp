@@ -20,7 +20,7 @@ function isFeatureMultiLineString(v: unknown): v is Feature<MultiLineString> {
     isRecord(v) &&
     v.type === "Feature" &&
     isRecord(v.geometry) &&
-    (v.geometry.type === "MultiLineString" || v.geometry.type === "LineString")
+    v.geometry.type === "MultiLineString"
   );
 }
 

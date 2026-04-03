@@ -13,6 +13,8 @@ function isCoordinates(v: unknown): v is { lat: number; lng: number } {
   return isRecord(v) && typeof v.lat === "number" && typeof v.lng === "number";
 }
 
+import { normalizePinAddress } from "@oboapp/shared";
+
 interface ProcessStep {
   step: string;
   result: unknown;
@@ -23,6 +25,7 @@ function isProcessStep(v: unknown): v is ProcessStep {
 }
 
 interface StoredStreetGeometry {
+  key: string;
   originalName: string;
   geometry:
     | { type: "Feature"; geometry: { type: string; coordinates: number[][][] } }
@@ -44,6 +47,7 @@ function isGeoJsonFeature(v: unknown): v is GeoJsonFeature {
 
 function isStoredStreetGeometry(v: unknown): v is StoredStreetGeometry {
   if (!isRecord(v)) return false;
+  if (typeof v.key !== "string") return false;
   if (typeof v.originalName !== "string") return false;
   // geometry stored as JSON string (new format) or object (legacy)
   if (typeof v.geometry === "string") return true;
@@ -56,7 +60,7 @@ function isStoredStreetGeometry(v: unknown): v is StoredStreetGeometry {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type");
-  const originalText = searchParams.get("originalText");
+  const key = searchParams.get("key");
   const messageIdsParam = searchParams.get("messageIds");
 
   if (type !== "pin" && type !== "street") {
@@ -65,9 +69,9 @@ export async function GET(request: Request) {
       { status: 400 },
     );
   }
-  if (!originalText || !messageIdsParam) {
+  if (!key || !messageIdsParam) {
     return NextResponse.json(
-      { error: "originalText and messageIds are required" },
+      { error: "key and messageIds are required" },
       { status: 400 },
     );
   }
@@ -96,7 +100,15 @@ export async function GET(request: Request) {
         const rawAddresses = msg.addresses ?? [];
         if (!isRecordArray(rawAddresses)) continue;
 
-        const match = rawAddresses.find((a) => a.originalText === originalText);
+        const match = rawAddresses.find(
+          (a) =>
+            normalizePinAddress(
+              typeof a.originalText === "string" ? a.originalText : "",
+            ) === key ||
+            normalizePinAddress(
+              typeof a.formattedAddress === "string" ? a.formattedAddress : "",
+            ) === key,
+        );
         if (!match) continue;
 
         if (!isCoordinates(match.coordinates)) continue;
@@ -108,7 +120,7 @@ export async function GET(request: Request) {
           formattedAddress:
             typeof match.formattedAddress === "string"
               ? match.formattedAddress
-              : originalText,
+              : key,
         });
       }
 
@@ -128,21 +140,30 @@ export async function GET(request: Request) {
       const rawProcess = msg.process ?? [];
       if (!Array.isArray(rawProcess)) continue;
 
-      const step = rawProcess
-        .filter(isProcessStep)
-        .find((s) => s.step === "streetGeometries");
+      // Use the last streetGeometries step in case the message was re-ingested
+      const processSteps = rawProcess.filter(isProcessStep);
+      const streetGeometrySteps = processSteps.filter(
+        (s) => s.step === "streetGeometries",
+      );
+      const step = streetGeometrySteps[streetGeometrySteps.length - 1];
       if (!step) continue;
 
       const rawGeometries = Array.isArray(step.result) ? step.result : [];
       const entry = rawGeometries
         .filter(isStoredStreetGeometry)
-        .find((g) => g.originalName === originalText);
+        .find((g) => g.key === key);
       if (!entry) continue;
 
       // geometry may be stored as a JSON string (new) or object (legacy)
       let multiLine: { type: string; coordinates: number[][][] } | null = null;
       if (typeof entry.geometry === "string") {
-        const parsed: unknown = JSON.parse(entry.geometry);
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(entry.geometry);
+        } catch (err) {
+          console.error("Invalid stored geometry JSON", { messageId: id, err });
+          continue;
+        }
         if (!isGeoJsonFeature(parsed)) continue;
         multiLine = parsed.geometry;
       } else {
