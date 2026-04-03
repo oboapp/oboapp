@@ -103,7 +103,7 @@ function parseRetryAfterMs(header: string | null): number | null {
 }
 
 function calculateRetryDelayMs(attempt: number, retryAfterMs: number | null): number {
-  if (retryAfterMs !== null) return retryAfterMs;
+  if (retryAfterMs !== null) return Math.min(retryAfterMs, OVERPASS_RETRY_MAX_DELAY_MS);
   const base =
     OVERPASS_RETRY_BASE_DELAY_MS * Math.pow(OVERPASS_RETRY_BACKOFF_FACTOR, attempt - 1);
   const jitter = base * OVERPASS_RETRY_JITTER_FACTOR * (Math.random() * 2 - 1);
@@ -310,6 +310,15 @@ export async function getStreetGeometryFromOverpass(
   streetName: string,
 ): Promise<Feature<MultiLineString> | null> {
   const cacheKey = getStreetGeometryCacheKey(streetName);
+
+  // Check the in-memory cache first — cached results are always usable regardless
+  // of circuit-breaker or deferred-retry state (no network call needed).
+  if (streetGeometryCache.has(cacheKey)) {
+    const normalizedName = normalizeStreetName(streetName);
+    logger.debug("Street geometry cache hit", { streetName, normalizedName });
+    return streetGeometryCache.get(cacheKey)!;
+  }
+
   const runCtx = getRunContext();
   const deferredKeys = runCtx?.deferredKeys;
 
@@ -337,11 +346,6 @@ export async function getStreetGeometryFromOverpass(
     const featureType = getStreetFeatureType(streetName);
     const isSquare = featureType === "square";
     const isStreet = featureType === "street";
-    // Return cached result if available (includes null for streets not found in OSM)
-    if (streetGeometryCache.has(cacheKey)) {
-      logger.debug("Street geometry cache hit", { streetName, normalizedName });
-      return streetGeometryCache.get(cacheKey)!;
-    }
 
     const queryRegex = toOverpassRegex(normalizedName);
 
@@ -414,7 +418,7 @@ export async function getStreetGeometryFromOverpass(
             err.statusCode = response.status;
 
             if (!shouldTryFallback(err, response.status)) {
-              logger.error("Client error (query issue)", { errorMsg });
+              logger.debug("Client error (query issue)", { errorMsg });
               throw err;
             }
 
@@ -463,7 +467,7 @@ export async function getStreetGeometryFromOverpass(
             error instanceof Error ? error : new Error(String(error));
 
           if (!shouldTryFallback(err, err.statusCode)) {
-            logger.error("Client error (query issue)", { error: err.message });
+            logger.debug("Client error (query issue)", { error: err.message });
             throw err;
           }
 
