@@ -224,6 +224,11 @@ export default function AirQualityPage() {
               <p className="text-neutral text-sm">
                 Качество на въздуха в реално време · {LOCALITY}
               </p>
+              <p className="text-neutral text-sm mt-2">
+                EAQI (European Air Quality Index) е скала от 1 до 6,
+                изчислена по алгоритъма NowCast от концентрациите на ФПЧ2.5 и ФПЧ10
+                за последните 4 часа.
+              </p>
               {status && (
                 <p className="text-neutral text-xs mt-1">
                   Обновено: {formatTimestamp(status.updatedAt)}
@@ -253,7 +258,7 @@ export default function AirQualityPage() {
           ) : (
             <>
               <StatCard
-                label="Макс. ЕАКИ"
+                label="Макс. EAQI"
                 value={status?.maxAqi ?? "—"}
                 sub={status?.cells[0]?.aqiLabel ?? undefined}
                 valueClassName={
@@ -336,7 +341,7 @@ export default function AirQualityPage() {
         {/* Grid cells map */}
         <div className="mb-8">
           <h2 className="text-xl font-bold text-foreground mb-4">
-            ЕАКИ по мрежови клетки (последни 4 ч.)
+            EAQI по мрежови клетки (последни 4 ч.)
           </h2>
           {statusError ? (
             <p className="text-error text-sm">Грешка при зареждане на данните</p>
