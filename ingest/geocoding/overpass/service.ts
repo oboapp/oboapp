@@ -53,6 +53,7 @@ function getStreetFeatureType(streetName: string): StreetGeometryFeatureType {
 // In-memory cache for street geometry lookups (keyed on type + normalized street name)
 const streetGeometryCache = new Map<string, Feature<MultiLineString> | null>();
 const deferredStreetGeometryKeys = new Set<string>();
+let deferredScopeDepth = 0;
 
 function getStreetGeometryCacheKey(streetName: string): string {
   return makeStreetGeometryCacheKey(
@@ -84,7 +85,10 @@ export function getStreetGeometryCached(
  * delay is needed before a subsequent Overpass call.
  */
 export function hasStreetGeometryQueried(streetName: string): boolean {
-  return streetGeometryCache.has(getStreetGeometryCacheKey(streetName));
+  const cacheKey = getStreetGeometryCacheKey(streetName);
+  return (
+    streetGeometryCache.has(cacheKey) || deferredStreetGeometryKeys.has(cacheKey)
+  );
 }
 
 /**
@@ -111,6 +115,25 @@ function isStreetGeometryDeferred(streetName: string): boolean {
 
 function clearDeferredStreetGeometryKeys(): void {
   deferredStreetGeometryKeys.clear();
+}
+
+async function runWithDeferredRetryScope<T>(
+  work: () => Promise<T>,
+): Promise<T> {
+  const isRootScope = deferredScopeDepth === 0;
+  if (isRootScope) {
+    clearDeferredStreetGeometryKeys();
+  }
+
+  deferredScopeDepth += 1;
+  try {
+    return await work();
+  } finally {
+    deferredScopeDepth -= 1;
+    if (isRootScope) {
+      clearDeferredStreetGeometryKeys();
+    }
+  }
 }
 
 function parseIntersectionStreetNames(intersection: string): [string, string] {
@@ -226,7 +249,7 @@ export async function getStreetGeometryFromOverpass(
 ): Promise<Feature<MultiLineString> | null> {
   const cacheKey = getStreetGeometryCacheKey(streetName);
 
-  if (deferredStreetGeometryKeys.has(cacheKey)) {
+  if (deferredScopeDepth > 0 && deferredStreetGeometryKeys.has(cacheKey)) {
     logger.debug("Street geometry deferred for retry", { streetName });
     return null;
   }
@@ -457,10 +480,12 @@ export async function getStreetGeometryFromOverpass(
     });
 
     if (shouldTryFallback(err)) {
-      deferredStreetGeometryKeys.add(cacheKey);
-      logger.info("Deferring street geometry after transient failure", {
-        streetName,
-      });
+      if (deferredScopeDepth > 0) {
+        deferredStreetGeometryKeys.add(cacheKey);
+        logger.info("Deferring street geometry after transient failure", {
+          streetName,
+        });
+      }
       return null;
     }
 
@@ -646,49 +671,51 @@ export async function overpassGeocodeIntersections(
     return mockService.overpassGeocodeIntersections(intersections);
   }
 
-  const results: Address[] = [];
-  const retryIntersections: string[] = [];
+  return runWithDeferredRetryScope(async () => {
+    const results: Address[] = [];
+    const retryIntersections: string[] = [];
 
-  async function processIntersections(
-    queue: string[],
-    collectRetryCandidates: boolean,
-  ): Promise<void> {
-    for (let i = 0; i < queue.length; i++) {
-      const intersection = queue[i];
-      try {
-        const result = await geocodeSingleIntersection(intersection);
-        if (result) {
-          results.push(result);
-        } else if (
-          collectRetryCandidates &&
-          shouldRetryIntersectionLater(intersection)
-        ) {
-          retryIntersections.push(intersection);
+    async function processIntersections(
+      queue: string[],
+      collectRetryCandidates: boolean,
+    ): Promise<void> {
+      for (let i = 0; i < queue.length; i++) {
+        const intersection = queue[i];
+        try {
+          const result = await geocodeSingleIntersection(intersection);
+          if (result) {
+            results.push(result);
+          } else if (
+            collectRetryCandidates &&
+            shouldRetryIntersectionLater(intersection)
+          ) {
+            retryIntersections.push(intersection);
+          }
+        } catch (error) {
+          logger.error("Error processing intersection", {
+            intersection,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
-      } catch (error) {
-        logger.error("Error processing intersection", {
-          intersection,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
 
-      if (i < queue.length - 1) {
-        await delay(OVERPASS_DELAY_MS);
+        if (i < queue.length - 1) {
+          await delay(OVERPASS_DELAY_MS);
+        }
       }
     }
-  }
 
-  await processIntersections(intersections, true);
+    await processIntersections(intersections, true);
 
-  if (retryIntersections.length > 0) {
-    logger.info("Retrying deferred intersections", {
-      count: retryIntersections.length,
-    });
-    clearDeferredStreetGeometryKeys();
-    await processIntersections(retryIntersections, false);
-  }
+    if (retryIntersections.length > 0) {
+      logger.info("Retrying deferred intersections", {
+        count: retryIntersections.length,
+      });
+      clearDeferredStreetGeometryKeys();
+      await processIntersections(retryIntersections, false);
+    }
 
-  return results;
+    return results;
+  });
 }
 
 /**
