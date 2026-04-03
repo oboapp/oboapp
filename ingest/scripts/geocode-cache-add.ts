@@ -34,7 +34,10 @@ function isGeocodingPinEntry(v: unknown): v is GeocodingPinEntry {
     isRecord(v) &&
     typeof v["key"] === "string" &&
     typeof v["originalText"] === "string" &&
-    typeof v["formattedAddress"] === "string"
+    typeof v["formattedAddress"] === "string" &&
+    isRecord(v["coordinates"]) &&
+    typeof v["coordinates"]["lat"] === "number" &&
+    typeof v["coordinates"]["lng"] === "number"
   );
 }
 
@@ -42,6 +45,7 @@ function isGeocodingStreetEntry(v: unknown): v is GeocodingStreetEntry {
   return (
     isRecord(v) &&
     typeof v["key"] === "string" &&
+    typeof v["originalName"] === "string" &&
     typeof v["geometry"] === "string"
   );
 }
@@ -70,8 +74,12 @@ function extractGeocodingData(msg: Record<string, unknown>): {
   if (geocodingSteps.length > 0) {
     const last = geocodingSteps[geocodingSteps.length - 1];
     return {
-      pins: Array.isArray(last["pins"]) ? last["pins"].filter(isGeocodingPinEntry) : [],
-      streets: Array.isArray(last["streets"]) ? last["streets"].filter(isGeocodingStreetEntry) : [],
+      pins: Array.isArray(last["pins"])
+        ? last["pins"].filter(isGeocodingPinEntry)
+        : [],
+      streets: Array.isArray(last["streets"])
+        ? last["streets"].filter(isGeocodingStreetEntry)
+        : [],
     };
   }
 
@@ -89,7 +97,9 @@ function extractGeocodingData(msg: Record<string, unknown>): {
       Array.isArray(s["pins"]) ? s["pins"].filter(isGeocodingPinEntry) : [],
     ),
     streets: batchesForRun.flatMap((s) =>
-      Array.isArray(s["streets"]) ? s["streets"].filter(isGeocodingStreetEntry) : [],
+      Array.isArray(s["streets"])
+        ? s["streets"].filter(isGeocodingStreetEntry)
+        : [],
     ),
   };
 }
@@ -151,9 +161,7 @@ async function cachePin(
           console.error(`   - "${a.originalText}" / "${a.formattedAddress}"`);
         }
       } else {
-        console.error(
-          `   Message has no geocoded data. Has it been ingested?`,
-        );
+        console.error(`   Message has no geocoded data. Has it been ingested?`);
       }
     }
     process.exitCode = 1;
@@ -241,7 +249,20 @@ async function cacheStreet(
 
   let geometry: Feature<MultiLineString>;
   try {
-    geometry = JSON.parse(storedEntry.geometry) as Feature<MultiLineString>;
+    const parsed: unknown = JSON.parse(storedEntry.geometry);
+    if (
+      !isRecord(parsed) ||
+      parsed["type"] !== "Feature" ||
+      !isRecord(parsed["geometry"]) ||
+      parsed["geometry"]["type"] !== "MultiLineString"
+    ) {
+      console.error(
+        `❌ Stored geometry for "${normalized}" is not a GeoJSON Feature<MultiLineString>. Check the data and try again.`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+    geometry = parsed as unknown as Feature<MultiLineString>;
   } catch {
     console.error(
       `❌ Invalid street geometry value in message.process for messageId "${messageId}" and key "${normalized}".`,
