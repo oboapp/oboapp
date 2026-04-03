@@ -76,22 +76,25 @@ export function createGeocodingProgressTracker(
   async function flush(): Promise<void> {
     if (pendingPins.length === 0 && pendingStreets.length === 0) return;
 
+    const pinsToFlush = [...pendingPins];
+    const streetsToFlush = [...pendingStreets];
+
     const batch = {
       step: "geocodingBatch",
       runId,
       timestamp: new Date().toISOString(),
       progress: { toDo, done },
-      pins: [...pendingPins],
-      streets: [...pendingStreets],
+      pins: pinsToFlush,
+      streets: streetsToFlush,
     };
-
-    // Clear pending before the async write to avoid double-writes if an error is thrown
-    pendingPins.length = 0;
-    pendingStreets.length = 0;
 
     await updateMessage(messageId, {
       $addToSet: { process: batch },
     });
+
+    // Only clear after the write succeeds so items can be retried on error
+    pendingPins.splice(0, pinsToFlush.length);
+    pendingStreets.splice(0, streetsToFlush.length);
   }
 
   async function maybeFlush(): Promise<void> {
@@ -106,9 +109,9 @@ export function createGeocodingProgressTracker(
         const entry = addressToPinEntry(addr);
         allPins.push(entry);
         pendingPins.push(entry);
+        await maybeFlush();
       }
       done += attempted;
-      await maybeFlush();
     },
 
     async recordStreet(entry: GeocodingStreetEntry): Promise<void> {
