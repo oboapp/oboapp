@@ -104,14 +104,15 @@ function assignToCell(
   grid: GridCell[],
   lat: number,
   lng: number,
+  maxNorth: number,
+  maxEast: number,
 ): GridCell | null {
   for (const cell of grid) {
-    if (
-      lat >= cell.south &&
-      lat <= cell.north &&
-      lng >= cell.west &&
-      lng <= cell.east
-    ) {
+    const withinLat =
+      lat >= cell.south && (lat < cell.north || cell.north === maxNorth);
+    const withinLng =
+      lng >= cell.west && (lng < cell.east || cell.east === maxEast);
+    if (withinLat && withinLng) {
       return cell;
     }
   }
@@ -129,7 +130,7 @@ async function readGcsReadings(
 
   let data: StoredReading[] | null = null;
 
-  const bucket = process.env.GCS_READINGS_BUCKET;
+  const bucket = process.env.GCS_GENERIC_BUCKET;
   if (bucket) {
     const storage = await getStorageInstance();
     const file = storage
@@ -217,13 +218,15 @@ export async function GET(request: Request) {
     );
 
     const grid = buildGrid(locality);
+    const gridMaxNorth = grid.reduce((m, c) => Math.max(m, c.north), -Infinity);
+    const gridMaxEast = grid.reduce((m, c) => Math.max(m, c.east), -Infinity);
     const cellMap = new Map<
       string,
       { sensorIds: Set<number>; hourBins: Map<number, { p1: number[]; p2: number[] }> }
     >();
 
     for (const r of windowReadings) {
-      const cell = assignToCell(grid, r.lat, r.lng);
+      const cell = assignToCell(grid, r.lat, r.lng, gridMaxNorth, gridMaxEast);
       if (!cell) continue;
 
       if (!cellMap.has(cell.id)) {

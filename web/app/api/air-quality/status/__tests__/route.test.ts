@@ -12,7 +12,7 @@ vi.mock("node:fs/promises", () => ({
   readFile: mockReadFile,
 }));
 
-// Mock GCS so tests work whether or not GCS_READINGS_BUCKET is set in the environment.
+// Mock GCS so tests work whether or not GCS_GENERIC_BUCKET is set in the environment.
 // The route does: const [content] = await file.download(), then content.toString("utf-8").
 // Must use a class (not an arrow function) because the route calls `new Storage(...)`.
 vi.mock("@google-cloud/storage", () => ({
@@ -120,7 +120,7 @@ describe("GET /api/air-quality/status", () => {
     const readingsBuffer = Buffer.from(JSON.stringify(readings));
 
     beforeEach(() => {
-      // Supply data via both paths — whichever the route uses depends on GCS_READINGS_BUCKET
+      // Supply data via both paths — whichever the route uses depends on GCS_GENERIC_BUCKET
       mockGcsDownload.mockResolvedValue([readingsBuffer]);
       mockReadFile.mockResolvedValue(JSON.stringify(readings));
     });
