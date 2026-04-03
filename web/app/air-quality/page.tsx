@@ -180,7 +180,8 @@ export default function AirQualityPage() {
     [router],
   );
 
-  const maxAqiCategory = status ? status.cells[0]?.aqiCategory ?? "good" : null;
+  const maxAqiCategory =
+    status?.maxAqi != null ? status.cells[0]?.aqiCategory ?? null : null;
 
   return (
     <div className="min-h-screen bg-neutral-light">

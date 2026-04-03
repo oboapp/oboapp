@@ -35,6 +35,7 @@ export default function AirQualityMap({ cells, locality: _locality }: AirQuality
   const mapInstanceRef = useRef<import("leaflet").Map | null>(null);
   const rectangleLayersRef = useRef<import("leaflet").Rectangle[]>([]);
   const leafletRef = useRef<typeof import("leaflet") | null>(null);
+  const hasFitBoundsRef = useRef(false);
   const [isMapReady, setIsMapReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,6 +90,7 @@ export default function AirQualityMap({ cells, locality: _locality }: AirQuality
         mapInstanceRef.current = null;
         leafletRef.current = null;
         rectangleLayersRef.current = [];
+        hasFitBoundsRef.current = false;
       }
     };
   }, []);
@@ -137,8 +139,9 @@ export default function AirQualityMap({ cells, locality: _locality }: AirQuality
       rectangleLayersRef.current.push(rect);
     }
 
-    // Fit map to bounds of all drawn cells
-    if (cellsWithBounds.length > 0) {
+    // Fit map to bounds of all drawn cells on first draw only, to avoid
+    // resetting user zoom/pan on periodic refetches
+    if (cellsWithBounds.length > 0 && !hasFitBoundsRef.current) {
       const allBounds = cellsWithBounds.map((c) => c.bounds!);
       const south = Math.min(...allBounds.map((b) => b.south));
       const north = Math.max(...allBounds.map((b) => b.north));
@@ -151,6 +154,7 @@ export default function AirQualityMap({ cells, locality: _locality }: AirQuality
         ],
         { padding: [20, 20] },
       );
+      hasFitBoundsRef.current = true;
     }
   }, [isMapReady, cells]);
 

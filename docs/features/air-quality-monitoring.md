@@ -87,7 +87,7 @@ The `/air-quality` page in the web app provides a real-time dashboard for the se
 - **Grid cell map** — a Leaflet map with colour-coded ~4 km cells showing the current EAQI by area, computed from the last 4 hours of readings.
 - **Recent alerts** — the latest messages produced by the crawler.
 
-The page queries `/api/air-quality/status` every 60 seconds. The API reads the GCS readings file and computes NowCast AQI per grid cell. Results are cached for 5 minutes to limit GCS reads.
+The page queries `/api/air-quality/status` every 60 seconds. The API reads the GCS readings file and computes NowCast AQI per grid cell. Results are cached for up to 5 minutes on a best-effort basis per running server instance, which helps reduce GCS reads but does not guarantee the same cache is shared across all requests (e.g. across serverless cold starts or multiple instances).
 
 ## Storage
 
