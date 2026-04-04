@@ -21,6 +21,31 @@ Uses a two-instance fallback chain for reliability:
 
 Requests failing on the primary server automatically fall through to the fallback.
 
+## Pre-Fetch Deduplication (Phase 3)
+
+Before per-section intersection geocoding begins, all unique street names in the batch are
+collected and fetched in one pass. This bounds Overpass call volume to the number of unique
+normalised street names rather than the number of street sections.
+
+**How it works** (`preFetchStreetGeometries`):
+
+1. **Deduplicate by normalised cache key** — identical streets (e.g. `"ул. Оборище"` and
+   `"ул.Оборище"`) resolve to the same key; only one request is issued.
+2. **Cache-skip** — streets already in the in-memory geometry cache generate no request at all.
+3. **Two-pass deferred retry** — streets that fail transiently in the first pass are retried once
+   (same circuit-breaker and deferred-key logic as `overpassGeocodeIntersections`).
+4. **Null-cache after retry exhaustion** — streets still unresolvable after retry are written as
+   `null` into the cache. All subsequent per-section `getStreetGeometryFromOverpass` calls for
+   those streets become immediate cache hits, preventing O(sections) retries for a single
+   unavailable street.
+
+**Interaction with the circuit breaker**: pre-fetch runs in its own
+`AsyncLocalStorage` scope. The per-section intersection calls each run in their own scope too,
+so a circuit opened during pre-fetch does not carry over into per-section processing.
+
+**Precondition**: `preFetchStreetGeometries` must not be called from within an existing retry
+scope (it guards against this at runtime and logs a warning if violated).
+
 ## Adaptive Retry Policy
 
 For transient failures on a single instance (429 Too Many Requests or request timeouts), the service retries the **same instance** up to `OVERPASS_RETRY_MAX_ATTEMPTS = 3` times before falling back to the next instance.
