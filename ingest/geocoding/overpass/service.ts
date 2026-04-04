@@ -201,7 +201,9 @@ export function seedStreetGeometryCache(
  * Pre-fetch street geometries for a batch of names, populating the in-memory cache
  * before intersection geocoding begins.
  *
- * Deduplicates by normalized cache key so each unique street is fetched at most once.
+ * Deduplicates by full cache key (inferred feature type + normalised street name) so
+ * each unique query variant is fetched at most once — e.g. "\u0443\u043b. \u041e\u0431\u043e\u0440\u0438\u0449\u0435" (street) and
+ * "\u0431\u0443\u043b. \u041e\u0431\u043e\u0440\u0438\u0449\u0435" (boulevard) produce different keys and are each fetched once.
  * Runs an internal two-pass retry (identical in structure to overpassGeocodeIntersections):
  * streets that fail transiently in the first pass are retried once.  Streets still
  * deferred after the retry pass are written into the cache as null, which converts

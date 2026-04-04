@@ -759,28 +759,34 @@ describe("overpass-geocoding-service", () => {
     });
 
     it("retries deferred streets in a second pass", async () => {
-      // First call per unique name fails (transient); second call succeeds
-      const callsPerKey = new Map<string, number>();
+      // Fail on ALL instances in pass 1 so the street is actually deferred (not satisfied
+      // by the fallback instance), then succeed in pass 2 (after clearDeferredStreetGeometryKeys).
+      // The inter-pass delay mock is overridden to flip the pass1Done flag.
+      let pass1Done = false;
       vi.stubGlobal(
         "fetch",
-        vi.fn(async (_url: string | URL, init?: RequestInit) => {
-          const body = typeof init?.body === "string" ? init.body : "";
-          const calls = (callsPerKey.get(body) ?? 0) + 1;
-          callsPerKey.set(body, calls);
-          if (calls === 1) throw new Error("Network request failed");
+        vi.fn(async () => {
+          if (!pass1Done) throw new Error("Network request failed");
           return { ok: true, text: () => Promise.resolve(wayResponse) };
         }),
       );
+      vi.mocked(delay).mockImplementation(async () => {
+        pass1Done = true;
+      });
 
       await preFetchStreetGeometries(["ул. Пример"]);
 
-      // 2 total calls: 1 (fail in pass 1) + 1 (succeed in pass 2)
-      expect(vi.mocked(fetch).mock.calls.length).toBe(2);
+      // Pass 1: OVERPASS_INSTANCES.length calls all fail → street deferred
+      // Pass 2: 1 call succeeds on the first instance
+      expect(vi.mocked(fetch).mock.calls.length).toBe(OVERPASS_INSTANCES.length + 1);
       // The second-pass result must have been cached — no further fetch needed
       vi.mocked(fetch).mockClear();
       const cached = await getStreetGeometryFromOverpass("ул. Пример");
       expect(cached).not.toBeNull();
       expect(vi.mocked(fetch).mock.calls.length).toBe(0);
+
+      // Restore default delay mock
+      vi.mocked(delay).mockResolvedValue(undefined);
     });
 
     it("caches persistently unavailable streets as null after retry exhaustion", async () => {
