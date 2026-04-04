@@ -35,6 +35,7 @@ vi.mock("@/geocoding/router", () => ({
     .fn()
     .mockResolvedValue(new Map()),
   geocodeBusStops: vi.fn().mockResolvedValue([]),
+  hasHouseNumber: vi.fn().mockReturnValue(false),
 }));
 
 vi.mock("@/geocoding/overpass/service", () => ({
@@ -42,6 +43,7 @@ vi.mock("@/geocoding/overpass/service", () => ({
   getStreetGeometryCached: vi.fn().mockReturnValue(null),
   getStreetGeometryFromOverpass: vi.fn().mockResolvedValue(null),
   hasStreetGeometryQueried: vi.fn().mockReturnValue(false),
+  preFetchStreetGeometries: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/delay", () => ({

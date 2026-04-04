@@ -4,8 +4,12 @@ import {
   geocodeCadastralPropertiesFromIdentifiers,
   geocodeBusStops,
   geocodeEducationalFacilities,
+  hasHouseNumber,
 } from "@/geocoding/router";
-import { overpassGeocodeAddresses } from "@/geocoding/overpass/service";
+import {
+  overpassGeocodeAddresses,
+  preFetchStreetGeometries,
+} from "@/geocoding/overpass/service";
 import {
   Address,
   ExtractedLocations,
@@ -120,6 +124,29 @@ function haversineDistance(
       Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+}
+
+/**
+ * Collect all unique street names referenced across a batch of sections.
+ * Includes the main street name and any cross-street endpoints (non-house-number).
+ * Pre-geocoded endpoints are excluded because they never need an Overpass lookup.
+ * Deduplication by normalized cache key happens inside preFetchStreetGeometries.
+ */
+function collectUniqueStreetNames(
+  streets: StreetSection[],
+  preGeocodedMap: Map<string, Coordinates>,
+): string[] {
+  const names: string[] = [];
+  for (const street of streets) {
+    names.push(street.street);
+    if (!preGeocodedMap.has(street.from) && !hasHouseNumber(street.from)) {
+      names.push(street.from);
+    }
+    if (!preGeocodedMap.has(street.to) && !hasHouseNumber(street.to)) {
+      names.push(street.to);
+    }
+  }
+  return names;
 }
 
 /**
@@ -398,6 +425,17 @@ async function geocodeStreetIntersections(
   );
 
   if (streetsNeedingGeocoding.length > 0) {
+    // Phase 3: Pre-fetch all unique street geometries into the cache before processing
+    // intersections. Each unique normalized street name is fetched at most once (with a
+    // built-in two-pass deferred retry). Streets that still fail after retry are cached
+    // as null, so subsequent per-section intersection calls get immediate cache hits
+    // instead of repeating Overpass requests for the same unavailable street.
+    const uniqueStreetNames = collectUniqueStreetNames(
+      streetsNeedingGeocoding,
+      preGeocodedMap,
+    );
+    await preFetchStreetGeometries(uniqueStreetNames);
+
     logger.debug("Geocoding streets via Overpass (per-street)", {
       total: streetsNeedingGeocoding.length,
       trackerActive: !!tracker,

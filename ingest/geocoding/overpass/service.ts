@@ -197,6 +197,78 @@ export function seedStreetGeometryCache(
   }
 }
 
+/**
+ * Pre-fetch street geometries for a batch of names, populating the in-memory cache
+ * before intersection geocoding begins.
+ *
+ * Deduplicates by normalized cache key so each unique street is fetched at most once.
+ * Runs an internal two-pass retry (identical in structure to overpassGeocodeIntersections):
+ * streets that fail transiently in the first pass are retried once.  Streets still
+ * deferred after the retry pass are written into the cache as null, which converts
+ * future lookups into immediate cache hits and prevents repeated Overpass calls for the
+ * same unavailable street across multiple sections.
+ *
+ * Includes OVERPASS_DELAY_MS between requests (Overpass rate-limiting constraint).
+ */
+export async function preFetchStreetGeometries(
+  streetNames: string[],
+): Promise<void> {
+  // Deduplicate by cache key; skip names already resolved (success, null, or pending dedup)
+  const keyToName = new Map<string, string>();
+  for (const name of streetNames) {
+    if (!name.trim()) continue;
+    const key = getStreetGeometryCacheKey(name);
+    if (keyToName.has(key) || streetGeometryCache.has(key)) continue;
+    keyToName.set(key, name);
+  }
+
+  if (keyToName.size === 0) return;
+
+  const toFetch = [...keyToName.values()];
+  logger.debug("Pre-fetching street geometries", { count: toFetch.length });
+
+  await runWithDeferredRetryScope(async () => {
+    // First pass: fetch each unique name
+    for (let i = 0; i < toFetch.length; i++) {
+      if (i > 0) await delay(OVERPASS_DELAY_MS);
+      await getStreetGeometryFromOverpass(toFetch[i]);
+    }
+
+    // Second pass: retry names that were deferred by transient failures
+    const ctx = getRunContext();
+    if (!ctx || ctx.deferredKeys.size === 0) return;
+
+    const deferredNames = [...ctx.deferredKeys]
+      .map((k) => keyToName.get(k))
+      .filter((n): n is string => n !== undefined);
+
+    clearDeferredStreetGeometryKeys();
+
+    logger.debug("Retrying deferred street geometry pre-fetches", {
+      count: deferredNames.length,
+    });
+
+    for (let i = 0; i < deferredNames.length; i++) {
+      if (i > 0) await delay(OVERPASS_DELAY_MS);
+      await getStreetGeometryFromOverpass(deferredNames[i]);
+    }
+
+    // Any streets still deferred after retry are unlikely to succeed in the current run.
+    // Cache them as null so that subsequent intersection processing gets an immediate
+    // cache hit instead of issuing another Overpass request per section.
+    const ctxAfterRetry = getRunContext();
+    if (ctxAfterRetry && ctxAfterRetry.deferredKeys.size > 0) {
+      logger.debug("Marking persistently unavailable streets in cache", {
+        count: ctxAfterRetry.deferredKeys.size,
+      });
+      for (const key of ctxAfterRetry.deferredKeys) {
+        streetGeometryCache.set(key, null);
+      }
+      ctxAfterRetry.deferredKeys.clear();
+    }
+  });
+}
+
 function isStreetGeometryDeferred(streetName: string): boolean {
   const ctx = getRunContext();
   return Boolean(ctx?.deferredKeys.has(getStreetGeometryCacheKey(streetName)));
