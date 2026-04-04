@@ -113,7 +113,13 @@ export function parseRetryAfterMs(header: string | null): number | null {
     return Math.min(seconds * 1_000, OVERPASS_RETRY_MAX_DELAY_MS);
   }
 
-  // HTTP-date format: "Sat, 05 Apr 2026 12:34:56 GMT"
+  // HTTP-date format (RFC 7231 IMF-fixdate only): "Sat, 05 Apr 2026 12:34:56 GMT"
+  // Reject anything that isn't a strict IMF-fixdate to avoid accepting ISO 8601 or
+  // other Date.parse-parseable strings that aren't valid Retry-After values.
+  if (
+    !/^[A-Za-z]{3}, \d{2} [A-Za-z]{3} \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(trimmed)
+  )
+    return null;
   const retryAtMs = Date.parse(trimmed);
   if (Number.isNaN(retryAtMs)) return null;
   return Math.min(
@@ -483,11 +489,16 @@ export async function getStreetGeometryFromOverpass(
           const text = await response.text();
           try {
             responseData = JSON.parse(text);
-          } catch (parseError) {
-            // Failed to parse JSON - might be XML error with HTTP 200
+          } catch {
+            // Failed to parse JSON — might be an upstream HTML/XML error page with HTTP 200.
+            // Re-throw with a transient/server-oriented message so fallback/deferred retry
+            // can apply. parseOverpassError handles real Overpass XML errors (e.g. query
+            // syntax errors) which remain non-retryable via shouldTryFallback.
             const errorMsg = parseOverpassError(text);
             if (errorMsg) throw new Error(errorMsg);
-            throw parseError;
+            throw new Error(
+              "Overpass instance returned a non-JSON success response; treating as transient upstream failure",
+            );
           }
 
           logger.info("Response from Overpass instance", {

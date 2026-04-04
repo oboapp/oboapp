@@ -355,9 +355,11 @@ describe("overpass-geocoding-service", () => {
       expect(parseRetryAfterMs("not-a-date")).toBeNull();
     });
 
-    it("returns 0 for a string that parses as an epoch/past date", () => {
-      // "-1" is treated as a past HTTP-date (epoch minus 1ms) → clamped to 0
-      expect(parseRetryAfterMs("-1")).toBe(0);
+    it("returns null for strings that are not IMF-fixdate (strict RFC 7231 format)", () => {
+      // ISO 8601 — accepted by Date.parse but not a valid Retry-After HTTP-date
+      expect(parseRetryAfterMs("2026-04-05T12:34:56Z")).toBeNull();
+      // Raw number with sign — not delta-seconds, not IMF-fixdate
+      expect(parseRetryAfterMs("-1")).toBeNull();
     });
   });
 
