@@ -584,6 +584,32 @@ describe("overpass-geocoding-service", () => {
         expect(delayCalls).toContain(3000);
       });
 
+      it("falls back to the next instance after all 429 retries are exhausted on the first", async () => {
+        // All instances always return 429 — retries exhaust on each instance,
+        // then fall back, then exhaust again → all instances fail → null result.
+        vi.stubGlobal(
+          "fetch",
+          vi.fn(async () => ({
+            ok: false,
+            status: 429,
+            statusText: "Too Many Requests",
+            headers: { get: (_: string) => null },
+            text: () => Promise.resolve(""),
+          })),
+        );
+
+        const results = await overpassGeocodeIntersections(["ул. Пример ∩ ул. Фоо"]);
+
+        // Each of the 2 streets has 2 unique street names. In pass 1 every instance is
+        // tried with OVERPASS_RETRY_MAX_ATTEMPTS before moving on. All streets are deferred.
+        // In pass 2 the deferred streets are retried with the same exhaustion pattern.
+        const expectedCalls =
+          2 * OVERPASS_INSTANCES.length * OVERPASS_RETRY_MAX_ATTEMPTS * 2; // ×2 passes
+        expect(vi.mocked(fetch).mock.calls.length).toBe(expectedCalls);
+        // No intersection resolved — both streets have null geometry
+        expect(results).toHaveLength(0);
+      });
+
       it("retries AbortError (timeout) on the same instance with backoff", async () => {
         // First instance always times out; second instance succeeds
         let instance1Calls = 0;

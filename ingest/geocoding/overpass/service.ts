@@ -35,7 +35,8 @@ export const OVERPASS_RETRY_MAX_DELAY_MS = 30_000;
 const OVERPASS_RETRY_BACKOFF_FACTOR = 2;
 const OVERPASS_RETRY_JITTER_FACTOR = 0.25;
 
-// Number of consecutive transient failures in a run needed to open the circuit
+// Number of consecutive per-street transient failures (i.e. streets that exhausted every
+// instance) needed to open the circuit. One increment per street, not per individual request.
 export const CIRCUIT_BREAKER_THRESHOLD = 5;
 
 type StreetGeometryFeatureType = "street" | "boulevard" | "square";
