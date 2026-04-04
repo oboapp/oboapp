@@ -360,6 +360,46 @@ describe("geocodeAddressesFromExtractedData", () => {
     // geocodeAddresses should be called only for the pin without coordinates
     expect(geocodeAddresses).toHaveBeenCalledWith(["Without coordinates"]);
   });
+
+  it("excludes house-number endpoints from preFetchStreetGeometries", async () => {
+    const { hasHouseNumber } = await import("@/geocoding/router");
+    const { preFetchStreetGeometries } = await import(
+      "@/geocoding/overpass/service"
+    );
+
+    // Make hasHouseNumber return true only for the "№15" endpoint
+    vi.mocked(hasHouseNumber).mockImplementation((ep) => ep === "№15");
+
+    const extractedData: ExtractedLocations = {
+      withSpecificAddress: true,
+      cityWide: false,
+      busStops: [],
+      pins: [],
+      streets: [
+        {
+          street: "ул. Оборище",
+          from: "ул. Г. С. Раковски",
+          to: "№15",
+          timespans: [{ start: "01.02.2026 00:00", end: "02.02.2026 00:00" }],
+        },
+      ],
+      cadastralProperties: [],
+    };
+
+    await geocodeAddressesFromExtractedData(extractedData);
+
+    // preFetchStreetGeometries must receive the main street and the cross-street endpoint,
+    // but NOT the house-number endpoint "№15"
+    expect(preFetchStreetGeometries).toHaveBeenCalledWith(
+      expect.not.arrayContaining(["№15"]),
+    );
+    expect(preFetchStreetGeometries).toHaveBeenCalledWith(
+      expect.arrayContaining(["ул. Оборище", "ул. Г. С. Раковски"]),
+    );
+
+    // Restore default mock
+    vi.mocked(hasHouseNumber).mockReturnValue(false);
+  });
 });
 
 describe("getValidPreResolvedCoordinates", () => {

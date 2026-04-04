@@ -210,9 +210,22 @@ export function seedStreetGeometryCache(
  *
  * Includes OVERPASS_DELAY_MS between requests (Overpass rate-limiting constraint).
  */
+/**
+ * PRECONDITION: must not be called from within an existing runWithDeferredRetryScope.
+ * The function creates its own isolated scope and calls clearDeferredStreetGeometryKeys()
+ * internally; if an outer scope exists those calls would corrupt its deferred-key state,
+ * breaking the outer retry logic. A defensive guard is applied at runtime.
+ */
 export async function preFetchStreetGeometries(
   streetNames: string[],
 ): Promise<void> {
+  if (getRunContext() !== undefined) {
+    logger.warn(
+      "preFetchStreetGeometries called inside an existing retry scope — skipping pre-fetch",
+    );
+    return;
+  }
+
   // Deduplicate by cache key; skip names already resolved (success, null, or pending dedup)
   const keyToName = new Map<string, string>();
   for (const name of streetNames) {
@@ -238,14 +251,17 @@ export async function preFetchStreetGeometries(
     const ctx = getRunContext();
     if (!ctx || ctx.deferredKeys.size === 0) return;
 
-    const deferredNames = [...ctx.deferredKeys]
+    // Snapshot before clearing — clearDeferredStreetGeometryKeys empties the Set
+    const deferredKeys = [...ctx.deferredKeys];
+    const deferredNames = deferredKeys
       .map((k) => keyToName.get(k))
       .filter((n): n is string => n !== undefined);
+    const unknownDeferredCount = deferredKeys.filter(
+      (k) => !keyToName.has(k),
+    ).length;
 
     clearDeferredStreetGeometryKeys();
 
-    const unknownDeferredCount =
-      [...ctx.deferredKeys].filter((k) => !keyToName.has(k)).length;
     if (unknownDeferredCount > 0) {
       logger.warn(
         "preFetchStreetGeometries: deferred keys with no matching name — streets will not be retried",
