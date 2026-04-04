@@ -244,9 +244,21 @@ export async function preFetchStreetGeometries(
 
     clearDeferredStreetGeometryKeys();
 
+    const unknownDeferredCount =
+      [...ctx.deferredKeys].filter((k) => !keyToName.has(k)).length;
+    if (unknownDeferredCount > 0) {
+      logger.warn(
+        "preFetchStreetGeometries: deferred keys with no matching name — streets will not be retried",
+        { count: unknownDeferredCount },
+      );
+    }
+
     logger.debug("Retrying deferred street geometry pre-fetches", {
       count: deferredNames.length,
     });
+
+    // Respect rate limiting between the last request of pass 1 and the first of pass 2
+    if (deferredNames.length > 0) await delay(OVERPASS_DELAY_MS);
 
     for (let i = 0; i < deferredNames.length; i++) {
       if (i > 0) await delay(OVERPASS_DELAY_MS);

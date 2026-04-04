@@ -774,8 +774,13 @@ describe("overpass-geocoding-service", () => {
 
       await preFetchStreetGeometries(["ул. Пример"]);
 
-      // 2 total calls: 1 (fail) + 1 (retry)
+      // 2 total calls: 1 (fail in pass 1) + 1 (succeed in pass 2)
       expect(vi.mocked(fetch).mock.calls.length).toBe(2);
+      // The second-pass result must have been cached — no further fetch needed
+      vi.mocked(fetch).mockClear();
+      const cached = await getStreetGeometryFromOverpass("ул. Пример");
+      expect(cached).not.toBeNull();
+      expect(vi.mocked(fetch).mock.calls.length).toBe(0);
     });
 
     it("caches persistently unavailable streets as null after retry exhaustion", async () => {

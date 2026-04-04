@@ -138,7 +138,12 @@ function collectUniqueStreetNames(
 ): string[] {
   const names: string[] = [];
   for (const street of streets) {
+    // street.street is the canonical street name (e.g. "ул. Оборище"), never a
+    // house-number string, so no hasHouseNumber guard is needed here.
     names.push(street.street);
+    // Include both endpoints even for sections where only one needs Overpass — any
+    // already-geocoded or house-number endpoint is excluded by the guards below.
+    // The cache-skip inside preFetchStreetGeometries makes the extra names free.
     if (!preGeocodedMap.has(street.from) && !hasHouseNumber(street.from)) {
       names.push(street.from);
     }
