@@ -4,6 +4,7 @@ import { trackEvent } from "@/lib/analytics";
 import sources from "@/lib/sources";
 import DetailItem from "./DetailItem";
 import ExternalLinkIcon from "@/components/icons/ExternalLinkIcon";
+import { hasValidSourceUrl } from "@/lib/url-utils";
 
 interface SourceProps {
   readonly sourceId: string;
@@ -64,7 +65,7 @@ export default function SourceDisplay({ sourceId, sourceUrl }: SourceProps) {
   const [logoError, setLogoError] = useState(false);
   const source = sources.find((s) => s.id === sourceId);
   const logoPath = `/sources/${sourceId}.png`;
-  const isValidUrl = sourceUrl?.startsWith("https://");
+  const isValidUrl = hasValidSourceUrl(sourceUrl);
 
   const content = (
     <SourceContent

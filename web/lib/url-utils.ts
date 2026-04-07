@@ -49,3 +49,16 @@ export function createMessageUrl(message: Message): string {
 export function createMessageUrlFromId(messageId: string): string {
   return `/?messageId=${encodeURIComponent(messageId)}`;
 }
+
+export function hasValidSourceUrl(sourceUrl?: string): boolean {
+  if (!sourceUrl) {
+    return false;
+  }
+
+  try {
+    const url = new URL(sourceUrl);
+    return url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}

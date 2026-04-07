@@ -1,20 +1,10 @@
 import ExternalLinkIcon from "@/components/icons/ExternalLinkIcon";
+import { hasValidSourceUrl } from "@/lib/url-utils";
+
+export { hasValidSourceUrl };
 
 interface AiProcessedNoticeProps {
   readonly sourceUrl?: string;
-}
-
-export function hasValidSourceUrl(sourceUrl?: string): boolean {
-  if (!sourceUrl) {
-    return false;
-  }
-
-  try {
-    const url = new URL(sourceUrl);
-    return url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 export default function AiProcessedNotice({

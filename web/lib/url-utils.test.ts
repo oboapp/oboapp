@@ -3,6 +3,7 @@ import {
   extractHostname,
   createMessageUrl,
   createMessageUrlFromId,
+  hasValidSourceUrl,
 } from "./url-utils";
 import type { Message } from "./types";
 
@@ -101,5 +102,35 @@ describe("createMessageUrlFromId", () => {
     expect(createMessageUrlFromId("test/id?value")).toBe(
       "/?messageId=test%2Fid%3Fvalue",
     );
+  });
+});
+
+describe("hasValidSourceUrl", () => {
+  it("returns true for valid https URL", () => {
+    expect(hasValidSourceUrl("https://example.com/path")).toBe(true);
+  });
+
+  it("returns false for http URL", () => {
+    expect(hasValidSourceUrl("http://example.com/path")).toBe(false);
+  });
+
+  it("returns false for undefined", () => {
+    expect(hasValidSourceUrl(undefined)).toBe(false);
+  });
+
+  it("returns false for empty string", () => {
+    expect(hasValidSourceUrl("")).toBe(false);
+  });
+
+  it("returns false for invalid URL string", () => {
+    expect(hasValidSourceUrl("not a url")).toBe(false);
+  });
+
+  it("returns false for https:// with no host", () => {
+    expect(hasValidSourceUrl("https://")).toBe(false);
+  });
+
+  it("returns true for https URL with query params", () => {
+    expect(hasValidSourceUrl("https://example.com/path?foo=bar")).toBe(true);
   });
 });
