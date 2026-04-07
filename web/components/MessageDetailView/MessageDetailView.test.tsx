@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { within } from "@testing-library/react";
 import type { Message } from "@/lib/types";
@@ -65,6 +65,7 @@ const baseMessage: Message = {
 describe("MessageDetailView AI notice", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
     vi.stubGlobal("matchMedia", () => ({
       matches: false,
       media: "(max-width: 639px)",
@@ -75,6 +76,10 @@ describe("MessageDetailView AI notice", () => {
       removeListener: vi.fn(),
       dispatchEvent: vi.fn(),
     }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("shows source-aware notice when sourceUrl is valid https", () => {

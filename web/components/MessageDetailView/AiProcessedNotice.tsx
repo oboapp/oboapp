@@ -11,12 +11,12 @@ export default function AiProcessedNotice({
   sourceId,
   sourceUrl,
 }: Readonly<AiProcessedNoticeProps>) {
-  const showSourceHint = hasValidSourceUrl(sourceUrl) && Boolean(sourceId);
+  const showSourceHint = hasValidSourceUrl(sourceUrl);
 
   return (
     <p className="rounded-md border border-info-border bg-info-light p-3 text-sm text-neutral">
       Съдържанието е обработено от AI и може да съдържа неточности.
-      {showSourceHint && sourceUrl && sourceId && (
+      {showSourceHint && sourceUrl && (
         <>
           {" "}
           За пълен контекст виж{" "}
@@ -24,6 +24,7 @@ export default function AiProcessedNotice({
             href={sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label="оригиналния източник (отваря се в нов таб)"
             className="inline-flex items-center gap-1 underline underline-offset-2"
           >
             <span>оригиналния източник</span>
