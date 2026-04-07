@@ -13,6 +13,7 @@ import SourceDisplay from "./Source";
 import Locations from "./Locations";
 import DetailItem from "./DetailItem";
 import MessageText from "./MessageText";
+import AiProcessedNotice from "./AiProcessedNotice";
 import CategoryChips from "@/components/CategoryChips";
 import { getFeaturesCentroid } from "@/lib/geometry-utils";
 
@@ -297,6 +298,11 @@ export default function MessageDetailView({
             </p>
           </DetailItem>
         )}
+
+        <AiProcessedNotice
+          sourceId={message.source}
+          sourceUrl={message.sourceUrl}
+        />
 
         <Locations
           pins={message.pins}
