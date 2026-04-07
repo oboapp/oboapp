@@ -1,14 +1,21 @@
 interface AiProcessedNoticeProps {
-  readonly sourceId?: string;
   readonly sourceUrl?: string;
 }
 
 export function hasValidSourceUrl(sourceUrl?: string): boolean {
-  return sourceUrl?.startsWith("https://") ?? false;
+  if (!sourceUrl) {
+    return false;
+  }
+
+  try {
+    const url = new URL(sourceUrl);
+    return url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 export default function AiProcessedNotice({
-  sourceId,
   sourceUrl,
 }: Readonly<AiProcessedNoticeProps>) {
   const showSourceHint = hasValidSourceUrl(sourceUrl);

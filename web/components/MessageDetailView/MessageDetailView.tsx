@@ -299,10 +299,9 @@ export default function MessageDetailView({
           </DetailItem>
         )}
 
-        <AiProcessedNotice
-          sourceId={message.source}
-          sourceUrl={message.sourceUrl}
-        />
+        {"plainText" in message && (
+          <AiProcessedNotice sourceUrl={message.sourceUrl} />
+        )}
 
         <Locations
           pins={message.pins}

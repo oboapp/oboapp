@@ -56,6 +56,7 @@ vi.mock("./Locations", () => ({
 const baseMessage: Message = {
   id: "m1",
   text: "Тестово съобщение",
+  plainText: "Тестово съобщение",
   createdAt: "2026-04-07T00:00:00.000Z",
   locality: "София",
   source: "sofiatraffic",
