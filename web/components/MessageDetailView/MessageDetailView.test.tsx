@@ -151,4 +151,27 @@ describe("MessageDetailView AI notice", () => {
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
+
+  it("renders notice for message with markdownText", () => {
+    render(
+      <MessageDetailView
+        message={{
+          ...baseMessage,
+          markdownText: "**Тестово** съобщение",
+          sourceUrl: "https://example.com/msg",
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        /Съдържанието е обработено от AI и може да съдържа неточности\./,
+      ),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("link", { name: /оригиналния източник/i }),
+    ).toBeInTheDocument();
+  });
 });
