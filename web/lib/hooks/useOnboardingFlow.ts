@@ -78,7 +78,6 @@ interface ReducerState {
  * being asked about notifications.
  */
 function computeUnauthenticatedState(
-  _permission: NotificationPermission | undefined,
   isRestart: boolean,
   guestAvailable = true,
 ): OnboardingState {
@@ -103,7 +102,6 @@ function computeUnauthenticatedState(
  */
 function computeAuthenticatedState(
   zonesCount: number,
-  _permission: NotificationPermission | undefined,
   hasSeenZoneCreationPrompt = false,
 ): OnboardingState {
   // No zones yet → prompt to create one (unless already seen)
@@ -129,16 +127,14 @@ function computeAuthenticatedState(
 export function computeStateFromContext(
   context: OnboardingContext,
 ): OnboardingState {
-  const { permission, isLoggedIn, zonesCount, isRestart = false } = context;
+  const { isLoggedIn, zonesCount, isRestart = false } = context;
 
   return isLoggedIn
     ? computeAuthenticatedState(
         zonesCount,
-        permission,
         context.hasSeenZoneCreationPrompt,
       )
     : computeUnauthenticatedState(
-        permission,
         isRestart,
         context.guestAvailable,
       );

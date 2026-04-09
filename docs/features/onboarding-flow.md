@@ -70,12 +70,10 @@ stateDiagram-v2
     loading --> complete : LOADED [user, zones>0]
 
     notificationPrompt --> blocked : PERMISSION_RESULT [denied]
-    notificationPrompt --> complete : PERMISSION_RESULT [granted, zones>0]
-    notificationPrompt --> zoneCreation : PERMISSION_RESULT [granted, zones=0, guest]
-    notificationPrompt --> loginPrompt : PERMISSION_RESULT [granted, zones=0, !guest]
+    notificationPrompt --> complete : PERMISSION_RESULT [granted]
     notificationPrompt --> idle : DISMISS
 
-    blocked --> complete : RE_EVALUATE [user, zones>0, permission=granted]
+    blocked --> complete : RE_EVALUATE [permission=granted]
 
     loginPrompt --> idle : DISMISS
     loginPrompt --> zoneCreation : RE_EVALUATE [user, zones=0]
@@ -116,3 +114,4 @@ stateDiagram-v2
 | `RE_EVALUATE`       | External state changed (user, zones, etc.) | All                                                 |
 
 > **Note:** The `blocked` state has no user actions. Users can only exit via `RE_EVALUATE` when they enable notifications in browser settings.
+> **Note:** The `notificationPrompt` only appears as a contextual trigger after zone creation — it never appears on cold load.
