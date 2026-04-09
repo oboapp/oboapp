@@ -7,7 +7,7 @@ import React, {
   useState,
   useEffect,
 } from "react";
-import { GoogleMap, Circle } from "@react-google-maps/api";
+import { GoogleMap, Circle, useJsApiLoader } from "@react-google-maps/api";
 import { Message, Interest } from "@/lib/types";
 import { getLocalityBounds, getLocalityCenter } from "@/lib/bounds-utils";
 import { roundCoordinate } from "@oboapp/shared";
@@ -122,6 +122,11 @@ export default function MapComponent({
   // Get locality bounds and center
   const localityBounds = getLocalityBounds();
   const localityCenter = getLocalityCenter();
+
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+    preventGoogleFontsLoading: true,
+  });
 
   const mapRef = useRef<google.maps.Map | null>(null);
   const latestCenterRef = useRef(localityCenter);
@@ -280,7 +285,24 @@ export default function MapComponent({
 
   return (
     <div className="absolute inset-0">
-      {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
+      {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
+        <div className="w-full h-full flex items-center justify-center bg-gray-100">
+          <p className="text-red-600">Няма настроен ключ за Google Maps API</p>
+        </div>
+      ) : loadError ? (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 gap-3">
+          <p className="text-gray-600">Картата не е достъпна</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50"
+          >
+            Опитай пак
+          </button>
+        </div>
+      ) : !isLoaded ? (
+        <div className="w-full h-full bg-gray-200 animate-pulse" />
+      ) : (
         <GoogleMap
           mapContainerStyle={mapContainerStyle}
           options={dynamicMapOptions}
@@ -379,10 +401,6 @@ export default function MapComponent({
               );
             })()}
         </GoogleMap>
-      ) : (
-        <div className="w-full h-full flex items-center justify-center bg-gray-100">
-          <p className="text-red-600">Няма настроен ключ за Google Maps API</p>
-        </div>
       )}
     </div>
   );
