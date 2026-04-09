@@ -71,10 +71,14 @@ interface ReducerState {
 /**
  * Determine state for unauthenticated users.
  *
- * Flow: idle (initial) → notificationPrompt (on restart) → blocked/loginPrompt
+ * Flow: idle (initial) → zoneCreation (on restart) → notificationPrompt (after zone saved)
+ *
+ * The notification prompt is deferred until after zone creation to follow the
+ * "value before ask" principle — users see events and create a zone before
+ * being asked about notifications.
  */
 function computeUnauthenticatedState(
-  permission: NotificationPermission | undefined,
+  _permission: NotificationPermission | undefined,
   isRestart: boolean,
   guestAvailable = true,
 ): OnboardingState {
@@ -83,29 +87,23 @@ function computeUnauthenticatedState(
     return "idle";
   }
 
-  // User clicked button (RESTART) - now check permission
-  // No Notification API or permission already granted → continue with zone creation
-  if (permission === undefined || permission === "granted") {
-    return guestAvailable ? "zoneCreation" : "loginPrompt";
-  }
-
-  // Permission denied → explain blocked notifications
-  if (permission === "denied") {
-    return "blocked";
-  }
-
-  // Permission is "default" - show notification prompt
-  return "notificationPrompt";
+  // User clicked button (RESTART) - go directly to zone creation
+  // Notification prompt is deferred until after zone is saved (via RE_EVALUATE)
+  return guestAvailable ? "zoneCreation" : "loginPrompt";
 }
 
 /**
  * Determine state for authenticated users.
  *
- * Flow: zoneCreation → notificationPrompt/blocked → complete
+ * Flow: zoneCreation → notificationPrompt (after zone saved, via RE_EVALUATE) → complete
+ *
+ * Users with zones land directly in `complete` — no cold-path modals.
+ * The notification prompt only appears contextually after saving a zone
+ * (handled by special-case logic in handleReEvaluate).
  */
 function computeAuthenticatedState(
   zonesCount: number,
-  permission: NotificationPermission | undefined,
+  _permission: NotificationPermission | undefined,
   hasSeenZoneCreationPrompt = false,
 ): OnboardingState {
   // No zones yet → prompt to create one (unless already seen)
@@ -113,16 +111,7 @@ function computeAuthenticatedState(
     return hasSeenZoneCreationPrompt ? "complete" : "zoneCreation";
   }
 
-  // Has zones - check notification permission
-  if (permission === "default") {
-    return "notificationPrompt";
-  }
-
-  if (permission === "denied") {
-    return "blocked";
-  }
-
-  // Permission granted or API unavailable → fully onboarded
+  // Has zones → fully onboarded (no cold-path notification/blocked modals)
   return "complete";
 }
 
@@ -132,6 +121,10 @@ function computeAuthenticatedState(
  * Design Decision: First-time visitors (permission="default", not logged in)
  * land in `idle` state to keep the UI clean. The onboarding flow only starts
  * when the user clicks the AddInterestButton (RESTART action with isRestart=true).
+ *
+ * No cold-path modals: authenticated users with zones land in `complete`.
+ * The notification prompt is deferred to a contextual trigger after zone creation
+ * (handled in handleReEvaluate, not here).
  */
 export function computeStateFromContext(
   context: OnboardingContext,
@@ -259,6 +252,20 @@ function handleReEvaluate(
 
     // Otherwise remain idle but keep permission cache fresh
     return { ...state, lastPermission: context.permission };
+  }
+
+  // Contextual notification prompt: after zone creation, prompt for notifications
+  // This is the only path to notificationPrompt — it never appears on cold load.
+  if (
+    state.state === "zoneCreation" &&
+    context.zonesCount > 0 &&
+    context.permission === "default"
+  ) {
+    return {
+      state: "notificationPrompt",
+      lastPermission: context.permission,
+      isDismissed: false,
+    };
   }
 
   const newState = computeStateFromContext(context);

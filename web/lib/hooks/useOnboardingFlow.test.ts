@@ -18,7 +18,7 @@ describe("computeStateFromContext", () => {
       expect(computeStateFromContext(context)).toBe("idle");
     });
 
-    it("returns notificationPrompt on restart when permission is default", () => {
+    it("returns zoneCreation on restart when permission is default (notification prompt deferred)", () => {
       const context: OnboardingContext = {
         permission: "default",
         isLoggedIn: false,
@@ -26,7 +26,7 @@ describe("computeStateFromContext", () => {
         hasSubscriptions: false,
         isRestart: true,
       };
-      expect(computeStateFromContext(context)).toBe("notificationPrompt");
+      expect(computeStateFromContext(context)).toBe("zoneCreation");
     });
 
     it("returns idle on initial load when permission is granted", () => {
@@ -72,7 +72,7 @@ describe("computeStateFromContext", () => {
       expect(computeStateFromContext(context)).toBe("idle");
     });
 
-    it("returns blocked on restart when permission is denied", () => {
+    it("returns zoneCreation on restart when permission is denied (no cold-path blocked modal)", () => {
       const context: OnboardingContext = {
         permission: "denied",
         isLoggedIn: false,
@@ -80,7 +80,7 @@ describe("computeStateFromContext", () => {
         hasSubscriptions: false,
         isRestart: true,
       };
-      expect(computeStateFromContext(context)).toBe("blocked");
+      expect(computeStateFromContext(context)).toBe("zoneCreation");
     });
 
     it("returns idle on initial load when Notification API is unavailable", () => {
@@ -150,14 +150,14 @@ describe("computeStateFromContext", () => {
       expect(computeStateFromContext(context)).toBe("zoneCreation");
     });
 
-    it("returns notificationPrompt when user has zones but permission is default", () => {
+    it("returns complete when user has zones (no cold-path notification prompt)", () => {
       const context: OnboardingContext = {
         permission: "default",
         isLoggedIn: true,
         zonesCount: 2,
         hasSubscriptions: false,
       };
-      expect(computeStateFromContext(context)).toBe("notificationPrompt");
+      expect(computeStateFromContext(context)).toBe("complete");
     });
 
     it("returns complete when user has zones and permission is granted", () => {
@@ -180,14 +180,14 @@ describe("computeStateFromContext", () => {
       expect(computeStateFromContext(context)).toBe("complete");
     });
 
-    it("returns blocked when permission is denied and user has zones", () => {
+    it("returns complete when permission is denied and user has zones (no cold-path blocked modal)", () => {
       const context: OnboardingContext = {
         permission: "denied",
         isLoggedIn: true,
         zonesCount: 2,
         hasSubscriptions: false,
       };
-      expect(computeStateFromContext(context)).toBe("blocked");
+      expect(computeStateFromContext(context)).toBe("complete");
     });
   });
 });
@@ -418,7 +418,7 @@ describe("onboardingReducer", () => {
   });
 
   describe("RESTART action", () => {
-    it("re-evaluates from idle to notificationPrompt", () => {
+    it("re-evaluates from idle to zoneCreation (notification prompt deferred)", () => {
       const initialState = createInitialState("idle");
       const context: OnboardingContext = {
         permission: "default",
@@ -431,7 +431,7 @@ describe("onboardingReducer", () => {
 
       const result = onboardingReducer(initialState, action);
 
-      expect(result.state).toBe("notificationPrompt");
+      expect(result.state).toBe("zoneCreation");
     });
 
     it("re-evaluates from idle to zoneCreation when permission granted", () => {
@@ -625,7 +625,7 @@ describe("onboardingReducer", () => {
       expect(result.state).toBe("complete");
     });
 
-    it("progresses to blocked when permission is denied", () => {
+    it("progresses to complete when permission is denied (no blocked modal after zone creation)", () => {
       const initialState = createInitialState("zoneCreation", "denied");
       const context: OnboardingContext = {
         permission: "denied",
@@ -640,7 +640,7 @@ describe("onboardingReducer", () => {
 
       const result = onboardingReducer(initialState, action);
 
-      expect(result.state).toBe("blocked");
+      expect(result.state).toBe("complete");
     });
 
     it("keeps state as idle when user dismissed loginPrompt (isDismissed=true)", () => {
