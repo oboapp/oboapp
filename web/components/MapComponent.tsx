@@ -11,6 +11,7 @@ import { GoogleMap, Circle, useJsApiLoader } from "@react-google-maps/api";
 import { Message, Interest } from "@/lib/types";
 import { getLocalityBounds, getLocalityCenter } from "@/lib/bounds-utils";
 import { roundCoordinate } from "@oboapp/shared";
+import { getButtonClasses } from "@/lib/theme";
 import GeoJSONLayer from "./GeoJSONLayer";
 import InterestCircles from "./InterestCircles";
 import InterestTargetMode from "./InterestTargetMode";
@@ -286,22 +287,22 @@ export default function MapComponent({
   return (
     <div className="absolute inset-0">
       {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
-        <div className="w-full h-full flex items-center justify-center bg-gray-100">
-          <p className="text-red-600">Няма настроен ключ за Google Maps API</p>
+        <div className="w-full h-full flex items-center justify-center bg-neutral-light">
+          <p className="text-destructive">Няма настроен ключ за Google Maps API</p>
         </div>
       ) : loadError ? (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 gap-3">
-          <p className="text-gray-600">Картата не е достъпна</p>
+        <div className="w-full h-full flex flex-col items-center justify-center bg-neutral-light gap-3">
+          <p className="text-neutral">Картата не е достъпна</p>
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="px-4 py-2 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50"
+            className={getButtonClasses("ghost", "md")}
           >
-            Опитай пак
+            Опитай отново
           </button>
         </div>
       ) : !isLoaded ? (
-        <div className="w-full h-full bg-gray-200 animate-pulse" />
+        <div className="w-full h-full bg-neutral-border animate-pulse" />
       ) : (
         <GoogleMap
           mapContainerStyle={mapContainerStyle}
