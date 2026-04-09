@@ -3,7 +3,6 @@
 import AddInterestsPrompt from "./AddInterestsPrompt";
 import NotificationPrompt from "./NotificationPrompt";
 import BlockedNotificationsPrompt from "./BlockedNotificationsPrompt";
-import LoginPrompt from "./LoginPrompt";
 import { OnboardingState } from "@/lib/hooks/useOnboardingFlow";
 import { User } from "firebase/auth";
 
@@ -49,8 +48,10 @@ export default function OnboardingPrompt({
     case "blocked":
       return <BlockedNotificationsPrompt />;
 
+    // loginPrompt is now handled by the persistent GuestBanner
+    // (rendered inline in the message list, not as a modal)
     case "loginPrompt":
-      return <LoginPrompt onDismiss={onDismiss} />;
+      return null;
 
     case "zoneCreation":
       return (

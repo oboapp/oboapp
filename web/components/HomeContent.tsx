@@ -16,6 +16,7 @@ import FilterBox from "@/components/FilterBox";
 import GeolocationPrompt from "@/components/GeolocationPrompt";
 import OnboardingPrompt from "@/components/onboarding/OnboardingPrompt";
 import UpgradeConflictPrompt from "@/components/onboarding/UpgradeConflictPrompt";
+import GuestBanner from "@/components/onboarding/GuestBanner";
 import AddZoneModal from "@/components/onboarding/AddZoneModal";
 import type { PendingZone } from "@/components/onboarding/AddZoneModal";
 import SegmentedControl from "@/components/SegmentedControl";
@@ -655,6 +656,8 @@ export default function HomeContent() {
                 onMessageHover={setHoveredMessageId}
                 variant="list"
               />
+              {/* Guest banner: persistent non-blocking login prompt for anonymous users */}
+              {(!user || user.isAnonymous) && <GuestBanner />}
             </div>
           </div>
         </div>
