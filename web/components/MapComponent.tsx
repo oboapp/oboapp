@@ -291,7 +291,10 @@ export default function MapComponent({
           <p className="text-destructive">Няма настроен ключ за Google Maps API</p>
         </div>
       ) : loadError ? (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-neutral-light gap-3">
+        <div
+          role="status"
+          className="w-full h-full flex flex-col items-center justify-center bg-neutral-light gap-3"
+        >
           <p className="text-neutral">Картата не е достъпна</p>
           <button
             type="button"
