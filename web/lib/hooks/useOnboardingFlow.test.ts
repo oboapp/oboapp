@@ -118,34 +118,23 @@ describe("computeStateFromContext", () => {
   });
 
   describe("when user is logged in", () => {
-    it("returns zoneCreation when user has no zones", () => {
+    it("returns idle on initial load when user has no zones (no cold-path modal)", () => {
       const context: OnboardingContext = {
         permission: "granted",
         isLoggedIn: true,
         zonesCount: 0,
         hasSubscriptions: false,
       };
-      expect(computeStateFromContext(context)).toBe("zoneCreation");
+      expect(computeStateFromContext(context)).toBe("idle");
     });
 
-    it("returns complete when user has no zones but has already seen the zone creation prompt", () => {
+    it("returns zoneCreation on restart when user has no zones", () => {
       const context: OnboardingContext = {
         permission: "granted",
         isLoggedIn: true,
         zonesCount: 0,
         hasSubscriptions: false,
-        hasSeenZoneCreationPrompt: true,
-      };
-      expect(computeStateFromContext(context)).toBe("complete");
-    });
-
-    it("returns zoneCreation when user has no zones and hasSeenZoneCreationPrompt is false", () => {
-      const context: OnboardingContext = {
-        permission: "granted",
-        isLoggedIn: true,
-        zonesCount: 0,
-        hasSubscriptions: false,
-        hasSeenZoneCreationPrompt: false,
+        isRestart: true,
       };
       expect(computeStateFromContext(context)).toBe("zoneCreation");
     });
@@ -497,7 +486,7 @@ describe("onboardingReducer", () => {
   });
 
   describe("RE_EVALUATE action", () => {
-    it("progresses from loginPrompt to zoneCreation when user logs in", () => {
+    it("progresses from loginPrompt to idle when user logs in (explore freely)", () => {
       const initialState = createInitialState("loginPrompt", "granted");
       const context: OnboardingContext = {
         permission: "granted",
@@ -512,7 +501,7 @@ describe("onboardingReducer", () => {
 
       const result = onboardingReducer(initialState, action);
 
-      expect(result.state).toBe("zoneCreation");
+      expect(result.state).toBe("idle");
     });
 
     it("progresses from zoneCreation to notificationPrompt when zone added and permission is default", () => {

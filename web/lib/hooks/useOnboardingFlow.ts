@@ -49,8 +49,6 @@ export interface OnboardingContext {
   guestAvailable?: boolean;
   /** Whether this is a restart (user clicked button) vs initial load */
   isRestart?: boolean;
-  /** Whether the user has already seen the zero-zones creation prompt */
-  hasSeenZoneCreationPrompt?: boolean;
 }
 
 /**
@@ -94,19 +92,21 @@ function computeUnauthenticatedState(
 /**
  * Determine state for authenticated users.
  *
- * Flow: zoneCreation → notificationPrompt (after zone saved, via RE_EVALUATE) → complete
+ * Flow: idle (initial) → zoneCreation (on restart) → notificationPrompt (after zone saved) → complete
  *
  * Users with zones land directly in `complete` — no cold-path modals.
+ * Users with 0 zones land in `idle` on initial load (no blocking prompt).
+ * The zoneCreation modal only shows via explicit user action (RESTART).
  * The notification prompt only appears contextually after saving a zone
  * (handled by special-case logic in handleReEvaluate).
  */
 function computeAuthenticatedState(
   zonesCount: number,
-  hasSeenZoneCreationPrompt = false,
+  isRestart: boolean,
 ): OnboardingState {
-  // No zones yet → prompt to create one (unless already seen)
+  // No zones yet → idle on initial load, zoneCreation on explicit restart
   if (zonesCount === 0) {
-    return hasSeenZoneCreationPrompt ? "complete" : "zoneCreation";
+    return isRestart ? "zoneCreation" : "idle";
   }
 
   // Has zones → fully onboarded (no cold-path notification/blocked modals)
@@ -132,7 +132,7 @@ export function computeStateFromContext(
   return isLoggedIn
     ? computeAuthenticatedState(
         zonesCount,
-        context.hasSeenZoneCreationPrompt,
+        isRestart,
       )
     : computeUnauthenticatedState(
         isRestart,
@@ -264,6 +264,15 @@ function handleReEvaluate(
     };
   }
 
+  // Special case: user logged in from loginPrompt → go to idle (explore freely)
+  if (state.state === "loginPrompt" && context.isLoggedIn) {
+    return {
+      state: context.zonesCount > 0 ? "complete" : "idle",
+      lastPermission: context.permission,
+      isDismissed: false,
+    };
+  }
+
   const newState = computeStateFromContext(context);
 
   // Only allow forward progression
@@ -365,8 +374,6 @@ function getNotificationPermission(): NotificationPermission | undefined {
   return undefined;
 }
 
-const ZONE_CREATION_SEEN_KEY = "obo_seen_zone_prompt";
-
 /**
  * Hook to manage onboarding flow state machine
  *
@@ -399,35 +406,14 @@ export function useOnboardingFlow(
 
   // Build current context
   const context = useMemo((): OnboardingContext => {
-    let hasSeenZoneCreationPrompt = false;
-    try {
-      hasSeenZoneCreationPrompt =
-        typeof localStorage !== "undefined"
-          ? localStorage.getItem(ZONE_CREATION_SEEN_KEY) === "true"
-          : false;
-    } catch {
-      // Ignore storage errors (Safari private browsing, blocked storage, etc.)
-    }
     return {
       permission: getNotificationPermission(),
       isLoggedIn: user !== null,
       zonesCount: interests.length,
       hasSubscriptions,
       guestAvailable,
-      hasSeenZoneCreationPrompt,
     };
   }, [user, interests.length, hasSubscriptions, guestAvailable]);
-
-  // Mark prompt as seen when state enters zoneCreation
-  useEffect(() => {
-    if (reducerState.state === "zoneCreation") {
-      try {
-        localStorage.setItem(ZONE_CREATION_SEEN_KEY, "true");
-      } catch {
-        // Ignore storage errors (private browsing, quota exceeded, etc.)
-      }
-    }
-  }, [reducerState.state]);
 
   // Initial load - dispatch LOADED once subscriptions are checked
   useEffect(() => {

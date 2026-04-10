@@ -6,13 +6,14 @@ State machine hook for managing the user onboarding and engagement flow.
 
 This hook centralizes the onboarding UX logic using contextual prompts instead of cold-path modals:
 
-1. Zone creation (first interaction)
+1. Zone creation (on explicit user action only)
 2. Notification permission (contextual, after zone saved)
 3. Guest usage (anonymous Firebase account)
 4. Optional Google login upgrade
 
-**Design principle:** "Value before ask" — users explore events and create a zone before
-being asked about notifications or login. No blocking modals on initial load.
+**Design principle:** "Value before ask" — users explore events freely on first visit.
+No blocking modals on initial load. Zone creation and notification prompts only appear
+after explicit user action.
 
 ## Anonymous-first behavior
 
@@ -43,21 +44,20 @@ No silent merge/overwrite occurs when both sides have data.
 
 The prompt is blocking: users must choose one of the three options to continue.
 
-**Unauthenticated Users:** Land in `idle` state showing a "Получавай известия" button with a bell icon.
-This keeps the UI clean and unobtrusive. The onboarding flow starts when the user
-clicks the button, which dispatches `RESTART` and goes directly to zone creation.
-A persistent `GuestBanner` at the bottom of the message list encourages sign-in.
+**All Users (including auto-authenticated anonymous):** Land in `idle` state on first visit.
+The UI shows a "Получавай известия" button — the onboarding flow starts only when the
+user clicks it (RESTART action). A persistent `GuestBanner` at the bottom of the message
+list encourages sign-in for anonymous users.
 
 **Header Login:** Logging in from the header re-evaluates the flow immediately.
-If the user was idle and then logs in, the state advances (e.g., to zone creation)
-without requiring a page refresh.
+If the user was idle and then logs in, they stay in idle (no cold-path modal).
 
 **Logout behavior:** Signing out no longer triggers the browser notification
 permission prompt. When permission is not granted, logout skips FCM token cleanup
 to avoid requesting permission during sign-out.
 
-**Authenticated Users:** Land in `zoneCreation` (if no zones) or `complete` (if zones exist).
-No cold-path notification or login modals.
+**Authenticated Users with zones:** Land directly in `complete`.
+No cold-path notification, login, or zone creation modals.
 
 ## State Machine Diagram
 
@@ -65,8 +65,7 @@ No cold-path notification or login modals.
 stateDiagram-v2
     [*] --> loading
 
-    loading --> idle : LOADED [!user]
-    loading --> zoneCreation : LOADED [user, zones=0]
+    loading --> idle : LOADED [!user OR (user, zones=0)]
     loading --> complete : LOADED [user, zones>0]
 
     notificationPrompt --> blocked : PERMISSION_RESULT [denied]
@@ -76,7 +75,7 @@ stateDiagram-v2
     blocked --> complete : RE_EVALUATE [permission=granted]
 
     loginPrompt --> idle : DISMISS
-    loginPrompt --> zoneCreation : RE_EVALUATE [user, zones=0]
+    loginPrompt --> idle : RE_EVALUATE [user, zones=0]
     loginPrompt --> complete : RE_EVALUATE [user, zones>0]
 
     zoneCreation --> notificationPrompt : RE_EVALUATE [zones>0, permission=default]
@@ -85,7 +84,6 @@ stateDiagram-v2
 
     idle --> zoneCreation : RESTART [guest available]
     idle --> loginPrompt : RESTART [!guest available]
-    idle --> zoneCreation : RESTART [user, zones=0]
     idle --> complete : RESTART [user, zones>0]
 
     complete --> [*]
@@ -98,10 +96,10 @@ stateDiagram-v2
 | `loading`            | Initial state while checking subscriptions                      | LoadingButton ("Зарежда се..." + spinner)             |
 | `notificationPrompt` | Ask user about notifications (after zone creation)              | NotificationPrompt                                    |
 | `blocked`            | Notifications blocked at browser/OS level                       | BlockedNotificationsPrompt                            |
-| `loginPrompt`        | Ask user to log in (only when guest auth unavailable)           | LoginPrompt                                           |
-| `zoneCreation`       | User logged in but has no zones                                 | AddInterestsPrompt                                    |
+| `loginPrompt`        | Ask user to log in (only when guest auth unavailable)           | GuestBanner (non-blocking)                            |
+| `zoneCreation`       | User clicked button, guided to create first zone                | AddInterestsPrompt                                    |
 | `complete`           | Fully onboarded                                                 | AddInterestButton ("Добави зона")                     |
-| `idle`               | Initial state for unauthenticated users, or user dismissed flow | NotificationButton ("Получавай известия" + bell icon) |
+| `idle`               | Initial state for all users, or user dismissed flow             | NotificationButton ("Получавай известия" + bell icon) |
 
 ## Actions
 
