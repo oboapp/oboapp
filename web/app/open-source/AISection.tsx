@@ -1,21 +1,23 @@
 import CopilotIcon from "@/components/icons/CopilotIcon";
 import ClaudeIcon from "@/components/icons/ClaudeIcon";
+import { ComponentType, SVGProps } from "react";
 
-const AI_TOOLS = [
+const AI_TOOLS: {
+  name: string;
+  url: string;
+  Icon: ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
+}[] = [
   {
     name: "GitHub Copilot",
     url: "https://github.com/features/copilot",
+    Icon: CopilotIcon,
   },
   {
     name: "Claude",
-    url: "https://github.com/anthropics",
+    url: "https://www.anthropic.com",
+    Icon: ClaudeIcon,
   },
 ];
-
-function AIToolIcon({ name }: { name: string }) {
-  if (name === "GitHub Copilot") return <CopilotIcon className="size-12" />;
-  return <ClaudeIcon className="size-12" />;
-}
 
 export default function AISection() {
   return (
@@ -36,7 +38,7 @@ export default function AISection() {
               className="flex flex-col items-center gap-2 group"
             >
               <div className="size-16 rounded-full border border-neutral-border bg-neutral-light flex items-center justify-center text-foreground group-hover:ring-2 group-hover:ring-primary group-focus-visible:ring-2 group-focus-visible:ring-primary transition-all">
-                <AIToolIcon name={tool.name} />
+                <tool.Icon className="size-12" />
               </div>
               <span className="text-xs text-center text-neutral group-hover:text-link">
                 {tool.name}
