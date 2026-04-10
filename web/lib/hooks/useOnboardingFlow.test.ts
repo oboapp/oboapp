@@ -117,6 +117,18 @@ describe("computeStateFromContext", () => {
     });
   });
 
+  describe("when user is anonymous (Firebase anonymous auth)", () => {
+    it("returns idle on initial load — anonymous users follow the unauthenticated path", () => {
+      const context: OnboardingContext = {
+        permission: "default",
+        isLoggedIn: false, // anonymous user: isLoggedIn is derived as false via !user.isAnonymous
+        zonesCount: 0,
+        hasSubscriptions: false,
+      };
+      expect(computeStateFromContext(context)).toBe("idle");
+    });
+  });
+
   describe("when user is logged in", () => {
     it("returns zoneCreation when user has no zones", () => {
       const context: OnboardingContext = {

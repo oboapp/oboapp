@@ -63,29 +63,29 @@ stateDiagram-v2
     loading --> complete : LOADED [signed-in user, zones>0, permission=granted OR noAPI]
 
     notificationPrompt --> blocked : PERMISSION_RESULT [denied]
-    notificationPrompt --> loginPrompt : PERMISSION_RESULT [granted, !user]
-    notificationPrompt --> complete : PERMISSION_RESULT [granted, user, zones>0]
+    notificationPrompt --> loginPrompt : PERMISSION_RESULT [granted, !signed-in user]
+    notificationPrompt --> complete : PERMISSION_RESULT [granted, signed-in user, zones>0]
     notificationPrompt --> idle : DISMISS
 
-    blocked --> zoneCreation : RE_EVALUATE [user logged in, zones=0]
-    blocked --> complete : RE_EVALUATE [user, zones>0, permission=granted]
+    blocked --> zoneCreation : RE_EVALUATE [signed-in user, zones=0]
+    blocked --> complete : RE_EVALUATE [signed-in user, zones>0, permission=granted]
 
     loginPrompt --> idle : DISMISS
-    loginPrompt --> zoneCreation : RE_EVALUATE [user, zones=0]
-    loginPrompt --> notificationPrompt : RE_EVALUATE [user, zones>0, permission=default]
-    loginPrompt --> complete : RE_EVALUATE [user, zones>0, permission=granted]
+    loginPrompt --> zoneCreation : RE_EVALUATE [signed-in user, zones=0]
+    loginPrompt --> notificationPrompt : RE_EVALUATE [signed-in user, zones>0, permission=default]
+    loginPrompt --> complete : RE_EVALUATE [signed-in user, zones>0, permission=granted]
 
     zoneCreation --> notificationPrompt : RE_EVALUATE [zones>0, permission=default]
     zoneCreation --> blocked : RE_EVALUATE [zones>0, permission=denied]
     zoneCreation --> complete : RE_EVALUATE [zones>0, permission=granted OR noAPI]
     zoneCreation --> idle : DISMISS
 
-    idle --> notificationPrompt : RESTART [permission=default, !user]
-    idle --> loginPrompt : RESTART [permission!=default OR noAPI, !user]
-    idle --> zoneCreation : RESTART [user, zones=0]
-    idle --> notificationPrompt : RESTART [user, zones>0, permission=default]
-    idle --> blocked : RESTART [user, zones>0, permission=denied]
-    idle --> complete : RESTART [user, zones>0, permission=granted OR noAPI]
+    idle --> notificationPrompt : RESTART [permission=default, !signed-in user]
+    idle --> loginPrompt : RESTART [permission!=default OR noAPI, !signed-in user]
+    idle --> zoneCreation : RESTART [signed-in user, zones=0]
+    idle --> notificationPrompt : RESTART [signed-in user, zones>0, permission=default]
+    idle --> blocked : RESTART [signed-in user, zones>0, permission=denied]
+    idle --> complete : RESTART [signed-in user, zones>0, permission=granted OR noAPI]
 
     complete --> [*]
 ```
