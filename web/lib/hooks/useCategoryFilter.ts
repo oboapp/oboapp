@@ -317,6 +317,12 @@ export function useCategoryFilter(
     }
   }, [hasInteracted]);
 
+  // Closes the panel without marking hasInteracted — for programmatic closes
+  // that should not affect the auto-open-on-next-visit behaviour.
+  const closePanelSilently = useCallback(() => {
+    setIsOpen(false);
+  }, []);
+
   const togglePanel = useCallback(() => {
     if (isOpen) {
       closePanel();
@@ -347,6 +353,7 @@ export function useCategoryFilter(
     clearAllCategories,
     openPanel,
     closePanel,
+    closePanelSilently,
     togglePanel,
   };
 }

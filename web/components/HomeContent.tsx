@@ -370,12 +370,12 @@ function HomeContentInner() {
   );
 
   // Close the filter panel when zone creation mode becomes active
-  const { closePanel: closeFilterPanel } = categoryFilter;
+  const { closePanelSilently: closeFilterPanelSilently } = categoryFilter;
   useEffect(() => {
     if (targetMode.active) {
-      closeFilterPanel();
+      closeFilterPanelSilently();
     }
-  }, [targetMode.active, closeFilterPanel]);
+  }, [targetMode.active, closeFilterPanelSilently]);
 
   // Handle feature click - update URL and select message
   const handleFeatureClick = useCallback(

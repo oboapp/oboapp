@@ -175,11 +175,11 @@ export default function MapContainer({
   // If not logged in, restart the onboarding flow
   const handleAddInterestClick = useCallback(() => {
     if (onboardingState === "idle") {
-      if (authUser) {
-        // User already dismissed AddInterestsPrompt, go straight to creation
+      if (authUser && !authUser.isAnonymous) {
+        // Non-anonymous user already dismissed AddInterestsPrompt, go straight to creation
         onStartAddInterest();
       } else {
-        // Not logged in, restart onboarding flow
+        // Not logged in (or anonymous guest), restart onboarding flow
         handleRestart();
       }
     } else {
