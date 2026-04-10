@@ -13,8 +13,8 @@ const AI_TOOLS = [
 ];
 
 function AIToolIcon({ name }: { name: string }) {
-  if (name === "GitHub Copilot") return <CopilotIcon className="size-8" />;
-  return <ClaudeIcon className="size-8" />;
+  if (name === "GitHub Copilot") return <CopilotIcon className="size-12" />;
+  return <ClaudeIcon className="size-12" />;
 }
 
 export default function AISection() {

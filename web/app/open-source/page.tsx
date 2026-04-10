@@ -58,7 +58,7 @@ export default async function OpenSourcePage() {
         </h1>
 
         <div className="space-y-8">
-          <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-8 items-start">
             <LicenceSection />
             <DepsSection />
           </div>

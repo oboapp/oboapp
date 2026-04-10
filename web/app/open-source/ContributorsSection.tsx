@@ -53,17 +53,6 @@ export default function ContributorsSection({
           Данните за участниците временно не са достъпни.
         </p>
       )}
-      <p className="mt-6 text-sm text-neutral">
-        Пълен списък:{" "}
-        <a
-          href="https://github.com/vbuch/oboapp/graphs/contributors"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-link hover:text-link-hover hover:underline"
-        >
-          github.com/vbuch/oboapp/graphs/contributors
-        </a>
-      </p>
     </section>
   );
 }
