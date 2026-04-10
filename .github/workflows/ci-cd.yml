@@ -133,6 +133,7 @@ jobs:
         env:
           NEXT_PUBLIC_LOCALITY: ${{ secrets.LOCALITY || 'bg.sofia' }}
           USE_FIREBASE_EMULATORS: "true"
+          NEXT_PUBLIC_USE_FIREBASE_EMULATORS: "true"
           NEXT_PUBLIC_FIREBASE_PROJECT_ID: "demo-project"
         run: pnpm build
 
