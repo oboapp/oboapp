@@ -16,7 +16,7 @@ export default function LicenceSection() {
       <p className="text-neutral mb-4">
         OboApp е публикуван под{" "}
         <a
-          href="https://github.com/vbuch/oboapp?tab=Unlicense-1-ov-file#readme"
+          href="https://github.com/vbuch/oboapp/blob/main/LICENSE"
           target="_blank"
           rel="noopener noreferrer"
           className="text-link hover:text-link-hover hover:underline"

@@ -40,7 +40,7 @@ export default function DeviceSubscriptionCard({
             </span>
           )}
         </p>
-        <p className="text-sm text-neutral sm:before:content-['\u2022'] sm:before:mr-2">
+        <p className="text-sm text-neutral sm:before:content-['•'] sm:before:mr-2">
           Добавено: {createdDate}
         </p>
       </div>
