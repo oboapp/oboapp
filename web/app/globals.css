@@ -1,11 +1,13 @@
 @import "tailwindcss";
+@import "@fontsource-variable/sofia-sans";
 
 /* Color variables - see lib/colors.ts for the centralized color palette */
 :root {
   --background: #ffffff;
   --foreground: #171717;
 
-  /* Typography */
+  /* Typography — font-family name from @fontsource-variable/sofia-sans */
+  --font-sofia-sans: "Sofia Sans Variable";
   --font-family-sofia:
     var(--font-sofia-sans), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";

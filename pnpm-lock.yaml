@@ -244,6 +244,9 @@ importers:
       '@asteasolutions/zod-to-openapi':
         specifier: ^8.4.0
         version: 8.4.0(zod@4.3.6)
+      '@fontsource-variable/sofia-sans':
+        specifier: ^5.2.8
+        version: 5.2.8
       '@google-cloud/storage':
         specifier: ^7.19.0
         version: 7.19.0(encoding@0.1.13)
@@ -1522,6 +1525,9 @@ packages:
 
   '@firebase/webchannel-wrapper@1.0.5':
     resolution: {integrity: sha512-+uGNN7rkfn41HLO0vekTFhTxk61eKa8mTpRGLO0QSqlQdKvIoGAvLp3ppdVIWbTGYJWM6Kp0iN+PjMIOcnVqTw==}
+
+  '@fontsource-variable/sofia-sans@5.2.8':
+    resolution: {integrity: sha512-623tSkmmKDhLKEkp/X+KYC4GuICeb1YAHUwZXHh5y0umAVomHdQw1QoKpe09ggB+XNNMyWsg9UsRq5wq0Mt9Hg==}
 
   '@google-cloud/cloud-sql-connector@1.9.0':
     resolution: {integrity: sha512-kCsWuWBCHBdRSyrNHoJ4lIsd6P3JeXQk3OopsS/TCfJzTs2dfEzQvwl5G7Gn7u/rX60m+X7wv4wHDMP2sG5AFA==}
@@ -11093,6 +11099,8 @@ snapshots:
       tslib: 2.8.1
 
   '@firebase/webchannel-wrapper@1.0.5': {}
+
+  '@fontsource-variable/sofia-sans@5.2.8': {}
 
   '@google-cloud/cloud-sql-connector@1.9.0':
     dependencies:
