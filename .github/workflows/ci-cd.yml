@@ -130,6 +130,8 @@ jobs:
 
       - name: Next.js build
         working-directory: ./web
+        env:
+          NEXT_PUBLIC_LOCALITY: ${{ secrets.LOCALITY || 'bg.sofia' }}
         run: pnpm build
 
   build-and-deploy:
