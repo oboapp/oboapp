@@ -25,7 +25,7 @@ export default function ContributorsSection({
         Направено от вас
       </h2>
       {contributors.length > 0 ? (
-        <ul className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
+        <ul className="grid grid-cols-3 sm:grid-cols-4 gap-4">
           {contributors.map((contributor) => (
             <li key={contributor.login}>
               <a
@@ -37,8 +37,8 @@ export default function ContributorsSection({
                 <Image
                   src={contributor.avatar_url}
                   alt={contributor.login}
-                  width={64}
-                  height={64}
+                  width={80}
+                  height={80}
                   className="rounded-full border border-neutral-border group-hover:ring-2 group-hover:ring-primary group-focus-visible:ring-2 group-focus-visible:ring-primary transition-all"
                 />
                 <span className="text-xs text-center text-neutral group-hover:text-link truncate w-full">
