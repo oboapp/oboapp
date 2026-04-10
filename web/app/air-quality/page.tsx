@@ -1,12 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, Suspense } from "react";
 import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
-import {
-  useRouter,
-  useSearchParams,
-} from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import Card from "@/components/Card";
@@ -109,7 +106,9 @@ function StatCard({
   return (
     <Card>
       <p className="text-sm text-neutral mb-1">{label}</p>
-      <p className={`text-3xl font-bold ${valueClassName ?? "text-foreground"}`}>
+      <p
+        className={`text-3xl font-bold ${valueClassName ?? "text-foreground"}`}
+      >
         {value}
       </p>
       {sub && <p className="text-sm text-neutral mt-1">{sub}</p>}
@@ -127,7 +126,7 @@ function formatTimestamp(iso: string | null): string {
   });
 }
 
-export default function AirQualityPage() {
+function AirQualityPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -181,7 +180,7 @@ export default function AirQualityPage() {
   );
 
   const maxAqiCategory =
-    status?.maxAqi != null ? status.cells[0]?.aqiCategory ?? null : null;
+    status?.maxAqi != null ? (status.cells[0]?.aqiCategory ?? null) : null;
 
   return (
     <div className="min-h-screen bg-neutral-light">
@@ -225,9 +224,9 @@ export default function AirQualityPage() {
                 Качество на въздуха в реално време · {LOCALITY}
               </p>
               <p className="text-neutral text-sm mt-2">
-                EAQI (European Air Quality Index) е скала от 1 до 6,
-                изчислена по алгоритъма NowCast от концентрациите на ФПЧ2.5 и ФПЧ10
-                за последните 4 часа.
+                EAQI (European Air Quality Index) е скала от 1 до 6, изчислена
+                по алгоритъма NowCast от концентрациите на ФПЧ2.5 и ФПЧ10 за
+                последните 4 часа.
               </p>
               {status && (
                 <p className="text-neutral text-xs mt-1">
@@ -296,7 +295,9 @@ export default function AirQualityPage() {
           </h2>
           <Card>
             {statusError ? (
-              <p className="text-error text-sm">Грешка при зареждане на данните</p>
+              <p className="text-error text-sm">
+                Грешка при зареждане на данните
+              </p>
             ) : statusLoading ? (
               <div className="animate-pulse space-y-3">
                 <div className="h-4 bg-neutral-light rounded w-1/2" />
@@ -315,7 +316,9 @@ export default function AirQualityPage() {
                           : "bg-success-light text-success"
                       }`}
                     >
-                      {status.readings.isStale ? "Остарели данни" : "Актуални данни"}
+                      {status.readings.isStale
+                        ? "Остарели данни"
+                        : "Актуални данни"}
                     </span>
                   </dd>
                 </div>
@@ -344,7 +347,9 @@ export default function AirQualityPage() {
             EAQI по мрежови клетки (последни 4 ч.)
           </h2>
           {statusError ? (
-            <p className="text-error text-sm">Грешка при зареждане на данните</p>
+            <p className="text-error text-sm">
+              Грешка при зареждане на данните
+            </p>
           ) : status && status.cells.length > 0 ? (
             <>
               <AirQualityMap cells={status.cells} locality={LOCALITY} />
@@ -358,7 +363,10 @@ export default function AirQualityPage() {
                   { label: "Много лошо (5–6)", cat: "very-poor" },
                   { label: "Изключително лошо (6)", cat: "extremely-poor" },
                 ].map(({ label, cat }) => (
-                  <span key={cat} className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${aqiCategoryClasses(cat)}`}>
+                  <span
+                    key={cat}
+                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${aqiCategoryClasses(cat)}`}
+                  >
                     {label}
                   </span>
                 ))}
@@ -366,7 +374,9 @@ export default function AirQualityPage() {
             </>
           ) : (
             !statusLoading && (
-              <p className="text-neutral text-sm">Няма налични данни за последните 4 ч.</p>
+              <p className="text-neutral text-sm">
+                Няма налични данни за последните 4 ч.
+              </p>
             )
           )}
         </div>
@@ -397,5 +407,13 @@ export default function AirQualityPage() {
         onAddressClick={handleAddressClick}
       />
     </div>
+  );
+}
+
+export default function AirQualityPage() {
+  return (
+    <Suspense>
+      <AirQualityPageContent />
+    </Suspense>
   );
 }
