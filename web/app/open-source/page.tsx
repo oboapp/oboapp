@@ -58,10 +58,14 @@ export default async function OpenSourcePage() {
         </h1>
 
         <div className="space-y-8">
-          <LicenceSection />
-          <ContributorsSection contributors={contributors} />
-          <DepsSection />
-          <AISection />
+          <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-8">
+            <LicenceSection />
+            <DepsSection />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <ContributorsSection contributors={contributors} />
+            <AISection />
+          </div>
         </div>
       </div>
     </main>
