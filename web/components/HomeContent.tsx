@@ -368,6 +368,14 @@ export default function HomeContent() {
     deleteInterest,
   );
 
+  // Close the filter panel when zone creation mode becomes active
+  const { closePanel: closeFilterPanel } = categoryFilter;
+  useEffect(() => {
+    if (targetMode.active) {
+      closeFilterPanel();
+    }
+  }, [targetMode.active, closeFilterPanel]);
+
   // Handle feature click - update URL and select message
   const handleFeatureClick = useCallback(
     (messageId: string) => {

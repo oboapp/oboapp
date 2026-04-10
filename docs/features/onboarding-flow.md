@@ -46,8 +46,9 @@ without requiring a page refresh.
 permission prompt. When permission is not granted, logout skips FCM token cleanup
 to avoid requesting permission during sign-out.
 
-**Authenticated Users:** Land in the appropriate state based on their progress
-(`zoneCreation`, `notificationPrompt`, `blocked`, or `complete`).
+**Authenticated Users:** Signed-in (non-anonymous) users land in the appropriate state based on their progress
+(`zoneCreation`, `notificationPrompt`, `blocked`, or `complete`). Anonymous users are treated as unauthenticated
+and land in `idle` — the same clean state as first-time visitors.
 
 ## State Machine Diagram
 
@@ -55,11 +56,11 @@ to avoid requesting permission during sign-out.
 stateDiagram-v2
     [*] --> loading
 
-    loading --> idle : LOADED [!user]
-    loading --> zoneCreation : LOADED [user, zones=0]
-    loading --> notificationPrompt : LOADED [user, zones>0, permission=default]
-    loading --> blocked : LOADED [user, zones>0, permission=denied]
-    loading --> complete : LOADED [user, zones>0, permission=granted OR noAPI]
+    loading --> idle : LOADED [!signed-in user]
+    loading --> zoneCreation : LOADED [signed-in user, zones=0]
+    loading --> notificationPrompt : LOADED [signed-in user, zones>0, permission=default]
+    loading --> blocked : LOADED [signed-in user, zones>0, permission=denied]
+    loading --> complete : LOADED [signed-in user, zones>0, permission=granted OR noAPI]
 
     notificationPrompt --> blocked : PERMISSION_RESULT [denied]
     notificationPrompt --> loginPrompt : PERMISSION_RESULT [granted, !user]

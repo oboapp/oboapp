@@ -407,7 +407,7 @@ export function useOnboardingFlow(
     }
     return {
       permission: getNotificationPermission(),
-      isLoggedIn: user !== null,
+      isLoggedIn: user !== null && !user.isAnonymous,
       zonesCount: interests.length,
       hasSubscriptions,
       guestAvailable,
