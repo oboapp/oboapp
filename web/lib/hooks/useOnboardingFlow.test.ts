@@ -1,7 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
+import { renderHook, waitFor } from "@testing-library/react";
+import type { User } from "firebase/auth";
 import {
   onboardingReducer,
   computeStateFromContext,
+  useOnboardingFlow,
   OnboardingContext,
   OnboardingAction,
 } from "./useOnboardingFlow";
@@ -118,8 +121,8 @@ describe("computeStateFromContext", () => {
   });
 
   // Note: anonymous Firebase users are mapped to isLoggedIn=false in useOnboardingFlow's useMemo
-  // (user !== null && !user.isAnonymous), so they exercise the same "not logged in" code paths
-  // as the tests above. The derivation itself is covered by integration tests of the hook.
+  // (user !== null && !user.isAnonymous). The hook-level derivation is tested in the
+  // "useOnboardingFlow hook" describe block below.
 
   describe("when user is logged in", () => {
     it("returns zoneCreation when user has no zones", () => {
@@ -746,6 +749,60 @@ describe("onboardingReducer", () => {
       });
       expect(restartedState.state).toBe("zoneCreation");
       expect(restartedState.isDismissed).toBe(false);
+    });
+  });
+});
+
+describe("useOnboardingFlow hook", () => {
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it("treats an anonymous Firebase user as unauthenticated and lands in idle", async () => {
+    const anonymousUser = {
+      uid: "anon-123",
+      isAnonymous: true,
+      email: null,
+      displayName: null,
+      photoURL: null,
+    } as unknown as User;
+
+    const { result } = renderHook(() =>
+      useOnboardingFlow({
+        user: anonymousUser,
+        interests: [],
+        subscriptionsLoaded: true,
+        hasSubscriptions: false,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.state).toBe("idle");
+    });
+  });
+
+  it("treats a signed-in user with no zones as zoneCreation", async () => {
+    // computeAuthenticatedState short-circuits to "zoneCreation" when zonesCount===0,
+    // regardless of Notification.permission — no permission mock needed.
+    const signedInUser = {
+      uid: "user-456",
+      isAnonymous: false,
+      email: "user@example.com",
+      displayName: "Test User",
+      photoURL: null,
+    } as unknown as User;
+
+    const { result } = renderHook(() =>
+      useOnboardingFlow({
+        user: signedInUser,
+        interests: [],
+        subscriptionsLoaded: true,
+        hasSubscriptions: false,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.state).toBe("zoneCreation");
     });
   });
 });

@@ -63,8 +63,9 @@ stateDiagram-v2
     loading --> complete : LOADED [signed-in user, zones>0, permission=granted OR noAPI]
 
     notificationPrompt --> blocked : PERMISSION_RESULT [denied]
-    notificationPrompt --> loginPrompt : PERMISSION_RESULT [granted, !signed-in user]
-    notificationPrompt --> complete : PERMISSION_RESULT [granted, signed-in user, zones>0]
+    notificationPrompt --> zoneCreation : PERMISSION_RESULT [granted, zones=0, guestAvailable]
+    notificationPrompt --> loginPrompt : PERMISSION_RESULT [granted, zones=0, !guestAvailable]
+    notificationPrompt --> complete : PERMISSION_RESULT [granted, zones>0]
     notificationPrompt --> idle : DISMISS
 
     blocked --> zoneCreation : RE_EVALUATE [signed-in user, zones=0]
@@ -81,7 +82,9 @@ stateDiagram-v2
     zoneCreation --> idle : DISMISS
 
     idle --> notificationPrompt : RESTART [permission=default, !signed-in user]
-    idle --> loginPrompt : RESTART [permission!=default OR noAPI, !signed-in user]
+    idle --> blocked : RESTART [permission=denied, !signed-in user]
+    idle --> zoneCreation : RESTART [permission=granted OR noAPI, !signed-in user, guestAvailable]
+    idle --> loginPrompt : RESTART [permission=granted OR noAPI, !signed-in user, !guestAvailable]
     idle --> zoneCreation : RESTART [signed-in user, zones=0]
     idle --> notificationPrompt : RESTART [signed-in user, zones>0, permission=default]
     idle --> blocked : RESTART [signed-in user, zones>0, permission=denied]
