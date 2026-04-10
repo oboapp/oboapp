@@ -75,7 +75,7 @@ function SingleEventCard({ event }: { readonly event: Event }) {
         <p className="text-sm text-neutral leading-relaxed">{snippet}</p>
 
         {/* Timespan */}
-        {timespan && <p className="text-xs text-neutral">{timespan}</p>}
+        {timespan && <p className="text-sm text-neutral">{timespan}</p>}
       </div>
     </div>
   );

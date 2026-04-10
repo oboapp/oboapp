@@ -185,7 +185,7 @@ export default function MessageCard({
 
           {/* Timestamp */}
           {formattedDate && (
-            <p className="text-xs text-neutral break-words">{formattedDate}</p>
+            <p className="text-sm text-neutral break-words">{formattedDate}</p>
           )}
         </div>
 

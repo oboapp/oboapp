@@ -69,7 +69,7 @@ export default function NotificationsSection({
         >
           Филтри за известия
         </Link>
-        <p className="text-xs text-neutral mt-1">
+        <p className="text-sm text-neutral mt-1">
           Избери от кои категории и източници искаш да получаваш известия.
         </p>
       </div>

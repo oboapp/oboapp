@@ -153,7 +153,7 @@ export default function Locations({
                   <p className="text-sm font-medium text-foreground mb-1">
                     {street.street}
                   </p>
-                  <p className="text-xs text-neutral mb-1">
+                  <p className="text-sm text-neutral mb-1">
                     От: {street.from} → До: {street.to}
                   </p>
                   <TimespanList

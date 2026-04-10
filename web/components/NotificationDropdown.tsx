@@ -209,9 +209,9 @@ function NotificationItem({
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-1">
-            <span className="text-xs text-neutral">{formattedDate}</span>
+            <span className="text-sm text-neutral">{formattedDate}</span>
             {notification.distance !== undefined && (
-              <span className="text-xs text-neutral">
+              <span className="text-sm text-neutral">
                 {Math.round(notification.distance)}m
               </span>
             )}

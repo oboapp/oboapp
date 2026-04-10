@@ -22,7 +22,7 @@ export default function SourceLogo({
   if (error) {
     if (!showFallbackText) return null;
     return (
-      <span className="text-xs text-neutral truncate">
+      <span className="text-sm text-neutral truncate">
         {sourceInfo?.name || sourceId}
       </span>
     );

@@ -162,14 +162,14 @@ export default function UserMenu({ id, isOpen, onClose }: UserMenuProps) {
                 {userLabel || "Потребител"}
               </p>
               {!user && (
-                <p className="text-xs text-neutral truncate">
+                <p className="text-sm text-neutral truncate">
                   {guestAuthUnavailable
                     ? "Влез с Google, за да продължиш"
                     : "Изчакваме активна сесия"}
                 </p>
               )}
               {!isAnonymousUser && user?.displayName && user?.email && (
-                <p className="text-xs text-neutral truncate">{user.email}</p>
+                <p className="text-sm text-neutral truncate">{user.email}</p>
               )}
             </div>
           </div>

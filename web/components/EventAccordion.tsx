@@ -48,19 +48,19 @@ function MessageRow({
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-xs font-medium text-neutral-dark truncate">
+          <span className="text-sm font-medium text-neutral-dark truncate">
             {sourceInfo?.name || message.source || "Неизвестен"}
           </span>
           {eventMessage && (
             <span
-              className="text-xs text-neutral flex-shrink-0"
+              className="text-sm text-neutral flex-shrink-0"
               title="Увереност на съвпадението"
             >
               {formatConfidence(eventMessage.confidence)}
             </span>
           )}
         </div>
-        <p className="text-xs text-neutral leading-relaxed">{snippet}</p>
+        <p className="text-sm text-neutral leading-relaxed">{snippet}</p>
       </div>
     </div>
   );
@@ -89,7 +89,7 @@ function EventMessagesBody({ eventId }: { readonly eventId: string }) {
 
   if (error) {
     return (
-      <div className="px-3 py-2 text-xs text-error">
+      <div className="px-3 py-2 text-sm text-error">
         Грешка при зареждане на съобщенията.
       </div>
     );
@@ -97,7 +97,7 @@ function EventMessagesBody({ eventId }: { readonly eventId: string }) {
 
   if (!data || data.messages.length === 0) {
     return (
-      <div className="px-3 py-2 text-xs text-neutral">Няма съобщения.</div>
+      <div className="px-3 py-2 text-sm text-neutral">Няма съобщения.</div>
     );
   }
 
@@ -158,7 +158,7 @@ export default function EventAccordion({ event }: EventAccordionProps) {
             )}
 
             {/* Meta row: sources + timespan */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-neutral">
               {/* Source logos */}
               <div className="flex items-center gap-1">
                 {event.sources.map((sourceId) => (

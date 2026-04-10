@@ -12,7 +12,7 @@ export default function TimespanList({
   if (!timespans || timespans.length === 0) return null;
 
   return (
-    <div className="text-xs text-neutral space-y-1">
+    <div className="text-sm text-neutral space-y-1">
       {timespans.map((timespan, index) => (
         <div key={`${keyPrefix}-${timespan.start}-${timespan.end}-${index}`}>
           {timespan.start} - {timespan.end}

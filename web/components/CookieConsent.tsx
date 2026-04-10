@@ -34,7 +34,7 @@ export default function CookieConsent() {
       <div className="bg-white rounded-lg shadow-md py-1.5 px-3 sm:py-2 sm:px-4 sm:opacity-70 sm:hover:opacity-100 transition-opacity duration-200">
         {/* Mobile compact view with icon buttons */}
         <div className="flex sm:hidden items-center gap-2">
-          <p className="text-xs text-neutral flex-1">
+          <p className="text-sm text-neutral flex-1">
             Използваме бисквитки за анализ на трафика.
           </p>
           <div className="flex gap-1.5">
@@ -59,7 +59,7 @@ export default function CookieConsent() {
 
         {/* Desktop single-line view */}
         <div className="hidden sm:flex items-center gap-4">
-          <p className="text-xs text-neutral flex-1">
+          <p className="text-sm text-neutral flex-1">
             Използваме бисквитки за анализ на трафика.
           </p>
           <div className="flex gap-2 whitespace-nowrap">

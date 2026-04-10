@@ -229,7 +229,7 @@ function AirQualityPageContent() {
                 последните 4 часа.
               </p>
               {status && (
-                <p className="text-neutral text-xs mt-1">
+                <p className="text-neutral text-sm mt-1">
                   Обновено: {formatTimestamp(status.updatedAt)}
                 </p>
               )}
