@@ -100,10 +100,42 @@ jobs:
         working-directory: ./web
         run: pnpm test:run
 
+  build-web:
+    name: Build Web
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        working-directory: ./shared
+        run: pnpm build
+
+      - name: Next.js build
+        working-directory: ./web
+        run: pnpm build
+
   build-and-deploy:
     name: Build and Deploy to GCP
     runs-on: ubuntu-latest
-    needs: [dependency-check, test-ingest, test-web]
+    needs: [dependency-check, test-ingest, test-web, build-web]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     permissions:

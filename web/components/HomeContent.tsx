@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
   useEffect,
+  Suspense,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import MapContainer from "@/components/MapContainer";
@@ -74,7 +75,7 @@ const VIEW_MODE_OPTIONS_NO_USER = [
  *
  * This ensures the map is visible immediately while messages load based on viewport.
  */
-export default function HomeContent() {
+function HomeContentInner() {
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -730,5 +731,13 @@ export default function HomeContent() {
         />
       )}
     </div>
+  );
+}
+
+export default function HomeContent() {
+  return (
+    <Suspense>
+      <HomeContentInner />
+    </Suspense>
   );
 }

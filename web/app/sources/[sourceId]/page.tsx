@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, Suspense } from "react";
 import {
   useParams,
   useRouter,
@@ -17,7 +17,7 @@ import sourcesData from "@/lib/sources";
 import { extractHostname } from "@/lib/url-utils";
 import { navigateBackOrReplace } from "@/lib/navigation-utils";
 
-export default function SourcePage() {
+function SourcePageContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -189,5 +189,13 @@ export default function SourcePage() {
         onAddressClick={handleAddressClick}
       />
     </div>
+  );
+}
+
+export default function SourcePage() {
+  return (
+    <Suspense>
+      <SourcePageContent />
+    </Suspense>
   );
 }

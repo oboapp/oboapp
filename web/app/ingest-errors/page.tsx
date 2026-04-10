@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import Link from "next/link";
@@ -121,7 +121,7 @@ const fetchIngestErrors = async ({
   return response.json();
 };
 
-export default function IngestErrorsPage() {
+function IngestErrorsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -288,5 +288,13 @@ export default function IngestErrorsPage() {
         }}
       />
     </div>
+  );
+}
+
+export default function IngestErrorsPage() {
+  return (
+    <Suspense>
+      <IngestErrorsPageContent />
+    </Suspense>
   );
 }
