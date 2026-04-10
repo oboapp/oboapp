@@ -57,15 +57,15 @@ export default async function OpenSourcePage() {
           OboApp е отворен
         </h1>
 
-        <div className="space-y-8">
-          <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-8 items-start">
+          <div className="space-y-8">
             <LicenceSection />
-            <DepsSection />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+              <ContributorsSection contributors={contributors} />
+              <AISection />
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <ContributorsSection contributors={contributors} />
-            <AISection />
-          </div>
+          <DepsSection />
         </div>
       </div>
     </main>
