@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { trackEvent } from "@/lib/analytics";
 
 interface FooterProps {
   readonly className?: string;
@@ -9,6 +8,7 @@ interface FooterProps {
 
 const NAV_LINKS = [
   { href: "/kak-se-rodi", label: "Как се роди?" },
+  { href: "/open-source", label: "OboApp е отворен" },
   { href: "/sources", label: "Източници на данни" },
   { href: "/ingest-errors", label: "Съобщения с грешки" },
   { href: "/history", label: "Исторически данни" },
@@ -37,31 +37,6 @@ export default function Footer({ className = "" }: FooterProps) {
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Footer Text */}
-        <div className="mt-8 pt-6 border-t border-neutral-border text-center text-sm text-neutral">
-          <p>
-            <a
-              href="https://github.com/vbuch/oboapp"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-link hover:text-link-hover hover:underline"
-              onClick={() => {
-                trackEvent({
-                  name: "external_link_clicked",
-                  params: {
-                    url: "https://github.com/vbuch/oboapp",
-                    location: "footer",
-                    link_text: "Отворен код",
-                  },
-                });
-              }}
-            >
-              Отворен код
-            </a>
-            с ❤️ за София.
-          </p>
         </div>
       </div>
     </footer>
