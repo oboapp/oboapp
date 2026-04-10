@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Sofia_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import ClientLayout from "@/components/ClientLayout";
 import {
@@ -11,8 +11,19 @@ import {
 } from "@/lib/pwa-metadata";
 import { getConfiguredLocalityDescription } from "@/lib/locality-metadata";
 
-const sofiaSans = Sofia_Sans({
-  subsets: ["latin", "cyrillic"],
+const sofiaSans = localFont({
+  src: [
+    {
+      path: "../public/fonts/sofia-sans-latin-wght-normal.woff2",
+      weight: "1 1000",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/sofia-sans-cyrillic-wght-normal.woff2",
+      weight: "1 1000",
+      style: "normal",
+    },
+  ],
   variable: "--font-sofia-sans",
   display: "swap",
 });
