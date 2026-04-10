@@ -106,7 +106,7 @@ const mapStyles = [
   },
 ];
 
-export default function MapComponent({
+function MapLoaded({
   messages,
   onFeatureClick,
   onMapReady,
@@ -286,11 +286,7 @@ export default function MapComponent({
 
   return (
     <div className="absolute inset-0">
-      {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
-        <div className="w-full h-full flex items-center justify-center bg-neutral-light">
-          <p className="text-destructive">Няма настроен ключ за Google Maps API</p>
-        </div>
-      ) : loadError ? (
+      {loadError ? (
         <div
           role="status"
           className="w-full h-full flex flex-col items-center justify-center bg-neutral-light gap-3"
@@ -408,4 +404,15 @@ export default function MapComponent({
       )}
     </div>
   );
+}
+
+export default function MapComponent(props: MapComponentProps) {
+  if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-neutral-light">
+        <p className="text-destructive">Няма настроен ключ за Google Maps API</p>
+      </div>
+    );
+  }
+  return <MapLoaded {...props} />;
 }

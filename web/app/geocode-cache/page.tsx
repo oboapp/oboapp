@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { GoogleMap, Marker, Polyline } from "@react-google-maps/api";
+import { GoogleMap, Marker, Polyline, useJsApiLoader } from "@react-google-maps/api";
 import { getButtonClasses } from "@/lib/theme";
 import { zIndex } from "@/lib/colors";
 
@@ -109,6 +109,74 @@ const COLORS = [
   "#7C3AED",
 ];
 
+function GeometryMap({
+  data,
+  mapRef,
+}: {
+  data: GeometryData | null;
+  mapRef: React.MutableRefObject<google.maps.Map | null>;
+}) {
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
+    preventGoogleFontsLoading: true,
+  });
+
+  if (loadError) {
+    return (
+      <div className="h-[360px] flex items-center justify-center bg-neutral-light">
+        <p className="text-sm text-destructive">Картата не е достъпна</p>
+      </div>
+    );
+  }
+
+  if (!isLoaded) {
+    return <div className="h-[360px] bg-neutral-border animate-pulse" />;
+  }
+
+  return (
+    <GoogleMap
+      mapContainerStyle={MAP_CONTAINER_STYLE}
+      center={SOFIA_CENTER}
+      zoom={14}
+      options={MAP_OPTIONS}
+      onLoad={(map) => {
+        mapRef.current = map;
+      }}
+    >
+      {data?.type === "pin" &&
+        data.items.map((item, i) => (
+          <Marker
+            key={item.messageId}
+            position={{ lat: item.lat, lng: item.lng }}
+            icon={{
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 8,
+              fillColor: COLORS[i % COLORS.length],
+              fillOpacity: 1,
+              strokeColor: "#fff",
+              strokeWeight: 2,
+            }}
+            title={`${item.formattedAddress} (${item.messageId})`}
+          />
+        ))}
+      {data?.type === "street" &&
+        data.items.flatMap((item, i) =>
+          item.coordinates.map((line, j) => (
+            <Polyline
+              key={`${item.messageId}-${j}`}
+              path={line}
+              options={{
+                strokeColor: COLORS[i % COLORS.length],
+                strokeWeight: 4,
+                strokeOpacity: 0.85,
+              }}
+            />
+          )),
+        )}
+    </GoogleMap>
+  );
+}
+
 function GeometryPanel({
   entry,
   type,
@@ -214,46 +282,7 @@ function GeometryPanel({
       {/* Map */}
       <div className="border-b border-neutral-border">
         {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? (
-          <GoogleMap
-            mapContainerStyle={MAP_CONTAINER_STYLE}
-            center={SOFIA_CENTER}
-            zoom={14}
-            options={MAP_OPTIONS}
-            onLoad={(map) => {
-              mapRef.current = map;
-            }}
-          >
-            {data?.type === "pin" &&
-              data.items.map((item, i) => (
-                <Marker
-                  key={item.messageId}
-                  position={{ lat: item.lat, lng: item.lng }}
-                  icon={{
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 8,
-                    fillColor: COLORS[i % COLORS.length],
-                    fillOpacity: 1,
-                    strokeColor: "#fff",
-                    strokeWeight: 2,
-                  }}
-                  title={`${item.formattedAddress} (${item.messageId})`}
-                />
-              ))}
-            {data?.type === "street" &&
-              data.items.flatMap((item, i) =>
-                item.coordinates.map((line, j) => (
-                  <Polyline
-                    key={`${item.messageId}-${j}`}
-                    path={line}
-                    options={{
-                      strokeColor: COLORS[i % COLORS.length],
-                      strokeWeight: 4,
-                      strokeOpacity: 0.85,
-                    }}
-                  />
-                )),
-              )}
-          </GoogleMap>
+          <GeometryMap data={data} mapRef={mapRef} />
         ) : (
           <div className="h-[360px] flex items-center justify-center bg-neutral-light">
             <p className="text-sm text-neutral/60">
