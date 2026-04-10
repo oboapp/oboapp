@@ -25,13 +25,15 @@ describe("SubscribeDevicePrompt warning text", () => {
     );
 
     expect(
-      screen.getByText(
+      screen.getByText((_, el) =>
+        el?.textContent ===
         "Няма абонамент за известия на това устройство. Това е основната задача на OboApp. Абонирай се!",
       ),
     ).toBeInTheDocument();
 
     expect(
-      screen.queryByText(
+      screen.queryByText((_, el) =>
+        el?.textContent ===
         "Няма абонамент за известия на нито едно устройство. Това е основната задача на OboApp. Абонирай се!",
       ),
     ).not.toBeInTheDocument();
@@ -47,7 +49,8 @@ describe("SubscribeDevicePrompt warning text", () => {
     );
 
     expect(
-      screen.getByText(
+      screen.getByText((_, el) =>
+        el?.textContent ===
         "Няма абонамент за известия на нито едно устройство. Това е основната задача на OboApp. Абонирай се!",
       ),
     ).toBeInTheDocument();
