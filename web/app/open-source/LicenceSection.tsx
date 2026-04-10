@@ -26,9 +26,9 @@ export default function LicenceSection() {
         — можеш да правиш каквото искаш с кода:
       </p>
       <ul className="list-disc list-inside space-y-1 text-neutral mb-6">
-        <li lang="en">host it</li>
-        <li lang="en">fork it</li>
         <li lang="en">contribute</li>
+        <li lang="en">fork it</li>
+        <li lang="en">host it</li>
       </ul>
       <div className="flex flex-wrap gap-4 items-center mb-6">
         <a
