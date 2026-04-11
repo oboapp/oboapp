@@ -56,14 +56,16 @@ const withMDX = createMDX({
 
 const config = withMDX(nextConfig);
 
-// withSentryConfig is a build-time concern (source map uploads).
-// Runtime error capture works via sentry.*.config.ts regardless of this wrapper.
-// Gate on SENTRY_AUTH_TOKEN so local dev with only a DSN gets a vanilla build.
-export default process.env.SENTRY_AUTH_TOKEN
-  ? withSentryConfig(config, {
-      org: process.env.SENTRY_ORG,
-      project: process.env.SENTRY_PROJECT,
-      silent: !process.env.CI,
-      disableLogger: true,
-    })
-  : config;
+// Always apply withSentryConfig so the client bundle is correctly instrumented
+// (sentry.client.config.ts is injected by the wrapper, not loaded automatically).
+// Source map uploads only happen in CI when SENTRY_AUTH_TOKEN is present.
+export default withSentryConfig(config, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.CI,
+  disableLogger: true,
+  sourcemaps: {
+    disable: !process.env.SENTRY_AUTH_TOKEN,
+  },
+});

@@ -22,6 +22,19 @@ export function initSentry(): void {
   // Forward every logger.error() call to Sentry so structured error logs
   // appear in Sentry alongside automatically captured unhandled exceptions.
   setErrorReporter((message, extra) => {
-    Sentry.captureMessage(message, { level: "error", extra });
+    Sentry.withScope((scope) => {
+      scope.setExtra("loggerMessage", message);
+      if (extra) {
+        for (const [key, value] of Object.entries(extra)) {
+          scope.setExtra(key, value);
+        }
+      }
+      // Use captureException when an Error is present to preserve the stack trace
+      if (extra?.error instanceof Error) {
+        Sentry.captureException(extra.error);
+      } else {
+        Sentry.captureMessage(message, "error");
+      }
+    });
   });
 }
