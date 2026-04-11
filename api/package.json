@@ -17,6 +17,7 @@
     "@hono/node-server": "^1.19.9",
     "@oboapp/db": "workspace:*",
     "@oboapp/shared": "workspace:*",
+    "@sentry/node": "^10.48.0",
     "@turf/center": "^7.3.1",
     "@turf/helpers": "^7.3.4",
     "@turf/turf": "^7.3.1",

@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import { verifyEnvSet, verifyDbEnv } from "@/lib/verify-env";
 import { readdirSync, statSync } from "node:fs";
 import { logger } from "@/lib/logger";
+import { initSentry } from "@/lib/sentry";
 
 const program = new Command();
 
@@ -168,6 +169,7 @@ Examples:
   .action(async (options) => {
     // Ensure environment variables are loaded and required keys are present
     dotenv.config({ path: resolve(process.cwd(), ".env.local") });
+    initSentry();
     verifyDbEnv();
     verifyEnvSet([
       "GOOGLE_AI_API_KEY",

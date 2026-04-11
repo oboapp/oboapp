@@ -14,6 +14,14 @@
  *   - **error** – failures that need attention.
  */
 
+type ErrorReporter = (message: string, extra?: Record<string, unknown>) => void;
+let errorReporter: ErrorReporter | null = null;
+
+/** Register a callback to be invoked for every error-level log entry. */
+export function setErrorReporter(reporter: ErrorReporter): void {
+  errorReporter = reporter;
+}
+
 const isProduction = process.env.NODE_ENV === "production";
 const showDebug =
   isProduction || process.env.LOG_LEVEL?.toLowerCase() === "debug";
@@ -60,5 +68,6 @@ export const logger = {
   },
   error(message: string, extra?: Record<string, unknown>) {
     write({ severity: "ERROR", message, ...extra });
+    errorReporter?.(message, extra);
   },
 };

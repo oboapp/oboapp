@@ -15,6 +15,11 @@ region             = "europe-west1"
 # GCS bucket for general-purpose file storage (leave empty to disable)
 # gcs_generic_bucket = "your-project-gcs-bucket"
 
+# Sentry DSN secret name in Secret Manager (leave empty to disable Sentry)
+# First create the secret: gcloud secrets create sentry-dsn --replication-policy=automatic
+# Then add the value:      gcloud secrets versions add sentry-dsn --data-file=<(echo -n "https://...@sentry.io/...")
+# sentry_dsn_secret_id = "sentry-dsn"
+
 # Customize schedules (cron format: minute hour day month weekday)
 # Examples:
 #   "0 6 * * *"   - Daily at 6:00 AM

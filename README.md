@@ -15,12 +15,13 @@ The shared package builds automatically via postinstall hook. Dependencies are m
 
 ## Project Structure
 
-This monorepo contains four packages:
+This monorepo contains multiple packages:
 
 - **[shared/](shared)** - Shared TypeScript schemas (Zod) used by both web and ingest
 - **[db/](db)** - Database abstraction layer (`@oboapp/db`) — dual-write over Firestore and MongoDB
 - **[ingest/](ingest)** - Automated data collection and processing pipeline
 - **[web/](web)** - Next.js web application
+- **[api/](api)** - Public REST API (Hono, deployed to Vercel)
 
 ## How It Works
 

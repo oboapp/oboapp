@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import dotenv from "dotenv";
 import { verifyEnvSet, verifyDbEnv } from "@/lib/verify-env";
 import { logger } from "@/lib/logger";
+import { initSentry } from "@/lib/sentry";
 
 const program = new Command();
 
@@ -30,6 +31,7 @@ Examples:
   .action(async () => {
     // Ensure environment variables are loaded and required keys are present
     dotenv.config({ path: resolve(process.cwd(), ".env.local") });
+    initSentry();
     verifyDbEnv();
     verifyEnvSet(["APP_URL"]);
 

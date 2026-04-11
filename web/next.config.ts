@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import createMDX from "@next/mdx";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -53,4 +54,15 @@ const withMDX = createMDX({
   // Add markdown plugins here, as desired
 });
 
-export default withMDX(nextConfig);
+const config = withMDX(nextConfig);
+
+// Wrap with Sentry only when a DSN is configured, so self-hosters without
+// a Sentry account get a vanilla build with no Sentry webpack overhead.
+export default process.env.NEXT_PUBLIC_SENTRY_DSN
+  ? withSentryConfig(config, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      silent: !process.env.CI,
+      disableLogger: true,
+    })
+  : config;

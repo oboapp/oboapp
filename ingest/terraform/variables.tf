@@ -74,6 +74,12 @@ variable "ci_service_account_email" {
   type        = string
 }
 
+variable "sentry_dsn_secret_id" {
+  description = "Secret Manager secret ID for the Sentry DSN. Leave empty to disable Sentry error monitoring."
+  type        = string
+  default     = ""
+}
+
 variable "gcs_generic_bucket" {
   description = "GCS bucket name for general-purpose file storage (air quality readings, geocode cache reports, etc.)"
   type        = string

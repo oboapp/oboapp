@@ -176,7 +176,16 @@ data "google_secret_manager_secret" "google_maps_api_key" {
 data "google_secret_manager_secret" "google_embedding_model" {
   secret_id = "google-embedding-model"
   project   = var.project_id
-  
+
+  depends_on = [google_project_service.secretmanager]
+}
+
+# Optional: Sentry DSN for error monitoring (set sentry_dsn_secret_id to enable)
+data "google_secret_manager_secret" "sentry_dsn" {
+  count     = var.sentry_dsn_secret_id != "" ? 1 : 0
+  secret_id = var.sentry_dsn_secret_id
+  project   = var.project_id
+
   depends_on = [google_project_service.secretmanager]
 }
 
@@ -440,8 +449,21 @@ resource "google_cloud_run_v2_job" "crawlers" {
           name  = "GCS_GENERIC_BUCKET"
           value = var.gcs_generic_bucket
         }
+
+        dynamic "env" {
+          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          content {
+            name = "SENTRY_DSN"
+            value_source {
+              secret_key_ref {
+                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                version = "latest"
+              }
+            }
+          }
+        }
       }
-      
+
       max_retries = 1
     }
   }
@@ -547,8 +569,21 @@ resource "google_cloud_run_v2_job" "ingest" {
           name  = "LOCALITY"
           value = var.locality
         }
+
+        dynamic "env" {
+          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          content {
+            name = "SENTRY_DSN"
+            value_source {
+              secret_key_ref {
+                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                version = "latest"
+              }
+            }
+          }
+        }
       }
-      
+
       max_retries = 1
     }
   }
@@ -644,8 +679,21 @@ resource "google_cloud_run_v2_job" "notify" {
           name  = "LOCALITY"
           value = var.locality
         }
+
+        dynamic "env" {
+          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          content {
+            name = "SENTRY_DSN"
+            value_source {
+              secret_key_ref {
+                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                version = "latest"
+              }
+            }
+          }
+        }
       }
-      
+
       max_retries = 1
     }
   }
@@ -743,8 +791,21 @@ resource "google_cloud_run_v2_job" "pipeline_emergent" {
           name  = "LOCALITY"
           value = var.locality
         }
+
+        dynamic "env" {
+          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          content {
+            name = "SENTRY_DSN"
+            value_source {
+              secret_key_ref {
+                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                version = "latest"
+              }
+            }
+          }
+        }
       }
-      
+
       max_retries = 1
     }
   }
@@ -840,8 +901,21 @@ resource "google_cloud_run_v2_job" "pipeline_all" {
           name  = "LOCALITY"
           value = var.locality
         }
+
+        dynamic "env" {
+          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          content {
+            name = "SENTRY_DSN"
+            value_source {
+              secret_key_ref {
+                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                version = "latest"
+              }
+            }
+          }
+        }
       }
-      
+
       max_retries = 1
     }
   }
@@ -959,8 +1033,21 @@ resource "google_cloud_run_v2_job" "gtfs_sync" {
           name  = "LOCALITY"
           value = var.locality
         }
+
+        dynamic "env" {
+          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          content {
+            name = "SENTRY_DSN"
+            value_source {
+              secret_key_ref {
+                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                version = "latest"
+              }
+            }
+          }
+        }
       }
-      
+
       max_retries = 1
     }
   }
@@ -1046,6 +1133,19 @@ resource "google_cloud_run_v2_job" "educational_facilities_sync" {
         env {
           name  = "LOCALITY"
           value = var.locality
+        }
+
+        dynamic "env" {
+          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          content {
+            name = "SENTRY_DSN"
+            value_source {
+              secret_key_ref {
+                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                version = "latest"
+              }
+            }
+          }
         }
       }
 
@@ -1170,6 +1270,19 @@ resource "google_cloud_run_v2_job" "air_quality_fetch" {
           name  = "GCS_GENERIC_BUCKET"
           value = var.gcs_generic_bucket
         }
+
+        dynamic "env" {
+          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          content {
+            name = "SENTRY_DSN"
+            value_source {
+              secret_key_ref {
+                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                version = "latest"
+              }
+            }
+          }
+        }
       }
 
       max_retries = 1
@@ -1265,6 +1378,19 @@ resource "google_cloud_run_v2_job" "geocode_frequency_report" {
         env {
           name  = "GCS_GENERIC_BUCKET"
           value = var.gcs_generic_bucket
+        }
+
+        dynamic "env" {
+          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          content {
+            name = "SENTRY_DSN"
+            value_source {
+              secret_key_ref {
+                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                version = "latest"
+              }
+            }
+          }
         }
       }
 
