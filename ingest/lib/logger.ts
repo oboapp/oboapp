@@ -68,6 +68,10 @@ export const logger = {
   },
   error(message: string, extra?: Record<string, unknown>) {
     write({ severity: "ERROR", message, ...extra });
-    errorReporter?.(message, extra);
+    try {
+      errorReporter?.(message, extra);
+    } catch {
+      // Reporter failures must never crash the process or mask the original error
+    }
   },
 };
