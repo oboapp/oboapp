@@ -4,6 +4,7 @@ import LicenceSection from "./LicenceSection";
 import ContributorsSection from "./ContributorsSection";
 import DepsSection from "./DepsSection";
 import AISection from "./AISection";
+import SponsorsSection from "./SponsorsSection";
 
 export const revalidate = 86400;
 
@@ -63,6 +64,7 @@ export default async function OpenSourcePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
               <ContributorsSection contributors={contributors} />
               <AISection />
+              <SponsorsSection />
             </div>
           </div>
           <DepsSection />
