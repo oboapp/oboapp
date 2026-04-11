@@ -22,7 +22,7 @@ export default function GitHubRepoLink() {
       }}
     >
       <GitHubIcon className="size-4 shrink-0" />
-      vbuch/oboapp в GitHub
+      oboapp в GitHub
     </a>
   );
 }

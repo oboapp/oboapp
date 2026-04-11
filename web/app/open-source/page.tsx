@@ -3,6 +3,7 @@ import Link from "next/link";
 import LicenceSection from "./LicenceSection";
 import ContributorsSection from "./ContributorsSection";
 import DepsSection from "./DepsSection";
+import OpenDataSection from "./OpenDataSection";
 import AISection from "./AISection";
 import SponsorsSection from "./SponsorsSection";
 
@@ -63,11 +64,14 @@ export default async function OpenSourcePage() {
             <LicenceSection />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
               <ContributorsSection contributors={contributors} />
-              <AISection />
               <SponsorsSection />
+              <AISection />
             </div>
           </div>
-          <DepsSection />
+          <div className="space-y-8">
+            <DepsSection />
+            <OpenDataSection />
+          </div>
         </div>
       </div>
     </main>

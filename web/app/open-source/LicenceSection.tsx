@@ -1,4 +1,3 @@
-import ExternalLinkIcon from "@/components/icons/ExternalLinkIcon";
 import GitHubRepoLink from "./GitHubRepoLink";
 
 export default function LicenceSection() {
@@ -30,26 +29,6 @@ export default function LicenceSection() {
         <li lang="en">fork it</li>
         <li lang="en">host it</li>
       </ul>
-      <div className="flex flex-wrap gap-4 items-center mb-6">
-        <a
-          href="https://www.facebook.com/valery.buchinsky/posts/pfbid0DNVQJ9RgUKmjabwKAccm7MqVNX2Lu3icgCiXu8Vg9dszpdf4LDMsesqYnfoe16kSl"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-link hover:text-link-hover hover:underline text-sm"
-        >
-          Публикация във Facebook
-          <ExternalLinkIcon className="size-3" />
-        </a>
-        <a
-          href="https://www.linkedin.com/feed/update/urn:li:activity:7422898120201568256/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-link hover:text-link-hover hover:underline text-sm"
-        >
-          Публикация в LinkedIn
-          <ExternalLinkIcon className="size-3" />
-        </a>
-      </div>
       <GitHubRepoLink />
     </section>
   );

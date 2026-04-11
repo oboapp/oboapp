@@ -48,12 +48,13 @@ export default function AISection() {
         ))}
       </ul>
       <p className="mt-4 text-sm text-neutral">
-        * Възможно е да са участвали и други, но тези виждаме в{" "}
+        * Възможно е да са участвали и други, но тези са видими в{" "}
         <a
           href="https://github.com/vbuch/oboapp/graphs/contributors"
           target="_blank"
           rel="noopener noreferrer"
           className="text-link hover:text-link-hover hover:underline"
+          lang="en"
         >
           Contributors
         </a>

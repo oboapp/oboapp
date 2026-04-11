@@ -45,9 +45,6 @@ export default function DepsSection() {
       <h2 id="deps-heading" className="text-2xl font-bold text-foreground mb-2">
         Направено върху отворен код
       </h2>
-      <p className="text-sm text-neutral mb-6">
-        Специално внимание заслужават проектите, поддържани от един човек.
-      </p>
       <ul className="space-y-4">
         {DEPS.map((dep) => (
           <li
