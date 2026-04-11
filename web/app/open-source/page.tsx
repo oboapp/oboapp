@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
+import { APP_NAME } from "@/lib/pwa-metadata";
 import LicenceSection from "./LicenceSection";
 import ContributorsSection from "./ContributorsSection";
 import DepsSection from "./DepsSection";
@@ -9,10 +10,26 @@ import SponsorsSection from "./SponsorsSection";
 
 export const revalidate = 86400;
 
+const PAGE_TITLE = `${APP_NAME} е отворен | ${APP_NAME}`;
+const PAGE_DESCRIPTION =
+  `${APP_NAME} е отворен код. Вижте лиценза, библиотеките, на които се крепи, и хората, които го изграждат.`;
+
 export const metadata: Metadata = {
-  title: "OboApp е отворен | OboApp",
-  description:
-    "OboApp е отворен код. Вижте лиценза, библиотеките, на които се крепи, и хората, които го изграждат.",
+  title: PAGE_TITLE,
+  description: PAGE_DESCRIPTION,
+  openGraph: {
+    title: PAGE_TITLE,
+    description: PAGE_DESCRIPTION,
+    url: "/open-source",
+    siteName: APP_NAME,
+    locale: "bg_BG",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: PAGE_TITLE,
+    description: PAGE_DESCRIPTION,
+  },
 };
 
 interface GitHubContributor {
@@ -56,7 +73,7 @@ export default async function OpenSourcePage() {
         </div>
 
         <h1 className="text-3xl font-bold text-foreground mb-8">
-          OboApp е отворен
+          {APP_NAME} е отворен
         </h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-8 items-start">

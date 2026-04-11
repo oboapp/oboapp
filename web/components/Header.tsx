@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { zIndex } from "@/lib/colors";
+import { APP_NAME } from "@/lib/pwa-metadata";
 import UserMenu from "@/components/UserMenu";
 import NotificationBell from "@/components/NotificationBell";
 import UserSilhouetteIcon from "@/components/icons/UserSilhouetteIcon";
@@ -46,7 +47,7 @@ export default function Header() {
                   >
                     <Image
                       src="/logo.png"
-                      alt="OboApp"
+                      alt={APP_NAME}
                       width={96}
                       height={96}
                       className="h-9 sm:h-16 md:h-20 w-auto object-contain"
@@ -58,7 +59,7 @@ export default function Header() {
               </Link>
               <div>
                 <h1 className="text-sm sm:text-base md:text-lg font-bold" translate="no">
-                  OboApp
+                  {APP_NAME}
                 </h1>
               </div>
             </div>

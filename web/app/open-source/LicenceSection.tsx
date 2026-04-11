@@ -1,4 +1,5 @@
 import GitHubRepoLink from "./GitHubRepoLink";
+import { APP_NAME } from "@/lib/pwa-metadata";
 
 export default function LicenceSection() {
   return (
@@ -13,7 +14,7 @@ export default function LicenceSection() {
         Лиценз: Unlicense
       </h2>
       <p className="text-neutral mb-4">
-        OboApp е публикуван под{" "}
+        {APP_NAME} е публикуван под{" "}
         <a
           href="https://github.com/vbuch/oboapp/blob/main/LICENSE"
           target="_blank"

@@ -4,9 +4,10 @@ import { getCurrentLocalitySources } from "@/lib/source-utils";
 import geocodingSources from "@/lib/geocoding.json";
 import SourceCard from "@/components/SourceCard";
 import GeocodingSourceCard from "@/components/GeocodingSourceCard";
+import { APP_NAME } from "@/lib/pwa-metadata";
 
 export const metadata: Metadata = {
-  title: "Източници - OboApp",
+  title: `Източници - ${APP_NAME}`,
   description: "Източници на данни за събития и уведомления",
 };
 

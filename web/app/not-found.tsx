@@ -1,8 +1,9 @@
 import { Metadata } from "next";
 import NotFoundLayout from "@/components/NotFoundLayout";
+import { APP_NAME } from "@/lib/pwa-metadata";
 
 export const metadata: Metadata = {
-  title: "Страницата не е намерена - OboApp",
+  title: `Страницата не е намерена - ${APP_NAME}`,
   description: "Страницата, която търсите, не съществува.",
 };
 

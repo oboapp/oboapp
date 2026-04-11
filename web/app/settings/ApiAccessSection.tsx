@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { buttonStyles, buttonSizes } from "@/lib/theme";
+import { APP_NAME } from "@/lib/pwa-metadata";
 import { borderRadius } from "@/lib/colors";
 import type { ApiClient } from "@/lib/types";
 
@@ -76,7 +77,7 @@ export default function ApiAccessSection({
         Публичен API достъп
       </h2>
       <p className="text-neutral text-sm mb-4">
-        API ключът ви позволява достъп до публичните данни на <span translate="no">OboApp</span> от ваши
+        API ключът ви позволява достъп до публичните данни на <span translate="no">{APP_NAME}</span> от ваши
         приложения. Вижте{" "}
         <a
           href="https://api.oboapp.online/v1/docs"

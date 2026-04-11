@@ -6,6 +6,7 @@ import {
   getNotificationInstructions,
   PlatformInfo,
 } from "@/lib/platform-detection";
+import { APP_NAME } from "@/lib/pwa-metadata";
 import { buttonStyles, buttonSizes } from "@/lib/theme";
 import { borderRadius } from "@/lib/colors";
 
@@ -41,8 +42,8 @@ export default function SubscribeDevicePrompt({
         {hasAnySubscriptions
           ? "Текущото устройство не е абонирано за известия."
           : isGuestUser
-            ? <>Няма абонамент за известия на това устройство. Това е основната задача на <span translate="no">OboApp</span>. Абонирай се!</>
-            : <>Няма абонамент за известия на нито едно устройство. Това е основната задача на <span translate="no">OboApp</span>. Абонирай се!</>}
+            ? <>Няма абонамент за известия на това устройство. Това е основната задача на <span translate="no">{APP_NAME}</span>. Абонирай се!</>
+            : <>Няма абонамент за известия на нито едно устройство. Това е основната задача на <span translate="no">{APP_NAME}</span>. Абонирай се!</>}
       </p>
 
       {platformInfo.requiresPWAInstall && (

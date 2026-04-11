@@ -35,16 +35,14 @@ export const metadata: Metadata = {
   openGraph: {
     title: APP_NAME,
     description,
-    images: [PWA_ICON_PATHS.icon512],
     locale: "bg_BG",
     type: "website",
     siteName: APP_NAME,
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: APP_NAME,
     description,
-    images: [PWA_ICON_PATHS.icon512],
   },
 };
 

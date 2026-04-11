@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import sourcesData from "@/lib/sources";
+import { APP_NAME } from "@/lib/pwa-metadata";
 
 interface Props {
   children: React.ReactNode;
@@ -15,21 +16,20 @@ export async function generateMetadata({
 
   if (!source) {
     return {
-      title: "Източник не е намерен - OboApp",
+      title: `Източник не е намерен - ${APP_NAME}`,
     };
   }
 
-  const baseUrl = "https://oboapp.online";
-  const logoUrl = `${baseUrl}/sources/${source.id}.png`;
+  const logoUrl = `/sources/${source.id}.png`;
 
   return {
-    title: `${source.name} - OboApp`,
+    title: `${source.name} - ${APP_NAME}`,
     description: `Последни съобщения от ${source.name}`,
     openGraph: {
-      title: `${source.name} - OboApp`,
+      title: `${source.name} - ${APP_NAME}`,
       description: `Последни съобщения от ${source.name}`,
-      url: `${baseUrl}/sources/${source.id}`,
-      siteName: "OboApp",
+      url: `/sources/${source.id}`,
+      siteName: APP_NAME,
       images: [
         {
           url: logoUrl,
@@ -43,9 +43,9 @@ export async function generateMetadata({
     },
     twitter: {
       card: "summary",
-      title: `${source.name} - OboApp`,
+      title: `${source.name} - ${APP_NAME}`,
       description: `Последни съобщения от ${source.name}`,
-      images: [logoUrl],
+      images: [{ url: logoUrl }],
     },
   };
 }

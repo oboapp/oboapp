@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { APP_NAME } from "@/lib/pwa-metadata";
 
 interface FooterProps {
   readonly className?: string;
@@ -8,7 +9,7 @@ interface FooterProps {
 
 const NAV_LINKS = [
   { href: "/kak-se-rodi", label: "Как се роди?" },
-  { href: "/open-source", label: "OboApp е отворен" },
+  { href: "/open-source", label: `${APP_NAME} е отворен` },
   { href: "/sources", label: "Източници на данни" },
   { href: "/ingest-errors", label: "Съобщения с грешки" },
   { href: "/history", label: "Исторически данни" },
@@ -23,7 +24,7 @@ export default function Footer({ className = "" }: FooterProps) {
         {/* Navigation links — 1 col mobile, 2 col sm, 3 col lg */}
         <div>
           <h3 className="font-bold text-lg mb-4 text-foreground">
-            За <span translate="no">OboApp</span>
+            За <span translate="no">{APP_NAME}</span>
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 text-sm">
             {NAV_LINKS.map(({ href, label }) => (

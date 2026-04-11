@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { APP_NAME } from "@/lib/pwa-metadata";
 
 export default function SplashScreen() {
   const [logoError, setLogoError] = useState(false);
@@ -13,7 +14,7 @@ export default function SplashScreen() {
           <div className="animate-pulse">
             <Image
               src="/logo.png"
-              alt="OboApp"
+              alt={APP_NAME}
               width={120}
               height={120}
               onError={() => setLogoError(true)}

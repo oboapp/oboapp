@@ -1,4 +1,5 @@
 import SentryIcon from "@/components/icons/SentryIcon";
+import { APP_NAME } from "@/lib/pwa-metadata";
 
 export default function SponsorsSection() {
   return (
@@ -30,7 +31,7 @@ export default function SponsorsSection() {
         </li>
       </ul>
       <p className="mt-4 text-sm text-neutral">
-        Sentry спонсорира OboApp с безплатен акаунт за проследяване на грешки
+        Sentry спонсорира {APP_NAME} с безплатен акаунт за проследяване на грешки
         като отворен код.
       </p>
     </section>

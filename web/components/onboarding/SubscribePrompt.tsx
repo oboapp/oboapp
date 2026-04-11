@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { buttonStyles, buttonSizes } from "@/lib/theme";
+import { APP_NAME } from "@/lib/pwa-metadata";
 import { borderRadius, zIndex } from "@/lib/colors";
 
 interface SubscribePromptProps {
@@ -30,7 +31,7 @@ export default function SubscribePrompt({ onClose }: SubscribePromptProps) {
               </h3>
               <p className="text-warning text-sm mb-3">
                 Имаш зони на интерес, но не си абониран/а за известия. Това е
-                основната задача на OboApp!
+                основната задача на {APP_NAME}!
               </p>
               <div className="flex gap-2">
                 <Link

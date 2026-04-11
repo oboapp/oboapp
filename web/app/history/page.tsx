@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import HistoryContent from "./HistoryContent";
+import { APP_NAME } from "@/lib/pwa-metadata";
 
 export const metadata: Metadata = {
-  title: "Исторически данни | OboApp",
+  title: `Исторически данни | ${APP_NAME}`,
   description:
     "Топлинна карта на исторически данни от всички събрани съобщения",
 };
