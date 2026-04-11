@@ -21,7 +21,7 @@ app.route("/v1", openapiRoute);
 // Global error handler
 app.onError((err, c) => {
   captureException(err);
-  console.error("Unhandled error:", err);
+  console.warn("Unhandled error:", err);
   return c.json({ error: "Internal server error" }, 500);
 });
 

@@ -8,7 +8,7 @@ Sentry is an optional error monitoring integration. When configured, it captures
 
 - Unhandled JavaScript exceptions and promise rejections
 - React render errors (via global error boundary)
-- All `console.error()` calls in API route handlers
+- All `console.error()` calls in the browser and in API route handlers
 
 **API (Hono/Vercel)**
 

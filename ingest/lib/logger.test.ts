@@ -54,6 +54,37 @@ describe("logger", () => {
     });
   });
 
+  describe("setErrorReporter", () => {
+    it("should invoke the reporter on error() with message and extra", async () => {
+      process.env.NODE_ENV = "test";
+      const { logger, setErrorReporter } = await import("./logger");
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const reporter = vi.fn();
+      setErrorReporter(reporter);
+
+      logger.error("boom", { step: "test" });
+
+      expect(reporter).toHaveBeenCalledWith("boom", { step: "test" });
+    });
+
+    it("should not invoke the reporter for info, warn, or debug", async () => {
+      process.env.NODE_ENV = "test";
+      process.env.LOG_LEVEL = "debug";
+      vi.resetModules();
+      const { logger, setErrorReporter } = await import("./logger");
+      vi.spyOn(console, "log").mockImplementation(() => {});
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const reporter = vi.fn();
+      setErrorReporter(reporter);
+
+      logger.info("info");
+      logger.warn("warn");
+      logger.debug("debug");
+
+      expect(reporter).not.toHaveBeenCalled();
+    });
+  });
+
   describe("info, warn, error remain unchanged", () => {
     it("should log info messages", async () => {
       process.env.NODE_ENV = "test";
