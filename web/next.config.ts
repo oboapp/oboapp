@@ -56,9 +56,10 @@ const withMDX = createMDX({
 
 const config = withMDX(nextConfig);
 
-// Wrap with Sentry only when a DSN is configured, so self-hosters without
-// a Sentry account get a vanilla build with no Sentry webpack overhead.
-export default process.env.NEXT_PUBLIC_SENTRY_DSN
+// withSentryConfig is a build-time concern (source map uploads).
+// Runtime error capture works via sentry.*.config.ts regardless of this wrapper.
+// Gate on SENTRY_AUTH_TOKEN so local dev with only a DSN gets a vanilla build.
+export default process.env.SENTRY_AUTH_TOKEN
   ? withSentryConfig(config, {
       org: process.env.SENTRY_ORG,
       project: process.env.SENTRY_PROJECT,

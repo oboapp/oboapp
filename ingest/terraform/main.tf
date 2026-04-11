@@ -23,6 +23,12 @@ provider "google" {
 # Computed values
 locals {
   full_image_url = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.ingest.repository_id}/${var.image_name}:${var.image_tag}"
+
+  # One entry (the secret_id string) when Sentry is enabled, empty otherwise.
+  # Used by every Cloud Run job's dynamic "env" block to avoid duplication.
+  sentry_env_secret_ids = var.sentry_dsn_secret_id != "" ? [
+    data.google_secret_manager_secret.sentry_dsn[0].secret_id
+  ] : []
 }
 
 # Enable required APIs
@@ -451,12 +457,12 @@ resource "google_cloud_run_v2_job" "crawlers" {
         }
 
         dynamic "env" {
-          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          for_each = local.sentry_env_secret_ids
           content {
             name = "SENTRY_DSN"
             value_source {
               secret_key_ref {
-                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                secret  = env.value
                 version = "latest"
               }
             }
@@ -571,12 +577,12 @@ resource "google_cloud_run_v2_job" "ingest" {
         }
 
         dynamic "env" {
-          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          for_each = local.sentry_env_secret_ids
           content {
             name = "SENTRY_DSN"
             value_source {
               secret_key_ref {
-                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                secret  = env.value
                 version = "latest"
               }
             }
@@ -681,12 +687,12 @@ resource "google_cloud_run_v2_job" "notify" {
         }
 
         dynamic "env" {
-          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          for_each = local.sentry_env_secret_ids
           content {
             name = "SENTRY_DSN"
             value_source {
               secret_key_ref {
-                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                secret  = env.value
                 version = "latest"
               }
             }
@@ -793,12 +799,12 @@ resource "google_cloud_run_v2_job" "pipeline_emergent" {
         }
 
         dynamic "env" {
-          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          for_each = local.sentry_env_secret_ids
           content {
             name = "SENTRY_DSN"
             value_source {
               secret_key_ref {
-                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                secret  = env.value
                 version = "latest"
               }
             }
@@ -903,12 +909,12 @@ resource "google_cloud_run_v2_job" "pipeline_all" {
         }
 
         dynamic "env" {
-          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          for_each = local.sentry_env_secret_ids
           content {
             name = "SENTRY_DSN"
             value_source {
               secret_key_ref {
-                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                secret  = env.value
                 version = "latest"
               }
             }
@@ -1035,12 +1041,12 @@ resource "google_cloud_run_v2_job" "gtfs_sync" {
         }
 
         dynamic "env" {
-          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          for_each = local.sentry_env_secret_ids
           content {
             name = "SENTRY_DSN"
             value_source {
               secret_key_ref {
-                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                secret  = env.value
                 version = "latest"
               }
             }
@@ -1136,12 +1142,12 @@ resource "google_cloud_run_v2_job" "educational_facilities_sync" {
         }
 
         dynamic "env" {
-          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          for_each = local.sentry_env_secret_ids
           content {
             name = "SENTRY_DSN"
             value_source {
               secret_key_ref {
-                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                secret  = env.value
                 version = "latest"
               }
             }
@@ -1272,12 +1278,12 @@ resource "google_cloud_run_v2_job" "air_quality_fetch" {
         }
 
         dynamic "env" {
-          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          for_each = local.sentry_env_secret_ids
           content {
             name = "SENTRY_DSN"
             value_source {
               secret_key_ref {
-                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                secret  = env.value
                 version = "latest"
               }
             }
@@ -1381,12 +1387,12 @@ resource "google_cloud_run_v2_job" "geocode_frequency_report" {
         }
 
         dynamic "env" {
-          for_each = var.sentry_dsn_secret_id != "" ? [1] : []
+          for_each = local.sentry_env_secret_ids
           content {
             name = "SENTRY_DSN"
             value_source {
               secret_key_ref {
-                secret  = data.google_secret_manager_secret.sentry_dsn[0].secret_id
+                secret  = env.value
                 version = "latest"
               }
             }
