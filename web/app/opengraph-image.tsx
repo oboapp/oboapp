@@ -11,6 +11,8 @@ const LOCALITY_NAMES: Record<string, string> = {
 };
 
 export default function OgImage() {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BASE_URL ?? "https://oboapp.online";
   const locality = process.env.NEXT_PUBLIC_LOCALITY ?? "bg.sofia";
   const cityName = LOCALITY_NAMES[locality] ?? "София";
   const tagline = `Следи събитията в ${cityName}`;
@@ -41,10 +43,31 @@ export default function OgImage() {
             display: "flex",
           }}
         />
+
+        {/* Logo in white rounded container, matching Header style */}
+        <div
+          style={{
+            display: "flex",
+            backgroundColor: "#ffffff",
+            borderRadius: "20px",
+            padding: "16px",
+            marginBottom: "36px",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`${baseUrl}/logo.png`}
+            width={120}
+            height={120}
+            alt=""
+          />
+        </div>
+
         {/* App name */}
         <div
           style={{
-            fontSize: 120,
+            fontSize: 96,
             fontWeight: 700,
             color: "#ffffff",
             letterSpacing: "-2px",
@@ -53,12 +76,13 @@ export default function OgImage() {
         >
           {APP_NAME}
         </div>
+
         {/* Tagline */}
         <div
           style={{
-            fontSize: 40,
-            color: "rgba(255,255,255,0.7)",
-            marginTop: 24,
+            fontSize: 36,
+            color: "#5DADE2",
+            marginTop: 16,
             display: "flex",
           }}
         >
