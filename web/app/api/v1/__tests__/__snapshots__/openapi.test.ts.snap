@@ -359,7 +359,6 @@ exports[`V1 OpenAPI > matches snapshot 1`] = `
                         "type": "string",
                       },
                       "start": {
-                        "nullable": true,
                         "type": "string",
                       },
                     },
@@ -424,7 +423,6 @@ exports[`V1 OpenAPI > matches snapshot 1`] = `
                         "type": "string",
                       },
                       "start": {
-                        "nullable": true,
                         "type": "string",
                       },
                     },
@@ -827,7 +825,6 @@ exports[`V1 OpenAPI > matches snapshot 1`] = `
                             "type": "string",
                           },
                           "start": {
-                            "nullable": true,
                             "type": "string",
                           },
                         },
@@ -892,7 +889,6 @@ exports[`V1 OpenAPI > matches snapshot 1`] = `
                             "type": "string",
                           },
                           "start": {
-                            "nullable": true,
                             "type": "string",
                           },
                         },
@@ -1302,7 +1298,6 @@ exports[`V1 OpenAPI > matches snapshot 1`] = `
                               "type": "string",
                             },
                             "start": {
-                              "nullable": true,
                               "type": "string",
                             },
                           },
@@ -1367,7 +1362,6 @@ exports[`V1 OpenAPI > matches snapshot 1`] = `
                               "type": "string",
                             },
                             "start": {
-                              "nullable": true,
                               "type": "string",
                             },
                           },
