@@ -166,7 +166,7 @@ function buildOpenApiSpec(): OpenAPIObject {
       title: "OboApp Public API",
       version: "1.0.0",
       description:
-        "Read-only public API for external consumption of OboApp city-infrastructure data. All data endpoints require a registered API key sent via the X-Api-Key header. You can create and manage API keys from the OboApp Settings page.",
+        "⚠️ **API v1 is deprecated** and will be removed on **October 14, 2026**. Please migrate to [API v2](/v2/docs).\n\nRead-only public API for external consumption of OboApp city-infrastructure data. All data endpoints require a registered API key sent via the X-Api-Key header. You can create and manage API keys from the OboApp Settings page.",
     },
     security: [{ ApiKeyAuth: [] }],
   });
@@ -189,11 +189,15 @@ openapiRoute.get("/docs", (c) => {
   const html = `<!DOCTYPE html>
 <html>
 <head>
-  <title>OboApp API Reference</title>
+  <title>OboApp API Reference v1 (Deprecated)</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 <body>
+  <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:12px 16px;margin:16px;font-family:sans-serif;font-size:14px">
+    ⚠️ <strong>API v1 is deprecated</strong> and will be removed on <strong>October 14, 2026</strong>.
+    Please migrate to <a href="/v2/docs">API v2</a>.
+  </div>
   <script id="api-reference" data-url="/v1/openapi"></script>
   <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.25.59"></script>
 </body>

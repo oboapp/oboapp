@@ -1,25 +1,32 @@
 import { Hono } from "hono";
 import { SOURCES } from "@oboapp/shared";
 import { getDb } from "../lib/db";
-import type { WhereClause } from "@oboapp/db";
+import type { OboDb } from "@oboapp/db";
 import { recordToMessage } from "../lib/doc-to-message";
 import { apiKeyAuth } from "../middleware/api-key";
+import { v1DeprecationHeaders } from "../middleware/deprecation";
 import { messagesQuerySchema } from "../schema/query";
 import type { Message, GeoJsonFeature } from "../schema/contract";
 import {
-  clampBounds,
-  addBuffer,
   featureIntersectsBounds,
   type ViewportBounds,
 } from "../lib/bounds-utils";
 import { getCentroid } from "../lib/geometry-utils";
+import {
+  type MessageRecord,
+  isUncategorizedDoc,
+  toViewportBounds,
+  getCutoffDate,
+  findRecentMessageDocs,
+  findRecentMessageDocsBySources,
+  findUncategorizedDocs,
+  applyOptionalSourceSet,
+  isInvalidSourceForFilter,
+  buildCategoryQueryPlans,
+  getValidatedSources,
+} from "../lib/messages-query";
 
-const DEFAULT_RELEVANCE_DAYS = 7;
 const CLUSTER_ZOOM_THRESHOLD = 15;
-const FIRESTORE_IN_OPERATOR_LIMIT = 10;
-
-type DbClient = Awaited<ReturnType<typeof getDb>>;
-type MessageRecord = Record<string, unknown>;
 
 function sortMessagesByRelevance(messages: Message[]): Message[] {
   return [...messages].sort((a, b) => {
@@ -35,108 +42,18 @@ function sortMessagesByRelevance(messages: Message[]): Message[] {
   });
 }
 
-function isUncategorizedDoc(doc: MessageRecord): boolean {
-  const categories = Array.isArray(doc.categories) ? doc.categories : undefined;
-  return !categories || categories.length === 0;
-}
-
-function toViewportBounds(params: {
-  north?: number;
-  south?: number;
-  east?: number;
-  west?: number;
-}): ViewportBounds | null {
-  const { north, south, east, west } = params;
-  if (
-    north === undefined ||
-    south === undefined ||
-    east === undefined ||
-    west === undefined
-  ) {
-    return null;
-  }
-
-  const rawBounds: ViewportBounds = { north, south, east, west };
-  const clampedBounds = clampBounds(rawBounds);
-  return addBuffer(clampedBounds, 0.2);
-}
-
-function getCutoffDate(override?: Date): Date {
-  if (override) {
-    return override;
-  }
-
-  const parsed = process.env.MESSAGE_RELEVANCE_DAYS
-    ? Number.parseInt(process.env.MESSAGE_RELEVANCE_DAYS, 10)
-    : DEFAULT_RELEVANCE_DAYS;
-  const relevanceDays = Number.isNaN(parsed) ? DEFAULT_RELEVANCE_DAYS : parsed;
-
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - relevanceDays);
-  return cutoffDate;
-}
-
-async function findRecentMessageDocs(
-  db: DbClient,
-  cutoffDate: Date,
-  locality?: string,
-): Promise<MessageRecord[]> {
-  const where: WhereClause[] = [
-    { field: "timespanEnd", op: ">=", value: cutoffDate },
-  ];
-  if (locality) {
-    where.push({ field: "locality", op: "==", value: locality });
-  }
-  return db.messages.findMany({
-    where,
-    orderBy: [{ field: "timespanEnd", direction: "desc" }],
-  });
-}
-
-function chunkArray<T>(items: T[], chunkSize: number): T[][] {
-  const chunks: T[][] = [];
-  for (let index = 0; index < items.length; index += chunkSize) {
-    chunks.push(items.slice(index, index + chunkSize));
-  }
-  return chunks;
-}
-
-async function findRecentMessageDocsBySources(
-  db: DbClient,
-  cutoffDate: Date,
-  sources: string[],
-  locality?: string,
-): Promise<MessageRecord[]> {
-  if (sources.length === 0) {
-    return [];
-  }
-
-  const sourceChunks = chunkArray(sources, FIRESTORE_IN_OPERATOR_LIMIT);
-  const chunkQueries = sourceChunks.map((sourceChunk) => {
-    const where: WhereClause[] = [
-      { field: "source", op: "in", value: sourceChunk },
-      { field: "timespanEnd", op: ">=", value: cutoffDate },
-    ];
-    if (locality) {
-      where.push({ field: "locality", op: "==", value: locality });
-    }
-    return db.messages.findMany({
-      where,
-      orderBy: [{ field: "timespanEnd", direction: "desc" }],
-    });
-  });
-
-  const chunkResults = await Promise.all(chunkQueries);
-  return chunkResults.flat();
-}
-
 async function findMessagesBySources(
-  db: DbClient,
+  db: OboDb,
   cutoffDate: Date,
   sources: string[],
   locality?: string,
 ): Promise<Message[]> {
-  const results = await findRecentMessageDocsBySources(db, cutoffDate, sources, locality);
+  const results = await findRecentMessageDocsBySources(
+    db,
+    cutoffDate,
+    sources,
+    locality,
+  );
   const messagesMap = new Map<string, Message>();
 
   for (const doc of results) {
@@ -147,24 +64,6 @@ async function findMessagesBySources(
   }
 
   return sortMessagesByRelevance(Array.from(messagesMap.values()));
-}
-
-function toSourceList(sourceSet?: Set<string>): string[] {
-  return sourceSet ? Array.from(sourceSet) : [];
-}
-
-async function findUncategorizedDocs(
-  db: DbClient,
-  cutoffDate: Date,
-  sourceSet?: Set<string>,
-  locality?: string,
-): Promise<MessageRecord[]> {
-  const sourceList = toSourceList(sourceSet);
-  const docs = sourceList.length
-    ? await findRecentMessageDocsBySources(db, cutoffDate, sourceList, locality)
-    : await findRecentMessageDocs(db, cutoffDate, locality);
-
-  return docs.filter((doc) => isUncategorizedDoc(doc));
 }
 
 function dedupeAndMapMessages(docs: MessageRecord[]): Message[] {
@@ -180,80 +79,8 @@ function dedupeAndMapMessages(docs: MessageRecord[]): Message[] {
   return Array.from(messagesMap.values());
 }
 
-function applyOptionalSourceSet(
-  docs: MessageRecord[],
-  sourceSet?: Set<string>,
-): MessageRecord[] {
-  if (!sourceSet) {
-    return docs;
-  }
-
-  return docs.filter(
-    (doc) => typeof doc.source === "string" && sourceSet.has(doc.source),
-  );
-}
-
-function isInvalidSourceForFilter(
-  doc: MessageRecord,
-  sourceSet?: Set<string>,
-): boolean {
-  if (!sourceSet) {
-    return false;
-  }
-
-  return (
-    !doc.source || typeof doc.source !== "string" || !sourceSet.has(doc.source)
-  );
-}
-
-async function buildCategoryQueryPlans(
-  db: DbClient,
-  cutoffDate: Date,
-  realCategories: string[],
-  includeUncategorized: boolean,
-  sourceSet?: Set<string>,
-  locality?: string,
-): Promise<Array<{ uncategorizedOnly: boolean; docs: MessageRecord[] }>> {
-  const plans: Array<
-    Promise<{ uncategorizedOnly: boolean; docs: MessageRecord[] }>
-  > = [];
-
-  if (realCategories.length > 0) {
-    const where: WhereClause[] = [
-      {
-        field: "categories",
-        op: "array-contains-any",
-        value: realCategories,
-      },
-      { field: "timespanEnd", op: ">=", value: cutoffDate },
-    ];
-    if (locality) {
-      where.push({ field: "locality", op: "==", value: locality });
-    }
-    plans.push(
-      db.messages
-        .findMany({
-          where,
-          orderBy: [{ field: "timespanEnd", direction: "desc" }],
-        })
-        .then((docs) => ({ uncategorizedOnly: false, docs })),
-    );
-  }
-
-  if (includeUncategorized) {
-    plans.push(
-      findUncategorizedDocs(db, cutoffDate, sourceSet, locality).then((docs) => ({
-        uncategorizedOnly: true,
-        docs,
-      })),
-    );
-  }
-
-  return Promise.all(plans);
-}
-
 async function findMessagesByCategoryFilters(
-  db: DbClient,
+  db: OboDb,
   cutoffDate: Date,
   selectedCategories: string[],
   sourceSet?: Set<string>,
@@ -381,21 +208,9 @@ function simplifyMessagesForClusterZoom(
   });
 }
 
-function getValidatedSources(
-  selectedSources: string[] | undefined,
-  allSourceIds: Set<string>,
-): string[] | undefined {
-  if (!selectedSources || selectedSources.length === 0) {
-    return undefined;
-  }
-
-  const uniqueSources = Array.from(new Set(selectedSources));
-  return uniqueSources.filter((sourceId) => allSourceIds.has(sourceId));
-}
-
 export const messagesRoute = new Hono();
 
-messagesRoute.get("/messages", apiKeyAuth, async (c) => {
+messagesRoute.get("/messages", apiKeyAuth, v1DeprecationHeaders, async (c) => {
   try {
     const db = await getDb();
 
@@ -463,15 +278,7 @@ messagesRoute.get("/messages", apiKeyAuth, async (c) => {
         locality,
       );
     } else {
-      const where: WhereClause[] = [
-        { field: "timespanEnd", op: ">=", value: cutoffDate },
-      ];
-      where.push({ field: "locality", op: "==", value: locality });
-      const docs = await db.messages.findMany({
-        where,
-        orderBy: [{ field: "timespanEnd", direction: "desc" }],
-      });
-
+      const docs = await findRecentMessageDocs(db, cutoffDate, locality);
       allMessages = docs.map(recordToMessage);
     }
 

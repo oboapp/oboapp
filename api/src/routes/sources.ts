@@ -1,10 +1,11 @@
 import { Hono } from "hono";
 import { SOURCES } from "@oboapp/shared";
 import { apiKeyAuth } from "../middleware/api-key";
+import { v1DeprecationHeaders } from "../middleware/deprecation";
 
 export const sourcesRoute = new Hono();
 
-sourcesRoute.get("/sources", apiKeyAuth, (c) => {
+sourcesRoute.get("/sources", apiKeyAuth, v1DeprecationHeaders, (c) => {
   const baseUrl =
     process.env.NEXT_PUBLIC_BASE_URL ||
     process.env.BASE_URL ||
