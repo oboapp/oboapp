@@ -1,6 +1,6 @@
 ---
-applyTo: "docs/**"
-description: Documentation guidelines — write concise, behavior-focused docs for QA and admin audiences, not developers.
+paths:
+  - "docs/**"
 ---
 
 # Documentation Guidelines

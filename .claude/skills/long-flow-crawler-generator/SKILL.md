@@ -1,5 +1,5 @@
 ---
-name: Long-Flow Crawler Generator
+name: long-flow-crawler-generator
 description: Generate WordPress-style crawlers for Sofia public infrastructure disruption sources
 agent-name: copilot
 version: 1.0.0

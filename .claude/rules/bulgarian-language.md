@@ -1,6 +1,6 @@
 ---
-applyTo: "web/**"
-description: Bulgarian language style guide — use informal (ти) register for all UI text in the web package.
+paths:
+  - "web/**"
 ---
 
 # Bulgarian Language Style

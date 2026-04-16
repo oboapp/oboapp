@@ -44,6 +44,77 @@ jobs:
       - name: Check circular dependencies
         run: pnpm dlx dpdm@3.14.0 --no-tree --no-warning --exit-code circular:1 "db/src/**/*.ts" "shared/src/**/*.ts" "ingest/**/*.ts" "web/**/*.{ts,tsx}"
 
+      - name: Install APM CLI
+        uses: microsoft/apm-action@v1
+
+      - name: Check APM install drift
+        run: |
+          apm install --force
+          DRIFT=$(git status --porcelain -- apm.lock.yaml .github/agents/ .github/instructions/ .github/prompts/ .github/skills/ .claude/agents/ .claude/commands/ .claude/rules/ .claude/skills/)
+          if [ -n "$DRIFT" ]; then
+            echo "APM-managed files are out of date. Run 'pnpm apm:install' locally and commit the result."
+            echo "$DRIFT"
+            exit 1
+          fi
+
+      - name: Check for orphaned APM-deployed files
+        run: |
+          STATUS=0
+          LOCKFILE=apm.lock.yaml
+
+          if [ ! -f "$LOCKFILE" ]; then
+            echo "::error::Missing $LOCKFILE. Run 'pnpm apm:install' and commit generated files."
+            exit 1
+          fi
+
+          # Use APM-generated deployment outputs as source of truth.
+          EXPECTED_DEPLOYED=$(awk '
+            /^\s*deployed_files:\s*$/ { in_list=1; next }
+            in_list && /^\s*-\s+/ { sub(/^\s*-\s+/, ""); print; next }
+            in_list && !/^\s*-\s+/ { in_list=0 }
+          ' "$LOCKFILE")
+
+          if [ -z "$EXPECTED_DEPLOYED" ]; then
+            echo "::error::No deployed_files entries found in $LOCKFILE."
+            exit 1
+          fi
+
+          EXISTING_DEPLOYED=""
+
+          for dir in .github/agents .github/instructions .github/prompts .claude/agents .claude/commands .claude/rules; do
+            [ -d "$dir" ] || continue
+            for f in "$dir"/*.md; do
+              [ -f "$f" ] || continue
+              EXISTING_DEPLOYED="${EXISTING_DEPLOYED:+$EXISTING_DEPLOYED$'\n'}$f"
+            done
+          done
+
+          for dir in .github/skills .claude/skills; do
+            [ -d "$dir" ] || continue
+            for d in "$dir"/*/; do
+              [ -d "$d" ] || continue
+              name="$(basename "$d")"
+              path="$dir/$name"
+              EXISTING_DEPLOYED="${EXISTING_DEPLOYED:+$EXISTING_DEPLOYED$'\n'}$path"
+            done
+          done
+
+          while IFS= read -r path; do
+            [ -n "$path" ] || continue
+            if ! echo "$EXPECTED_DEPLOYED" | grep -Fxq "$path"; then
+              echo "::error::Orphaned APM-deployed path: $path (not present in $LOCKFILE deployed_files)"
+              STATUS=1
+            fi
+          done <<< "$EXISTING_DEPLOYED"
+
+          if [ "$STATUS" -ne 0 ]; then
+            echo ""
+            echo "Orphaned APM-deployed paths found in .github/ or .claude/."
+            echo "Delete the orphaned paths or run 'pnpm apm:install' and commit updated lockfile + outputs."
+            exit 1
+          fi
+          echo "No orphaned APM files found."
+
   test-ingest:
     name: Test Ingest
     runs-on: ubuntu-latest

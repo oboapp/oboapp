@@ -1,5 +1,5 @@
 ---
-name: CLI Scripts with Commander.js
+name: cli-scripts
 description: Standard pattern for writing CLI scripts using Commander.js
 version: 1.0.0
 keywords:

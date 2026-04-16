@@ -23,6 +23,7 @@ Each has its own `.env.local` configuration.
 ## Development Resources
 
 - **[AGENTS.md](AGENTS.md)** - Required code patterns and standards for AI agents and developers
+- **[APM Agent Resources](docs/setup/apm-agent-resources.md)** - How agent primitives (instructions, prompts, agents, skills) are managed via APM
 - **[Public API](docs/features/public-api.md)** - `/api/v1` contract, API key auth, and client onboarding
 - **[External API Mocks](docs/features/external-api-mocks.md)** - Mock Gemini, Geocoding, Overpass, Cadastre
 - **[Geocoding](ingest/geocoding/README.md)** - Hybrid geocoding system documentation

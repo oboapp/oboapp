@@ -11,7 +11,8 @@
     "test:all": "pnpm -r --if-present --filter '*' run test:run",
     "lint:all": "pnpm -r --if-present --filter '*' run lint",
     "postinstall": "pnpm build:shared && pnpm build:db",
-    "prepare": "husky"
+    "prepare": "husky",
+    "apm:install": "apm install --force --verbose"
   },
   "devDependencies": {
     "@sentry/cli": "^3.3.5",

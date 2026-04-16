@@ -1,1 +1,18 @@
 .github/workflows/*.lock.yml linguist-generated=true
+
+# Generated files — collapsed in GitHub PR diffs
+pnpm-lock.yaml           linguist-generated
+web/next-env.d.ts        linguist-generated
+
+# APM-managed files — force LF so Windows and Linux APM installs produce identical output
+.github/agents/**        text eol=lf linguist-generated
+.github/instructions/**  text eol=lf linguist-generated
+.github/prompts/**       text eol=lf linguist-generated
+.github/skills/**        text eol=lf linguist-generated
+.claude/agents/**        text eol=lf linguist-generated
+.claude/commands/**      text eol=lf linguist-generated
+.claude/rules/**         text eol=lf linguist-generated
+.claude/skills/**        text eol=lf linguist-generated
+agent-context/**         text eol=lf
+apm.yml                  text eol=lf
+apm.lock.yaml            text eol=lf linguist-generated

@@ -1,0 +1,7 @@
+name: oboapp
+version: 1.0.0
+description: Public infrastructure disruption monitoring for Sofia, Bulgaria
+
+dependencies:
+  apm:
+    - ./agent-context

@@ -1,0 +1,29 @@
+lockfile_version: '1'
+generated_at: '2026-04-17T15:55:46.779163+00:00'
+apm_version: 0.8.11
+dependencies:
+- repo_url: _local/agent-context
+  package_type: apm_package
+  deployed_files:
+  - .claude/agents/ci-fix.md
+  - .claude/commands/long-flow-crawler.md
+  - .claude/commands/weekly-meeting.md
+  - .claude/rules/bulgarian-language.md
+  - .claude/rules/documentation-guidelines.md
+  - .claude/skills/cli-scripts
+  - .claude/skills/logging-conventions
+  - .claude/skills/long-flow-crawler-generator
+  - .claude/skills/onboarding-flow
+  - .claude/skills/tailwind-theme
+  - .github/agents/ci-fix.agent.md
+  - .github/instructions/bulgarian-language.instructions.md
+  - .github/instructions/documentation-guidelines.instructions.md
+  - .github/prompts/long-flow-crawler.prompt.md
+  - .github/prompts/weekly-meeting.prompt.md
+  - .github/skills/cli-scripts
+  - .github/skills/logging-conventions
+  - .github/skills/long-flow-crawler-generator
+  - .github/skills/onboarding-flow
+  - .github/skills/tailwind-theme
+  source: local
+  local_path: ./agent-context

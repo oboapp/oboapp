@@ -1,5 +1,5 @@
 ---
-name: Tailwind Theme System
+name: tailwind-theme
 description: Color system, button styling, and theme conventions for the web package
 version: 1.0.0
 keywords:

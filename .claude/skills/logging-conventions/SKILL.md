@@ -1,5 +1,5 @@
 ---
-name: Logging Conventions
+name: logging-conventions
 description: Guidelines for logging in the ingest and web packages
 version: 1.0.0
 keywords:

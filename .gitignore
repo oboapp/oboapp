@@ -52,3 +52,6 @@ web/coverage
 .playwright-mcp/
 package-lock.json
 .env*.local
+
+# APM
+apm_modules/
