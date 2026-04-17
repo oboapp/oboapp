@@ -69,9 +69,9 @@ jobs:
 
           # Use APM-generated deployment outputs as source of truth.
           EXPECTED_DEPLOYED=$(awk '
-            /^\s*deployed_files:\s*$/ { in_list=1; next }
-            in_list && /^\s*-\s+/ { sub(/^\s*-\s+/, ""); print; next }
-            in_list && !/^\s*-\s+/ { in_list=0 }
+            /^[[:space:]]*deployed_files:[[:space:]]*$/ { in_list=1; next }
+            in_list && /^[[:space:]]*-[[:space:]]+/ { sub(/^[[:space:]]*-[[:space:]]+/, ""); print; next }
+            in_list && !/^[[:space:]]*-[[:space:]]+/ { in_list=0 }
           ' "$LOCKFILE")
 
           if [ -z "$EXPECTED_DEPLOYED" ]; then
