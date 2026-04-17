@@ -26,7 +26,7 @@ tools:
     toolsets: [default, actions]
 
 safe-outputs:
-  create-issue:
+  create_issue:
     labels: [ci-failure, copilot]
     assignees: [copilot]
     max: 1
@@ -58,6 +58,6 @@ A CI/CD Pipeline run on `main` has failed. Your task is to investigate the failu
      - A clear task description for Copilot:
        1. Read the failure details above and identify the root cause.
        2. Implement the minimal fix (follow coding conventions in `AGENTS.md`).
-       3. Ensure `pnpm lint` and `pnpm test:run` pass from the repository root after the fix.
-       4. Ensure TypeScript type-checking passes in all relevant workspaces (`pnpm --dir <workspace> tsc --noEmit`).
+       3. Ensure `pnpm lint:all` and `pnpm test:all` pass from the repository root after the fix.
+       4. Ensure TypeScript type-checking passes in all relevant workspaces (`pnpm --dir <workspace> exec tsc --noEmit`).
        5. Open a pull request targeting `main` with the fix.
