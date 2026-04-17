@@ -140,4 +140,10 @@ export const SOURCES: readonly SourceDefinition[] = [
     name: "София - Европейска столица на спорта",
     localities: ["bg.sofia"],
   },
+  {
+    id: "serdika-egov-bg",
+    url: "https://serdika.egov.bg/wps/portal/municipality-serdika/actual/messages",
+    name: 'Столична община, Район "Сердика"',
+    localities: ["bg.sofia"],
+  },
 ];

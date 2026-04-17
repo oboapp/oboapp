@@ -299,6 +299,12 @@ locals {
       timeout      = "1800s"
       description  = "Crawl Sredec district"
     }
+    serdika = {
+      source       = "serdika-egov-bg"
+      memory       = "1Gi"
+      timeout      = "1800s"
+      description  = "Crawl Serdika district"
+    }
     slatina = {
       source       = "so-slatina-org"
       memory       = "1Gi"
