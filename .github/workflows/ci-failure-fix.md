@@ -39,14 +39,14 @@ A CI/CD Pipeline run on `main` has failed. Your task is to investigate the failu
 
 ## Context
 
-- **Workflow run**: ${{ github.event.workflow_run.html_url }}
-- **Run ID**: ${{ github.event.workflow_run.id }}
-- **Commit**: `${{ github.event.workflow_run.head_sha }}`
-- **Conclusion**: `${{ github.event.workflow_run.conclusion }}`
+- **Workflow run**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL__
+- **Run ID**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID__
+- **Commit**: `__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA__`
+- **Conclusion**: `__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION__`
 
 ## Instructions
 
-1. Use the GitHub `actions` tools to fetch the jobs and logs for the failed workflow run (run ID: `${{ github.event.workflow_run.id }}`).
+1. Use the GitHub `actions` tools to fetch the jobs and logs for the failed workflow run (run ID: `__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID__`).
 2. Identify which jobs failed and what errors occurred. Look at the log output for each failed step.
 3. Summarize the root cause concisely.
 4. Create **one** GitHub issue (via `create_issue` safe-output) with:
