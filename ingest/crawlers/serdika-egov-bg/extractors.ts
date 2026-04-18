@@ -11,6 +11,7 @@ const DETAIL_URL_PATTERN =
   /\/wps\/portal\/municipality-serdika\/actual\/(messages|news|events)\/[^/?#]+$/;
 
 export async function extractPostLinks(page: Page): Promise<PostLink[]> {
+  await page.waitForSelector(SELECTORS.INDEX.POST_CONTAINER, { timeout: 45000 });
   return extractPostLinksShared(page, SELECTORS, (url) =>
     DETAIL_URL_PATTERN.test(url),
   );
@@ -19,6 +20,7 @@ export async function extractPostLinks(page: Page): Promise<PostLink[]> {
 export async function extractPostDetails(
   page: Page,
 ): Promise<{ title: string; dateText: string; contentHtml: string }> {
+  await page.waitForSelector(SELECTORS.POST.CONTENT, { timeout: 30000 });
   return extractPostDetailsGeneric(page, SELECTORS.POST, [
     "script",
     "style",

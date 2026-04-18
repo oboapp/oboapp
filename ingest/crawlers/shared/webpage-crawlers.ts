@@ -74,6 +74,7 @@ export async function processWordpressPost<
   delayMs: number,
   extractPostDetails: (page: Page) => Promise<TDetails>,
   customDateParser?: (dateText: string) => string,
+  waitUntil?: "load" | "domcontentloaded" | "networkidle",
 ): Promise<void> {
   const { url, title } = postLink;
 
@@ -82,7 +83,7 @@ export async function processWordpressPost<
   const page = await browser.newPage();
 
   try {
-    await page.goto(url, { waitUntil: "networkidle" });
+    await page.goto(url, { waitUntil: waitUntil ?? "networkidle" });
 
     const details = await extractPostDetails(page);
 
@@ -128,6 +129,8 @@ export async function crawlWordpressPage(options: {
     db: OboDb,
   ) => Promise<void>;
   delayBetweenRequests?: number;
+  waitUntil?: "load" | "domcontentloaded" | "networkidle";
+  browser?: Browser;
 }): Promise<void> {
   const {
     indexUrl,
@@ -135,6 +138,8 @@ export async function crawlWordpressPage(options: {
     extractPostLinks,
     processPost,
     delayBetweenRequests: _delayBetweenRequests = 2000,
+    waitUntil,
+    browser: providedBrowser,
   } = options;
 
   logger.info("Starting crawler", { sourceType });
@@ -143,13 +148,14 @@ export async function crawlWordpressPage(options: {
   const db = await getDb();
 
   let browser: Browser | null = null;
+  const ownsBrowser = !providedBrowser;
 
   try {
-    browser = await launchBrowser();
+    browser = providedBrowser ?? (await launchBrowser());
 
     const page = await browser.newPage();
     logger.debug("Fetching index page", { sourceType, url: indexUrl });
-    await page.goto(indexUrl, { waitUntil: "networkidle" });
+    await page.goto(indexUrl, { waitUntil: waitUntil ?? "networkidle" });
 
     const postLinks = await extractPostLinks(page);
     await page.close();
@@ -185,7 +191,7 @@ export async function crawlWordpressPage(options: {
     logger.error("Crawl failed", { sourceType, error: error instanceof Error ? error.message : String(error) });
     throw error;
   } finally {
-    if (browser) {
+    if (ownsBrowser && browser) {
       await browser.close();
     }
   }

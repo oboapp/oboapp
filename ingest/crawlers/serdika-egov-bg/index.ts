@@ -2,7 +2,7 @@
 
 import dotenv from "dotenv";
 import { resolve } from "node:path";
-import { Browser } from "playwright";
+import type { Browser } from "playwright";
 import type { OboDb } from "@oboapp/db";
 import { PostLink } from "./types";
 import {
@@ -37,6 +37,7 @@ const processPost = (browser: Browser, postLink: PostLink, db: OboDb) =>
     DELAY_BETWEEN_REQUESTS,
     extractPostDetails,
     parseSerdikaDate,
+    "load",
   );
 
 export async function crawl(): Promise<void> {
@@ -47,6 +48,7 @@ export async function crawl(): Promise<void> {
       extractPostLinks,
       processPost,
       delayBetweenRequests: DELAY_BETWEEN_REQUESTS,
+      waitUntil: "load",
     });
   }
 }
