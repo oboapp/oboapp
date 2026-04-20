@@ -31,6 +31,7 @@
     "reprocess-message": "tsx scripts/reprocess-message.ts",
     "geocode-cache:report": "tsx scripts/geocode-frequency-report.ts",
     "geocode-cache:add": "tsx scripts/geocode-cache-add.ts",
+    "heatmap-report": "tsx scripts/heatmap-report.ts",
     "promptfoo": "cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/filter-split.yaml && cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/categorize.yaml && cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/extract-locations.yaml && cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/verify-event-match.yaml",
     "promptfoo:filter": "cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/filter-split.yaml",
     "promptfoo:categorize": "cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/categorize.yaml",
@@ -47,7 +48,8 @@
     "prebuilt:pipeline:emergent": "node dist/pipeline.js --emergent",
     "prebuilt:pipeline:all": "node dist/pipeline.js --all",
     "prebuilt:air-quality-fetch": "node dist/air-quality-fetch.js",
-    "prebuilt:geocode-cache-report": "node dist/scripts/geocode-frequency-report.js"
+    "prebuilt:geocode-cache-report": "node dist/scripts/geocode-frequency-report.js",
+    "prebuilt:heatmap-report": "node dist/scripts/heatmap-report.js"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",
