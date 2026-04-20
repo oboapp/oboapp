@@ -37,7 +37,7 @@ type HeatmapPoint = [number, number];
 /**
  * GET /api/messages/heatmap
  *
- * Returns coordinate points for the history heatmap, loaded from a daily GCS
+ * Returns coordinate points for the history heatmap, loaded from a periodic GCS
  * snapshot instead of querying Firestore on every request.
  *
  * Optional query parameters:
