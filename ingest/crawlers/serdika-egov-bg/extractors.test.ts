@@ -7,11 +7,13 @@ import {
 
 interface MockPage {
   evaluate: <T>(fn: (...args: any[]) => T, ...args: any[]) => Promise<T>;
+  waitForSelector: (selector: string, options?: { timeout?: number }) => Promise<void>;
 }
 
 function createMockPage(mockEvaluate: any): MockPage {
   return {
     evaluate: mockEvaluate,
+    waitForSelector: vi.fn().mockResolvedValue(undefined),
   } as MockPage;
 }
 

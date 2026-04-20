@@ -14,6 +14,7 @@ import {
   crawlWordpressPage,
   processWordpressPost,
 } from "../shared/webpage-crawlers";
+import { launchBrowser } from "../shared/browser";
 import { logger } from "@/lib/logger";
 
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
@@ -41,15 +42,21 @@ const processPost = (browser: Browser, postLink: PostLink, db: OboDb) =>
   );
 
 export async function crawl(): Promise<void> {
-  for (const indexUrl of INDEX_URLS) {
-    await crawlWordpressPage({
-      indexUrl,
-      sourceType: SOURCE_TYPE,
-      extractPostLinks,
-      processPost,
-      delayBetweenRequests: DELAY_BETWEEN_REQUESTS,
-      waitUntil: "load",
-    });
+  const browser = await launchBrowser();
+  try {
+    for (const indexUrl of INDEX_URLS) {
+      await crawlWordpressPage({
+        indexUrl,
+        sourceType: SOURCE_TYPE,
+        extractPostLinks,
+        processPost,
+        delayBetweenRequests: DELAY_BETWEEN_REQUESTS,
+        waitUntil: "load",
+        browser,
+      });
+    }
+  } finally {
+    await browser.close();
   }
 }
 
