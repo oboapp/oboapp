@@ -46,6 +46,8 @@ jobs:
 
       - name: Install APM CLI
         uses: microsoft/apm-action@v1
+        with:
+          apm-version: '0.8.11'
 
       - name: Check APM install drift
         run: |
