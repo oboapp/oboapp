@@ -16,6 +16,7 @@ import dotenv from "dotenv";
 import { resolve } from "node:path";
 import { center, lineString, polygon } from "@turf/turf";
 import type { GeoJSONFeatureCollection, GeoJSONGeometry } from "@/lib/types";
+import type { HeatmapMessage } from "@/lib/heatmap/snapshot-store";
 
 type HeatmapPoint = [number, number]; // [lat, lng] (Leaflet convention)
 
@@ -109,7 +110,7 @@ Examples:
 
         console.log(`Processing ${docs.length} finalized messages...`);
 
-        const messages = [];
+        const messages: HeatmapMessage[] = [];
         for (const doc of docs) {
           if (doc.cityWide) continue;
 

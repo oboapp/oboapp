@@ -68,6 +68,9 @@ export async function GET(request: Request) {
     }
     const [content] = await file.download();
     const parsed: HeatmapSnapshot = JSON.parse(content.toString("utf-8"));
+    if (!Array.isArray(parsed.messages)) {
+      throw new Error("Snapshot is malformed: missing messages array");
+    }
     snapshot = parsed;
   } catch (err) {
     console.error("Failed to load heatmap snapshot", err);
