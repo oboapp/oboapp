@@ -83,12 +83,12 @@ export async function crawl(): Promise<void> {
         failed = 0;
 
       for (const postLink of postLinks) {
+        const wasProcessed = await isUrlProcessed(postLink.url, db);
+        if (wasProcessed) {
+          skipped++;
+          continue;
+        }
         try {
-          const wasProcessed = await isUrlProcessed(postLink.url, db);
-          if (wasProcessed) {
-            skipped++;
-            continue;
-          }
           await processPost(browser, postLink, db);
           saved++;
         } catch (err) {
