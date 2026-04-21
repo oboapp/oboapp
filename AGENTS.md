@@ -2,6 +2,20 @@
 
 Critical patterns and non-obvious rules for AI agents working on `oboapp`. For detailed domain docs, see the referenced READMEs.
 
+## 0. Editing Agent Primitives (Skills, Instructions, Prompts)
+
+**NEVER edit AI primitive files directly in `.github/skills/`, `.github/instructions/`, `.github/prompts/`, `.github/agents/`, or `.claude/`.** Those are generated outputs managed by [APM](https://microsoft.github.io/apm/). `.github/workflows/` is edited directly as normal.
+
+The canonical source is `agent-context/.apm/` (skills, instructions, prompts, agents). After editing there, run:
+
+```bash
+pnpm apm:install
+```
+
+Then commit **both** the `agent-context/` source change and the regenerated `.github/` / `.claude/` files together.
+
+---
+
 ## 1. Pre-PR Quality Checks
 
 Before submitting any PR, **all** of these must pass:
