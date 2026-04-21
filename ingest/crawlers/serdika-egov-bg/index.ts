@@ -10,9 +10,7 @@ import {
   extractPostDetails,
   parseSerdikaDate,
 } from "./extractors";
-import {
-  processWordpressPost,
-} from "../shared/webpage-crawlers";
+import { processWordpressPost } from "../shared/webpage-crawlers";
 import { isUrlProcessed } from "../shared/firestore";
 import { launchBrowser } from "../shared/browser";
 import { delay } from "@/lib/delay";
@@ -27,8 +25,8 @@ dotenv.config({ path: resolve(process.cwd(), ".env.local") });
  */
 const SECTIONS = [
   { keyword: "actualmessages", label: "messages" },
-  { keyword: "actualnews",     label: "news" },
-  { keyword: "actualevents",   label: "events" },
+  { keyword: "actualnews", label: "news" },
+  { keyword: "actualevents", label: "events" },
 ] as const;
 
 const SOURCE_TYPE = "serdika-egov-bg";
@@ -42,7 +40,7 @@ const processPost = (browser: Browser, postLink: PostLink, db: OboDb) =>
     db,
     SOURCE_TYPE,
     LOCALITY,
-    DELAY_BETWEEN_REQUESTS,
+    0, // no need delayMs here, we already have a delay between posts in the main loop
     extractPostDetails,
     parseSerdikaDate,
     "load",
@@ -55,7 +53,10 @@ export async function crawl(): Promise<void> {
   const browser = await launchBrowser();
   try {
     for (const { keyword, label } of SECTIONS) {
-      logger.info("Fetching post list from search feed", { sourceType: SOURCE_TYPE, section: label });
+      logger.info("Fetching post list from search feed", {
+        sourceType: SOURCE_TYPE,
+        section: label,
+      });
 
       let postLinks: PostLink[];
       try {
@@ -70,11 +71,16 @@ export async function crawl(): Promise<void> {
       }
 
       if (postLinks.length === 0) {
-        logger.warn("No posts found in feed", { sourceType: SOURCE_TYPE, section: label });
+        logger.warn("No posts found in feed", {
+          sourceType: SOURCE_TYPE,
+          section: label,
+        });
         continue;
       }
 
-      let saved = 0, skipped = 0, failed = 0;
+      let saved = 0,
+        skipped = 0,
+        failed = 0;
 
       for (const postLink of postLinks) {
         try {
@@ -92,8 +98,9 @@ export async function crawl(): Promise<void> {
             url: postLink.url,
             error: err instanceof Error ? err.message : String(err),
           });
+        } finally {
+          await delay(DELAY_BETWEEN_REQUESTS);
         }
-        await delay(DELAY_BETWEEN_REQUESTS);
       }
 
       logger.info("Section complete", {

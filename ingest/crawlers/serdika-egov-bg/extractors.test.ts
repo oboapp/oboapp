@@ -68,7 +68,7 @@ describe("serdika-egov-bg/extractors", () => {
     }
 
     it("parses title, URL, and date from a valid ATOM entry", async () => {
-      // 2026-04-07T00:00:00Z = 1744070400000 ms
+      // 2025-04-08T00:00:00Z = 1744070400000 ms
       const ts = 1744070400000;
       mockFetch(atomFeed(atomEntry({ title: "Съобщение за ИУМПС", contentPath: "/content/site/actual/messages/msg1", effectiveDateMs: ts })));
 
@@ -76,7 +76,7 @@ describe("serdika-egov-bg/extractors", () => {
       expect(links).toHaveLength(1);
       expect(links[0].url).toBe("https://serdika.egov.bg/wps/portal/municipality-serdika/actual/messages/msg1");
       expect(links[0].title).toBe("Съобщение за ИУМПС");
-      expect(links[0].date).toMatch(/\d{2}\.\d{2}\.\d{4}/);
+      expect(links[0].date).toBe("08.04.2025"); // UTC date for 1744070400000
     });
 
     it("decodes XML entities in titles", async () => {
