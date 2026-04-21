@@ -80,6 +80,8 @@ See `docs/features/event-aggregation.md` for matching logic and thresholds.
 
 For the full implementation guide, see the `long-flow-crawler-generator` skill. Key traps:
 
+- **Check for an exposed API first:** Before writing any Playwright scraper, check if the site publishes an RSS/ATOM feed or JSON API (try `/feed`, `/rss.xml`, `/atom.xml`, inspect `<link rel="alternate">` in `<head>`, and trace any AJAX calls in the page JS). A plain HTTP feed is far more reliable than headless Chromium.
+
 - **Workflow Sync (CRITICAL):** When adding/removing crawlers, update ALL:
   1. `ingest/crawlers/{source-name}/` — implementation
   2. `local.crawlers` in `ingest/terraform/main.tf` — add entry (set `emergent = true` for 30-min crawlers)
