@@ -49,6 +49,30 @@ This skill guides you through creating a new long-flow crawler for the oboapp pr
    - `ingest/README.md` - Overall architecture
    - `AGENTS.md` - Development guidelines (especially Crawler Development section)
 
+## Pre-Phase: Check for an Exposed API
+
+**Before designing any Playwright scraper, check whether the site exposes a machine-readable feed.**
+
+Many government and CMS-backed sites (WordPress, Drupal, IBM WebSphere Portal, etc.) publish content via RSS, ATOM, or a JSON API alongside their HTML. Using these avoids Playwright entirely for listing pages and is far more reliable.
+
+Steps:
+
+1. **Check well-known feed URLs** — append `/feed`, `/rss`, `/rss.xml`, `/atom.xml`, `/api/posts`, or `/?feed=rss2` to the site root and common section paths.
+2. **Inspect `<link>` tags** in the page `<head>` for `type="application/rss+xml"` or `type="application/atom+xml"`.
+3. **Check JS source** for AJAX calls — look for `fetch(`, `XMLHttpRequest`, or CMS-specific objects (e.g. `PortalXMLHttpRequestObject`). Trace the request URL; it may be a plain HTTP endpoint that returns XML or JSON without needing a browser.
+4. **Try a `curl` request** to any candidate URL to confirm it returns parseable data.
+
+If a feed is found:
+
+- Use `fetch()` (Node built-in) to retrieve it — no Playwright, no browser launch.
+- Parse with simple regex for fixed machine-generated XML, or with a lightweight parser if the structure is complex.
+- Playwright is still appropriate for **detail/post pages** if they are server-side rendered.
+- Document the feed URL and parameters in `selectors.ts` (or a dedicated constants file) with a comment explaining the discovery.
+
+> **Real example**: `serdika.egov.bg` renders its listing via client-side AJAX (`PortalXMLHttpRequestObject`), which Cloud Run IPs cannot reach. The underlying portal search feed at `/wps/contenthandler/searchfeed/search` is a plain HTTP ATOM endpoint that works fine — switching to it eliminated the `ERR_CONNECTION_RESET` failures entirely.
+
+---
+
 ## Phase 2: Gather Requirements
 
 Ask the user for the following information:

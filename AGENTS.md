@@ -4,7 +4,7 @@ Critical patterns and non-obvious rules for AI agents working on `oboapp`. For d
 
 ## 0. Editing Agent Primitives (Skills, Instructions, Prompts)
 
-**NEVER edit AI primitive files directly in `.github/skills/`, `.github/instructions/`, `.github/prompts/`, `.github/agents/`, or `.claude/`.** Those are generated outputs managed by [APM](https://microsoft.github.io/apm/). `.github/workflows/` is edited directly as normal.
+**NEVER edit AI primitive files directly in `.github/skills/`, `.github/instructions/`, `.github/prompts/`, `.github/agents/`, or `.claude/`.** Those are generated outputs [managed by APM](./docs/setup/apm-agent-resources.md). `.github/workflows/` is edited directly as normal.
 
 The canonical source is `agent-context/.apm/` (skills, instructions, prompts, agents). After editing there, run:
 
@@ -13,6 +13,8 @@ pnpm apm:install
 ```
 
 Then commit **both** the `agent-context/` source change and the regenerated `.github/` / `.claude/` files together.
+
+`CLAUDE.md` is also a "special" file — it simply re-exports `AGENTS.md` via `@AGENTS.md` and must not be edited directly.
 
 ---
 
