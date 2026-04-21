@@ -6,24 +6,31 @@ import type { Browser } from "playwright";
 import type { OboDb } from "@oboapp/db";
 import { PostLink } from "./types";
 import {
-  extractPostLinks,
+  fetchPostLinksFromFeed,
   extractPostDetails,
   parseSerdikaDate,
 } from "./extractors";
 import {
-  crawlWordpressPage,
   processWordpressPost,
 } from "../shared/webpage-crawlers";
+import { isUrlProcessed } from "../shared/firestore";
 import { launchBrowser } from "../shared/browser";
+import { delay } from "@/lib/delay";
 import { logger } from "@/lib/logger";
 
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 
-const INDEX_URLS = [
-  "https://serdika.egov.bg/wps/portal/municipality-serdika/actual/messages",
-  "https://serdika.egov.bg/wps/portal/municipality-serdika/actual/news",
-  "https://serdika.egov.bg/wps/portal/municipality-serdika/actual/events",
-];
+/**
+ * Each section maps to:
+ *  - a WCM keyword used in the search feed (derived from the portal URL path)
+ *  - the section label used in log messages
+ */
+const SECTIONS = [
+  { keyword: "actualmessages", label: "messages" },
+  { keyword: "actualnews",     label: "news" },
+  { keyword: "actualevents",   label: "events" },
+] as const;
+
 const SOURCE_TYPE = "serdika-egov-bg";
 const LOCALITY = "bg.sofia";
 const DELAY_BETWEEN_REQUESTS = 2000;
@@ -42,17 +49,60 @@ const processPost = (browser: Browser, postLink: PostLink, db: OboDb) =>
   );
 
 export async function crawl(): Promise<void> {
+  const { getDb } = await import("@/lib/db");
+  const db = await getDb();
+
   const browser = await launchBrowser();
   try {
-    for (const indexUrl of INDEX_URLS) {
-      await crawlWordpressPage({
-        indexUrl,
+    for (const { keyword, label } of SECTIONS) {
+      logger.info("Fetching post list from search feed", { sourceType: SOURCE_TYPE, section: label });
+
+      let postLinks: PostLink[];
+      try {
+        postLinks = await fetchPostLinksFromFeed(keyword);
+      } catch (err) {
+        logger.error("Failed to fetch post list", {
+          sourceType: SOURCE_TYPE,
+          section: label,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        continue;
+      }
+
+      if (postLinks.length === 0) {
+        logger.warn("No posts found in feed", { sourceType: SOURCE_TYPE, section: label });
+        continue;
+      }
+
+      let saved = 0, skipped = 0, failed = 0;
+
+      for (const postLink of postLinks) {
+        try {
+          const wasProcessed = await isUrlProcessed(postLink.url, db);
+          if (wasProcessed) {
+            skipped++;
+            continue;
+          }
+          await processPost(browser, postLink, db);
+          saved++;
+        } catch (err) {
+          failed++;
+          logger.error("Error processing post", {
+            sourceType: SOURCE_TYPE,
+            url: postLink.url,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+        await delay(DELAY_BETWEEN_REQUESTS);
+      }
+
+      logger.info("Section complete", {
         sourceType: SOURCE_TYPE,
-        extractPostLinks,
-        processPost,
-        delayBetweenRequests: DELAY_BETWEEN_REQUESTS,
-        waitUntil: "load",
-        browser,
+        section: label,
+        total: postLinks.length,
+        saved,
+        skipped,
+        failed,
       });
     }
   } finally {

@@ -2,19 +2,101 @@ import type { Page } from "playwright";
 import type { PostLink } from "./types";
 import { SELECTORS } from "./selectors";
 import {
-  extractPostLinks as extractPostLinksShared,
   extractPostDetailsGeneric,
 } from "../shared/extractors";
 import { parseBulgarianDate } from "../shared/date-utils";
 
-const DETAIL_URL_PATTERN =
-  /\/wps\/portal\/municipality-serdika\/actual\/(messages|news|events)\/[^/?#]+$/;
+// IBM WebSphere Portal search feed — populated server-side, no JavaScript needed.
+const SEARCH_FEED_BASE = "https://serdika.egov.bg/wps/contenthandler/searchfeed/search";
+const SEARCH_SCOPE_ID = "1672924193550";
+const WCM_CONTENT_PREFIX = "/content/site/";
+const PORTAL_BASE = "https://serdika.egov.bg/wps/portal/municipality-serdika/";
 
-export async function extractPostLinks(page: Page): Promise<PostLink[]> {
-  await page.waitForSelector(SELECTORS.INDEX.POST_CONTAINER, { timeout: 45000 });
-  return extractPostLinksShared(page, SELECTORS, (url) =>
-    DETAIL_URL_PATTERN.test(url),
+/**
+ * Fetch the list of posts for one site section from the portal's ATOM search
+ * feed — avoiding Playwright entirely for the listing page (the AJAX-rendered
+ * `#search-results-container` is unreachable from Cloud Run IPs).
+ *
+ * @param sectionKeyword  e.g. "actualmessages", "actualnews", "actualevents"
+ */
+export async function fetchPostLinksFromFeed(
+  sectionKeyword: string,
+): Promise<PostLink[]> {
+  const params = new URLSearchParams({
+    queryLang: "en",
+    locale: "bg",
+    resultLang: "bg",
+    start: "0",
+    results: "999",
+    scope: SEARCH_SCOPE_ID,
+    query: "*",
+    sortKey: "effectivedate",
+    sortOrder: "desc",
+  });
+  // Two separate constraint params (URLSearchParams.append keeps both)
+  params.append(
+    "constraint",
+    JSON.stringify({ type: "field", id: "authoringtemplate", values: ["contentFromList"] }),
   );
+  params.append(
+    "constraint",
+    JSON.stringify({ type: "field", id: "keywords", values: [sectionKeyword] }),
+  );
+
+  const response = await fetch(`${SEARCH_FEED_BASE}?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`Search feed returned ${response.status} for keyword "${sectionKeyword}"`);
+  }
+
+  const xml = await response.text();
+
+  // Parse ATOM entries with simple regex — the WCM feed has a fixed, machine-
+  // generated structure so regex is sufficient here.
+  const postLinks: PostLink[] = [];
+  const entryRe = /<atom:entry>([\s\S]*?)<\/atom:entry>/g;
+  let m: RegExpExecArray | null;
+
+  while ((m = entryRe.exec(xml)) !== null) {
+    const entryXml = m[1];
+
+    const title = decodeXmlEntities(
+      entryXml.match(/<atom:title[^>]*>([\s\S]*?)<\/atom:title>/)?.[1]?.trim() ?? "",
+    );
+
+    // contentpath field: "/content/site/actual/messages/<slug>"
+    const contentPath =
+      entryXml.match(/<wplc:field id="contentpath">([\s\S]*?)<\/wplc:field>/)?.[1]?.trim() ?? "";
+    if (!contentPath.startsWith(WCM_CONTENT_PREFIX)) continue;
+
+    const url = PORTAL_BASE + contentPath.slice(WCM_CONTENT_PREFIX.length);
+
+    // effectivedate is a Unix timestamp in milliseconds
+    const effectiveDateMs = Number(
+      entryXml.match(/<wplc:field id="effectivedate">(\d+)<\/wplc:field>/)?.[1] ?? "0",
+    );
+    const date = effectiveDateMs ? formatDateDDMMYYYY(new Date(effectiveDateMs)) : "";
+
+    postLinks.push({ url, title, date });
+  }
+
+  return postLinks;
+}
+
+function formatDateDDMMYYYY(d: Date): string {
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}.${mm}.${yyyy}`;
+}
+
+function decodeXmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#034;/g, '"')
+    .replace(/&#039;/g, "'");
 }
 
 export async function extractPostDetails(
