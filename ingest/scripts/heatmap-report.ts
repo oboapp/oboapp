@@ -33,7 +33,7 @@ function isGeoJsonFeatureCollection(
 
 /**
  * Convert a single GeoJSON geometry to one or more heatmap [lat, lng] points.
- * Mirrors the same logic used in the web heatmap route.
+ * Used when producing the GCS heatmap snapshot that the web heatmap route loads.
  */
 function geometryToPoints(geometry: GeoJSONGeometry): HeatmapPoint[] {
   try {
