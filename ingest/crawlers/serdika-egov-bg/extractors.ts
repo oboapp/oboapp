@@ -11,6 +11,7 @@ const SEARCH_FEED_BASE = "https://serdika.egov.bg/wps/contenthandler/searchfeed/
 const SEARCH_SCOPE_ID = "1672924193550";
 const WCM_CONTENT_PREFIX = "/content/site/";
 const PORTAL_BASE = "https://serdika.egov.bg/wps/portal/municipality-serdika/";
+const FEED_FETCH_TIMEOUT_MS = 15_000;
 
 /**
  * Fetch the list of posts for one site section from the portal's ATOM search
@@ -43,12 +44,25 @@ export async function fetchPostLinksFromFeed(
     JSON.stringify({ type: "field", id: "keywords", values: [sectionKeyword] }),
   );
 
-  const response = await fetch(`${SEARCH_FEED_BASE}?${params.toString()}`);
-  if (!response.ok) {
-    throw new Error(`Search feed returned ${response.status} for keyword "${sectionKeyword}"`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FEED_FETCH_TIMEOUT_MS);
+
+  let xml: string;
+  try {
+    const response = await fetch(`${SEARCH_FEED_BASE}?${params.toString()}`, {
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`Search feed returned ${response.status} for keyword "${sectionKeyword}"`);
+    }
+    xml = await response.text();
+  } finally {
+    clearTimeout(timeoutId);
   }
 
-  const xml = await response.text();
+  if (!xml.includes("<atom:feed")) {
+    throw new Error(`Unexpected response format (not an ATOM feed) for keyword "${sectionKeyword}"`);
+  }
 
   // Parse ATOM entries with simple regex — the WCM feed has a fixed, machine-
   // generated structure so regex is sufficient here.

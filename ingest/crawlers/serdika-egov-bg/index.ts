@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import { resolve } from "node:path";
 import type { Browser } from "playwright";
 import type { OboDb } from "@oboapp/db";
-import { PostLink } from "./types";
+import type { PostLink } from "./types";
 import {
   fetchPostLinksFromFeed,
   extractPostDetails,
