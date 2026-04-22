@@ -69,6 +69,19 @@ If a feed is found:
 - Playwright is still appropriate for **detail/post pages** if they are server-side rendered.
 - Document the feed URL and parameters in `selectors.ts` (or a dedicated constants file) with a comment explaining the discovery.
 
+### General Rule: Prefer First Page + Small Batches
+
+When results are sorted by recency (newest first), default to fetching only the first page and a small number of records (for example 20) unless there is a clear product requirement to backfill history immediately.
+
+Rationale:
+
+- We only need fresh items for ongoing crawls.
+- Older items are usually irrelevant for ingestion/notifications.
+- Historical coverage accumulates naturally over time across repeated runs.
+- Smaller pages reduce timeouts, bandwidth, parsing cost, and source load.
+
+If unsure between "fetch many" vs "fetch few", choose few.
+
 > **Real example**: `serdika.egov.bg` renders its listing via client-side AJAX (`PortalXMLHttpRequestObject`), which Cloud Run IPs cannot reach. The underlying portal search feed at `/wps/contenthandler/searchfeed/search` is a plain HTTP ATOM endpoint that works fine — switching to it eliminated the `ERR_CONNECTION_RESET` failures entirely.
 
 ---
