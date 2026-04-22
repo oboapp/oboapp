@@ -28,7 +28,7 @@ export async function fetchPostLinksFromFeed(
     locale: "bg",
     resultLang: "bg",
     start: "0",
-    results: "999",
+    results: "20",
     scope: SEARCH_SCOPE_ID,
     query: "*",
     sortKey: "effectivedate",
