@@ -28,14 +28,36 @@ function loadLocalityContext(): LocalityContext {
     `${locality}.yaml`,
   );
 
+  let content: string;
+  try {
+    content = readFileSync(filePath, "utf-8");
+  } catch (error: unknown) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      throw new Error(
+        `Locality context file not found for "${locality}": ${filePath}. ` +
+          `Create prompts/localities/${locality}.yaml to continue.`,
+        { cause: error },
+      );
+    }
+
+    throw new Error(
+      `Unable to read locality context file for "${locality}": ${filePath}.`,
+      { cause: error },
+    );
+  }
+
   let raw: unknown;
   try {
-    const content = readFileSync(filePath, "utf-8");
     raw = parseYaml(content);
-  } catch {
+  } catch (error: unknown) {
     throw new Error(
-      `Locality context file not found for "${locality}": ${filePath}. ` +
-        `Create prompts/localities/${locality}.yaml to continue.`,
+      `Invalid YAML in locality context file for "${locality}": ${filePath}.`,
+      { cause: error },
     );
   }
 

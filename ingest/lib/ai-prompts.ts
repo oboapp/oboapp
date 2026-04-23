@@ -14,11 +14,31 @@ export function loadPrompt(filename: string): string {
     );
     return applyLocalityContext(template);
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorCode =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      typeof error.code === "string"
+        ? error.code
+        : undefined;
+
     logger.error("Failed to load prompt template", {
       filename,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage,
+      code: errorCode,
     });
-    throw new Error(`Prompt template file not found or invalid: ${filename}`);
+
+    if (errorCode === "ENOENT") {
+      throw new Error(`Prompt template file not found: ${filename}`, {
+        cause: error,
+      });
+    }
+
+    throw new Error(
+      `Prompt template could not be loaded: ${filename}. ${errorMessage}`,
+      { cause: error },
+    );
   }
 }
 

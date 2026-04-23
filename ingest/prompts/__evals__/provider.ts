@@ -21,22 +21,13 @@
 
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
-import { readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-// ESM-compatible __dirname equivalent
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { resolve } from "node:path";
 
 // Load .env.local before anything reads process.env (AGENTS.md pattern)
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 
-const PROMPTS_DIR = join(__dirname, "..");
-
-function loadPromptFile(filename: string): string {
-  return readFileSync(join(PROMPTS_DIR, filename), "utf-8");
-}
+// Dynamic import to ensure dotenv has loaded before locality context is initialised
+const { loadPrompt } = await import("../../lib/ai-prompts");
 
 /**
  * Loads the JSON schema matching a prompt file, for Gemini structured output.
@@ -117,7 +108,7 @@ class GeminiPipelineProvider {
       return { error: "GOOGLE_AI_MODEL environment variable is not set" };
     }
 
-    const systemInstruction = loadPromptFile(this.promptFile);
+    const systemInstruction = loadPrompt(this.promptFile);
     const responseSchema = await loadResponseSchema(this.promptFile);
 
     try {
