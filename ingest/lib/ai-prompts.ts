@@ -1,16 +1,24 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { logger } from "@/lib/logger";
+import { applyLocalityContext } from "@/lib/locality-context";
 
 /**
- * Loads a prompt template from the prompts directory
+ * Loads a prompt template from the prompts directory and applies locality substitution.
  */
 export function loadPrompt(filename: string): string {
   try {
-    return readFileSync(join(process.cwd(), "prompts", filename), "utf-8");
+    const template = readFileSync(
+      join(process.cwd(), "prompts", filename),
+      "utf-8",
+    );
+    return applyLocalityContext(template);
   } catch (error) {
-    logger.error("Failed to load prompt template", { filename, error: error instanceof Error ? error.message : String(error) });
-    throw new Error(`Prompt template file not found: ${filename}`);
+    logger.error("Failed to load prompt template", {
+      filename,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw new Error(`Prompt template file not found or invalid: ${filename}`);
   }
 }
 

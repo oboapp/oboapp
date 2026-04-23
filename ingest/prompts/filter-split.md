@@ -18,6 +18,8 @@ A civic tech platform that helps citizens stay informed about infrastructure dis
 - any other type of information citizens may be interested in
 
 The app displays them on an interactive map and pushes notifications for regions the end-user marked they care about.
+
+Currently serving **{{CITY}}, {{COUNTRY}}**.
 </app-scope>
 
 <json-object-structure>

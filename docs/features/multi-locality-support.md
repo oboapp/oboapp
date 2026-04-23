@@ -17,11 +17,13 @@ The project supports hosting data for a single configurable locality through the
 Required environment variables (no defaults):
 
 **Backend/Ingest:**
+
 ```bash
 LOCALITY=bg.sofia
 ```
 
 **Frontend/Web:**
+
 ```bash
 NEXT_PUBLIC_LOCALITY=bg.sofia
 ```
@@ -44,24 +46,27 @@ Display names and descriptions are stored in the shared package (`@oboapp/shared
 ```typescript
 export const LOCALITY_METADATA: Record<string, LocalityMetadata> = {
   "bg.sofia": {
-    name: "София",              // Display name in local language
-    description: "Следи събитията в София",  // PWA manifest description
+    name: "София", // Display name in local language
+    description: "Следи събитията в София", // PWA manifest description
   },
 };
 ```
 
 Functions:
+
 - `getLocalityMetadata(locality)` - Get full metadata object
 - `getLocalityName(locality)` - Get display name
 - `getLocalityDescription(locality)` - Get description (with fallback)
 
 These are used for:
+
 - PWA manifest generation (`/manifest.json`)
 - Page metadata and SEO
 
 ### GeoJSON Files
 
 Each locality requires a corresponding GeoJSON file for locality-wide messages:
+
 - Naming convention: `{locality}.geojson` (e.g., `bg.sofia.geojson`)
 - Location: `ingest/localities/` directory
 - Used by notification matching for locality-wide messages
@@ -69,22 +74,30 @@ Each locality requires a corresponding GeoJSON file for locality-wide messages:
 ## Adding a New Locality
 
 1. **Add bounds and center** in `shared/src/bounds.ts`:
+
    ```typescript
    export const BOUNDS: Record<string, BoundingBox> = {
-     "bg.sofia": { /* existing */ },
-     "bg.plovdiv": { north: 42.20, south: 42.10, east: 24.85, west: 24.70 },
+     "bg.sofia": {
+       /* existing */
+     },
+     "bg.plovdiv": { north: 42.2, south: 42.1, east: 24.85, west: 24.7 },
    };
-   
+
    export const CENTERS: Record<string, { lat: number; lng: number }> = {
-     "bg.sofia": { /* existing */ },
+     "bg.sofia": {
+       /* existing */
+     },
      "bg.plovdiv": { lat: 42.1354, lng: 24.7453 },
    };
    ```
 
 2. **Add locality metadata** in `shared/src/bounds.ts`:
+
    ```typescript
    export const LOCALITY_METADATA: Record<string, LocalityMetadata> = {
-     "bg.sofia": { /* existing */ },
+     "bg.sofia": {
+       /* existing */
+     },
      "bg.plovdiv": {
        name: "Пловдив",
        description: "Следи събитията в Пловдив",
@@ -94,9 +107,14 @@ Each locality requires a corresponding GeoJSON file for locality-wide messages:
 
 3. **Create GeoJSON file** at `ingest/localities/bg.plovdiv.geojson` containing the administrative boundary as a FeatureCollection
 
-4. **Create crawlers** in `ingest/crawlers/` that set `locality: "bg.plovdiv"` when saving sources
+4. **Create a locality context file** at `ingest/prompts/localities/bg.plovdiv.yaml` with the following fields:
+   - `city`, `country`, `primary-language`
+   - `districts` — list of residential complexes, quarters, and industrial zones sourced from OpenStreetMap
+   - `address-hints` — address format notes injected into AI prompts for geocoding
 
-5. **Set environment variables**:
+5. **Create crawlers** in `ingest/crawlers/` that set `locality: "bg.plovdiv"` when saving sources
+
+6. **Set environment variables**:
    ```bash
    LOCALITY=bg.plovdiv                    # Backend/Ingest
    NEXT_PUBLIC_LOCALITY=bg.plovdiv        # Frontend/Web
@@ -105,6 +123,7 @@ Each locality requires a corresponding GeoJSON file for locality-wide messages:
 ## Migration
 
 Migration script: `migrate/2026-02-10-add-locality-field.ts`
+
 - Backfills `locality: "bg.sofia"` to all existing records
 - Safe to run multiple times (skips records that already have locality)
 - Run with: `npx tsx migrate/2026-02-10-add-locality-field.ts`
