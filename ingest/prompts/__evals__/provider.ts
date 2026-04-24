@@ -108,8 +108,18 @@ class GeminiPipelineProvider {
       return { error: "GOOGLE_AI_MODEL environment variable is not set" };
     }
 
-    const systemInstruction = loadPrompt(this.promptFile);
-    const responseSchema = await loadResponseSchema(this.promptFile);
+    let systemInstruction: string;
+    let responseSchema: unknown | undefined;
+
+    try {
+      systemInstruction = loadPrompt(this.promptFile);
+      responseSchema = await loadResponseSchema(this.promptFile);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return {
+        error: `Failed to load prompt configuration for '${this.promptFile}': ${msg}`,
+      };
+    }
 
     try {
       const client = getClient();

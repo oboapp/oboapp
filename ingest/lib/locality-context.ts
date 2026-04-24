@@ -104,9 +104,10 @@ export function applyLocalityContext(template: string): string {
 
   const unreplaced = result.match(/\{\{[A-Z_]+\}\}/g);
   if (unreplaced) {
+    const uniqueUnreplaced = [...new Set(unreplaced)];
     const locality = getLocality();
     throw new Error(
-      `Prompt contains unresolved placeholders: ${unreplaced.join(", ")}. ` +
+      `Prompt contains unresolved placeholders: ${uniqueUnreplaced.join(", ")}. ` +
         `Add the corresponding keys to prompts/localities/${locality}.yaml.`,
     );
   }
