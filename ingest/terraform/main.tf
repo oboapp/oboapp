@@ -384,6 +384,12 @@ locals {
       timeout      = "1800s"
       description  = "Crawl Sofia Capital of Sport events"
     }
+    sdvr-mvr = {
+      source       = "sdvr-mvr-bg"
+      memory       = "1Gi"
+      timeout      = "1800s"
+      description  = "Crawl SDVR news"
+    }
   }
 }
 
