@@ -1,10 +1,8 @@
 /**
- * Unified geocoding interface - FIXED HYBRID APPROACH
+ * Unified geocoding interface - RESOLVER-DRIVEN
  *
- * Google Geocoding API for pins (specific addresses)
- * OpenStreetMap Overpass API for streets (intersections and geometries)
- * Bulgarian Cadastre API for cadastral properties (УПИ)
- * GTFS for bus stops (public transport)
+ * Each geocodable location type is handled by a provider declared in
+ * localities/{locality}.yaml. See ingest/lib/locality-data-sources.ts.
  */
 
 import type { EducationalFacilityRef } from "@oboapp/shared";
@@ -23,6 +21,7 @@ import {
 import { geocodeBusStops as geocodeBusStopsService } from "./gtfs/geocoding-service";
 import { geocodeEducationalFacilities as geocodeEducationalFacilitiesService } from "./educational-facilities/geocoding-service";
 import { CadastreMockService } from "../__mocks__/services/cadastre-mock-service";
+import { getLocalityDataSources, type GeocodingResolvers } from "@/lib/locality-data-sources";
 
 // Check if mocking is enabled for Cadastre
 // (Google Geocoding mock is handled in geocoding-service.ts)
@@ -32,33 +31,80 @@ const cadastreMockService = USE_CADASTRE_MOCK
   ? new CadastreMockService()
   : null;
 
+// Provider dispatch maps — one per resolver type.
+// Adding a new provider means adding one entry here; no switch needed at call sites.
+
+const PIN_PROVIDERS: Record<
+  GeocodingResolvers["pins"]["provider"],
+  (input: string[]) => Promise<Address[]>
+> = {
+  google: geocodeAddressesTraditional,
+  overpass: overpassGeocodeAddresses,
+};
+
+const STREET_ENDPOINT_PROVIDERS: Record<
+  GeocodingResolvers["streets"]["provider"],
+  (input: string[]) => Promise<Address[]>
+> = {
+  google: geocodeAddressesTraditional,
+  overpass: overpassGeocodeAddresses,
+};
+
+const BUS_STOP_PROVIDERS: Record<
+  GeocodingResolvers["bus-stops"]["provider"],
+  (codes: string[]) => Promise<Address[]>
+> = {
+  gtfs: geocodeBusStopsService,
+  google: geocodeAddressesTraditional,
+  overpass: overpassGeocodeAddresses,
+  skip: async () => [],
+};
+
+const EDUCATIONAL_FACILITY_PROVIDERS: Record<
+  GeocodingResolvers["educational-facilities"]["provider"],
+  (
+    facilities: EducationalFacilityRef[],
+    errors?: IngestErrorRecorder,
+  ) => Promise<Address[]>
+> = {
+  "educational-facilities": geocodeEducationalFacilitiesService,
+  google: (facilities) =>
+    geocodeAddressesTraditional(facilities.map((f) => `${f.type} ${f.number}`)),
+  skip: async () => [],
+};
+
 /**
- * Geocode a list of addresses (pins) using Google Geocoding API
+ * Geocode a list of addresses (pins) using the configured pins resolver.
  */
 export async function geocodeAddresses(
   addresses: string[],
 ): Promise<Address[]> {
-  return geocodeAddressesTraditional(addresses);
+  const { pins } = getLocalityDataSources()["geocoding-resolvers"];
+  return PIN_PROVIDERS[pins.provider](addresses);
 }
 
 /**
- * Geocode street sections using Overpass (geocode endpoints)
+ * Geocode street sections using the configured streets resolver.
  */
 export async function geocodeStreets(
   streets: StreetSection[],
 ): Promise<Address[]> {
   const endpointAddresses = streets.flatMap((s) => [s.from, s.to]);
-  return overpassGeocodeAddresses(endpointAddresses);
+  const { streets: resolver } = getLocalityDataSources()["geocoding-resolvers"];
+  return STREET_ENDPOINT_PROVIDERS[resolver.provider](endpointAddresses);
 }
 
 /**
- * Get street geometry (centerline) using Overpass for real OSM geometries
+ * Get street geometry (centerline) using the configured streets resolver.
+ * Currently only Overpass supports geometry queries; Google falls back to null.
  */
 export async function getStreetGeometry(
   streetName: string,
   startCoords: Coordinates,
   endCoords: Coordinates,
 ): Promise<[number, number][] | null> {
+  const { streets: resolver } = getLocalityDataSources()["geocoding-resolvers"];
+  if (resolver.provider !== "overpass") return null;
   const { getStreetSectionGeometry } = await import("./overpass/service");
   const geometry = await getStreetSectionGeometry(
     streetName,
@@ -153,51 +199,91 @@ export async function geocodeIntersectionsForStreets(
     processEndpoint(street.to, street.street);
   });
 
-  // Geocode cross-street intersections via Overpass
-  const geocoded = await overpassGeocodeIntersections(intersections);
+  const { streets: streetsResolver } =
+    getLocalityDataSources()["geocoding-resolvers"];
 
-  geocoded.forEach((address) => {
-    // Store with just the cross street name (what validation and GeoJSON service expect)
-    // Extract the cross street from "ул. A ∩ ул. B" format
-    const parts = address.formattedAddress.split(" ∩ ");
-    if (parts.length === 2) {
-      const crossStreet = parts[1].trim();
-      geocodedMap.set(crossStreet, address.coordinates);
-    }
-  });
+  if (streetsResolver.provider === "overpass") {
+    // Geocode cross-street intersections via Overpass
+    const geocoded = await overpassGeocodeIntersections(intersections);
 
-  // Geocode house-number endpoints directly via Nominatim
-  if (houseNumberEndpoints.size > 0) {
-    // Build specific queries with street context to avoid ambiguous results
-    const queryToEndpoint = new Map<string, string>();
-    const endpointQueries = Array.from(houseNumberEndpoints.entries()).map(
-      ([endpoint, streetName]) => {
-        const query = buildHouseNumberQuery(streetName, endpoint);
-        queryToEndpoint.set(query, endpoint);
-        return query;
-      },
-    );
-
-    logger.info("Geocoding house-number endpoints via Nominatim", {
-      count: endpointQueries.length,
-    });
-
-    const houseNumberGeocoded = await overpassGeocodeAddresses(endpointQueries);
-
-    // Match results by originalText to handle skipped failures
-    houseNumberGeocoded.forEach((address) => {
-      const originalEndpoint = queryToEndpoint.get(address.originalText);
-      if (originalEndpoint) {
-        geocodedMap.set(originalEndpoint, address.coordinates);
+    geocoded.forEach((address) => {
+      // Store with just the cross street name (what validation and GeoJSON service expect)
+      // Extract the cross street from "ул. A ∩ ул. B" format
+      const parts = address.formattedAddress.split(" ∩ ");
+      if (parts.length === 2) {
+        const crossStreet = parts[1].trim();
+        geocodedMap.set(crossStreet, address.coordinates);
       }
     });
+
+    // Geocode house-number endpoints directly via Nominatim
+    if (houseNumberEndpoints.size > 0) {
+      // Build specific queries with street context to avoid ambiguous results
+      const queryToEndpoint = new Map<string, string>();
+      const endpointQueries = Array.from(houseNumberEndpoints.entries()).map(
+        ([endpoint, streetName]) => {
+          const query = buildHouseNumberQuery(streetName, endpoint);
+          queryToEndpoint.set(query, endpoint);
+          return query;
+        },
+      );
+
+      logger.info("Geocoding house-number endpoints via Nominatim", {
+        count: endpointQueries.length,
+      });
+
+      const houseNumberGeocoded =
+        await overpassGeocodeAddresses(endpointQueries);
+
+      // Match results by originalText to handle skipped failures
+      houseNumberGeocoded.forEach((address) => {
+        const originalEndpoint = queryToEndpoint.get(address.originalText);
+        if (originalEndpoint) {
+          geocodedMap.set(originalEndpoint, address.coordinates);
+        }
+      });
+    }
+  } else {
+    // Google fallback: geocode all intersections and house-number endpoints as plain addresses
+    const allEndpoints = new Map<string, string>(); // query -> endpoint key
+
+    for (const intersection of intersections) {
+      const crossStreet = intersection.split(" ∩ ")[1]?.trim();
+      if (crossStreet) allEndpoints.set(intersection, crossStreet);
+    }
+
+    const queryToEndpoint = new Map<string, string>();
+    for (const [endpoint, streetName] of houseNumberEndpoints.entries()) {
+      const query = buildHouseNumberQuery(streetName, endpoint);
+      queryToEndpoint.set(query, endpoint);
+    }
+
+    const allQueries = [
+      ...allEndpoints.keys(),
+      ...queryToEndpoint.keys(),
+    ];
+
+    if (allQueries.length > 0) {
+      const geocoded = await geocodeAddressesTraditional(allQueries);
+      geocoded.forEach((address) => {
+        const crossStreet = allEndpoints.get(address.originalText);
+        if (crossStreet) {
+          geocodedMap.set(crossStreet, address.coordinates);
+          return;
+        }
+        const endpoint = queryToEndpoint.get(address.originalText);
+        if (endpoint) {
+          geocodedMap.set(endpoint, address.coordinates);
+        }
+      });
+    }
   }
 
   return geocodedMap;
 }
 
 /**
- * Geocode cadastral properties using Bulgarian Cadastre API
+ * Geocode cadastral properties using the configured cadastral-properties resolver.
  */
 export async function geocodeCadastralPropertiesFromIdentifiers(
   identifiers: string[],
@@ -206,6 +292,14 @@ export async function geocodeCadastralPropertiesFromIdentifiers(
     return new Map();
   }
 
+  const resolver =
+    getLocalityDataSources()["geocoding-resolvers"]["cadastral-properties"];
+
+  if (resolver.provider === "skip") {
+    return new Map();
+  }
+
+  // provider === "cadastre"
   // Use mock if enabled
   if (USE_CADASTRE_MOCK && cadastreMockService) {
     logger.info("Using Cadastre mock for properties");
@@ -226,18 +320,21 @@ export async function geocodeCadastralPropertiesFromIdentifiers(
 }
 
 /**
- * Geocode bus stops using GTFS data
+ * Geocode bus stops using the configured bus-stops resolver.
  */
 export async function geocodeBusStops(stopCodes: string[]): Promise<Address[]> {
   if (stopCodes.length === 0) {
     return [];
   }
 
-  return geocodeBusStopsService(stopCodes);
+  const resolver =
+    getLocalityDataSources()["geocoding-resolvers"]["bus-stops"];
+
+  return BUS_STOP_PROVIDERS[resolver.provider](stopCodes);
 }
 
 /**
- * Geocode educational facilities (schools and kindergartens) using local reference data
+ * Geocode educational facilities using the configured educational-facilities resolver.
  */
 export async function geocodeEducationalFacilities(
   facilities: EducationalFacilityRef[],
@@ -247,5 +344,11 @@ export async function geocodeEducationalFacilities(
     return [];
   }
 
-  return geocodeEducationalFacilitiesService(facilities, ingestErrors);
+  const resolver =
+    getLocalityDataSources()["geocoding-resolvers"]["educational-facilities"];
+
+  return EDUCATIONAL_FACILITY_PROVIDERS[resolver.provider](
+    facilities,
+    ingestErrors,
+  );
 }

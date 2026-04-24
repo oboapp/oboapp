@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock Firebase-dependent imports to avoid initialization errors
 vi.mock("@/lib/logger", () => ({
@@ -22,7 +22,41 @@ vi.mock("./cadastre/service", () => ({
   geocodeCadastralProperties: vi.fn(),
 }));
 
-import { hasHouseNumber, buildHouseNumberQuery } from "./router";
+vi.mock("./educational-facilities/geocoding-service", () => ({
+  geocodeEducationalFacilities: vi.fn(),
+}));
+
+const DEFAULT_RESOLVERS = {
+  "geocoding-resolvers": {
+    pins: { provider: "google" as const },
+    streets: { provider: "overpass" as const },
+    "cadastral-properties": { provider: "cadastre" as const },
+    "bus-stops": { provider: "gtfs" as const, url: "https://gtfs.example.com" },
+    "educational-facilities": {
+      provider: "educational-facilities" as const,
+      "schools-url": "https://schools.example.com",
+      "kindergartens-url": "https://kindergartens.example.com",
+    },
+  },
+};
+
+vi.mock("@/lib/locality-data-sources", () => ({
+  getLocalityDataSources: vi.fn(() => DEFAULT_RESOLVERS),
+}));
+
+import { getLocalityDataSources } from "@/lib/locality-data-sources";
+import {
+  hasHouseNumber,
+  buildHouseNumberQuery,
+  geocodeAddresses,
+  geocodeStreets,
+  geocodeBusStops,
+  geocodeEducationalFacilities,
+} from "./router";
+import { geocodeAddresses as googleService } from "./google/service";
+import { overpassGeocodeAddresses } from "./overpass/service";
+import { geocodeBusStops as gtfsService } from "./gtfs/geocoding-service";
+import { geocodeEducationalFacilities as eduFacilitiesService } from "./educational-facilities/geocoding-service";
 
 describe("buildHouseNumberQuery", () => {
   it("prefixes street name when endpoint is just a number", () => {
@@ -210,6 +244,120 @@ describe("hasHouseNumber", () => {
 
     it("rejects when number is part of street name", () => {
       expect(hasHouseNumber("ул. 6-ти септември")).toBe(false);
+    });
+  });
+});
+
+describe("provider dispatch", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getLocalityDataSources).mockReturnValue(DEFAULT_RESOLVERS as any);
+    vi.mocked(googleService).mockResolvedValue([]);
+    vi.mocked(overpassGeocodeAddresses).mockResolvedValue([]);
+    vi.mocked(gtfsService).mockResolvedValue([]);
+    vi.mocked(eduFacilitiesService).mockResolvedValue([]);
+  });
+
+  describe("geocodeAddresses", () => {
+    it("calls Google when pins provider is google", async () => {
+      await geocodeAddresses(["ул. Test 1"]);
+      expect(vi.mocked(googleService)).toHaveBeenCalledWith(["ул. Test 1"]);
+      expect(vi.mocked(overpassGeocodeAddresses)).not.toHaveBeenCalled();
+    });
+
+    it("calls Overpass when pins provider is overpass", async () => {
+      vi.mocked(getLocalityDataSources).mockReturnValue({
+        ...DEFAULT_RESOLVERS,
+        "geocoding-resolvers": {
+          ...DEFAULT_RESOLVERS["geocoding-resolvers"],
+          pins: { provider: "overpass" },
+        },
+      } as any);
+
+      await geocodeAddresses(["ул. Test 1"]);
+      expect(vi.mocked(overpassGeocodeAddresses)).toHaveBeenCalledWith(["ул. Test 1"]);
+      expect(vi.mocked(googleService)).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("geocodeStreets", () => {
+    const streets = [{ street: "ул. Test", from: "A", to: "B", timespans: [] }];
+
+    it("calls Overpass when streets provider is overpass", async () => {
+      await geocodeStreets(streets);
+      expect(vi.mocked(overpassGeocodeAddresses)).toHaveBeenCalledWith(["A", "B"]);
+      expect(vi.mocked(googleService)).not.toHaveBeenCalled();
+    });
+
+    it("calls Google when streets provider is google", async () => {
+      vi.mocked(getLocalityDataSources).mockReturnValue({
+        ...DEFAULT_RESOLVERS,
+        "geocoding-resolvers": {
+          ...DEFAULT_RESOLVERS["geocoding-resolvers"],
+          streets: { provider: "google" },
+        },
+      } as any);
+
+      await geocodeStreets(streets);
+      expect(vi.mocked(googleService)).toHaveBeenCalledWith(["A", "B"]);
+      expect(vi.mocked(overpassGeocodeAddresses)).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("geocodeBusStops", () => {
+    it("returns [] immediately for empty input without calling any provider", async () => {
+      const result = await geocodeBusStops([]);
+      expect(result).toEqual([]);
+      expect(vi.mocked(gtfsService)).not.toHaveBeenCalled();
+    });
+
+    it("calls GTFS service when provider is gtfs", async () => {
+      await geocodeBusStops(["1234"]);
+      expect(vi.mocked(gtfsService)).toHaveBeenCalledWith(["1234"]);
+    });
+
+    it("returns [] when provider is skip", async () => {
+      vi.mocked(getLocalityDataSources).mockReturnValue({
+        ...DEFAULT_RESOLVERS,
+        "geocoding-resolvers": {
+          ...DEFAULT_RESOLVERS["geocoding-resolvers"],
+          "bus-stops": { provider: "skip" },
+        },
+      } as any);
+
+      const result = await geocodeBusStops(["1234"]);
+      expect(result).toEqual([]);
+      expect(vi.mocked(gtfsService)).not.toHaveBeenCalled();
+      expect(vi.mocked(googleService)).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("geocodeEducationalFacilities", () => {
+    const facilities = [{ type: "school", number: "1" }];
+
+    it("returns [] immediately for empty input without calling any provider", async () => {
+      const result = await geocodeEducationalFacilities([]);
+      expect(result).toEqual([]);
+      expect(vi.mocked(eduFacilitiesService)).not.toHaveBeenCalled();
+    });
+
+    it("calls educational-facilities service when provider is educational-facilities", async () => {
+      await geocodeEducationalFacilities(facilities as any);
+      expect(vi.mocked(eduFacilitiesService)).toHaveBeenCalledWith(facilities, undefined);
+    });
+
+    it("returns [] when provider is skip", async () => {
+      vi.mocked(getLocalityDataSources).mockReturnValue({
+        ...DEFAULT_RESOLVERS,
+        "geocoding-resolvers": {
+          ...DEFAULT_RESOLVERS["geocoding-resolvers"],
+          "educational-facilities": { provider: "skip" },
+        },
+      } as any);
+
+      const result = await geocodeEducationalFacilities(facilities as any);
+      expect(result).toEqual([]);
+      expect(vi.mocked(eduFacilitiesService)).not.toHaveBeenCalled();
     });
   });
 });

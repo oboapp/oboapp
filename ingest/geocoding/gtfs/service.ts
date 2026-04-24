@@ -4,8 +4,7 @@ import { isWithinBounds } from "@oboapp/shared";
 import { getLocality } from "../../lib/target-locality";
 import { roundCoordinate } from "@/geocoding/shared/coordinate-utils";
 import { logger } from "@/lib/logger";
-
-const GTFS_URL = "https://gtfs.sofiatraffic.bg/api/v1/static";
+import { getLocalityDataSources } from "@/lib/locality-data-sources";
 
 export interface GTFSStop {
   stopCode: string;
@@ -17,10 +16,10 @@ export interface GTFSStop {
 /**
  * Download and extract GTFS ZIP file, returning stops.txt content
  */
-async function downloadAndExtractGTFS(): Promise<string> {
-  logger.info("Downloading GTFS data", { url: GTFS_URL });
+async function downloadAndExtractGTFS(url: string): Promise<string> {
+  logger.info("Downloading GTFS data", { url });
 
-  const response = await fetch(GTFS_URL);
+  const response = await fetch(url);
 
   if (!response.ok) {
     throw new Error(
@@ -111,9 +110,20 @@ export function parseStopsFile(csvContent: string): GTFSStop[] {
  * Uses upsert (set with merge) to update existing records
  */
 export async function syncGTFSStopsToFirestore(): Promise<void> {
+  const resolver =
+    getLocalityDataSources()["geocoding-resolvers"]["bus-stops"];
+
+  if (resolver.provider !== "gtfs") {
+    logger.info("Bus stops resolver is not gtfs — skipping GTFS sync", {
+      provider: resolver.provider,
+    });
+    return;
+  }
+
+  const { url } = resolver;
   logger.info("Starting GTFS stops sync");
 
-  const csvContent = await downloadAndExtractGTFS();
+  const csvContent = await downloadAndExtractGTFS(url);
   const stops = parseStopsFile(csvContent);
 
   logger.info("Parsed valid stops", { count: stops.length });

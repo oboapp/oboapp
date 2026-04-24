@@ -2,9 +2,7 @@ import { isWithinBounds } from "@oboapp/shared";
 import { getLocality } from "../../lib/target-locality";
 import { roundCoordinate } from "@/geocoding/shared/coordinate-utils";
 import { logger } from "@/lib/logger";
-
-const SCHOOLS_URL = "https://api.sofiaplan.bg/datasets/166";
-const KINDERGARTENS_URL = "https://api.sofiaplan.bg/datasets/142";
+import { getLocalityDataSources } from "@/lib/locality-data-sources";
 
 export type FacilityType = "school" | "kindergarten";
 
@@ -148,12 +146,26 @@ async function fetchFacilities(
 }
 
 /**
- * Sync schools and kindergartens from Sofia open data to the educationalFacilities collection.
+ * Sync schools and kindergartens from the configured open data source to the educationalFacilities collection.
  */
 export async function syncEducationalFacilities(): Promise<void> {
+  const resolver =
+    getLocalityDataSources()["geocoding-resolvers"]["educational-facilities"];
+
+  if (resolver.provider !== "educational-facilities") {
+    logger.info(
+      "Educational facilities resolver is not educational-facilities — skipping sync",
+      { provider: resolver.provider },
+    );
+    return;
+  }
+
+  const schoolsUrl = resolver["schools-url"];
+  const kindergartensUrl = resolver["kindergartens-url"];
+
   const [schoolsResult, kindergartensResult] = await Promise.allSettled([
-    fetchFacilities(SCHOOLS_URL, "school"),
-    fetchFacilities(KINDERGARTENS_URL, "kindergarten"),
+    fetchFacilities(schoolsUrl, "school"),
+    fetchFacilities(kindergartensUrl, "kindergarten"),
   ]);
 
   const schools =
