@@ -2,6 +2,7 @@ import { Address } from "../../lib/types";
 import { isCenterFallback, isGenericCityAddress } from "./utils";
 import { isWithinBounds, normalizePinAddress } from "@oboapp/shared";
 import { getLocality } from "../../lib/target-locality";
+import { getLocalityContext } from "../../lib/locality-context";
 import { delay } from "../../lib/delay";
 import { logger } from "@/lib/logger";
 import { GoogleGeocodingMockService } from "../../__mocks__/services/google-geocoding-mock-service";
@@ -31,10 +32,12 @@ export async function geocodeAddress(address: string): Promise<Address | null> {
 
   try {
     const locality = getLocality();
+    const { city, country } = getLocalityContext();
+    const countryCode = locality.split(".")[0].toUpperCase(); // e.g. "bg.sofia" → "BG"
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-    const encodedAddress = encodeURIComponent(`${address}, Sofia, Bulgaria`);
-    // Use components parameter to restrict to Sofia (locality)
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&components=locality:Sofia|country:BG&key=${apiKey}`;
+    const encodedAddress = encodeURIComponent(`${address}, ${city}, ${country}`);
+    // Use components parameter to restrict to the current locality
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&components=locality:${city}|country:${countryCode}&key=${apiKey}`;
 
     const response = await fetch(url);
     const data = await response.json();
