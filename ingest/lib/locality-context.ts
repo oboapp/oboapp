@@ -71,7 +71,7 @@ function loadLocalityContext(): LocalityContext {
   return result.data;
 }
 
-function getLocalityContext(): LocalityContext {
+export function getLocalityContext(): LocalityContext {
   if (!cachedContext) {
     cachedContext = loadLocalityContext();
   }

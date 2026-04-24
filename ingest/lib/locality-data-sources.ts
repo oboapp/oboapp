@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { load as parseYaml } from "js-yaml";
 import { z } from "zod";
 
+import { validateLocality } from "@oboapp/shared";
+import { hasCode } from "@/lib/record-fields";
 import { getLocality } from "@/lib/target-locality";
 
 const LocalityDataSourcesSchema = z.object({
@@ -46,18 +48,14 @@ let cachedSources: LocalityDataSources | null = null;
 
 function loadLocalityDataSources(): LocalityDataSources {
   const locality = getLocality();
+  validateLocality(locality);
   const filePath = join(process.cwd(), "localities", `${locality}.yaml`);
 
   let content: string;
   try {
     content = readFileSync(filePath, "utf-8");
   } catch (error: unknown) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      error.code === "ENOENT"
-    ) {
+    if (hasCode(error) && error.code === "ENOENT") {
       throw new Error(
         `Locality data sources file not found for "${locality}": ${filePath}. ` +
           `Create localities/${locality}.yaml to configure geocoding resolvers.`,
