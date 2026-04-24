@@ -82,7 +82,7 @@ function loadLocalityDataSources(): LocalityDataSources {
   const result = LocalityDataSourcesSchema.safeParse(raw);
   if (!result.success) {
     throw new Error(
-      `Invalid locality data sources file for "${locality}": ${result.error.message}`,
+      `Invalid locality data sources file for "${locality}": ${filePath}. ${result.error.message}`,
     );
   }
 
