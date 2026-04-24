@@ -5,8 +5,19 @@ vi.mock("../../lib/firebase-admin", () => ({
   adminDb: vi.fn(),
 }));
 
+vi.mock("@/lib/locality-data-sources", () => ({
+  getLocalityDataSources: vi.fn(),
+}));
+
+vi.mock("@/lib/logger", () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+
+import { getLocalityDataSources } from "@/lib/locality-data-sources";
+import { logger } from "@/lib/logger";
+
 // Import after mocking
-const { parseStopsFile } = await import("./service");
+const { parseStopsFile, syncGTFSStopsToFirestore } = await import("./service");
 
 describe("parseStopsFile", () => {
   it("should parse valid GTFS stops.txt CSV", () => {
@@ -103,5 +114,41 @@ describe("parseStopsFile", () => {
     expect(result).toHaveLength(1);
     expect(result[0].stopCode).toBe("1805");
     expect(result[0].stopName).toBe("Ул. 507");
+  });
+});
+
+describe("syncGTFSStopsToFirestore", () => {
+  it("skips sync and logs when bus-stops provider is not gtfs", async () => {
+    vi.mocked(getLocalityDataSources).mockReturnValue({
+      "geocoding-resolvers": {
+        "bus-stops": { provider: "skip" },
+      },
+    } as any);
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    await syncGTFSStopsToFirestore();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(vi.mocked(logger.info)).toHaveBeenCalledWith(
+      "Bus stops resolver is not gtfs — skipping GTFS sync",
+      { provider: "skip" },
+    );
+
+    fetchSpy.mockRestore();
+  });
+
+  it("skips sync when provider is google", async () => {
+    vi.mocked(getLocalityDataSources).mockReturnValue({
+      "geocoding-resolvers": {
+        "bus-stops": { provider: "google" },
+      },
+    } as any);
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    await syncGTFSStopsToFirestore();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    fetchSpy.mockRestore();
   });
 });

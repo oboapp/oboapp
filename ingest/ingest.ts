@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import { verifyEnvSet, verifyDbEnv } from "@/lib/verify-env";
 import { logger } from "@/lib/logger";
 import { initSentry, flushSentry } from "@/lib/sentry";
+import { getLocalityDataSources } from "@/lib/locality-data-sources";
 import type { IngestOptions } from "@/lib/types";
 
 const program = new Command();
@@ -52,6 +53,9 @@ Examples:
     ]);
 
     try {
+      // Validate geocoding resolver config early — fail fast on misconfiguration
+      getLocalityDataSources();
+
       // Dynamically import to avoid loading dependencies at parse time
       const { ingest } = await import("./messageIngest/from-sources");
 
@@ -95,6 +99,9 @@ program
     verifyDbEnv();
 
     try {
+      // Validate geocoding resolver config early — fail fast on misconfiguration
+      getLocalityDataSources();
+
       // Dynamically import to avoid loading dependencies at parse time
       const { syncGTFSStopsToFirestore } = await import("./geocoding/gtfs/service");
 
@@ -125,6 +132,9 @@ program
     verifyDbEnv();
 
     try {
+      // Validate geocoding resolver config early — fail fast on misconfiguration
+      getLocalityDataSources();
+
       const { syncEducationalFacilities } = await import(
         "./geocoding/educational-facilities/service"
       );

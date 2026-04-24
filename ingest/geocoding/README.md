@@ -1,13 +1,19 @@
 # Geocoding
 
-The router ([`router.ts`](router.ts)) dispatches each location type extracted from a message to the appropriate service:
+The router ([`router.ts`](router.ts)) dispatches each location type extracted from a message to the provider declared for that locality. Providers are configured in `localities/{locality}.yaml` — see [`lib/locality-data-sources.ts`](../lib/locality-data-sources.ts).
 
-| Location type            | Service                                | Output    |
-| ------------------------ | -------------------------------------- | --------- |
-| Specific address (pin)   | [Google](google/README.md)             | Point     |
-| Street section           | [Overpass/OSM](overpass/README.md)     | LineString |
-| Cadastral property (УПИ) | [Cadastre](cadastre/README.md)         | Polygon   |
-| Bus stop code            | GTFS (`gtfs/`)                         | Point     |
+| Location type                  | Supported providers                        | Output     |
+| ------------------------------ | ------------------------------------------ | ---------- |
+| Specific address (pin)         | `google`, `overpass`                       | Point      |
+| Street section                 | `overpass`, `google`                       | LineString |
+| Cadastral property (УПИ)       | `cadastre`, `skip`                         | Polygon (`cadastre`); no geometry otherwise |
+| Bus stop code                  | `gtfs`, `google`, `overpass`, `skip`       | Point      |
+| Educational facility reference | `educational-facilities`, `google`, `skip` | Point      |
+
+`skip` disables geocoding for that type — the pipeline performs no lookup and returns no geometry for those locations.
+
+
+All 5 resolver types are **required** in the locality YAML. The app fails at startup if any is absent or uses an unrecognised provider.
 
 All results are validated against the configured locality boundary before use. Results outside the boundary are rejected.
 

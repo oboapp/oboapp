@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { logger } from "@/lib/logger";
 import { applyLocalityContext } from "@/lib/locality-context";
+import { hasCode } from "@/lib/record-fields";
 
 /**
  * Loads a prompt template from the prompts directory and applies locality substitution.
@@ -16,10 +17,7 @@ export function loadPrompt(filename: string): string {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorCode =
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      typeof error.code === "string"
+      hasCode(error) && typeof error.code === "string"
         ? error.code
         : undefined;
 

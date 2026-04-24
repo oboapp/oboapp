@@ -4,7 +4,18 @@ vi.mock("../../lib/firebase-admin", () => ({
   adminDb: vi.fn(),
 }));
 
-const { parseFacilityNumber } = await import("./service");
+vi.mock("@/lib/locality-data-sources", () => ({
+  getLocalityDataSources: vi.fn(),
+}));
+
+vi.mock("@/lib/logger", () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+
+import { getLocalityDataSources } from "@/lib/locality-data-sources";
+import { logger } from "@/lib/logger";
+
+const { parseFacilityNumber, syncEducationalFacilities } = await import("./service");
 
 describe("parseFacilityNumber", () => {
   describe("object_nom takes priority", () => {
@@ -55,5 +66,41 @@ describe("parseFacilityNumber", () => {
     it("returns null when object_nam is an empty string", () => {
       expect(parseFacilityNumber(null, "")).toBeNull();
     });
+  });
+});
+
+describe("syncEducationalFacilities", () => {
+  it("skips sync and logs when educational-facilities provider is not educational-facilities", async () => {
+    vi.mocked(getLocalityDataSources).mockReturnValue({
+      "geocoding-resolvers": {
+        "educational-facilities": { provider: "skip" },
+      },
+    } as any);
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    await syncEducationalFacilities();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(vi.mocked(logger.info)).toHaveBeenCalledWith(
+      "Educational facilities resolver is not educational-facilities — skipping sync",
+      { provider: "skip" },
+    );
+
+    fetchSpy.mockRestore();
+  });
+
+  it("skips sync when provider is google", async () => {
+    vi.mocked(getLocalityDataSources).mockReturnValue({
+      "geocoding-resolvers": {
+        "educational-facilities": { provider: "google" },
+      },
+    } as any);
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    await syncEducationalFacilities();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    fetchSpy.mockRestore();
   });
 });
