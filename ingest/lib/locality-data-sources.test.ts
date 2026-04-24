@@ -4,6 +4,12 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// validateLocality is a registry check against known localities (bg.sofia etc.).
+// Test uses a synthetic "test.locality" that's not in the registry — mock it out.
+vi.mock("@oboapp/shared", () => ({
+  validateLocality: vi.fn(),
+}));
+
 const VALID_YAML = `
 geocoding-resolvers:
   pins:
