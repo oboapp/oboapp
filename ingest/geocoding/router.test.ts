@@ -52,11 +52,13 @@ import {
   geocodeStreets,
   geocodeBusStops,
   geocodeEducationalFacilities,
+  geocodeCadastralPropertiesFromIdentifiers,
 } from "./router";
 import { geocodeAddresses as googleService } from "./google/service";
 import { overpassGeocodeAddresses } from "./overpass/service";
 import { geocodeBusStops as gtfsService } from "./gtfs/geocoding-service";
 import { geocodeEducationalFacilities as eduFacilitiesService } from "./educational-facilities/geocoding-service";
+import { geocodeCadastralProperties as cadastreService } from "./cadastre/service";
 
 describe("buildHouseNumberQuery", () => {
   it("prefixes street name when endpoint is just a number", () => {
@@ -358,6 +360,41 @@ describe("provider dispatch", () => {
       const result = await geocodeEducationalFacilities(facilities as any);
       expect(result).toEqual([]);
       expect(vi.mocked(eduFacilitiesService)).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("geocodeCadastralPropertiesFromIdentifiers", () => {
+    beforeEach(() => {
+      vi.mocked(cadastreService).mockResolvedValue(new Map());
+    });
+
+    it("returns an empty map immediately for empty input without calling any provider", async () => {
+      const result = await geocodeCadastralPropertiesFromIdentifiers([]);
+      expect(result).toEqual(new Map());
+      expect(vi.mocked(cadastreService)).not.toHaveBeenCalled();
+    });
+
+    it("calls cadastre service when provider is cadastre", async () => {
+      const mockResult = new Map([["12345", { type: "MultiPolygon", coordinates: [] }]]);
+      vi.mocked(cadastreService).mockResolvedValue(mockResult as any);
+
+      const result = await geocodeCadastralPropertiesFromIdentifiers(["12345"]);
+      expect(vi.mocked(cadastreService)).toHaveBeenCalledWith(["12345"]);
+      expect(result).toBe(mockResult);
+    });
+
+    it("returns an empty map and does not call cadastre service when provider is skip", async () => {
+      vi.mocked(getLocalityDataSources).mockReturnValue({
+        ...DEFAULT_RESOLVERS,
+        "geocoding-resolvers": {
+          ...DEFAULT_RESOLVERS["geocoding-resolvers"],
+          "cadastral-properties": { provider: "skip" },
+        },
+      } as any);
+
+      const result = await geocodeCadastralPropertiesFromIdentifiers(["12345"]);
+      expect(result).toEqual(new Map());
+      expect(vi.mocked(cadastreService)).not.toHaveBeenCalled();
     });
   });
 });
