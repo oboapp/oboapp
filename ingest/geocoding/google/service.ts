@@ -34,12 +34,18 @@ export async function geocodeAddress(address: string): Promise<Address | null> {
     const locality = getLocality();
     const { city, country } = getLocalityContext();
     const countryCode = locality.split(".")[0].toUpperCase(); // e.g. "bg.sofia" → "BG"
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY?.trim();
+    if (!apiKey) {
+      logger.warn("GOOGLE_MAPS_API_KEY is not set, skipping Google geocoding", {
+        address,
+      });
+      return null;
+    }
     // Build URL via URLSearchParams so city/country/key are properly encoded
     const geocodeUrl = new URL("https://maps.googleapis.com/maps/api/geocode/json");
     geocodeUrl.searchParams.set("address", `${address}, ${city}, ${country}`);
     geocodeUrl.searchParams.set("components", `locality:${city}|country:${countryCode}`);
-    geocodeUrl.searchParams.set("key", apiKey ?? "");
+    geocodeUrl.searchParams.set("key", apiKey);
 
     const response = await fetch(geocodeUrl.toString());
     const data = await response.json();

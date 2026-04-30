@@ -6,6 +6,7 @@
  */
 
 import type { EducationalFacilityRef } from "@oboapp/shared";
+import { EDUCATIONAL_FACILITY_PREFIX } from "@/lib/constants";
 import { Address, StreetSection, Coordinates } from "../lib/types";
 import type { IngestErrorRecorder } from "@/lib/ingest-errors";
 import { logger } from "@/lib/logger";
@@ -55,8 +56,10 @@ const BUS_STOP_PROVIDERS: Record<
   (codes: string[]) => Promise<Address[]>
 > = {
   gtfs: geocodeBusStopsService,
-  google: geocodeAddressesTraditional,
-  overpass: overpassGeocodeAddresses,
+  google: (codes) =>
+    geocodeAddressesTraditional(codes.map((c) => `Спирка ${c}`)),
+  overpass: (codes) =>
+    overpassGeocodeAddresses(codes.map((c) => `Спирка ${c}`)),
   skip: async () => [],
 };
 
@@ -68,8 +71,21 @@ const EDUCATIONAL_FACILITY_PROVIDERS: Record<
   ) => Promise<Address[]>
 > = {
   "educational-facilities": geocodeEducationalFacilitiesService,
-  google: (facilities) =>
-    geocodeAddressesTraditional(facilities.map((f) => `${f.type} ${f.number}`)),
+  google: async (facilities) => {
+    const queryToKey = new Map(
+      facilities.map((f) => [
+        `${f.type} ${f.number}`,
+        `${EDUCATIONAL_FACILITY_PREFIX}${f.type}:${f.number}`,
+      ]),
+    );
+    const results = await geocodeAddressesTraditional(
+      facilities.map((f) => `${f.type} ${f.number}`),
+    );
+    return results.map((addr) => ({
+      ...addr,
+      originalText: queryToKey.get(addr.originalText) ?? addr.originalText,
+    }));
+  },
   skip: async () => [],
 };
 
