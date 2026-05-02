@@ -1,0 +1,153 @@
+name: Deploy to GCP
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+  ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+  LOCALITY: ${{ vars.LOCALITY || 'bg.sofia' }}
+  LOCALITIES: ${{ vars.LOCALITIES || '["bg.sofia"]' }}
+  GCS_GENERIC_BUCKET: ${{ vars.GCS_GENERIC_BUCKET || '' }}
+  APP_URL: ${{ vars.APP_URL }}
+  SENTRY_DSN_SECRET_ID: ${{ vars.SENTRY_DSN_SECRET_ID || 'sentry-dsn' }}
+  REGION: europe-west1
+  IMAGE_NAME: oborishte-ingest
+  TF_INPUT: "false"
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy to GCP
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write # Required for Workload Identity Federation
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev
+
+      - name: Build and push Docker image
+        id: build
+        run: |
+          set -e  # Exit on error
+          IMAGE_TAG="latest"
+          REGISTRY_URL="europe-west1-docker.pkg.dev/$PROJECT_ID/oborishte-ingest"
+
+          # Build and push with latest tag
+          echo "========================================="
+          echo "Building image for commit: $GITHUB_SHA"
+          echo "Image tag: $IMAGE_TAG"
+          echo "Full image: $REGISTRY_URL/$IMAGE_NAME:$IMAGE_TAG"
+          echo "========================================="
+
+          # Create inline cloudbuild config
+          cat > /tmp/cloudbuild.yaml << 'EOF'
+          steps:
+            - name: 'gcr.io/cloud-builders/docker'
+              args: 
+                - 'build'
+                - '-f'
+                - 'ingest/Dockerfile'
+                - '-t'
+                - '$_REGISTRY_URL/$_IMAGE_NAME:$_IMAGE_TAG'
+                - '.'
+            - name: 'gcr.io/cloud-builders/docker'
+              args: 
+                - 'push'
+                - '$_REGISTRY_URL/$_IMAGE_NAME:$_IMAGE_TAG'
+          images:
+            - '$_REGISTRY_URL/$_IMAGE_NAME:$_IMAGE_TAG'
+          EOF
+
+          # Submit build from repo root with ingest/Dockerfile
+          gcloud builds submit \
+            --config=/tmp/cloudbuild.yaml \
+            --substitutions=_IMAGE_TAG=$IMAGE_TAG,_REGISTRY_URL=$REGISTRY_URL,_IMAGE_NAME=$IMAGE_NAME \
+            .
+
+          echo "========================================="
+          echo "✅ Image built and tagged as $IMAGE_TAG"
+          echo "========================================="
+
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+          # Wait for registry to fully propagate
+          echo "Waiting for registry to propagate..."
+          sleep 10
+
+          echo "✅ Build completed successfully"
+
+      - name: Grant Artifact Registry access to Cloud Run service account
+        run: |
+          # Ensure the Cloud Run service account can pull images from Artifact Registry
+          echo "Granting Artifact Registry access to ingest-runner service account..."
+          gcloud projects add-iam-policy-binding $PROJECT_ID \
+            --member="serviceAccount:ingest-runner@$PROJECT_ID.iam.gserviceaccount.com" \
+            --role="roles/artifactregistry.reader" \
+            --quiet || echo "Permission may already exist"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.11.4
+
+      - name: Terraform Init
+        run: |
+          cd ingest/terraform
+          terraform init
+
+      - name: Terraform Plan
+        run: |
+          cd ingest/terraform
+
+          echo "Using IMAGE_TAG: ${IMAGE_TAG}"
+          echo "Using image: europe-west1-docker.pkg.dev/$PROJECT_ID/oborishte-ingest/$IMAGE_NAME:${IMAGE_TAG}"
+
+          # Write LOCALITIES (a JSON array string) to a tfvars.json file using jq.
+          # Avoids shell-quoting issues with list variables passed via -var.
+          jq -n --argjson localities "$LOCALITIES" '{localities: $localities}' > localities.auto.tfvars.json
+
+          terraform plan \
+            -lock-timeout=60s \
+            -input=false \
+            -var="project_id=$PROJECT_ID" \
+            -var="region=$REGION" \
+            -var="image_tag=${IMAGE_TAG}" \
+            -var="firebase_project_id=$FIREBASE_PROJECT_ID" \
+            -var="alert_email=$ALERT_EMAIL" \
+            -var="locality=$LOCALITY" \
+            -var="ci_service_account_email=${{ secrets.GCP_SERVICE_ACCOUNT }}" \
+            -var="gcs_generic_bucket=$GCS_GENERIC_BUCKET" \
+            -var="app_url=$APP_URL" \
+            -var="sentry_dsn_secret_id=$SENTRY_DSN_SECRET_ID" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        run: |
+          cd ingest/terraform
+          terraform apply -lock-timeout=60s -auto-approve tfplan
+
+      - name: Output deployment info
+        run: |
+          echo "✅ Deployment successful!"
+          echo "Image: europe-west1-docker.pkg.dev/$PROJECT_ID/oborishte-ingest/$IMAGE_NAME:latest"
+          echo "Region: $REGION"
+          echo "Commit: $GITHUB_SHA"
