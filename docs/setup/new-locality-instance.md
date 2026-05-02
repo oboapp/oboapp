@@ -4,10 +4,10 @@ oboapp is designed to be deployed for any city. The upstream repository (`oboapp
 
 ## Upstream vs. Instance Files
 
-| Scope | What lives there | Examples |
-|---|---|---|
-| Upstream | Terraform modules, crawler implementations, locality crawler lists | `crawlers.bg.sofia.tf`, `main.tf` |
-| Instance-only | Deployment config, secrets, CI environment | `terraform.tfvars`, `.github/workflows/deploy.yml` |
+| Scope | What lives there |
+|---|---|
+| Upstream | Terraform modules, crawler implementations, per-locality crawler definitions |
+| Instance-only | Deployment workflows, secrets, CI environment variables, `terraform.tfvars` |
 
 Never override upstream Terraform logic in instance files — configure via variables instead.
 
@@ -15,19 +15,21 @@ Never override upstream Terraform logic in instance files — configure via vari
 
 Each city's crawlers are defined in a dedicated file in `ingest/terraform/`, named `crawlers.bg.<locality>.tf`. The `localities` Terraform variable controls which of these are active for a given deployment.
 
-**In your forked `deploy.yml`**, set a `LOCALITIES` GitHub Actions variable to a JSON list of locality IDs:
+**In your forked `deploy.yml`**, create a GitHub Actions repository variable named `LOCALITIES` with a JSON string value:
 
 ```
-vars.LOCALITIES = ["bg.sofia"]
+["bg.sofia"]
 ```
 
-Multiple cities can be combined in a single deployment:
+This is passed to Terraform as `-var='localities=["bg.sofia"]'`. Multiple cities can be combined:
 
 ```
-vars.LOCALITIES = ["bg.sofia", "bg.burgas", "bg.plovdiv"]
+["bg.sofia", "bg.burgas", "bg.plovdiv"]
 ```
 
-The default is `["bg.sofia"]` if the variable is not set.
+The default is `["bg.sofia"]` if `LOCALITIES` is not set.
+
+> **Note:** Multi-locality assembly creates one Cloud Run job per crawler across all listed cities. Per-crawler locality scoping (each crawler receiving its own city context at runtime) is planned.
 
 **In the web app**, set `vars.LOCALITY` to the single locality the web app serves (the web app displays one city at a time):
 

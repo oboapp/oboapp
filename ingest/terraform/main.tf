@@ -326,11 +326,11 @@ resource "google_cloud_run_v2_job" "crawlers" {
         
         env {
           name  = "LOCALITY"
-          # NOTE: All crawler jobs in a single apply share the same var.locality
-          # value. Deploying crawlers for multiple cities in one apply requires
-          # separate Terraform workspaces, one per city (set var.locality to the
-          # city's locality ID in each workspace). var.localities assembles the
-          # crawler job set; var.locality scopes each crawler's execution context.
+          # NOTE: All crawler jobs currently share the same var.locality execution
+          # context. var.localities assembles the full set of crawler Cloud Run jobs;
+          # per-job locality scoping (passing each crawler its own locality ID) is
+          # planned — at that point crawlers will accept localities as a runtime
+          # parameter rather than reading a single env var.
           value = var.locality
         }
         

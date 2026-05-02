@@ -179,7 +179,8 @@ All variables are defined in `variables.tf`. Override them in `terraform.tfvars`
 | `image_tag`                 | Docker image tag                         | `latest`             |
 | `artifact_registry_repo_id` | Artifact Registry repository ID          | `oborishte-ingest`   |
 | `schedule_timezone`         | Timezone for schedules                   | `Europe/Sofia`       |
-| `crawlers`                  | Map of crawlers to deploy (see below)    | Sofia crawlers       |
+| `localities`                | Locality IDs to deploy crawlers for      | `["bg.sofia"]`       |
+| `crawlers`                  | Manual override for the crawler map      | `{}` (auto-assembled)|
 | `gcs_generic_bucket`        | GCS bucket for file storage (optional)   | `""`                 |
 | `sentry_dsn_secret_id`      | Secret Manager ID for Sentry DSN         | `""`                 |
 
@@ -220,16 +221,16 @@ The pipeline uses Google Cloud Workflows for orchestration:
 - **Triggered by**: Cloud Scheduler (same schedules as before)
 - **Execution**: Crawlers run in parallel via `parallel: for:` loop, followed by sequential ingest and notify
 
-**Workflow changes**: Workflow YAML is generated from Terraform templates using `templatefile()`. Crawler lists are derived automatically from `var.crawlers` in `variables.tf`:
+**Workflow changes**: Workflow YAML is generated from Terraform templates using `templatefile()`. Crawler lists are derived automatically from `local.crawlers` (assembled from per-locality files in `ingest/terraform/`):
 
 ```bash
 terraform plan   # Workflows will be updated
 terraform apply
 ```
 
-**Adding new crawlers**: Only update `var.crawlers` in `variables.tf`:
+**Adding new crawlers**: Add an entry to the relevant locality file (e.g. `crawlers.bg.sofia.tf`):
 
-1. Add an entry to the `crawlers` variable in `variables.tf` — the workflow templates pick it up automatically.
+1. Add an entry to `crawlers.bg.<locality>.tf` — the workflow templates pick it up automatically via `local.crawlers`.
 2. For emergent crawlers (30-min intervals): set `emergent = true` in the crawler entry and update `EMERGENT_CRAWLERS` in `pipeline.ts`. This is a manual allowlist keyed by crawler source/directory names (not Terraform job keys).
 3. `pipeline.ts` automatically discovers the full list of available crawlers from the filesystem; only membership in the emergent group is controlled manually via `EMERGENT_CRAWLERS`.
 

@@ -2,13 +2,18 @@
 #
 # To add a new locality:
 #   1. Create crawlers.bg.<locality>.tf defining local.crawlers_bg_<locality>
-#   2. Add a contains(...) line in the _assembled merge below
-#   3. Add the locality to var.localities (or pass it at apply time)
+#   2. Add the locality ID to local._supported_localities below
+#   3. Add a contains(var.localities, ...) branch in the merge below
+#   4. Pass the new ID in var.localities at apply time (or in terraform.tfvars)
 #
 # To override all crawlers for a specific deployment without touching this file,
 # set var.crawlers to a non-empty map in terraform.tfvars or via -var.
 
 locals {
+  # Single source of truth for supported locality IDs.
+  # Steps 2–3 above are the only changes needed here when adding a new city.
+  _supported_localities = toset(["bg.sofia"])
+
   _assembled_crawlers = merge(
     contains(var.localities, "bg.sofia") ? local.crawlers_bg_sofia : {},
     # Add new localities here, e.g.:
@@ -22,4 +27,12 @@ locals {
 
   # var.crawlers, if non-empty, acts as a full manual override (escape hatch).
   crawlers = length(var.crawlers) > 0 ? var.crawlers : local._assembled_crawlers
+}
+
+# Warn early when var.localities requests a city with no crawler file wired in.
+check "localities_supported" {
+  assert {
+    condition     = length(setsubtract(toset(var.localities), local._supported_localities)) == 0
+    error_message = "var.localities contains unsupported ID(s): ${jsonencode(tolist(setsubtract(toset(var.localities), local._supported_localities)))}. To add a locality: create crawlers.bg.<city>.tf, then add the ID to local._supported_localities and a contains() branch in crawlers.tf."
+  }
 }
