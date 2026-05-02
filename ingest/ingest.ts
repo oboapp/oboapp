@@ -46,15 +46,17 @@ Examples:
     dotenv.config({ path: resolve(process.cwd(), ".env.local") });
     initSentry();
     verifyDbEnv();
-    verifyEnvSet([
-      "GOOGLE_AI_API_KEY",
-      "GOOGLE_AI_MODEL",
-      "GOOGLE_MAPS_API_KEY",
-    ]);
+    verifyEnvSet(["GOOGLE_AI_API_KEY", "GOOGLE_AI_MODEL"]);
 
     try {
       // Validate geocoding resolver config early — fail fast on misconfiguration
-      getLocalityDataSources();
+      const dataSources = getLocalityDataSources();
+
+      // Only require GOOGLE_MAPS_API_KEY when a resolver actually uses google
+      const resolvers = Object.values(dataSources["geocoding-resolvers"]);
+      if (resolvers.some((r) => r.provider === "google")) {
+        verifyEnvSet(["GOOGLE_MAPS_API_KEY"]);
+      }
 
       // Dynamically import to avoid loading dependencies at parse time
       const { ingest } = await import("./messageIngest/from-sources");
@@ -92,7 +94,7 @@ Examples:
 
 program
   .command("gtfs-stops")
-  .description("Sync GTFS bus stops from Sofia Traffic to Firestore")
+  .description("Sync GTFS bus stops from the configured locality provider to Firestore")
   .action(async () => {
     // Ensure environment variables are loaded
     dotenv.config({ path: resolve(process.cwd(), ".env.local") });
@@ -126,7 +128,7 @@ program
 
 program
   .command("educational-facilities-sync")
-  .description("Sync schools and kindergartens from Sofia open data to Firestore")
+  .description("Sync schools and kindergartens from the configured locality provider to Firestore")
   .action(async () => {
     dotenv.config({ path: resolve(process.cwd(), ".env.local") });
     verifyDbEnv();

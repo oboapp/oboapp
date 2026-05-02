@@ -97,8 +97,9 @@ export function parseStopsFile(csvContent: string): GTFSStop[] {
     logger.info("Skipped stops without stop_code", { count: skippedNoCode });
   }
   if (skippedOutOfBounds > 0) {
-    logger.info("Skipped stops outside Sofia boundaries", {
+    logger.info("Skipped stops outside locality boundaries", {
       count: skippedOutOfBounds,
+      locality: getLocality(),
     });
   }
 
