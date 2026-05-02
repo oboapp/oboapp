@@ -30,9 +30,10 @@ locals {
 }
 
 # Warn early when var.localities requests a city with no crawler file wired in.
+# Skip this check when var.crawlers is non-empty (full manual override active).
 check "localities_supported" {
   assert {
-    condition     = length(setsubtract(toset(var.localities), local._supported_localities)) == 0
+    condition     = length(var.crawlers) > 0 || length(setsubtract(toset(var.localities), local._supported_localities)) == 0
     error_message = "var.localities contains unsupported ID(s): ${jsonencode(tolist(setsubtract(toset(var.localities), local._supported_localities)))}. To add a locality: create crawlers.bg.<city>.tf, then add the ID to local._supported_localities and a contains() branch in crawlers.tf."
   }
 }

@@ -13,6 +13,11 @@ variable "localities" {
   description = "List of locality IDs whose crawlers should be deployed (e.g. [\"bg.sofia\"]). Each ID must have a corresponding crawlers.bg.<city>.tf file wired into crawlers.tf. Crawlers for all listed localities are merged into a single Cloud Run job set. Note: all crawler jobs currently share the same var.locality execution context; per-job locality scoping is planned."
   type        = list(string)
   default     = ["bg.sofia"]
+
+  validation {
+    condition     = length(var.localities) == 1
+    error_message = "Only one locality per apply is supported until per-job locality scoping is implemented. Pass a single-element list, e.g. [\"bg.sofia\"]."
+  }
 }
 
 variable "crawlers" {
