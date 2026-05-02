@@ -1,10 +1,15 @@
 # Assembles the final crawler map from per-locality crawler definitions.
 #
-# To add a new locality:
-#   1. Create crawlers.bg.<locality>.tf defining local.crawlers_bg_<locality>
-#   2. Add the locality ID to local._supported_localities below
-#   3. Add a contains(var.localities, ...) branch in the merge below
-#   4. Pass the new ID in var.localities at apply time (or in terraform.tfvars)
+# Naming convention:
+#   Locality ID  (used in var.localities)  : "bg.sofia"
+#   Terraform file                         : crawlers.bg.sofia.tf  (= crawlers.<locality-id>.tf)
+#   Local variable name                    : crawlers_bg_sofia      (dots replaced with underscores)
+#
+# To add a new locality (example: locality ID "bg.burgas", city suffix "burgas"):
+#   1. Create crawlers.bg.burgas.tf defining local.crawlers_bg_burgas
+#   2. Add "bg.burgas" to local._supported_localities below
+#   3. Add a contains(var.localities, "bg.burgas") branch in the merge below
+#   4. Pass ["bg.burgas"] in var.localities at apply time (or in terraform.tfvars)
 #
 # To override all crawlers for a specific deployment without touching this file,
 # set var.crawlers to a non-empty map in terraform.tfvars or via -var.

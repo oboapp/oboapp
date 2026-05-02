@@ -13,7 +13,7 @@ Never override upstream Terraform logic in instance files — configure via vari
 
 ## Configuring Which Localities to Deploy
 
-Each city's crawlers are defined in a dedicated file in `ingest/terraform/`, named `crawlers.bg.<locality>.tf`. The `localities` Terraform variable controls which of these are active for a given deployment.
+Each city's crawlers are defined in a dedicated Terraform file named after its locality ID. The naming pattern is `crawlers.<locality-id>.tf` — for example, locality `bg.sofia` maps to `crawlers.bg.sofia.tf`. The `localities` Terraform variable controls which of these are active for a given deployment.
 
 **In your forked `deploy.yml`**, create a GitHub Actions repository variable named `LOCALITIES` with a JSON string value:
 
@@ -29,7 +29,7 @@ This is passed to Terraform as `-var='localities=["bg.sofia"]'`. Multiple cities
 
 The default is `["bg.sofia"]` if `LOCALITIES` is not set.
 
-> **Note:** Multi-locality assembly creates one Cloud Run job per crawler across all listed cities. Per-crawler locality scoping (each crawler receiving its own city context at runtime) is planned.
+> **Note:** Multi-locality assembly creates one Cloud Run job per crawler across all listed cities. Until per-crawler locality scoping is implemented, all crawler jobs share the same `var.locality` execution context — for now, pass a single-element list to avoid data mis-tagging.
 
 **In the web app**, set `vars.LOCALITY` to the single locality the web app serves (the web app displays one city at a time):
 
@@ -42,8 +42,8 @@ vars.LOCALITY = "bg.sofia"
 To add crawler support for a new city, contribute to the upstream repository:
 
 1. Implement the crawlers under `ingest/crawlers/` and register them in `shared/src/sources.ts` with the correct `localities` value (e.g. `["bg.burgas"]`).
-2. Create `ingest/terraform/crawlers.bg.<locality>.tf` defining the crawler map for that locality.
-3. Add a `contains(var.localities, "bg.<locality>")` line in `ingest/terraform/crawlers.tf` to wire it into the assembly.
+2. Create `ingest/terraform/crawlers.bg.burgas.tf` (i.e. `crawlers.<locality-id>.tf`) defining `local.crawlers_bg_burgas`.
+3. Add `"bg.burgas"` to `local._supported_localities` and a `contains(var.localities, "bg.burgas")` branch in `ingest/terraform/crawlers.tf`.
 4. Follow the [Crawler Development guidelines](../../AGENTS.md#crawler-development) for the full checklist.
 
 Once merged upstream, any deployment can activate the new city by adding its locality ID to `vars.LOCALITIES`.
