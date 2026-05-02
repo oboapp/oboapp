@@ -32,7 +32,7 @@ The default is `["bg.sofia"]` if the variable is not set.
 **In the web app**, set `vars.LOCALITY` to the single locality the web app serves (the web app displays one city at a time):
 
 ```
-vars.LOCALITY = bg.sofia
+vars.LOCALITY = "bg.sofia"
 ```
 
 ## Adding a New City (Upstream Contribution)

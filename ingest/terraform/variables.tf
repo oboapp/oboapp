@@ -10,9 +10,14 @@ variable "region" {
 }
 
 variable "localities" {
-  description = "List of locality IDs to deploy crawlers for (e.g. [\"bg.sofia\"]). Each locality must have a corresponding crawlers.bg.<locality>.tf file. Crawlers for all listed localities are merged and deployed together."
+  description = "List of locality IDs to deploy crawlers for. Each locality must have a corresponding Terraform file named crawlers.<locality-id>.tf (e.g. locality \"bg.sofia\" → crawlers.bg.sofia.tf). Crawlers for all listed localities are merged and deployed together."
   type        = list(string)
   default     = ["bg.sofia"]
+
+  validation {
+    condition     = alltrue([for l in var.localities : contains(["bg.sofia"], l)])
+    error_message = "Unsupported locality ID(s) in var.localities. Supported values: [\"bg.sofia\"]. To add a new locality, create crawlers.bg.<city>.tf upstream and add its ID to this list."
+  }
 }
 
 variable "crawlers" {
