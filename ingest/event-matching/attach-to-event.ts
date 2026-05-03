@@ -1,6 +1,7 @@
 import type { OboDb, UpdateOperators } from "@oboapp/db";
 import type { GeoJSONFeatureCollection } from "@/lib/types";
-import { getSourceTrust, getGeometryQuality } from "@/lib/source-trust";
+import { getSourceTrust } from "@/lib/source-trust";
+import { aggregateMessageGeometryQuality } from "@/messageIngest/aggregate-quality";
 import type { MatchSignals } from "./score";
 import { toISOString, toMs, isAlreadyExistsError } from "./utils";
 import { logger } from "@/lib/logger";
@@ -50,11 +51,9 @@ export async function attachMessageToEvent(
   const isRepair = existingLinks.length > 0;
 
   const source = typeof message.source === "string" ? message.source : "";
-  const hasPrecomputedGeoJson = getSourceTrust(source).geometryQuality === 3;
-  // Geometry quality is 0 when the message has no geoJson (e.g., city-wide messages)
-  const newGeometryQuality = message.geoJson
-    ? getGeometryQuality(source, hasPrecomputedGeoJson)
-    : 0;
+  // Pass ungradedFallback=1 so legacy messages without per-feature quality stamps
+  // are treated as quality 1 (geometry present, grade unknown) rather than 0.
+  const newGeometryQuality = aggregateMessageGeometryQuality(message.geoJson, 1);
   const now = new Date().toISOString();
   const eventId = getString(event._id);
 

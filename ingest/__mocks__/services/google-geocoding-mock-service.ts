@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { Address } from "@/lib/types";
+import { gradeGoogle } from "@/geocoding/shared/quality";
+import { GOOGLE_LOCATION_TYPES } from "@/geocoding/shared/google-location-types";
 
 export class GoogleGeocodingMockService {
   private customFixturePath: string | null = null;
@@ -17,8 +19,10 @@ export class GoogleGeocodingMockService {
     // Simulate delay
     await new Promise((resolve) => setTimeout(resolve, 50));
 
-    // Return minimal mock data - Sofia center coordinates
+    // Return minimal mock data - Sofia center coordinates with ROOFTOP quality
     // Developers can add real fixtures over time
+    const qualitySignals = gradeGoogle(GOOGLE_LOCATION_TYPES.ROOFTOP, false);
+
     return {
       originalText: address,
       formattedAddress: "Sofia, Bulgaria",
@@ -26,6 +30,7 @@ export class GoogleGeocodingMockService {
         lat: 42.6977,
         lng: 23.3219,
       },
+      qualitySignals,
     };
   }
 

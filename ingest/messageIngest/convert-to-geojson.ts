@@ -1,11 +1,13 @@
 import { convertToGeoJSON } from "@/geocoding/shared/geojson-service";
+import { gradeCadastre } from "@/geocoding/shared/quality";
 import {
   ExtractedLocations,
-  GeoJSONFeatureCollection,
-  GeoJSONFeature,
+  GeoJsonFeatureCollection,
+  GeoJsonFeature,
   Address,
   Coordinates,
-} from "@/lib/types";
+  QualitySignals,
+} from "@oboapp/shared";
 import { validateAndFixGeoJSON } from "../crawlers/shared/geojson-validation";
 import type { CadastralGeometry } from "@/geocoding/cadastre/service";
 import {
@@ -50,11 +52,12 @@ export function validatePinsAndStreetsGeocoded(
 export async function convertMessageGeocodingToGeoJson(
   extractedData: ExtractedLocations | null,
   preGeocodedMap: Map<string, Coordinates>,
+  qualityMap: Map<string, QualitySignals>,
   cadastralGeometries?: Map<string, CadastralGeometry>,
   geocodedBusStops?: Address[],
   ingestErrors?: IngestErrorRecorder,
   geocodedEducationalFacilities?: Address[],
-): Promise<GeoJSONFeatureCollection | null> {
+): Promise<GeoJsonFeatureCollection | null> {
   const recorder = getIngestErrorRecorder(ingestErrors);
   if (!extractedData) {
     return null;
@@ -114,7 +117,10 @@ export async function convertMessageGeocodingToGeoJson(
 
   // Track missing cadastral properties
   const missingCadastral: string[] = [];
-  if (extractedData.cadastralProperties && extractedData.cadastralProperties.length > 0) {
+  if (
+    extractedData.cadastralProperties &&
+    extractedData.cadastralProperties.length > 0
+  ) {
     for (const prop of extractedData.cadastralProperties) {
       if (!cadastralGeometries || !cadastralGeometries.has(prop.identifier)) {
         missingCadastral.push(`УПИ ${prop.identifier}`);
@@ -150,17 +156,30 @@ export async function convertMessageGeocodingToGeoJson(
   if (allMissing.length > 0) {
     const shownParts = [
       filteredData.pins.length > 0 && `${filteredData.pins.length} pins`,
-      filteredData.streets.length > 0 && `${filteredData.streets.length} streets`,
-      geocodedBusStops && geocodedBusStops.length > 0 && `${geocodedBusStops.length} bus stops`,
-      geocodedEducationalFacilities && geocodedEducationalFacilities.length > 0 && `${geocodedEducationalFacilities.length} facilities`,
-      cadastralGeometries && cadastralGeometries.size > 0 && `${cadastralGeometries.size} cadastral`,
-    ].filter(Boolean).join(" + ");
+      filteredData.streets.length > 0 &&
+        `${filteredData.streets.length} streets`,
+      geocodedBusStops &&
+        geocodedBusStops.length > 0 &&
+        `${geocodedBusStops.length} bus stops`,
+      geocodedEducationalFacilities &&
+        geocodedEducationalFacilities.length > 0 &&
+        `${geocodedEducationalFacilities.length} facilities`,
+      cadastralGeometries &&
+        cadastralGeometries.size > 0 &&
+        `${cadastralGeometries.size} cadastral`,
+    ]
+      .filter(Boolean)
+      .join(" + ");
     recorder.warn(
       `⚠️  Partial geocoding: ${allMissing.length} locations failed (showing ${shownParts}): ${allMissing.join(", ")}`,
     );
   }
 
-  const geoJson = await convertToGeoJSON(filteredData, preGeocodedMap);
+  const geoJson = await convertToGeoJSON(
+    filteredData,
+    preGeocodedMap,
+    qualityMap,
+  );
 
   // Add cadastral property features
   if (
@@ -168,12 +187,13 @@ export async function convertMessageGeocodingToGeoJson(
     cadastralGeometries.size > 0 &&
     extractedData.cadastralProperties
   ) {
-    const cadastralFeatures: GeoJSONFeature[] = [];
+    const cadastralFeatures: GeoJsonFeature[] = [];
 
     for (const cadastralProp of extractedData.cadastralProperties) {
       const geometry = cadastralGeometries.get(cadastralProp.identifier);
 
       if (geometry) {
+        const cadastreQuality = gradeCadastre();
         cadastralFeatures.push({
           type: "Feature",
           geometry: {
@@ -187,6 +207,9 @@ export async function convertMessageGeocodingToGeoJson(
             start_time: cadastralProp.timespans[0]?.start || "",
             end_time: cadastralProp.timespans[0]?.end || "",
             timespans: JSON.stringify(cadastralProp.timespans),
+            geometryQuality: cadastreQuality.geometryQuality,
+            qualityProvider: cadastreQuality.provider,
+            qualitySignals: cadastreQuality,
           },
         });
       } else {
@@ -211,7 +234,7 @@ export async function convertMessageGeocodingToGeoJson(
 
   // Add bus stop features
   if (geocodedBusStops && geocodedBusStops.length > 0) {
-    const busStopFeatures: GeoJSONFeature[] = geocodedBusStops.map((stop) => ({
+    const busStopFeatures: GeoJsonFeature[] = geocodedBusStops.map((stop) => ({
       type: "Feature",
       geometry: {
         type: "Point",
@@ -222,6 +245,11 @@ export async function convertMessageGeocodingToGeoJson(
         locationType: "bus_stop",
         stop_code: stop.originalText.replace("Спирка ", ""),
         stop_name: stop.formattedAddress,
+        ...(stop.qualitySignals && {
+          geometryQuality: stop.qualitySignals.geometryQuality,
+          qualityProvider: stop.qualitySignals.provider,
+          qualitySignals: stop.qualitySignals,
+        }),
       },
     }));
 
@@ -237,9 +265,12 @@ export async function convertMessageGeocodingToGeoJson(
   }
 
   // Add educational facility features
-  if (geocodedEducationalFacilities && geocodedEducationalFacilities.length > 0) {
-    const facilityFeatures: GeoJSONFeature[] = geocodedEducationalFacilities.map(
-      (facility) => {
+  if (
+    geocodedEducationalFacilities &&
+    geocodedEducationalFacilities.length > 0
+  ) {
+    const educationFeatures: GeoJsonFeature[] =
+      geocodedEducationalFacilities.map((facility: Address) => {
         // originalText format: "Учебно заведение {type}:{number}"
         const typeAndNumber = facility.originalText.replace(
           EDUCATIONAL_FACILITY_PREFIX,
@@ -252,9 +283,9 @@ export async function convertMessageGeocodingToGeoJson(
           colonIdx !== -1 ? typeAndNumber.slice(colonIdx + 1) : typeAndNumber;
 
         return {
-          type: "Feature",
+          type: "Feature" as const,
           geometry: {
-            type: "Point",
+            type: "Point" as const,
             coordinates: [facility.coordinates.lng, facility.coordinates.lat],
           },
           properties: {
@@ -263,18 +294,22 @@ export async function convertMessageGeocodingToGeoJson(
             facility_type: facilityType,
             facility_number: facilityNumber,
             facility_name: facility.formattedAddress,
+            ...(facility.qualitySignals && {
+              geometryQuality: facility.qualitySignals.geometryQuality,
+              qualityProvider: facility.qualitySignals.provider,
+              qualitySignals: facility.qualitySignals,
+            }),
           },
         };
-      },
-    );
+      });
 
     if (geoJson) {
-      geoJson.features.push(...facilityFeatures);
+      geoJson.features.push(...educationFeatures);
     } else {
       // Only educational facility features
       return {
         type: "FeatureCollection",
-        features: facilityFeatures,
+        features: educationFeatures,
       };
     }
   }

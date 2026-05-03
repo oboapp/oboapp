@@ -1,5 +1,6 @@
 import type { Address } from "../../lib/types";
 import { logger } from "@/lib/logger";
+import { gradeGtfs } from "../shared/quality";
 
 export interface BusStopGeometry {
   stopCode: string;
@@ -61,6 +62,7 @@ export async function geocodeBusStops(stopCodes: string[]): Promise<Address[]> {
   for (const stopCode of stopCodes) {
     const geometry = await geocodeBusStop(stopCode);
     if (geometry) {
+      const qualitySignals = gradeGtfs();
       addresses.push({
         originalText: `Спирка ${stopCode}`,
         formattedAddress: `${geometry.stopName} (${stopCode})`,
@@ -72,6 +74,7 @@ export async function geocodeBusStops(stopCodes: string[]): Promise<Address[]> {
           type: "Point",
           coordinates: [geometry.lng, geometry.lat],
         },
+        qualitySignals,
       });
       logger.info("Geocoded bus stop", { stopCode, stopName: geometry.stopName });
     }

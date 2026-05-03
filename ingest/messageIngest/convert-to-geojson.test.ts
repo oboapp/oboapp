@@ -232,6 +232,7 @@ describe("convertMessageGeocodingToGeoJson", () => {
     const result = await convertMessageGeocodingToGeoJson(
       extractedData,
       geocodedMap,
+      new Map(),
     );
 
     expect(result).toEqual(mockGeoJson);
@@ -242,6 +243,7 @@ describe("convertMessageGeocodingToGeoJson", () => {
         streets: [{ street: "Main St", from: "A", to: "B", timespans: [] }],
       }),
       geocodedMap,
+      expect.any(Map),
     );
   });
 
@@ -254,7 +256,7 @@ describe("convertMessageGeocodingToGeoJson", () => {
     const geocodedMap = new Map(); // Empty - nothing geocoded
 
     await expect(
-      convertMessageGeocodingToGeoJson(extractedData, geocodedMap),
+      convertMessageGeocodingToGeoJson(extractedData, geocodedMap, new Map()),
     ).resolves.toBeNull();
   });
 
@@ -291,6 +293,7 @@ describe("convertMessageGeocodingToGeoJson", () => {
     const result = await convertMessageGeocodingToGeoJson(
       extractedData,
       geocodedMap,
+      new Map(),
     );
 
     expect(result).toEqual(mockGeoJson);
@@ -301,6 +304,7 @@ describe("convertMessageGeocodingToGeoJson", () => {
         streets: [],
       }),
       geocodedMap,
+      expect.any(Map),
     );
   });
 
@@ -343,6 +347,7 @@ describe("convertMessageGeocodingToGeoJson", () => {
     const result = await convertMessageGeocodingToGeoJson(
       extractedData,
       geocodedMap,
+      new Map(),
       undefined,
       undefined,
       undefined,
@@ -375,8 +380,9 @@ describe("convertMessageGeocodingToGeoJson", () => {
       convertMessageGeocodingToGeoJson(
         extractedData,
         geocodedMap,
-        undefined,
-        [], // no geocoded bus stops
+        new Map(),
+        undefined, // no cadastral geometries
+        undefined, // no geocoded bus stops
       ),
     ).resolves.toBeNull();
   });
@@ -397,10 +403,10 @@ describe("convertMessageGeocodingToGeoJson", () => {
       convertMessageGeocodingToGeoJson(
         extractedData,
         geocodedMap,
+        new Map(),
         undefined,
         undefined,
-        undefined,
-        [], // no geocoded facilities
+        undefined, // no ingest errors
       ),
     ).resolves.toBeNull();
   });
@@ -446,6 +452,7 @@ describe("convertMessageGeocodingToGeoJson", () => {
     await convertMessageGeocodingToGeoJson(
       extractedData,
       geocodedMap,
+      new Map(),
       undefined,
       [], // bus stop not geocoded
       mockRecorder,
@@ -478,6 +485,7 @@ describe("convertMessageGeocodingToGeoJson", () => {
     const result = await convertMessageGeocodingToGeoJson(
       extractedData,
       geocodedMap,
+      new Map(),
       undefined,
       undefined,
       undefined,

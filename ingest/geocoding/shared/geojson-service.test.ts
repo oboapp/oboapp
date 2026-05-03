@@ -270,7 +270,8 @@ describe("convertToGeoJSON with geotagged coordinates", () => {
       ["End Point", { lat: 42.693259, lng: 23.354973 }], // Rounded from 42.693259 and 23.3549725
     ]);
 
-    const result = await convertToGeoJSON(extractedData, preGeocodedMap);
+    const qualityMap = new Map();
+    const result = await convertToGeoJSON(extractedData, preGeocodedMap, qualityMap);
 
     expect(result.features).toHaveLength(1);
     expect(result.features[0].geometry.type).toBe("Polygon");
@@ -309,7 +310,8 @@ describe("convertToGeoJSON with geotagged coordinates", () => {
       ["бул. Ситняково", { lat: 42.694, lng: 23.352 }],
     ]);
 
-    const result = await convertToGeoJSON(extractedData, preGeocodedMap);
+    const qualityMap = new Map();
+    const result = await convertToGeoJSON(extractedData, preGeocodedMap, qualityMap);
 
     expect(result.features).toHaveLength(1);
     expect(result.features[0].geometry.type).toBe("Polygon");

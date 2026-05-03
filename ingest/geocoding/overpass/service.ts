@@ -17,6 +17,7 @@ import { getLocality } from "../../lib/target-locality";
 import { delay } from "../../lib/delay";
 import { roundCoordinate } from "@/geocoding/shared/coordinate-utils";
 import { logger } from "@/lib/logger";
+import { gradeOverpass } from "../shared/quality";
 import { OverpassMockService } from "../../__mocks__/services/overpass-mock-service";
 
 // Check if mocking is enabled
@@ -936,6 +937,8 @@ async function geocodeSingleIntersection(
     return null;
   }
 
+  const qualitySignals = gradeOverpass("node"); // Intersection resolves to a node point
+
   return {
     originalText: intersection,
     formattedAddress: intersection,
@@ -944,6 +947,7 @@ async function geocodeSingleIntersection(
       type: "Point",
       coordinates: [intersectionPoint.lng, intersectionPoint.lat],
     },
+    qualitySignals,
   };
 }
 
@@ -1326,6 +1330,7 @@ export async function overpassGeocodeAddresses(
       try {
         const coords = await resolveSingleAddress(address);
         if (coords) {
+          const qualitySignals = gradeOverpass("node"); // Overpass address: conservative tier
           results.push({
             originalText: address,
             formattedAddress: address,
@@ -1334,6 +1339,7 @@ export async function overpassGeocodeAddresses(
               type: "Point",
               coordinates: [coords.lng, coords.lat],
             },
+            qualitySignals,
           });
         } else {
           logger.warn("Failed to geocode address", { address });

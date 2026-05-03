@@ -3,15 +3,9 @@ import { attachMessageToEvent } from "./attach-to-event";
 
 vi.mock("@/lib/source-trust", () => ({
   getSourceTrust: vi.fn((source: string) => {
-    if (source === "toplo-bg") return { trust: 1.0, geometryQuality: 3 };
-    if (source === "sofia-bg") return { trust: 0.8, geometryQuality: 2 };
-    return { trust: 0.5, geometryQuality: 0 };
-  }),
-  getGeometryQuality: vi.fn((source: string, hasPrecomputed: boolean) => {
-    if (hasPrecomputed) return 3;
-    if (source === "toplo-bg") return 3;
-    if (source === "sofia-bg") return 2;
-    return 0;
+    if (source === "toplo-bg") return { trust: 1.0, precomputed: true };
+    if (source === "sofia-bg") return { trust: 0.8, precomputed: false };
+    return { trust: 0.5, precomputed: false };
   }),
 }));
 
@@ -185,7 +179,7 @@ describe("attachMessageToEvent", () => {
   });
 
   it("upgrades geometry when new quality > existing (with fresh read)", async () => {
-    const newGeoJson = { type: "FeatureCollection" as const, features: [{ type: "Feature" as const, geometry: { type: "Point" as const, coordinates: [23.3, 42.7] as [number, number] }, properties: {} as Record<string, unknown> }] };
+    const newGeoJson = { type: "FeatureCollection" as const, features: [{ type: "Feature" as const, geometry: { type: "Point" as const, coordinates: [23.3, 42.7] as [number, number] }, properties: { geometryQuality: 3 } as Record<string, unknown> }] };
     mockFindEventById.mockResolvedValueOnce({ _id: "evt-1", geometryQuality: 2 });
 
     await attachMessageToEvent(

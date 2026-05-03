@@ -1,12 +1,14 @@
 import {
   ExtractedLocations,
   StreetSection,
-  GeoJSONFeatureCollection,
-  GeoJSONFeature,
-  GeoJSONLineString,
-  GeoJSONPolygon,
-  IntersectionCoordinates,
-} from "../../lib/types";
+  GeoJsonFeatureCollection,
+  GeoJsonFeature,
+  GeoJsonLineString,
+  GeoJsonPolygon,
+  QualitySignals,
+  QUALITY_PROVIDERS,
+} from "@oboapp/shared";
+import type { IntersectionCoordinates } from "@/lib/types";
 import { getStreetGeometry } from "../router";
 import { roundCoordinate } from "./coordinate-utils";
 import { logger } from "@/lib/logger";
@@ -20,7 +22,8 @@ const BUFFER_WIDTH_RESIDENTIAL = 7; // 6-8m average
 function createPinFeature(
   pin: { address: string; timespans: { start: string | null; end: string | null }[] },
   preGeocodedAddresses: Map<string, IntersectionCoordinates>,
-): GeoJSONFeature {
+  qualityMap: Map<string, QualitySignals>,
+): GeoJsonFeature {
   const coords = preGeocodedAddresses.get(pin.address);
 
   if (!coords) {
@@ -28,6 +31,8 @@ function createPinFeature(
       `Missing pre-geocoded coordinates for pin: "${pin.address}"`,
     );
   }
+
+  const quality = qualityMap.get(pin.address);
 
   return {
     type: "Feature",
@@ -40,7 +45,12 @@ function createPinFeature(
       address: pin.address,
       start_time: pin.timespans[0]?.start || "",
       end_time: pin.timespans[0]?.end || "",
-      timespans: JSON.stringify(pin.timespans), // Store all timespans as JSON string
+      timespans: JSON.stringify(pin.timespans),
+      ...(quality && {
+        geometryQuality: quality.geometryQuality,
+        qualityProvider: quality.provider,
+        qualitySignals: quality,
+      }),
     },
   };
 }
@@ -51,7 +61,7 @@ async function getStreetCenterline(
   endCoords: IntersectionCoordinates,
   streetName: string,
   hasGeotaggedCoordinates: boolean = false,
-): Promise<GeoJSONLineString> {
+): Promise<GeoJsonLineString> {
   // Check if start and end are the same or very close
   const distance = Math.sqrt(
     Math.pow(endCoords.lat - startCoords.lat, 2) +
@@ -112,9 +122,9 @@ async function getStreetCenterline(
 
 // Step 3 — Line-to-Polygon Conversion
 function bufferLineString(
-  lineString: GeoJSONLineString,
+  lineString: GeoJsonLineString,
   bufferMeters: number = 8,
-): GeoJSONPolygon | null {
+): GeoJsonPolygon | null {
   const coordinates = lineString.coordinates;
   if (coordinates.length < 2) return null;
 
@@ -203,7 +213,8 @@ function getBufferWidth(streetName: string): number {
 async function createClosureFeature(
   street: StreetSection,
   preGeocodedAddresses: Map<string, IntersectionCoordinates>,
-): Promise<GeoJSONFeature> {
+  qualityMap: Map<string, QualitySignals>,
+): Promise<GeoJsonFeature> {
   // Get pre-geocoded coordinates
   const startCoords = preGeocodedAddresses.get(street.from);
   const endCoords = preGeocodedAddresses.get(street.to);
@@ -247,6 +258,28 @@ async function createClosureFeature(
     throw new Error(`Failed to buffer linestring for: ${street.street}`);
   }
 
+  // Compute street quality: min of both endpoint qualities (conservative).
+  // Use "street" provider since the quality reflects aggregated endpoint signals,
+  // not a single geocoder. Fall back to whichever endpoint is available.
+  let qualitySignals: QualitySignals | null = null;
+  const fromQuality = qualityMap.get(street.from);
+  const toQuality = qualityMap.get(street.to);
+  if (fromQuality && toQuality) {
+    const minQuality = Math.min(fromQuality.geometryQuality, toQuality.geometryQuality);
+    qualitySignals = {
+      provider: QUALITY_PROVIDERS.STREET,
+      geometryQuality: minQuality,
+    };
+  } else {
+    const availableQuality = fromQuality ?? toQuality;
+    if (availableQuality) {
+      qualitySignals = {
+        provider: QUALITY_PROVIDERS.STREET,
+        geometryQuality: availableQuality.geometryQuality,
+      };
+    }
+  }
+
   // Assemble feature
   return {
     type: "Feature",
@@ -258,7 +291,12 @@ async function createClosureFeature(
       to: street.to,
       start_time: street.timespans[0]?.start || "",
       end_time: street.timespans[0]?.end || "",
-      timespans: JSON.stringify(street.timespans), // Store all timespans as JSON string
+      timespans: JSON.stringify(street.timespans),
+      ...(qualitySignals && {
+        geometryQuality: qualitySignals.geometryQuality,
+        qualityProvider: qualitySignals.provider,
+        qualitySignals,
+      }),
     },
   };
 }
@@ -267,14 +305,15 @@ async function createClosureFeature(
 export async function convertToGeoJSON(
   extractedData: ExtractedLocations,
   preGeocodedAddresses: Map<string, IntersectionCoordinates>,
-): Promise<GeoJSONFeatureCollection> {
-  const features: GeoJSONFeature[] = [];
+  qualityMap: Map<string, QualitySignals>,
+): Promise<GeoJsonFeatureCollection> {
+  const features: GeoJsonFeature[] = [];
   const fallbackPins: typeof extractedData.pins = [];
 
   // Process all street closures first
   for (const street of extractedData.streets) {
     try {
-      const feature = await createClosureFeature(street, preGeocodedAddresses);
+      const feature = await createClosureFeature(street, preGeocodedAddresses, qualityMap);
       features.push(feature);
     } catch (error) {
       // If street section creation fails, convert endpoints to pins as fallback
@@ -317,7 +356,7 @@ export async function convertToGeoJSON(
   const allPins = [...extractedData.pins, ...fallbackPins];
   for (const pin of allPins) {
     try {
-      const feature = createPinFeature(pin, preGeocodedAddresses);
+      const feature = createPinFeature(pin, preGeocodedAddresses, qualityMap);
       features.push(feature);
     } catch (error) {
       logger.error("Failed to create pin", {
