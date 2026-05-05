@@ -291,17 +291,18 @@ async function createClosureFeature(
   const fromQuality = qualityMap.get(street.from);
   const toQuality = qualityMap.get(street.to);
 
-  const endpointQualities = [fromQuality?.geometryQuality, toQuality?.geometryQuality].filter(
-    (q): q is number => q !== undefined,
-  );
+  // Both endpoints must be present to grade the closure. A missing signal is
+  // treated as 0 (most conservative) so a partially-graded closure cannot
+  // silently overstate quality by ignoring the missing endpoint.
+  const fromGrade = fromQuality?.geometryQuality ?? 0;
+  const toGrade = toQuality?.geometryQuality ?? 0;
+  const endpointQualities = [fromGrade, toGrade];
   const allQualities = wayQuality !== null ? [...endpointQualities, wayQuality] : endpointQualities;
 
-  if (allQualities.length > 0) {
-    qualitySignals = {
-      provider: QUALITY_PROVIDERS.STREET,
-      geometryQuality: Math.min(...allQualities),
-    };
-  }
+  qualitySignals = {
+    provider: QUALITY_PROVIDERS.STREET,
+    geometryQuality: Math.min(...allQualities),
+  };
 
   // Assemble feature
   return {

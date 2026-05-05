@@ -66,7 +66,7 @@ When a candidate scores between 0.55 and 0.70, the score alone isn't confident e
 
 Geometry quality (0–3) reflects how reliable the location data is:
 
-- **3 (Authoritative)** — Official GeoJSON (precomputed by trusted sources like utility companies), authoritative cadastral polygons, Google ROOFTOP, GTFS stops, or educational facility coordinates
+- **3 (Authoritative)** — Official GeoJSON (precomputed by trusted sources like utility companies), authoritative cadastral polygons, Google ROOFTOP (without partial match), GTFS stops, or educational facility coordinates
 - **2 (Address-level)** — Good address-level geocoding (e.g., Google RANGE_INTERPOLATED / GEOMETRIC_CENTER); street closures with real Overpass way geometry and address-level endpoints also reach this tier
 - **1 (Approximate)** — Approximate or intersection-level geocoding, Overpass node, fallback coordinates from other sources
 - **0 (None)** — No geometry available (city-wide incidents, incomplete addresses)
