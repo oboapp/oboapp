@@ -187,6 +187,7 @@ export function findMissingStreetEndpoints(
 export function createAddressFromCoordinates(
   text: string,
   coordinates: Coordinates,
+  qualitySignals?: QualitySignals,
 ): Address {
   return {
     originalText: text,
@@ -196,6 +197,7 @@ export function createAddressFromCoordinates(
       type: "Point",
       coordinates: [coordinates.lng, coordinates.lat],
     },
+    ...(qualitySignals && { qualitySignals }),
   };
 }
 
@@ -230,7 +232,10 @@ function processPinsWithPreResolvedCoordinates(
           geometryQuality: 1,
         });
         addresses.push(
-          createAddressFromCoordinates(pin.address, validatedCoords),
+          createAddressFromCoordinates(pin.address, validatedCoords, {
+            provider: QUALITY_PROVIDERS.SOURCE,
+            geometryQuality: 1,
+          }),
         );
       } else {
         logger.warn("Invalid geotagged coordinates for pin, will geocode", {
@@ -311,7 +316,12 @@ function processStreetEndpoint(
       provider: QUALITY_PROVIDERS.SOURCE,
       geometryQuality: 1,
     });
-    addresses.push(createAddressFromCoordinates(endpointName, validatedCoords));
+    addresses.push(
+      createAddressFromCoordinates(endpointName, validatedCoords, {
+        provider: QUALITY_PROVIDERS.SOURCE,
+        geometryQuality: 1,
+      }),
+    );
   } else {
     logger.warn(
       "Invalid geotagged coordinates for street endpoint, will geocode",
@@ -492,8 +502,9 @@ async function geocodeStreetIntersections(
         if (!preGeocodedMap.has(key)) {
           preGeocodedMap.set(key, coords);
           // Intersection points from Overpass: tier 1 (node-level, not full way geometry)
-          qualityMap.set(key, gradeOverpass("node"));
-          addresses.push(createAddressFromCoordinates(key, coords));
+          const qualitySignals = gradeOverpass("node");
+          qualityMap.set(key, qualitySignals);
+          addresses.push(createAddressFromCoordinates(key, coords, qualitySignals));
         }
       });
 
