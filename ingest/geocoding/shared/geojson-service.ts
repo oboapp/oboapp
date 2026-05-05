@@ -7,11 +7,13 @@ import {
   GeoJsonPolygon,
   QualitySignals,
   QUALITY_PROVIDERS,
+  OSM_ELEMENT_TYPES,
 } from "@oboapp/shared";
 import type { IntersectionCoordinates } from "@/lib/types";
 import { getStreetGeometry } from "../router";
 import { roundCoordinate } from "./coordinate-utils";
 import { logger } from "@/lib/logger";
+import { gradeOverpass } from "./quality";
 
 // Constants for street buffer widths (in meters)
 const BUFFER_WIDTH_BOULEVARD = 13; // 12-14m average
@@ -56,12 +58,18 @@ function createPinFeature(
 }
 
 // Step 2 — Street Centerline Retrieval
+interface CenterlineResult {
+  geometry: GeoJsonLineString;
+  /** True when Overpass returned real way geometry (not a synthesised straight line). */
+  usedWayGeometry: boolean;
+}
+
 async function getStreetCenterline(
   startCoords: IntersectionCoordinates,
   endCoords: IntersectionCoordinates,
   streetName: string,
   hasGeotaggedCoordinates: boolean = false,
-): Promise<GeoJsonLineString> {
+): Promise<CenterlineResult> {
   // Check if start and end are the same or very close
   const distance = Math.sqrt(
     Math.pow(endCoords.lat - startCoords.lat, 2) +
@@ -74,11 +82,14 @@ async function getStreetCenterline(
     // Extend slightly in a default direction (e.g., 10 meters north-south)
     const offsetDegrees = 0.00009; // approximately 10 meters
     return {
-      type: "LineString",
-      coordinates: [
-        [startCoords.lng, startCoords.lat - offsetDegrees / 2],
-        [startCoords.lng, startCoords.lat + offsetDegrees / 2],
-      ],
+      geometry: {
+        type: "LineString",
+        coordinates: [
+          [startCoords.lng, startCoords.lat - offsetDegrees / 2],
+          [startCoords.lng, startCoords.lat + offsetDegrees / 2],
+        ],
+      },
+      usedWayGeometry: false,
     };
   }
 
@@ -92,11 +103,14 @@ async function getStreetCenterline(
       },
     );
     return {
-      type: "LineString",
-      coordinates: [
-        [startCoords.lng, startCoords.lat],
-        [endCoords.lng, endCoords.lat],
-      ],
+      geometry: {
+        type: "LineString",
+        coordinates: [
+          [startCoords.lng, startCoords.lat],
+          [endCoords.lng, endCoords.lat],
+        ],
+      },
+      usedWayGeometry: false,
     };
   }
 
@@ -105,18 +119,24 @@ async function getStreetCenterline(
 
   if (geometry && geometry.length >= 2) {
     return {
-      type: "LineString",
-      coordinates: geometry,
+      geometry: {
+        type: "LineString",
+        coordinates: geometry,
+      },
+      usedWayGeometry: true,
     };
   }
 
   // Fallback to straight line between the two points
   return {
-    type: "LineString",
-    coordinates: [
-      [startCoords.lng, startCoords.lat],
-      [endCoords.lng, endCoords.lat],
-    ],
+    geometry: {
+      type: "LineString",
+      coordinates: [
+        [startCoords.lng, startCoords.lat],
+        [endCoords.lng, endCoords.lat],
+      ],
+    },
+    usedWayGeometry: false,
   };
 }
 
@@ -243,7 +263,7 @@ async function createClosureFeature(
     roundCoordinate(street.toCoordinates.lng) === endCoords.lng;
 
   // Get centerline
-  const centerline = await getStreetCenterline(
+  const { geometry: centerline, usedWayGeometry } = await getStreetCenterline(
     startCoords,
     endCoords,
     street.street,
@@ -258,26 +278,29 @@ async function createClosureFeature(
     throw new Error(`Failed to buffer linestring for: ${street.street}`);
   }
 
-  // Compute street quality: min of both endpoint qualities (conservative).
-  // Use "street" provider since the quality reflects aggregated endpoint signals,
-  // not a single geocoder. Fall back to whichever endpoint is available.
+  // Compute street quality conservatively.
+  //
+  // When the centerline came from real Overpass WAY geometry, incorporate its
+  // quality (2) alongside the endpoint qualities. This allows closures with
+  // both accurate WAY geometry and address-level endpoints to reach tier 2,
+  // consistent with the documented tier meaning and gradeOverpass('way') = 2.
+  //
+  // Use "street" provider since the quality reflects aggregated signals.
+  const wayQuality = usedWayGeometry ? gradeOverpass(OSM_ELEMENT_TYPES.WAY).geometryQuality : null;
   let qualitySignals: QualitySignals | null = null;
   const fromQuality = qualityMap.get(street.from);
   const toQuality = qualityMap.get(street.to);
-  if (fromQuality && toQuality) {
-    const minQuality = Math.min(fromQuality.geometryQuality, toQuality.geometryQuality);
+
+  const endpointQualities = [fromQuality?.geometryQuality, toQuality?.geometryQuality].filter(
+    (q): q is number => q !== undefined,
+  );
+  const allQualities = wayQuality !== null ? [...endpointQualities, wayQuality] : endpointQualities;
+
+  if (allQualities.length > 0) {
     qualitySignals = {
       provider: QUALITY_PROVIDERS.STREET,
-      geometryQuality: minQuality,
+      geometryQuality: Math.min(...allQualities),
     };
-  } else {
-    const availableQuality = fromQuality ?? toQuality;
-    if (availableQuality) {
-      qualitySignals = {
-        provider: QUALITY_PROVIDERS.STREET,
-        geometryQuality: availableQuality.geometryQuality,
-      };
-    }
   }
 
   // Assemble feature
