@@ -17,12 +17,13 @@ import {
   Coordinates,
   QualitySignals,
   QUALITY_PROVIDERS,
+  isWithinBounds,
+  normalizePinAddress,
 } from "@oboapp/shared";
 import type { Feature, MultiLineString } from "geojson";
 import type { CadastralGeometry } from "@/geocoding/cadastre/service";
 import type { IngestErrorRecorder } from "@/lib/ingest-errors";
 import { logger } from "@/lib/logger";
-import { isWithinBounds, normalizePinAddress } from "@oboapp/shared";
 import { getLocality } from "@/lib/target-locality";
 import { roundCoordinate } from "@/geocoding/shared/coordinate-utils";
 import { gradeOverpass } from "@/geocoding/shared/quality";
