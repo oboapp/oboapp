@@ -16,7 +16,10 @@ export class OverpassMockService {
     // Use custom fixture if specified
     if (this.customFixturePath) {
       const data = JSON.parse(readFileSync(this.customFixturePath, "utf-8"));
-      if (!Array.isArray(data)) return [];
+      if (!Array.isArray(data))
+        throw new Error(
+          `OVERPASS_FIXTURE_PATH fixture must be a JSON array, got ${typeof data}: ${this.customFixturePath}`,
+        );
       // Ensure qualitySignals are present
       return data.map((addr: Address) => ({
         ...addr,
@@ -54,7 +57,10 @@ export class OverpassMockService {
     // Use custom fixture if specified
     if (this.customFixturePath) {
       const data = JSON.parse(readFileSync(this.customFixturePath, "utf-8"));
-      if (!Array.isArray(data)) return [];
+      if (!Array.isArray(data))
+        throw new Error(
+          `OVERPASS_FIXTURE_PATH fixture must be a JSON array, got ${typeof data}: ${this.customFixturePath}`,
+        );
       // Ensure qualitySignals are present
       return data.map((addr: Address) => ({
         ...addr,

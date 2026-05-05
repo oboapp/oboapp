@@ -3,9 +3,9 @@ import { attachMessageToEvent } from "./attach-to-event";
 
 vi.mock("@/lib/source-trust", () => ({
   getSourceTrust: vi.fn((source: string) => {
-    if (source === "toplo-bg") return { trust: 1.0, precomputed: true };
-    if (source === "sofia-bg") return { trust: 0.8, precomputed: false };
-    return { trust: 0.5, precomputed: false };
+    if (source === "toplo-bg") return { trust: 1.0 };
+    if (source === "sofia-bg") return { trust: 0.8 };
+    return { trust: 0.5 };
   }),
 }));
 
