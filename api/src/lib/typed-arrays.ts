@@ -62,8 +62,12 @@ export function getFeatureCollection(
   return {
     ...result.data,
     features: result.data.features.map((feature) => {
-      const { qualitySignals: _qs, qualityProvider: _qp, ...publicProperties } =
-        feature.properties;
+      const {
+        qualitySignals: _qs,
+        qualityProvider: _qp,
+        geometryQuality: _gq,
+        ...publicProperties
+      } = feature.properties;
       return { ...feature, properties: publicProperties };
     }),
   };
