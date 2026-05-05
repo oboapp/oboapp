@@ -22,7 +22,10 @@ const BUFFER_WIDTH_RESIDENTIAL = 7; // 6-8m average
 
 // Step 1 — PIN / Address Geocoding (Points)
 function createPinFeature(
-  pin: { address: string; timespans: { start: string | null; end: string | null }[] },
+  pin: {
+    address: string;
+    timespans: { start: string | null; end: string | null }[];
+  },
   preGeocodedAddresses: Map<string, IntersectionCoordinates>,
   qualityMap: Map<string, QualitySignals>,
 ): GeoJsonFeature {
@@ -96,12 +99,9 @@ async function getStreetCenterline(
   // If both endpoints have geotagged coordinates from the source,
   // draw a straight line instead of querying Overpass for street geometry
   if (hasGeotaggedCoordinates) {
-    logger.info(
-      "Using straight line for street with geotagged coordinates",
-      {
-        street: streetName,
-      },
-    );
+    logger.info("Using straight line for street with geotagged coordinates", {
+      street: streetName,
+    });
     return {
       geometry: {
         type: "LineString",
@@ -286,7 +286,9 @@ async function createClosureFeature(
   // consistent with the documented tier meaning and gradeOverpass('way') = 2.
   //
   // Use "street" provider since the quality reflects aggregated signals.
-  const wayQuality = usedWayGeometry ? gradeOverpass(OSM_ELEMENT_TYPES.WAY).geometryQuality : null;
+  const wayQuality = usedWayGeometry
+    ? gradeOverpass(OSM_ELEMENT_TYPES.WAY).geometryQuality
+    : null;
   let qualitySignals: QualitySignals | null = null;
   const fromQuality = qualityMap.get(street.from);
   const toQuality = qualityMap.get(street.to);
@@ -297,7 +299,10 @@ async function createClosureFeature(
   const fromGrade = fromQuality?.geometryQuality ?? 0;
   const toGrade = toQuality?.geometryQuality ?? 0;
   const endpointQualities = [fromGrade, toGrade];
-  const allQualities = wayQuality !== null ? [...endpointQualities, wayQuality] : endpointQualities;
+  const allQualities =
+    wayQuality !== null
+      ? [...endpointQualities, wayQuality]
+      : endpointQualities;
 
   qualitySignals = {
     provider: QUALITY_PROVIDERS.STREET,
@@ -337,7 +342,11 @@ export async function convertToGeoJSON(
   // Process all street closures first
   for (const street of extractedData.streets) {
     try {
-      const feature = await createClosureFeature(street, preGeocodedAddresses, qualityMap);
+      const feature = await createClosureFeature(
+        street,
+        preGeocodedAddresses,
+        qualityMap,
+      );
       features.push(feature);
     } catch (error) {
       // If street section creation fails, convert endpoints to pins as fallback

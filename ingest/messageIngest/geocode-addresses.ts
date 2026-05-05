@@ -505,7 +505,9 @@ async function geocodeStreetIntersections(
           // Intersection points from Overpass: tier 1 (node-level, not full way geometry)
           const qualitySignals = gradeOverpass("node");
           qualityMap.set(key, qualitySignals);
-          addresses.push(createAddressFromCoordinates(key, coords, qualitySignals));
+          addresses.push(
+            createAddressFromCoordinates(key, coords, qualitySignals),
+          );
         }
       });
 

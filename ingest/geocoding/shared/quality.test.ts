@@ -8,7 +8,11 @@ import {
   gradePrecomputed,
   gradeUnknown,
 } from "./quality";
-import { QUALITY_PROVIDERS, OSM_ELEMENT_TYPES, GOOGLE_LOCATION_TYPES } from "@oboapp/shared";
+import {
+  QUALITY_PROVIDERS,
+  OSM_ELEMENT_TYPES,
+  GOOGLE_LOCATION_TYPES,
+} from "@oboapp/shared";
 
 describe("gradeGoogle", () => {
   it("returns quality 0 when locationType is missing", () => {
@@ -41,7 +45,9 @@ describe("gradeGoogle", () => {
   });
 
   it("returns quality 2 for RANGE_INTERPOLATED without partial match", () => {
-    expect(gradeGoogle(GOOGLE_LOCATION_TYPES.RANGE_INTERPOLATED, false)).toEqual({
+    expect(
+      gradeGoogle(GOOGLE_LOCATION_TYPES.RANGE_INTERPOLATED, false),
+    ).toEqual({
       provider: QUALITY_PROVIDERS.GOOGLE,
       locationType: GOOGLE_LOCATION_TYPES.RANGE_INTERPOLATED,
       partialMatch: false,

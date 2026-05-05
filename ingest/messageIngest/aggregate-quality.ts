@@ -30,7 +30,9 @@ export function aggregateMessageGeometryQuality(
     const quality = feature.properties?.geometryQuality;
     const hasQualityKey = quality !== undefined;
     const isValid = typeof quality === "number" && isFinite(quality);
-    const effectiveQuality = isValid ? Math.min(3, Math.max(0, Math.floor(quality))) : 0;
+    const effectiveQuality = isValid
+      ? Math.min(3, Math.max(0, Math.floor(quality)))
+      : 0;
     // Treat any feature with a geometryQuality key as graded, even if the value is
     // invalid (string/NaN/Infinity). Invalid values clamp to 0 rather than triggering
     // the legacy ungradedFallback, preventing corrupt data from appearing high-quality.

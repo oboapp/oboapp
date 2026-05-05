@@ -10,7 +10,6 @@ import {
   AddressSchema as SharedAddressSchema,
   SourceSchema,
 } from "@oboapp/shared";
-
 // Public API contract — intentionally strips internal geocoding signals (qualitySignals)
 // so that changes to internal quality schemas don't silently alter the public API contract.
 const PublicAddressSchema = SharedAddressSchema.omit({
