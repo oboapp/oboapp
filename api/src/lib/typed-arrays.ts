@@ -67,7 +67,7 @@ export function getFeatureCollection(
         qualityProvider: _qp,
         geometryQuality: _gq,
         ...publicProperties
-      } = feature.properties;
+      } = feature.properties ?? {};
       return { ...feature, properties: publicProperties };
     }),
   };
