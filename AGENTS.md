@@ -82,7 +82,7 @@ Always use `pnpm add` (or `pnpm add -D`), never edit `package.json` directly.
 
 ### Message Ingestion Pipeline
 
-The pipeline processes public infrastructure disruption messages for Sofia, Bulgaria. Crawlers with precomputed GeoJSON skip AI processing entirely. Others go through three LLM stages: **Filter & Split → Categorize → Extract Locations**, then geocoding and event matching.
+The pipeline processes public infrastructure disruption messages. Crawlers with precomputed GeoJSON skip AI processing entirely. Others go through three LLM stages: **Filter & Split → Categorize → Extract Locations**, then geocoding and event matching.
 
 See `ingest/README.md` for the full pipeline overview and `ingest/messageIngest/README.md` for stage details.
 
@@ -101,10 +101,26 @@ For the full implementation guide, see the `long-flow-crawler-generator` skill. 
 - **Workflow Sync (CRITICAL):** When adding/removing crawlers, update ALL:
   1. `ingest/crawlers/{source-name}/` — implementation
   2. `var.crawlers` in `ingest/terraform/variables.tf` — add entry (set `emergent = true` for 30-min crawlers)
-  3. `shared/src/sources.ts` — `SOURCES` array (display name, URL, localities)
-  4. If emergent (30-min intervals): also `EMERGENT_CRAWLERS` in `ingest/pipeline.ts`
+  3. `shared/src/sources/{source-name}.ts` — create the source definition file
+  4. `shared/src/sources.ts` — import the new definition and add it to the `SOURCES` array (this is the instance assembly; see Instance Configuration below)
+  5. If emergent (30-min intervals): set `emergent: true` on the source definition — `EMERGENT_CRAWLERS` is derived automatically
 
 - **Emergent Classification:** Emergent crawlers run every 30 minutes; all others run 3× daily. This affects workflow definitions and Cloud Scheduler.
+
+### Instance Configuration
+
+oboapp is designed to be forked and deployed for any city. The mechanism is `shared/src/sources.ts`:
+
+- **`shared/src/sources/{id}.ts`** — Individual source definitions (one file per source). These live in the upstream repo and merge cleanly when new sources are added upstream — a new source is a new file, no conflict.
+- **`shared/src/sources.ts`** — The instance assembly. This file imports whichever source definitions the instance wants and assembles them into the `SOURCES` array. `EMERGENT_CRAWLERS` is derived automatically from the `emergent` flag on each source definition.
+
+**For a new city fork:**
+1. Create a new repo forked from `oboapp/oboapp`
+2. Replace `shared/src/sources.ts` with an assembly that includes the new city's sources
+3. Add the new city's source definition files to `shared/src/sources/`
+4. Configure localities and deployment via environment variables and Terraform (see `docs/setup/new-locality-instance.md`)
+
+**On rebase from upstream:** `shared/src/sources/{id}.ts` files merge cleanly (each new upstream source is a new file). `shared/src/sources.ts` is the intentional conflict zone — the fork operator reviews it consciously to decide which upstream sources to include.
 
 ### Geocoding Rate Limits
 

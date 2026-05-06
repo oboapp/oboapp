@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { colors } from "@/lib/colors";
+import { getLocalityCenter } from "@/lib/bounds-utils";
 
 type HeatmapPoint = [number, number];
 
@@ -30,7 +31,8 @@ export interface HistoryMapClientProps {
   readonly onStatsLoaded?: (stats: HeatmapStats) => void;
 }
 
-const SOFIA_CENTER: [number, number] = [42.6977, 23.3219];
+const { lat: centerLat, lng: centerLng } = getLocalityCenter();
+const LOCALITY_CENTER: [number, number] = [centerLat, centerLng];
 const DEFAULT_ZOOM = 13;
 
 // Heatmap gradient using theme colors: cool → warm → hot
@@ -102,7 +104,7 @@ export default function HistoryMapClient({
         leafletRef.current = L;
 
         const map = L.map(mapRef.current, {
-          center: SOFIA_CENTER,
+          center: LOCALITY_CENTER,
           zoom: DEFAULT_ZOOM,
           zoomControl: true,
           minZoom: 10,

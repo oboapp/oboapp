@@ -5,6 +5,7 @@ import Link from "next/link";
 import { GoogleMap, Marker, Polyline, useJsApiLoader } from "@react-google-maps/api";
 import { getButtonClasses } from "@/lib/theme";
 import { zIndex } from "@/lib/colors";
+import { getLocalityCenter } from "@/lib/bounds-utils";
 
 interface FrequencyEntry {
   key: string;
@@ -38,7 +39,7 @@ type GeometryData =
   | { type: "pin"; items: PinGeometryItem[] }
   | { type: "street"; items: StreetGeometryItem[] };
 
-const SOFIA_CENTER = { lat: 42.6977, lng: 23.3219 };
+const LOCALITY_CENTER = getLocalityCenter();
 const MAP_CONTAINER_STYLE = { width: "100%", height: "360px" };
 const MAP_STYLES: google.maps.MapTypeStyle[] = [
   { elementType: "geometry", stylers: [{ saturation: -60 }] },
@@ -136,7 +137,7 @@ function GeometryMap({
   return (
     <GoogleMap
       mapContainerStyle={MAP_CONTAINER_STYLE}
-      center={SOFIA_CENTER}
+      center={LOCALITY_CENTER}
       zoom={14}
       options={MAP_OPTIONS}
       onLoad={(map) => {
