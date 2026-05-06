@@ -231,8 +231,8 @@ terraform apply
 **Adding new crawlers**: Add an entry to the relevant locality file (e.g. `crawlers.bg.sofia.tf`):
 
 1. Add an entry to `crawlers.bg.<locality>.tf` — the workflow templates pick it up automatically via `local.crawlers`.
-2. For emergent crawlers (30-min intervals): set `emergent = true` in the crawler entry and update `EMERGENT_CRAWLERS` in `pipeline.ts`. This is a manual allowlist keyed by crawler source/directory names (not Terraform job keys).
-3. `pipeline.ts` automatically discovers the full list of available crawlers from the filesystem; only membership in the emergent group is controlled manually via `EMERGENT_CRAWLERS`.
+2. For emergent crawlers (30-min intervals): set `emergent = true` in the Terraform crawler entry — this controls Cloud Scheduler/Workflows scheduling. Also set `emergent: true` on the matching source definition in `shared/src/sources/{source-id}.ts` — this keeps `EMERGENT_CRAWLERS` (used by `pipeline --emergent`) in sync. The Terraform `source` value must match the source definition `id` (e.g., `toplo-bg`).
+3. The full list of available crawlers is discovered automatically via `local.crawlers` in Terraform.
 
 **Manual workflow testing**:
 

@@ -7,11 +7,9 @@ import { verifyEnvSet, verifyDbEnv } from "@/lib/verify-env";
 import { readdirSync, statSync } from "node:fs";
 import { logger } from "@/lib/logger";
 import { initSentry, flushSentry } from "@/lib/sentry";
+import { EMERGENT_CRAWLERS } from "@oboapp/shared";
 
 const program = new Command();
-
-// Define crawler groups
-const EMERGENT_CRAWLERS = ["erm-zapad", "toplo-bg", "sofiyska-voda", "sensor-community"];
 
 /**
  * Get available crawler sources by reading the crawlers directory
@@ -192,7 +190,7 @@ Examples:
     }
 
     if (options.emergent) {
-      await runPipeline(EMERGENT_CRAWLERS, "EMERGENT");
+      await runPipeline([...EMERGENT_CRAWLERS], "EMERGENT");
     } else if (options.all) {
       const allCrawlers = getAvailableSources();
       await runPipeline(allCrawlers, "FULL");

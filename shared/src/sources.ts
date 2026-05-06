@@ -1,155 +1,46 @@
-/** Shape of a source entry */
-export interface SourceDefinition {
-  readonly id: string;
-  readonly url: string;
-  readonly name: string;
-  readonly localities: readonly string[];
-  /** When true, notifications from this source require the user to opt-in */
-  readonly experimental?: boolean;
-}
+export type { SourceDefinition } from "./source-definition";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INSTANCE ASSEMBLY — replace this file in your fork
+// ─────────────────────────────────────────────────────────────────────────────
+// This file is the DEMO shipped with the upstream repo. It shows the pattern
+// but only includes a small sample of sources.
+//
+// When you fork oboapp for your city:
+//   1. Replace this file with your own assembly.
+//   2. Import the source definition files relevant to your deployment.
+//   3. Add any city-specific sources that live only in your fork.
+//
+// See docs/setup/new-locality-instance.md for the full guide.
+//
+// Each individual source lives in ./sources/{id}.ts and uses `export default`,
+// so you choose the local name when you import it here.
+//
+// EMERGENT_CRAWLERS is derived from this SOURCES assembly and is used by
+// `ingest/pipeline.ts --emergent` (and any consumer of @oboapp/shared).
+// It does NOT control Terraform scheduling — Terraform derives the emergent
+// workflow from `emergent = true` in the crawler's Terraform entry.
+// See AGENTS.md > Instance Configuration for details.
+// ─────────────────────────────────────────────────────────────────────────────
+import sofiaBg from "./sources/sofia-bg";
+import sofiyskavoda from "./sources/sofiyska-voda";
+import sensorCommunity from "./sources/sensor-community";
+
+// ─── Instance assembly ────────────────────────────────────────────────────────
+// This is the list of sources active for this instance.
+// Forks replace this file to configure their own city's sources.
+export const SOURCES = [
+  sofiaBg, // regular crawler (3× daily)
+  sofiyskavoda, // emergent: true  → runs every 30 minutes
+  sensorCommunity, // emergent: true, experimental: true
+] as const;
 
 /**
- * All source definitions.
- * To mark a source as experimental, set `experimental: true` on its entry.
+ * Source IDs passed to `pipeline --emergent` (the legacy ingest pipeline path).
+ * Derived from the `emergent` flag on each source in this SOURCES assembly.
+ * Note: Terraform scheduling is independent — it uses `emergent = true` in
+ * the crawler's Terraform entry, not this list.
  */
-export const SOURCES: readonly SourceDefinition[] = [
-  {
-    id: "rayon-oborishte-bg",
-    url: "https://rayon-oborishte.bg/%d1%83%d0%b2%d0%b5%d0%b4%d0%be%d0%bc%d0%bb%d0%b5%d0%bd%d0%b8%d1%8f-%d0%b7%d0%b0-%d1%80%d0%b5%d0%bc%d0%be%d0%bd%d1%82%d0%b8-%d1%81%d0%bc%d1%80-%d0%bf%d0%b8%d1%80%d0%be%d1%82%d0%b5%d1%85%d0%bd%d0%b8/",
-    name: 'Столична община, Район "Оборище"',
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "sofiyska-voda",
-    url: "https://sofiyskavoda.bg/water-stops",
-    name: "Софийска вода",
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "toplo-bg",
-    url: "https://toplo.bg/accidents-and-maintenance",
-    name: "Топлофикация София",
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "sofia-bg",
-    url: "https://www.sofia.bg/repairs-and-traffic-changes",
-    name: "Столична община",
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "erm-zapad",
-    url: "https://info.ermzapad.bg/webint/vok/avplan.php",
-    name: "ЕРМ Запад",
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "mladost-bg",
-    url: "https://mladost.bg/%d0%b2%d1%81%d0%b8%d1%87%d0%ba%d0%b8-%d0%bd%d0%be%d0%b2%d0%b8%d0%bd%d0%b8/%d0%b8%d0%bd%d1%84%d0%be%d1%80%d0%bc%d0%b0%d1%86%d0%b8%d1%8f-%d0%be%d1%82%d0%bd%d0%be%d1%81%d0%bd%d0%be-%d0%bf%d0%bb%d0%b0%d0%bd%d0%be%d0%b2%d0%b8%d1%82%d0%b5-%d1%80%d0%b5%d0%bc%d0%be%d0%bd%d1%82/",
-    name: 'Столична община, Район "Младост"',
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "studentski-bg",
-    url: "https://studentski.bg/category/%d0%b3%d1%80%d0%b0%d1%84%d0%b8%d1%86%d0%b8/",
-    name: 'Столична община, Район "Студентски"',
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "sredec-sofia-org",
-    url: "https://sredec-sofia.org/category/публикации/полезна-информация/",
-    name: 'Столична община, Район "Средец"',
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "so-slatina-org",
-    url: "https://so-slatina.org/",
-    name: 'Столична община, Район "Слатина"',
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "nimh-severe-weather",
-    url: "https://weather.bg/obshtini/index.php?z=u&o=SOF",
-    name: "НИМХ - Опасно време",
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "lozenets-sofia-bg",
-    url: "https://lozenets.sofia.bg/category/%d0%bd%d0%be%d0%b2%d0%b8%d0%bd%d0%b8/",
-    name: 'Столична община, Район "Лозенец"',
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "raioniskar-bg",
-    url: "https://raioniskar.bg/?c=pages/static&template=home&lang=bg",
-    name: 'Столична община, Район "Искър"',
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "rayon-pancharevo-bg",
-    url: "https://www.pancharevo.org/%D1%80%D0%B5%D0%BC%D0%BE%D0%BD%D1%82%D0%B8-%D0%B8-%D0%B8%D0%BD%D1%84%D1%80%D0%B0%D1%81%D1%82%D1%80%D1%83%D0%BA%D1%82%D1%83%D1%80%D0%B0",
-    name: 'Столична община, Район "Панчарево"',
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "rayon-ilinden-bg",
-    url: "https://ilinden.sofia.bg/category/%d0%be%d0%b1%d1%89%d0%b8%d0%bd%d0%b0/",
-    name: 'Столична община, Район "Илинден"',
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "triaditsa-org",
-    url: "https://triaditza.org/%D0%BD%D0%BE%D0%B2%D0%B8%D0%BD%D0%B8/",
-    name: 'Столична община, Район "Триадица"',
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "krasna-polyana-org",
-    url: "https://krasnapolyana.bg/home/latest-news",
-    name: 'Столична община, Район "Красна поляна"',
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "vrabnitsa-org",
-    url: "https://vrabnitsa.sofia.bg/aktualno/news",
-    name: 'Столична община, Район "Връбница"',
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "nadezhda-org",
-    url: "https://nadezhda.sofia.bg/%D0%BE%D0%B1%D1%8F%D0%B2%D0%B8-%D0%B8-%D1%81%D1%8A%D0%BE%D0%B1%D1%89%D0%B5%D0%BD%D0%B8%D1%8F",
-    name: 'Столична община, Район "Надежда"',
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "inspectorat-so-org",
-    url: "https://inspectorat-so.org/%D0%BD%D0%BE%D0%B2%D0%B8%D0%BD%D0%B8",
-    name: "Столичен инспекторат",
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "sensor-community",
-    url: "https://sensor.community/",
-    name: "sensor.community",
-    localities: ["bg.sofia"],
-    experimental: true,
-  },
-  {
-    id: "sofia-capital-of-sport",
-    url: "https://sofia2018.bg/%d1%81%d1%8a%d0%b1%d0%b8%d1%82%d0%b8%d1%8f/",
-    name: "София - Европейска столица на спорта",
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "serdika-egov-bg",
-    url: "https://serdika.egov.bg/wps/portal/municipality-serdika/actual/messages",
-    name: 'Столична община, Район "Сердика"',
-    localities: ["bg.sofia"],
-  },
-  {
-    id: "sdvr-mvr-bg",
-    url: "https://www.mvr.bg/sdvr/%D0%B8%D0%BD%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%86%D0%B8%D0%BE%D0%BD%D0%B5%D0%BD-%D1%86%D0%B5%D0%BD%D1%82%D1%8A%D1%80/%D0%BF%D1%80%D0%B5%D1%81%D1%86%D0%B5%D0%BD%D1%82%D1%8A%D1%80/%D0%BD%D0%BE%D0%B2%D0%B8%D0%BD%D0%B8",
-    name: "СДВР",
-    localities: ["bg.sofia"],
-  },
-];
+export const EMERGENT_CRAWLERS: readonly string[] = SOURCES.filter(
+  (s) => s.emergent,
+).map((s) => s.id);

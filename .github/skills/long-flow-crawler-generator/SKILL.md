@@ -1,6 +1,6 @@
 ---
 name: long-flow-crawler-generator
-description: Generate WordPress-style crawlers for Sofia public infrastructure disruption sources
+description: Generate WordPress-style crawlers for public infrastructure disruption sources
 agent-name: copilot
 version: 1.0.0
 keywords:
@@ -213,11 +213,11 @@ Include:
 
 ## Phase 6: Front-End Integration
 
-Add the new source to `shared/src/sources.ts` (`SOURCES` array):
+Create the source definition file and register it in the instance assembly:
 
-- Read existing entries to understand the `SourceDefinition` interface
-- Add entry with matching `id`, `url`, `name`, and `localities`
-- Add logo at `web/public/sources/{{source-name}}.png`
+1. Create `shared/src/sources/{source-name}.ts` — use `export default` for the `SourceDefinition` object (so the importer can choose the local name). Include `id`, `url`, `name`, `localities`. If this is an emergent crawler (30-min interval), add `emergent: true`.
+2. In `shared/src/sources.ts`, import the default export under a descriptive local name and add it to the `SOURCES` array. `EMERGENT_CRAWLERS` is derived automatically from the `emergent` flag — no separate list to update.
+3. Add logo at `web/public/sources/{{source-name}}.png`
 
 ## Critical Rules from AGENTS.md
 

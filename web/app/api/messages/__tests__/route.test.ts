@@ -4,6 +4,16 @@ import { GET } from "../route";
 // Mock data store — tests set this before each test
 let mockMessagesData: Record<string, unknown>[] = [];
 
+// Mock sources so source-validation in validateSources() is independent of the
+// upstream SOURCES assembly (which may be a minimal demo set).
+vi.mock("@/lib/sources", () => ({
+  default: [
+    { id: "sofia-bg", url: "https://sofia.bg", name: "Столична община", localities: ["bg.sofia"] },
+    { id: "toplo-bg", url: "https://toplo.bg", name: "Топлофикация", localities: ["bg.sofia"] },
+    { id: "erm-zapad", url: "https://erm.bg", name: "ЧЕЗ Разпределение", localities: ["bg.sofia"] },
+  ],
+}));
+
 // Mock the db module (replaces the old firebase-admin mock)
 vi.mock("@/lib/db", () => ({
   getDb: vi.fn().mockImplementation(async () => ({

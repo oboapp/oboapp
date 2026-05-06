@@ -6,6 +6,16 @@ import {
 } from "./useSourceFilter";
 import { Message } from "@/lib/types";
 
+// Mock sources so computeSourceCounts is independent of the upstream SOURCES
+// assembly (which may be a minimal demo set without all Sofia-specific sources).
+vi.mock("@/lib/sources", () => ({
+  default: [
+    { id: "sofia-bg", url: "https://sofia.bg", name: "Столична община", localities: ["bg.sofia"] },
+    { id: "toplo-bg", url: "https://toplo.bg", name: "Топлофикация", localities: ["bg.sofia"] },
+    { id: "erm-zapad", url: "https://erm.bg", name: "ЧЕЗ Разпределение", localities: ["bg.sofia"] },
+  ],
+}));
+
 const buildFeatureCollection = (count: number) => ({
   type: "FeatureCollection" as const,
   features: Array.from({ length: count }, (_, index) => ({

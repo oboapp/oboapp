@@ -6,10 +6,20 @@ oboapp is designed to be deployed for any city. The upstream repository (`oboapp
 
 | Scope | What lives there |
 |---|---|
-| Upstream | Terraform modules, crawler implementations, per-locality crawler definitions |
-| Instance-only | Deployment workflows, secrets, CI environment variables, `terraform.tfvars` |
+| Upstream | Terraform modules, crawler implementations, per-locality crawler definitions, individual source definitions (`shared/src/sources/{id}.ts`) |
+| Instance-only | Deployment workflows, secrets, CI environment variables, `terraform.tfvars`, instance source assembly (`shared/src/sources.ts`) |
 
 Never override upstream Terraform logic in instance files — configure via variables instead.
+
+## Configuring Sources
+
+Each source has its own definition file at `shared/src/sources/{id}.ts`. These live in the upstream repo and merge cleanly across rebases — adding a new upstream source creates a new file, no conflicts.
+
+`shared/src/sources.ts` is the **instance assembly**: it imports the individual definition files and assembles the `SOURCES` array used by both the web app and ingest pipeline. Fork operators replace this file to configure which sources their instance exposes.
+
+When rebasing from upstream, `shared/src/sources/{id}.ts` files merge cleanly. `shared/src/sources.ts` is the intentional conflict zone — review it consciously to decide which upstream sources to include in your instance.
+
+`EMERGENT_CRAWLERS` (the list of crawlers that run on the 30-minute schedule) is derived automatically from the `emergent` flag on each source definition — no separate list to maintain.
 
 ## Configuring Which Localities to Deploy
 
