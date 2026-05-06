@@ -15,19 +15,24 @@ import {
   ExtractedLocations,
   StreetSection,
   Coordinates,
-} from "@/lib/types";
+  QualitySignals,
+  QUALITY_PROVIDERS,
+  isWithinBounds,
+  normalizePinAddress,
+} from "@oboapp/shared";
 import type { Feature, MultiLineString } from "geojson";
 import type { CadastralGeometry } from "@/geocoding/cadastre/service";
 import type { IngestErrorRecorder } from "@/lib/ingest-errors";
 import { logger } from "@/lib/logger";
-import { isWithinBounds, normalizePinAddress } from "@oboapp/shared";
 import { getLocality } from "@/lib/target-locality";
 import { roundCoordinate } from "@/geocoding/shared/coordinate-utils";
+import { gradeOverpass } from "@/geocoding/shared/quality";
 import type { GeocodingProgressTracker } from "./geocoding-progress-tracker";
 
 // Internal types for the geocoding pipeline
 export interface GeocodingResult {
   preGeocodedMap: Map<string, Coordinates>;
+  qualityMap: Map<string, QualitySignals>;
   addresses: Address[];
   cadastralGeometries?: Map<string, CadastralGeometry>;
 }
@@ -183,6 +188,7 @@ export function findMissingStreetEndpoints(
 export function createAddressFromCoordinates(
   text: string,
   coordinates: Coordinates,
+  qualitySignals?: QualitySignals,
 ): Address {
   return {
     originalText: text,
@@ -192,6 +198,7 @@ export function createAddressFromCoordinates(
       type: "Point",
       coordinates: [coordinates.lng, coordinates.lat],
     },
+    ...(qualitySignals && { qualitySignals }),
   };
 }
 
@@ -206,6 +213,7 @@ function processPinsWithPreResolvedCoordinates(
     timespans: Array<{ start: string | null; end: string | null }>;
   }>,
   preGeocodedMap: Map<string, Coordinates>,
+  qualityMap: Map<string, QualitySignals>,
   addresses: Address[],
 ): string[] {
   const pinsToGeocode: string[] = [];
@@ -219,8 +227,16 @@ function processPinsWithPreResolvedCoordinates(
 
       if (validatedCoords) {
         preGeocodedMap.set(pin.address, validatedCoords);
+        // Pre-geotagged coordinates from source: tier 1 (approximate/source-provided)
+        qualityMap.set(pin.address, {
+          provider: QUALITY_PROVIDERS.SOURCE,
+          geometryQuality: 1,
+        });
         addresses.push(
-          createAddressFromCoordinates(pin.address, validatedCoords),
+          createAddressFromCoordinates(pin.address, validatedCoords, {
+            provider: QUALITY_PROVIDERS.SOURCE,
+            geometryQuality: 1,
+          }),
         );
       } else {
         logger.warn("Invalid geotagged coordinates for pin, will geocode", {
@@ -243,6 +259,7 @@ function processPinsWithPreResolvedCoordinates(
 async function geocodePins(
   extractedData: ExtractedLocations,
   preGeocodedMap: Map<string, Coordinates>,
+  qualityMap: Map<string, QualitySignals>,
   addresses: Address[],
   tracker?: GeocodingProgressTracker,
 ): Promise<void> {
@@ -253,6 +270,7 @@ async function geocodePins(
   const pinsToGeocode = processPinsWithPreResolvedCoordinates(
     extractedData.pins,
     preGeocodedMap,
+    qualityMap,
     addresses,
   );
 
@@ -262,6 +280,9 @@ async function geocodePins(
 
     geocodedPins.forEach((addr) => {
       preGeocodedMap.set(addr.originalText, addr.coordinates);
+      if (addr.qualitySignals) {
+        qualityMap.set(addr.originalText, addr.qualitySignals);
+      }
     });
   }
 
@@ -281,6 +302,7 @@ function processStreetEndpoint(
   endpointCoordinates: Coordinates,
   direction: "from" | "to",
   preGeocodedMap: Map<string, Coordinates>,
+  qualityMap: Map<string, QualitySignals>,
   addresses: Address[],
 ): void {
   const validatedCoords = getValidPreResolvedCoordinates(
@@ -290,7 +312,17 @@ function processStreetEndpoint(
 
   if (validatedCoords) {
     preGeocodedMap.set(endpointName, validatedCoords);
-    addresses.push(createAddressFromCoordinates(endpointName, validatedCoords));
+    // Pre-geotagged street endpoints: tier 1 (source-provided)
+    qualityMap.set(endpointName, {
+      provider: QUALITY_PROVIDERS.SOURCE,
+      geometryQuality: 1,
+    });
+    addresses.push(
+      createAddressFromCoordinates(endpointName, validatedCoords, {
+        provider: QUALITY_PROVIDERS.SOURCE,
+        geometryQuality: 1,
+      }),
+    );
   } else {
     logger.warn(
       "Invalid geotagged coordinates for street endpoint, will geocode",
@@ -309,6 +341,7 @@ function processStreetEndpoint(
 function processStreetEndpointsWithPreResolvedCoordinates(
   streets: StreetSection[],
   preGeocodedMap: Map<string, Coordinates>,
+  qualityMap: Map<string, QualitySignals>,
   addresses: Address[],
 ): void {
   for (const street of streets) {
@@ -319,6 +352,7 @@ function processStreetEndpointsWithPreResolvedCoordinates(
         street.fromCoordinates,
         "from",
         preGeocodedMap,
+        qualityMap,
         addresses,
       );
     }
@@ -330,6 +364,7 @@ function processStreetEndpointsWithPreResolvedCoordinates(
         street.toCoordinates,
         "to",
         preGeocodedMap,
+        qualityMap,
         addresses,
       );
     }
@@ -348,7 +383,9 @@ async function recordStreetGeometryInTracker(
   tracker: GeocodingProgressTracker,
   fetchers: {
     getStreetGeometryCached: (name: string) => Feature<MultiLineString> | null;
-    getStreetGeometryFromOverpass: (name: string) => Promise<Feature<MultiLineString> | null>;
+    getStreetGeometryFromOverpass: (
+      name: string,
+    ) => Promise<Feature<MultiLineString> | null>;
     hasStreetGeometryQueried: (name: string) => boolean;
   },
   beforeFetch?: () => Promise<void>,
@@ -397,6 +434,7 @@ async function recordStreetGeometryInTracker(
 async function geocodeStreetIntersections(
   extractedData: ExtractedLocations,
   preGeocodedMap: Map<string, Coordinates>,
+  qualityMap: Map<string, QualitySignals>,
   addresses: Address[],
   tracker?: GeocodingProgressTracker,
 ): Promise<void> {
@@ -406,6 +444,7 @@ async function geocodeStreetIntersections(
   processStreetEndpointsWithPreResolvedCoordinates(
     extractedData.streets,
     preGeocodedMap,
+    qualityMap,
     addresses,
   );
 
@@ -414,7 +453,8 @@ async function geocodeStreetIntersections(
   // preGeocodedMap. Streets with invalid geotagged coordinates (rejected by bounds
   // validation) will not have their endpoints in the map and will not appear here.
   const fullyPreResolvedStreets = extractedData.streets.filter(
-    (street) => preGeocodedMap.has(street.from) && preGeocodedMap.has(street.to),
+    (street) =>
+      preGeocodedMap.has(street.from) && preGeocodedMap.has(street.to),
   );
 
   // Import Overpass service only when a tracker is active — these fetchers are only used
@@ -462,7 +502,12 @@ async function geocodeStreetIntersections(
       streetGeocodedMap.forEach((coords, key) => {
         if (!preGeocodedMap.has(key)) {
           preGeocodedMap.set(key, coords);
-          addresses.push(createAddressFromCoordinates(key, coords));
+          // Intersection points from Overpass: tier 1 (node-level, not full way geometry)
+          const qualitySignals = gradeOverpass("node");
+          qualityMap.set(key, qualitySignals);
+          addresses.push(
+            createAddressFromCoordinates(key, coords, qualitySignals),
+          );
         }
       });
 
@@ -512,6 +557,9 @@ async function geocodeStreetIntersections(
     const fallbackGeocoded = await overpassGeocodeAddresses(missingEndpoints);
     fallbackGeocoded.forEach((addr) => {
       preGeocodedMap.set(addr.originalText, addr.coordinates);
+      if (addr.qualitySignals) {
+        qualityMap.set(addr.originalText, addr.qualitySignals);
+      }
       addresses.push(addr);
     });
   }
@@ -552,6 +600,7 @@ async function geocodeCadastralProperties(
 async function geocodeBusStopsFromExtractedData(
   extractedData: ExtractedLocations,
   preGeocodedMap: Map<string, Coordinates>,
+  qualityMap: Map<string, QualitySignals>,
   addresses: Address[],
   tracker?: GeocodingProgressTracker,
 ): Promise<void> {
@@ -564,6 +613,9 @@ async function geocodeBusStopsFromExtractedData(
 
   geocodedBusStops.forEach((addr) => {
     preGeocodedMap.set(addr.originalText, addr.coordinates);
+    if (addr.qualitySignals) {
+      qualityMap.set(addr.originalText, addr.qualitySignals);
+    }
   });
 
   logger.info("Geocoded bus stops", {
@@ -580,6 +632,7 @@ async function geocodeBusStopsFromExtractedData(
 async function geocodeEducationalFacilitiesFromExtractedData(
   extractedData: ExtractedLocations,
   preGeocodedMap: Map<string, Coordinates>,
+  qualityMap: Map<string, QualitySignals>,
   addresses: Address[],
   ingestErrors?: IngestErrorRecorder,
   tracker?: GeocodingProgressTracker,
@@ -599,6 +652,9 @@ async function geocodeEducationalFacilitiesFromExtractedData(
 
   geocoded.forEach((addr) => {
     preGeocodedMap.set(addr.originalText, addr.coordinates);
+    if (addr.qualitySignals) {
+      qualityMap.set(addr.originalText, addr.qualitySignals);
+    }
   });
 
   tracker?.recordAttempted(extractedData.educationalFacilities.length);
@@ -615,10 +671,11 @@ export async function geocodeAddressesFromExtractedData(
   tracker?: GeocodingProgressTracker,
 ): Promise<GeocodingResult> {
   const preGeocodedMap = new Map<string, Coordinates>();
+  const qualityMap = new Map<string, QualitySignals>();
   const addresses: Address[] = [];
 
   if (!extractedData) {
-    return { preGeocodedMap, addresses };
+    return { preGeocodedMap, qualityMap, addresses };
   }
 
   // Pre-populate in-memory street geometry cache from DB (no-op after first call)
@@ -626,17 +683,46 @@ export async function geocodeAddressesFromExtractedData(
   await seedStreetCacheFromDb();
 
   // Geocode each location type using specialized services
-  await geocodePins(extractedData, preGeocodedMap, addresses, tracker);
-  await geocodeStreetIntersections(extractedData, preGeocodedMap, addresses, tracker);
-  const cadastralGeometries = await geocodeCadastralProperties(extractedData, tracker);
-  await geocodeBusStopsFromExtractedData(extractedData, preGeocodedMap, addresses, tracker);
-  await geocodeEducationalFacilitiesFromExtractedData(extractedData, preGeocodedMap, addresses, ingestErrors, tracker);
+  await geocodePins(
+    extractedData,
+    preGeocodedMap,
+    qualityMap,
+    addresses,
+    tracker,
+  );
+  await geocodeStreetIntersections(
+    extractedData,
+    preGeocodedMap,
+    qualityMap,
+    addresses,
+    tracker,
+  );
+  const cadastralGeometries = await geocodeCadastralProperties(
+    extractedData,
+    tracker,
+  );
+  await geocodeBusStopsFromExtractedData(
+    extractedData,
+    preGeocodedMap,
+    qualityMap,
+    addresses,
+    tracker,
+  );
+  await geocodeEducationalFacilitiesFromExtractedData(
+    extractedData,
+    preGeocodedMap,
+    qualityMap,
+    addresses,
+    ingestErrors,
+    tracker,
+  );
 
   // Deduplicate addresses before returning
   const deduplicatedAddresses = deduplicateAddresses(addresses);
 
   return {
     preGeocodedMap,
+    qualityMap,
     addresses: deduplicatedAddresses,
     cadastralGeometries,
   };

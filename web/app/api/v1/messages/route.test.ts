@@ -38,10 +38,31 @@ describe("GET /api/v1/messages", () => {
     expect(getMessagesMock).not.toHaveBeenCalled();
   });
 
-  it("forwards request unchanged when sources is absent", async () => {
+  it("strips qualitySignals from addresses in the response", async () => {
     validateApiKeyMock.mockResolvedValue(true);
     getMessagesMock.mockResolvedValue(
-      Response.json({ success: true }, { status: 200 }),
+      Response.json(
+        {
+          messages: [
+            {
+              id: "abc12345",
+              text: "test",
+              locality: "Sofia",
+              createdAt: "2024-01-01T00:00:00.000Z",
+              cityWide: false,
+              addresses: [
+                {
+                  originalText: "ул. Витоша",
+                  formattedAddress: "ул. Витоша, София",
+                  coordinates: { lat: 42.697, lng: 23.321 },
+                  qualitySignals: { provider: "google", geometryQuality: 3 },
+                },
+              ],
+            },
+          ],
+        },
+        { status: 200 },
+      ),
     );
 
     const request = new Request(
@@ -51,14 +72,18 @@ describe("GET /api/v1/messages", () => {
     const response = await GET(request);
 
     expect(response.status).toBe(200);
-    expect(getMessagesMock).toHaveBeenCalledTimes(1);
     expect(getMessagesMock).toHaveBeenCalledWith(request);
+    const body = await response.json();
+    expect(body.messages[0].addresses[0]).not.toHaveProperty("qualitySignals");
+    expect(body.messages[0].addresses[0].formattedAddress).toBe(
+      "ул. Витоша, София",
+    );
   });
 
-  it("forwards request unchanged when sources is present", async () => {
+  it("delegates to internal handler and passes through non-ok responses", async () => {
     validateApiKeyMock.mockResolvedValue(true);
     getMessagesMock.mockResolvedValue(
-      Response.json({ success: true }, { status: 200 }),
+      Response.json({ error: "Server error" }, { status: 500 }),
     );
 
     const request = new Request(
@@ -67,7 +92,7 @@ describe("GET /api/v1/messages", () => {
 
     const response = await GET(request);
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(500);
     expect(getMessagesMock).toHaveBeenCalledTimes(1);
     expect(getMessagesMock).toHaveBeenCalledWith(request);
   });

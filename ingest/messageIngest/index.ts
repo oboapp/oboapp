@@ -1,10 +1,11 @@
 import {
   Address,
   ExtractedLocations,
-  GeoJSONFeatureCollection,
+  GeoJsonFeatureCollection,
   InternalMessage,
   Coordinates,
-} from "@/lib/types";
+  QualitySignals,
+} from "@oboapp/shared";
 import type { FilteredMessage } from "@/lib/filter-split.schema";
 import type { CadastralGeometry } from "@/geocoding/cadastre/service";
 import {
@@ -22,6 +23,8 @@ import {
 } from "./geocoding-progress-tracker";
 import { logger } from "@/lib/logger";
 import { getLocality } from "@/lib/target-locality";
+import { getSourceTrust } from "@/lib/source-trust";
+import { gradePrecomputed } from "@/geocoding/shared/quality";
 import {
   getString,
   getOptionalString,
@@ -46,7 +49,7 @@ export interface MessageIngestOptions {
    * Provide ready GeoJSON geometry to skip AI extraction + geocoding.
    * Used by crawlers or integrations with pre-geocoded data.
    */
-  precomputedGeoJson?: GeoJSONFeatureCollection | null;
+  precomputedGeoJson?: GeoJsonFeatureCollection | null;
   /**
    * Optional source URL for the message (e.g., original article URL).
    * Used as the user-facing link in message detail view.
@@ -61,7 +64,7 @@ export interface MessageIngestOptions {
    * Optional boundary filtering - if provided, only features within boundaries are kept
    * If no features are within boundaries, the message is not stored
    */
-  boundaryFilter?: GeoJSONFeatureCollection;
+  boundaryFilter?: GeoJsonFeatureCollection;
   /**
    * Optional crawledAt timestamp from the source document
    */
@@ -146,7 +149,7 @@ export async function messageIngest(
 async function processSingleMessage(
   messageId: string,
   text: string,
-  precomputedGeoJson: GeoJSONFeatureCollection | null,
+  precomputedGeoJson: GeoJsonFeatureCollection | null,
   options: MessageIngestOptions,
   extractedLocations: ExtractedLocations | null,
   ingestErrors: IngestErrorCollector,
@@ -164,7 +167,7 @@ async function processSingleMessage(
   }
 
   let addresses: Address[] = [];
-  let geoJson: GeoJSONFeatureCollection | null = precomputedGeoJson;
+  let geoJson: GeoJsonFeatureCollection | null = precomputedGeoJson;
 
   // Handle precomputed GeoJSON path
   if (precomputedGeoJson) {
@@ -284,10 +287,30 @@ async function processPrecomputedGeoJsonMessage(
     precomputedIngestErrors,
   );
 
+  // Annotate each precomputed feature with geometryQuality derived from source trust
+  const { trust } = getSourceTrust(source);
+  const precomputedQuality = gradePrecomputed(trust);
+  const annotatedGeoJson = options.precomputedGeoJson
+    ? {
+        ...options.precomputedGeoJson,
+        features: options.precomputedGeoJson.features.map((f) => ({
+          ...f,
+          properties: {
+            ...f.properties,
+            geometryQuality:
+              f.properties?.geometryQuality ??
+              precomputedQuality.geometryQuality,
+            qualityProvider:
+              f.properties?.qualityProvider ?? precomputedQuality.provider,
+          },
+        })),
+      }
+    : options.precomputedGeoJson;
+
   const message = await processSingleMessage(
     storedMessageId,
     text,
-    options.precomputedGeoJson || null,
+    annotatedGeoJson || null,
     options,
     null,
     precomputedIngestErrors,
@@ -728,7 +751,7 @@ async function performGeocodingWithErrorHandling(
   ingestErrors: IngestErrorCollector,
 ): Promise<{
   addresses: Address[];
-  geoJson: GeoJSONFeatureCollection | null;
+  geoJson: GeoJsonFeatureCollection | null;
 } | null> {
   const totalLocations =
     (extractedLocations.pins?.length ?? 0) +
@@ -771,6 +794,7 @@ async function performGeocodingWithErrorHandling(
     const geoJson = await convertToGeoJson(
       extractedLocations,
       geocodingResult.preGeocodedMap,
+      geocodingResult.qualityMap,
       geocodingResult.cadastralGeometries,
       geocodedBusStops,
       ingestErrors,
@@ -843,16 +867,18 @@ async function filterAndStoreAddresses(
 async function convertToGeoJson(
   extractedLocations: ExtractedLocations,
   preGeocodedMap: Map<string, Coordinates>,
+  qualityMap: Map<string, QualitySignals>,
   cadastralGeometries: Map<string, CadastralGeometry> | undefined,
   geocodedBusStops?: Address[],
   ingestErrors?: IngestErrorRecorder,
   geocodedEducationalFacilities?: Address[],
-): Promise<GeoJSONFeatureCollection | null> {
+): Promise<GeoJsonFeatureCollection | null> {
   const { convertMessageGeocodingToGeoJson } =
     await import("./convert-to-geojson");
   return await convertMessageGeocodingToGeoJson(
     extractedLocations,
     preGeocodedMap,
+    qualityMap,
     cadastralGeometries,
     geocodedBusStops,
     ingestErrors,
@@ -888,7 +914,7 @@ async function finalizeFailedMessage(
  * Exported for unit testing.
  */
 export function computeGeoJsonCentroidAddress(
-  geoJson: GeoJSONFeatureCollection,
+  geoJson: GeoJsonFeatureCollection,
 ): Address | null {
   const features = geoJson.features;
   if (!features || features.length === 0) return null;
@@ -961,7 +987,7 @@ export function computeGeoJsonCentroidAddress(
  */
 async function handlePrecomputedGeoJsonData(
   messageId: string,
-  precomputedGeoJson: GeoJSONFeatureCollection,
+  precomputedGeoJson: GeoJsonFeatureCollection,
   markdownText: string | undefined,
   timespanStart: Date | undefined,
   timespanEnd: Date | undefined,
@@ -976,7 +1002,12 @@ async function handlePrecomputedGeoJsonData(
   const { validateAndFallback } = await import("@/lib/timespan-utils");
   const validated = validateAndFallback(timespanStart, timespanEnd, crawledAt);
 
-  const locationFields = { addresses, pins, streets: [], cadastralProperties: [] };
+  const locationFields = {
+    addresses,
+    pins,
+    streets: [],
+    cadastralProperties: [],
+  };
 
   if (markdownText) {
     await updateMessage(messageId, {
@@ -1013,9 +1044,9 @@ class BoundaryFilterRejectedError extends Error {
  */
 async function applyBoundaryFilteringIfNeeded(
   messageId: string,
-  geoJson: GeoJSONFeatureCollection | null,
-  boundaryFilter: GeoJSONFeatureCollection | undefined,
-): Promise<GeoJSONFeatureCollection | null> {
+  geoJson: GeoJsonFeatureCollection | null,
+  boundaryFilter: GeoJsonFeatureCollection | undefined,
+): Promise<GeoJsonFeatureCollection | null> {
   if (!boundaryFilter || !geoJson) {
     return geoJson;
   }
@@ -1039,7 +1070,7 @@ async function applyBoundaryFilteringIfNeeded(
  */
 async function finalizeMessageWithResults(
   messageId: string,
-  geoJson: GeoJSONFeatureCollection | null,
+  geoJson: GeoJsonFeatureCollection | null,
   ingestErrors: IngestErrorCollector,
 ): Promise<void> {
   if (!geoJson) {

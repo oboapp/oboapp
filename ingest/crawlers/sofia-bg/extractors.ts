@@ -1,96 +1,103 @@
 import type { Page } from "playwright";
 import type { PostLink } from "./types";
 import { SELECTORS } from "./selectors";
-import { extractPostLinks as extractPostLinksShared } from "../shared/extractors";
+import { extractPostDetailsGeneric } from "../shared/extractors";
+import { decode as decodeHtmlEntities } from "html-entities";
 
-/**
- * Extract post links from the index page (first page only)
- */
-export async function extractPostLinks(page: Page): Promise<PostLink[]> {
-  return extractPostLinksShared(page, SELECTORS);
+export const FEED_FETCH_TIMEOUT_MS = 30_000;
+
+function stripCdata(text: string): string {
+  return text.replace(/^<!\[CDATA\[([\s\S]*?)]]>$/, "$1");
 }
 
 /**
- * Extract post details from individual post page
+ * Fetch the RSS feed XML for the sofia.bg repairs page.
+ * Throws if the response is not an RSS feed (e.g. HTML anti-bot page).
+ */
+export async function fetchFeedXml(url: string): Promise<string> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FEED_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; oboapp-crawler/1.0)" },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`RSS feed returned ${response.status} for ${url}`);
+    }
+    const text = await response.text();
+    if (!text.includes("<rss") && !text.includes("<channel>")) {
+      throw new Error(
+        `RSS feed response does not look like RSS (possible anti-bot or error page) for ${url}`,
+      );
+    }
+    return text;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Parse RSS feed XML into a list of post links.
+ * Each <item> must have <title>, <link>, and <dc:date> (ISO 8601).
+ * Items missing any required field are skipped.
+ */
+export function parseFeedItems(xml: string): PostLink[] {
+  const postLinks: PostLink[] = [];
+  const itemRe = /<item>([\s\S]*?)<\/item>/g;
+  let m: RegExpExecArray | null;
+
+  while ((m = itemRe.exec(xml)) !== null) {
+    const itemXml = m[1];
+
+    const title = decodeHtmlEntities(
+      stripCdata(
+        itemXml.match(/<title>([\s\S]*?)<\/title>/)?.[1]?.trim() ?? "",
+      ),
+    );
+    const url = decodeHtmlEntities(
+      stripCdata(itemXml.match(/<link>([\s\S]*?)<\/link>/)?.[1]?.trim() ?? ""),
+    );
+    const date = stripCdata(
+      itemXml.match(/<dc:date>([\s\S]*?)<\/dc:date>/)?.[1]?.trim() ?? "",
+    );
+
+    if (!title || !url || !date) continue;
+
+    // Validate URL stays on the expected host to avoid navigating to arbitrary sites.
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      continue;
+    }
+    if (parsedUrl.hostname !== "www.sofia.bg") continue;
+
+    // Validate date is parseable and normalize to canonical UTC ISO 8601.
+    const dateMs = Date.parse(date);
+    if (isNaN(dateMs)) continue;
+
+    postLinks.push({ url, title, date: new Date(dateMs).toISOString() });
+  }
+
+  return postLinks;
+}
+
+/**
+ * Extract post details from an individual post page.
+ * Date is not extracted from the page — it comes from the RSS feed.
  */
 export async function extractPostDetails(
-  page: Page
+  page: Page,
 ): Promise<{ title: string; dateText: string; contentHtml: string }> {
-  const details = await page.evaluate((selectors) => {
-    // Extract title from first component-paragraph div
-    // This contains the title text on sofia.bg article pages
-    const componentParagraphs = document.querySelectorAll(
-      ".component-paragraph"
-    );
-    let title = "";
-
-    if (componentParagraphs.length > 0) {
-      // First component-paragraph usually contains the title
-      const firstParagraph = componentParagraphs[0];
-      if (firstParagraph instanceof HTMLElement) {
-        title = firstParagraph.textContent?.trim() || "";
-
-        // If title is very long, it might include content, try to get just first line/paragraph
-        const firstChild = firstParagraph.querySelector("p, div");
-        if (
-          firstChild?.textContent &&
-          firstChild.textContent.length < title.length
-        ) {
-          title = firstChild.textContent.trim();
-        }
-      }
-    }
-
-    // Fallback to h1 or other headings if component-paragraph approach fails
-    if (!title) {
-      const headingEl = document.querySelector("h1, h2, h3");
-      title = headingEl?.textContent?.trim() || "";
-    }
-
-    // Extract date - look for date in footer or date elements
-    const dateEl = document.querySelector(selectors.POST.DATE);
-    const dateText = dateEl?.textContent?.trim() || "";
-
-    // Extract main content - get all component-paragraph divs
-    let contentHtml = "";
-    if (componentParagraphs.length > 0) {
-      // Create a container for all paragraphs
-      const container = document.createElement("div");
-      componentParagraphs.forEach((p) => {
-        const clone = p.cloneNode(true);
-        if (clone instanceof HTMLElement) {
-          // Remove unwanted elements
-          clone
-            .querySelectorAll(
-              "script, style, nav, .navigation, .share-buttons, .social-share"
-            )
-            .forEach((el) => el.remove());
-          container.appendChild(clone);
-        }
-      });
-      contentHtml = container.innerHTML;
-    } else {
-      // Fallback: get main-content
-      const mainContent = document.querySelector("#main-content");
-      if (mainContent) {
-        const clone = mainContent.cloneNode(true);
-        if (clone instanceof HTMLElement) {
-          clone
-            .querySelectorAll(
-              "script, style, nav, .navigation, .share-buttons, .social-share, header, footer"
-            )
-            .forEach((el) => el.remove());
-          contentHtml = clone.innerHTML;
-        }
-      }
-    }
-
-    return {
-      title,
-      dateText,
-      contentHtml,
-    };
-  }, SELECTORS);
-
-  return details;
+  return extractPostDetailsGeneric(page, SELECTORS.POST, [
+    "script",
+    "style",
+    "nav",
+    "header",
+    "footer",
+    ".share-buttons",
+    ".social-share",
+    ".navigation",
+  ]);
 }

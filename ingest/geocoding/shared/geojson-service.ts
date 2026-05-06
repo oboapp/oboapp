@@ -1,15 +1,19 @@
 import {
   ExtractedLocations,
   StreetSection,
-  GeoJSONFeatureCollection,
-  GeoJSONFeature,
-  GeoJSONLineString,
-  GeoJSONPolygon,
-  IntersectionCoordinates,
-} from "../../lib/types";
+  GeoJsonFeatureCollection,
+  GeoJsonFeature,
+  GeoJsonLineString,
+  GeoJsonPolygon,
+  QualitySignals,
+  QUALITY_PROVIDERS,
+  OSM_ELEMENT_TYPES,
+} from "@oboapp/shared";
+import type { IntersectionCoordinates } from "@/lib/types";
 import { getStreetGeometry } from "../router";
 import { roundCoordinate } from "./coordinate-utils";
 import { logger } from "@/lib/logger";
+import { gradeOverpass } from "./quality";
 
 // Constants for street buffer widths (in meters)
 const BUFFER_WIDTH_BOULEVARD = 13; // 12-14m average
@@ -18,9 +22,13 @@ const BUFFER_WIDTH_RESIDENTIAL = 7; // 6-8m average
 
 // Step 1 — PIN / Address Geocoding (Points)
 function createPinFeature(
-  pin: { address: string; timespans: { start: string | null; end: string | null }[] },
+  pin: {
+    address: string;
+    timespans: { start: string | null; end: string | null }[];
+  },
   preGeocodedAddresses: Map<string, IntersectionCoordinates>,
-): GeoJSONFeature {
+  qualityMap: Map<string, QualitySignals>,
+): GeoJsonFeature {
   const coords = preGeocodedAddresses.get(pin.address);
 
   if (!coords) {
@@ -28,6 +36,8 @@ function createPinFeature(
       `Missing pre-geocoded coordinates for pin: "${pin.address}"`,
     );
   }
+
+  const quality = qualityMap.get(pin.address);
 
   return {
     type: "Feature",
@@ -40,18 +50,29 @@ function createPinFeature(
       address: pin.address,
       start_time: pin.timespans[0]?.start || "",
       end_time: pin.timespans[0]?.end || "",
-      timespans: JSON.stringify(pin.timespans), // Store all timespans as JSON string
+      timespans: JSON.stringify(pin.timespans),
+      ...(quality && {
+        geometryQuality: quality.geometryQuality,
+        qualityProvider: quality.provider,
+        qualitySignals: quality,
+      }),
     },
   };
 }
 
 // Step 2 — Street Centerline Retrieval
+interface CenterlineResult {
+  geometry: GeoJsonLineString;
+  /** True when Overpass returned real way geometry (not a synthesised straight line). */
+  usedWayGeometry: boolean;
+}
+
 async function getStreetCenterline(
   startCoords: IntersectionCoordinates,
   endCoords: IntersectionCoordinates,
   streetName: string,
   hasGeotaggedCoordinates: boolean = false,
-): Promise<GeoJSONLineString> {
+): Promise<CenterlineResult> {
   // Check if start and end are the same or very close
   const distance = Math.sqrt(
     Math.pow(endCoords.lat - startCoords.lat, 2) +
@@ -64,29 +85,32 @@ async function getStreetCenterline(
     // Extend slightly in a default direction (e.g., 10 meters north-south)
     const offsetDegrees = 0.00009; // approximately 10 meters
     return {
-      type: "LineString",
-      coordinates: [
-        [startCoords.lng, startCoords.lat - offsetDegrees / 2],
-        [startCoords.lng, startCoords.lat + offsetDegrees / 2],
-      ],
+      geometry: {
+        type: "LineString",
+        coordinates: [
+          [startCoords.lng, startCoords.lat - offsetDegrees / 2],
+          [startCoords.lng, startCoords.lat + offsetDegrees / 2],
+        ],
+      },
+      usedWayGeometry: false,
     };
   }
 
   // If both endpoints have geotagged coordinates from the source,
   // draw a straight line instead of querying Overpass for street geometry
   if (hasGeotaggedCoordinates) {
-    logger.info(
-      "Using straight line for street with geotagged coordinates",
-      {
-        street: streetName,
-      },
-    );
+    logger.info("Using straight line for street with geotagged coordinates", {
+      street: streetName,
+    });
     return {
-      type: "LineString",
-      coordinates: [
-        [startCoords.lng, startCoords.lat],
-        [endCoords.lng, endCoords.lat],
-      ],
+      geometry: {
+        type: "LineString",
+        coordinates: [
+          [startCoords.lng, startCoords.lat],
+          [endCoords.lng, endCoords.lat],
+        ],
+      },
+      usedWayGeometry: false,
     };
   }
 
@@ -95,26 +119,32 @@ async function getStreetCenterline(
 
   if (geometry && geometry.length >= 2) {
     return {
-      type: "LineString",
-      coordinates: geometry,
+      geometry: {
+        type: "LineString",
+        coordinates: geometry,
+      },
+      usedWayGeometry: true,
     };
   }
 
   // Fallback to straight line between the two points
   return {
-    type: "LineString",
-    coordinates: [
-      [startCoords.lng, startCoords.lat],
-      [endCoords.lng, endCoords.lat],
-    ],
+    geometry: {
+      type: "LineString",
+      coordinates: [
+        [startCoords.lng, startCoords.lat],
+        [endCoords.lng, endCoords.lat],
+      ],
+    },
+    usedWayGeometry: false,
   };
 }
 
 // Step 3 — Line-to-Polygon Conversion
 function bufferLineString(
-  lineString: GeoJSONLineString,
+  lineString: GeoJsonLineString,
   bufferMeters: number = 8,
-): GeoJSONPolygon | null {
+): GeoJsonPolygon | null {
   const coordinates = lineString.coordinates;
   if (coordinates.length < 2) return null;
 
@@ -203,7 +233,8 @@ function getBufferWidth(streetName: string): number {
 async function createClosureFeature(
   street: StreetSection,
   preGeocodedAddresses: Map<string, IntersectionCoordinates>,
-): Promise<GeoJSONFeature> {
+  qualityMap: Map<string, QualitySignals>,
+): Promise<GeoJsonFeature> {
   // Get pre-geocoded coordinates
   const startCoords = preGeocodedAddresses.get(street.from);
   const endCoords = preGeocodedAddresses.get(street.to);
@@ -232,7 +263,7 @@ async function createClosureFeature(
     roundCoordinate(street.toCoordinates.lng) === endCoords.lng;
 
   // Get centerline
-  const centerline = await getStreetCenterline(
+  const { geometry: centerline, usedWayGeometry } = await getStreetCenterline(
     startCoords,
     endCoords,
     street.street,
@@ -247,6 +278,37 @@ async function createClosureFeature(
     throw new Error(`Failed to buffer linestring for: ${street.street}`);
   }
 
+  // Compute street quality conservatively.
+  //
+  // When the centerline came from real Overpass WAY geometry, incorporate its
+  // quality (2) alongside the endpoint qualities. This allows closures with
+  // both accurate WAY geometry and address-level endpoints to reach tier 2,
+  // consistent with the documented tier meaning and gradeOverpass('way') = 2.
+  //
+  // Use "street" provider since the quality reflects aggregated signals.
+  const wayQuality = usedWayGeometry
+    ? gradeOverpass(OSM_ELEMENT_TYPES.WAY).geometryQuality
+    : null;
+  let qualitySignals: QualitySignals | null = null;
+  const fromQuality = qualityMap.get(street.from);
+  const toQuality = qualityMap.get(street.to);
+
+  // Both endpoints must be present to grade the closure. A missing signal is
+  // treated as 0 (most conservative) so a partially-graded closure cannot
+  // silently overstate quality by ignoring the missing endpoint.
+  const fromGrade = fromQuality?.geometryQuality ?? 0;
+  const toGrade = toQuality?.geometryQuality ?? 0;
+  const endpointQualities = [fromGrade, toGrade];
+  const allQualities =
+    wayQuality !== null
+      ? [...endpointQualities, wayQuality]
+      : endpointQualities;
+
+  qualitySignals = {
+    provider: QUALITY_PROVIDERS.STREET,
+    geometryQuality: Math.min(...allQualities),
+  };
+
   // Assemble feature
   return {
     type: "Feature",
@@ -258,7 +320,12 @@ async function createClosureFeature(
       to: street.to,
       start_time: street.timespans[0]?.start || "",
       end_time: street.timespans[0]?.end || "",
-      timespans: JSON.stringify(street.timespans), // Store all timespans as JSON string
+      timespans: JSON.stringify(street.timespans),
+      ...(qualitySignals && {
+        geometryQuality: qualitySignals.geometryQuality,
+        qualityProvider: qualitySignals.provider,
+        qualitySignals,
+      }),
     },
   };
 }
@@ -267,14 +334,19 @@ async function createClosureFeature(
 export async function convertToGeoJSON(
   extractedData: ExtractedLocations,
   preGeocodedAddresses: Map<string, IntersectionCoordinates>,
-): Promise<GeoJSONFeatureCollection> {
-  const features: GeoJSONFeature[] = [];
+  qualityMap: Map<string, QualitySignals>,
+): Promise<GeoJsonFeatureCollection> {
+  const features: GeoJsonFeature[] = [];
   const fallbackPins: typeof extractedData.pins = [];
 
   // Process all street closures first
   for (const street of extractedData.streets) {
     try {
-      const feature = await createClosureFeature(street, preGeocodedAddresses);
+      const feature = await createClosureFeature(
+        street,
+        preGeocodedAddresses,
+        qualityMap,
+      );
       features.push(feature);
     } catch (error) {
       // If street section creation fails, convert endpoints to pins as fallback
@@ -317,7 +389,7 @@ export async function convertToGeoJSON(
   const allPins = [...extractedData.pins, ...fallbackPins];
   for (const pin of allPins) {
     try {
-      const feature = createPinFeature(pin, preGeocodedAddresses);
+      const feature = createPinFeature(pin, preGeocodedAddresses, qualityMap);
       features.push(feature);
     } catch (error) {
       logger.error("Failed to create pin", {

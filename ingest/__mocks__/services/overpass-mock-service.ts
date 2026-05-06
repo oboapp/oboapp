@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { Address, Coordinates } from "@/lib/types";
 import type { Position } from "geojson";
+import { gradeOverpass } from "@/geocoding/shared/quality";
 
 export class OverpassMockService {
   private customFixturePath: string | null = null;
@@ -14,7 +15,16 @@ export class OverpassMockService {
   ): Promise<Address[]> {
     // Use custom fixture if specified
     if (this.customFixturePath) {
-      return JSON.parse(readFileSync(this.customFixturePath, "utf-8"));
+      const data = JSON.parse(readFileSync(this.customFixturePath, "utf-8"));
+      if (!Array.isArray(data))
+        throw new Error(
+          `OVERPASS_FIXTURE_PATH fixture must be a JSON array, got ${typeof data}: ${this.customFixturePath}`,
+        );
+      // Ensure qualitySignals are present
+      return data.map((addr: Address) => ({
+        ...addr,
+        qualitySignals: addr.qualitySignals || gradeOverpass("node"),
+      }));
     }
 
     // Simulate delay
@@ -46,7 +56,16 @@ export class OverpassMockService {
   async overpassGeocodeAddresses(addresses: string[]): Promise<Address[]> {
     // Use custom fixture if specified
     if (this.customFixturePath) {
-      return JSON.parse(readFileSync(this.customFixturePath, "utf-8"));
+      const data = JSON.parse(readFileSync(this.customFixturePath, "utf-8"));
+      if (!Array.isArray(data))
+        throw new Error(
+          `OVERPASS_FIXTURE_PATH fixture must be a JSON array, got ${typeof data}: ${this.customFixturePath}`,
+        );
+      // Ensure qualitySignals are present
+      return data.map((addr: Address) => ({
+        ...addr,
+        qualitySignals: addr.qualitySignals || gradeOverpass("node"),
+      }));
     }
 
     // Simulate delay

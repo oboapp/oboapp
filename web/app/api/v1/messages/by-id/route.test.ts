@@ -56,11 +56,22 @@ describe("GET /api/v1/messages/by-id", () => {
   it("delegates to getMessageById when API key is valid", async () => {
     validateApiKeyMock.mockResolvedValue(true);
     getMessageByIdMock.mockResolvedValue(
-      Response.json({ message: { id: "abc123", text: "test" } }, { status: 200 }),
+      Response.json(
+        {
+          message: {
+            id: "abc12345",
+            text: "test",
+            locality: "Sofia",
+            createdAt: "2024-01-01T00:00:00.000Z",
+            cityWide: false,
+          },
+        },
+        { status: 200 },
+      ),
     );
 
     const request = new Request(
-      "http://localhost/api/v1/messages/by-id?id=abc123",
+      "http://localhost/api/v1/messages/by-id?id=abc12345",
     );
     const response = await GET(request);
 
@@ -68,7 +79,8 @@ describe("GET /api/v1/messages/by-id", () => {
     expect(getMessageByIdMock).toHaveBeenCalledTimes(1);
     expect(getMessageByIdMock).toHaveBeenCalledWith(request);
     const body = await response.json();
-    expect(body).toEqual({ message: { id: "abc123", text: "test" } });
+    expect(body.message.id).toBe("abc12345");
+    expect(body.message.text).toBe("test");
   });
 
   it("forwards error responses from the underlying handler", async () => {

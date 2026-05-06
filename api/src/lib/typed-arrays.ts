@@ -56,5 +56,19 @@ export function getFeatureCollection(
   value: unknown,
 ): GeoJsonFeatureCollection | undefined {
   const result = GeoJsonFeatureCollectionSchema.safeParse(value);
-  return result.success ? result.data : undefined;
+  if (!result.success) return undefined;
+  // Strip internal geocoding signals from GeoJSON feature properties
+  // so they don't leak into the public v1 API response.
+  return {
+    ...result.data,
+    features: result.data.features.map((feature) => {
+      const {
+        qualitySignals: _qs,
+        qualityProvider: _qp,
+        geometryQuality: _gq,
+        ...publicProperties
+      } = feature.properties ?? {};
+      return { ...feature, properties: publicProperties };
+    }),
+  };
 }

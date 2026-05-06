@@ -1,240 +1,325 @@
-import { describe, it, expect, vi } from "vitest";
-import { extractPostLinks, extractPostDetails } from "./extractors";
-import { SELECTORS } from "./selectors";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  fetchFeedXml,
+  parseFeedItems,
+  extractPostDetails,
+  FEED_FETCH_TIMEOUT_MS,
+} from "./extractors";
+
+// ---------------------------------------------------------------------------
+// Helpers for building minimal RSS XML fixtures
+// ---------------------------------------------------------------------------
+
+function buildItemXml(title: string, url: string, date: string): string {
+  return `<item>
+      <title>${title}</title>
+      <link>${url}</link>
+      <description />
+      <dc:date>${date}</dc:date>
+    </item>`;
+}
+
+function wrapInChannel(items: string): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+  <channel>
+    <title>Ремонти и промени в движението</title>
+    <link>https://www.sofia.bg/repairs-and-traffic-changes/-/asset_publisher/utdu/rss</link>
+    ${items}
+  </channel>
+</rss>`;
+}
 
 // Mock Page type from Playwright
 interface MockPage {
-  evaluate: <T>(fn: (...args: any[]) => T, ...args: any[]) => Promise<T>;
+  evaluate: <T>(
+    fn: (...args: unknown[]) => T,
+    ...args: unknown[]
+  ) => Promise<T>;
 }
 
-function createMockPage(mockEvaluate: any): MockPage {
-  return {
-    evaluate: mockEvaluate,
-  } as MockPage;
+function createMockPage(mockEvaluate: ReturnType<typeof vi.fn>): MockPage {
+  return { evaluate: mockEvaluate } as MockPage;
 }
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
 
 describe("sofia-bg/extractors", () => {
-  describe("extractPostLinks", () => {
-    it("should extract post links from valid HTML", async () => {
-      const mockEvaluate = vi.fn().mockResolvedValue([
-        {
-          url: "https://www.sofia.bg/w/article-123",
-          title: "Ремонт на улица",
-          date: "20 декември 2025",
-        },
-      ]);
+  describe("fetchFeedXml", () => {
+    beforeEach(() => {
+      vi.stubGlobal("fetch", vi.fn());
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
 
-      const page = createMockPage(mockEvaluate) as any;
-      const posts = await extractPostLinks(page);
+    it("should throw when response body does not look like RSS", async () => {
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        text: async () => "<html><body>Access Denied</body></html>",
+      } as Response);
 
-      expect(posts).toHaveLength(1);
-      expect(posts[0].url).toContain("sofia.bg/w/");
-      expect(posts[0].title).toBe("Ремонт на улица");
-      expect(posts[0].date).toBe("20 декември 2025");
+      await expect(
+        fetchFeedXml(
+          "https://www.sofia.bg/repairs-and-traffic-changes/-/asset_publisher/utdu/rss",
+        ),
+      ).rejects.toThrow("does not look like RSS");
+    });
 
-      // Verify that SELECTORS was passed to evaluate
-      expect(mockEvaluate).toHaveBeenCalledWith(
-        expect.any(Function),
-        SELECTORS
+    it("should throw on non-2xx status", async () => {
+      vi.mocked(fetch).mockResolvedValue({
+        ok: false,
+        status: 403,
+        text: async () => "Forbidden",
+      } as Response);
+
+      await expect(
+        fetchFeedXml(
+          "https://www.sofia.bg/repairs-and-traffic-changes/-/asset_publisher/utdu/rss",
+        ),
+      ).rejects.toThrow("403");
+    });
+
+    it("should propagate abort error on timeout", async () => {
+      const abortError = new DOMException(
+        "The operation was aborted.",
+        "AbortError",
+      );
+      vi.mocked(fetch).mockRejectedValue(abortError);
+
+      await expect(
+        fetchFeedXml(
+          "https://www.sofia.bg/repairs-and-traffic-changes/-/asset_publisher/utdu/rss",
+        ),
+      ).rejects.toThrow("The operation was aborted.");
+    });
+
+    it("should abort the request after FEED_FETCH_TIMEOUT_MS via AbortController", async () => {
+      vi.useFakeTimers();
+      let capturedSignal: AbortSignal | undefined;
+
+      vi.mocked(fetch).mockImplementation((_url, init) => {
+        capturedSignal = (init as RequestInit).signal as AbortSignal;
+        return new Promise((_resolve, reject) => {
+          capturedSignal!.addEventListener("abort", () => {
+            reject(
+              new DOMException("The operation was aborted.", "AbortError"),
+            );
+          });
+        });
+      });
+
+      const promise = fetchFeedXml(
+        "https://www.sofia.bg/repairs-and-traffic-changes/-/asset_publisher/utdu/rss",
+      );
+
+      expect(capturedSignal?.aborted).toBe(false);
+      vi.advanceTimersByTime(FEED_FETCH_TIMEOUT_MS);
+      expect(capturedSignal?.aborted).toBe(true);
+
+      await expect(promise).rejects.toThrow("The operation was aborted.");
+
+      vi.useRealTimers();
+    });
+
+    it("should return XML when response is valid RSS", async () => {
+      const rssXml = `<?xml version="1.0"?><rss version="2.0"><channel><title>Test</title></channel></rss>`;
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        text: async () => rssXml,
+      } as Response);
+
+      const result = await fetchFeedXml(
+        "https://www.sofia.bg/repairs-and-traffic-changes/-/asset_publisher/utdu/rss",
+      );
+      expect(result).toBe(rssXml);
+    });
+  });
+
+  describe("parseFeedItems", () => {
+    it("should parse a single valid item", () => {
+      const xml = wrapInChannel(
+        buildItemXml(
+          "Организация на движението",
+          "https://www.sofia.bg/repairs-and-traffic-changes/-/asset_publisher/utdu/content/id/12345",
+          "2026-05-01T07:00:00Z",
+        ),
+      );
+
+      const items = parseFeedItems(xml);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].title).toBe("Организация на движението");
+      expect(items[0].url).toBe(
+        "https://www.sofia.bg/repairs-and-traffic-changes/-/asset_publisher/utdu/content/id/12345",
+      );
+      expect(items[0].date).toBe("2026-05-01T07:00:00.000Z");
+    });
+
+    it("should decode HTML entities in title", () => {
+      const xml = wrapInChannel(
+        buildItemXml(
+          "Ремонт на бул. &quot;Витоша&quot; &amp; ул. &quot;Граф Игнатиев&quot;",
+          "https://www.sofia.bg/repairs-and-traffic-changes/-/asset_publisher/utdu/content/id/12345",
+          "2026-05-01T07:00:00Z",
+        ),
+      );
+
+      const items = parseFeedItems(xml);
+
+      expect(items[0].title).toBe(
+        'Ремонт на бул. "Витоша" & ул. "Граф Игнатиев"',
       );
     });
 
-    it("should extract multiple post links", async () => {
-      const mockEvaluate = vi.fn().mockResolvedValue([
-        {
-          url: "https://www.sofia.bg/w/article-1",
-          title: "Post 1",
-          date: "20 декември 2025",
-        },
-        {
-          url: "https://www.sofia.bg/w/article-2",
-          title: "Post 2",
-          date: "19 декември 2025",
-        },
-        {
-          url: "https://www.sofia.bg/w/article-3",
-          title: "Post 3",
-          date: "18 декември 2025",
-        },
-      ]);
+    it("should skip items missing dc:date", () => {
+      const xml = wrapInChannel(`<item>
+        <title>No Date Article</title>
+        <link>https://www.sofia.bg/repairs-and-traffic-changes/-/asset_publisher/utdu/content/id/12345</link>
+        <description />
+      </item>`);
 
-      const page = createMockPage(mockEvaluate) as any;
-      const posts = await extractPostLinks(page);
+      const items = parseFeedItems(xml);
 
-      expect(posts).toHaveLength(3);
-      expect(posts[0].title).toBe("Post 1");
-      expect(posts[1].title).toBe("Post 2");
-      expect(posts[2].title).toBe("Post 3");
+      expect(items).toHaveLength(0);
     });
 
-    it("should return empty array when no posts found", async () => {
-      const mockEvaluate = vi.fn().mockResolvedValue([]);
+    it("should parse multiple items in order", () => {
+      const xml = wrapInChannel(
+        buildItemXml(
+          "Post 1",
+          "https://www.sofia.bg/repairs-and-traffic-changes/-/asset_publisher/utdu/content/id/1",
+          "2026-05-01T07:00:00Z",
+        ) +
+          buildItemXml(
+            "Post 2",
+            "https://www.sofia.bg/repairs-and-traffic-changes/-/asset_publisher/utdu/content/id/2",
+            "2026-05-02T07:00:00Z",
+          ) +
+          buildItemXml(
+            "Post 3",
+            "https://www.sofia.bg/repairs-and-traffic-changes/-/asset_publisher/utdu/content/id/3",
+            "2026-05-03T07:00:00Z",
+          ),
+      );
 
-      const page = createMockPage(mockEvaluate) as any;
-      const posts = await extractPostLinks(page);
+      const items = parseFeedItems(xml);
 
-      expect(posts).toEqual([]);
+      expect(items).toHaveLength(3);
+      expect(items[0].title).toBe("Post 1");
+      expect(items[1].title).toBe("Post 2");
+      expect(items[2].title).toBe("Post 3");
     });
 
-    it("should handle posts without dates", async () => {
-      const mockEvaluate = vi.fn().mockResolvedValue([
-        {
-          url: "https://www.sofia.bg/w/article-123",
-          title: "Test Post",
-          date: "",
-        },
-      ]);
-
-      const page = createMockPage(mockEvaluate) as any;
-      const posts = await extractPostLinks(page);
-
-      expect(posts).toHaveLength(1);
-      expect(posts[0].date).toBe("");
+    it("should return empty array for empty XML", () => {
+      expect(parseFeedItems("")).toEqual([]);
     });
 
-    it("should only extract valid URLs", async () => {
-      const mockEvaluate = vi.fn().mockResolvedValue([
-        {
-          url: "https://www.sofia.bg/w/valid-article",
-          title: "Valid",
-          date: "20 декември 2025",
-        },
-      ]);
+    it("should parse items with CDATA-wrapped title and link", () => {
+      const xml = wrapInChannel(`<item>
+          <title><![CDATA[Ремонт на бул. "Витоша" & ул. "Граф Игнатиев"]]></title>
+          <link><![CDATA[https://www.sofia.bg/repairs-and-traffic-changes/-/asset_publisher/utdu/content/id/12345]]></link>
+          <description />
+          <dc:date>2026-05-01T07:00:00Z</dc:date>
+        </item>`);
 
-      const page = createMockPage(mockEvaluate) as any;
-      const posts = await extractPostLinks(page);
+      const items = parseFeedItems(xml);
 
-      expect(posts).toHaveLength(1);
-      expect(posts[0].url).toMatch(/^https:\/\/www\.sofia\.bg\/w\//);
+      expect(items).toHaveLength(1);
+      expect(items[0].title).toBe(
+        'Ремонт на бул. "Витоша" & ул. "Граф Игнатиев"',
+      );
+      expect(items[0].url).toBe(
+        "https://www.sofia.bg/repairs-and-traffic-changes/-/asset_publisher/utdu/content/id/12345",
+      );
+    });
+
+    it("should skip items with a URL on a different host", () => {
+      const xml = wrapInChannel(
+        buildItemXml(
+          "Malicious Item",
+          "https://evil.example.com/steal",
+          "2026-05-01T07:00:00Z",
+        ),
+      );
+      expect(parseFeedItems(xml)).toHaveLength(0);
+    });
+
+    it("should skip items with an unparseable date", () => {
+      const xml = wrapInChannel(
+        buildItemXml(
+          "Bad Date Item",
+          "https://www.sofia.bg/repairs-and-traffic-changes/-/asset_publisher/utdu/content/id/99",
+          "not-a-date",
+        ),
+      );
+      expect(parseFeedItems(xml)).toHaveLength(0);
+    });
+
+    it("should normalize timezone-offset dates to UTC ISO 8601", () => {
+      const xml = wrapInChannel(
+        buildItemXml(
+          "Sofia Event",
+          "https://www.sofia.bg/repairs-and-traffic-changes/-/asset_publisher/utdu/content/id/1",
+          "2026-05-01T10:00:00+03:00",
+        ),
+      );
+      const items = parseFeedItems(xml);
+      expect(items).toHaveLength(1);
+      expect(items[0].date).toBe("2026-05-01T07:00:00.000Z");
     });
   });
 
   describe("extractPostDetails", () => {
-    it("should extract post details from valid page", async () => {
+    it("should return title, empty dateText, and contentHtml", async () => {
       const mockEvaluate = vi.fn().mockResolvedValue({
         title: "Временна организация на движението",
-        dateText: "20 декември 2025",
+        dateText: "",
         contentHtml: "<div><p>Content paragraph</p></div>",
       });
 
-      const page = createMockPage(mockEvaluate) as any;
+      const page = createMockPage(mockEvaluate) as unknown as Parameters<
+        typeof extractPostDetails
+      >[0];
       const details = await extractPostDetails(page);
 
       expect(details.title).toBe("Временна организация на движението");
-      expect(details.dateText).toBe("20 декември 2025");
+      expect(details.dateText).toBe("");
       expect(details.contentHtml).toBe("<div><p>Content paragraph</p></div>");
-
-      // Verify SELECTORS passed
-      expect(mockEvaluate).toHaveBeenCalledWith(
-        expect.any(Function),
-        SELECTORS
-      );
     });
 
-    it("should extract title from component-paragraph", async () => {
-      const mockEvaluate = vi.fn().mockResolvedValue({
-        title: "Title from component-paragraph",
-        dateText: "20 декември 2025",
-        contentHtml: "<div>Content</div>",
-      });
-
-      const page = createMockPage(mockEvaluate) as any;
-      const details = await extractPostDetails(page);
-
-      expect(details.title).toBe("Title from component-paragraph");
-    });
-
-    it("should handle fallback to h1 for title", async () => {
-      const mockEvaluate = vi.fn().mockResolvedValue({
-        title: "Fallback H1 Title",
-        dateText: "20 декември 2025",
-        contentHtml: "<div>Content</div>",
-      });
-
-      const page = createMockPage(mockEvaluate) as any;
-      const details = await extractPostDetails(page);
-
-      expect(details.title).toBe("Fallback H1 Title");
-    });
-
-    it("should handle missing title", async () => {
-      const mockEvaluate = vi.fn().mockResolvedValue({
-        title: "",
-        dateText: "20 декември 2025",
-        contentHtml: "<div>Content</div>",
-      });
-
-      const page = createMockPage(mockEvaluate) as any;
-      const details = await extractPostDetails(page);
-
-      expect(details.title).toBe("");
-    });
-
-    it("should handle missing date", async () => {
-      const mockEvaluate = vi.fn().mockResolvedValue({
-        title: "Test Title",
-        dateText: "",
-        contentHtml: "<div>Content</div>",
-      });
-
-      const page = createMockPage(mockEvaluate) as any;
-      const details = await extractPostDetails(page);
-
-      expect(details.dateText).toBe("");
-    });
-
-    it("should handle empty content", async () => {
-      const mockEvaluate = vi.fn().mockResolvedValue({
-        title: "Test Title",
-        dateText: "20 декември 2025",
-        contentHtml: "",
-      });
-
-      const page = createMockPage(mockEvaluate) as any;
-      const details = await extractPostDetails(page);
-
-      expect(details.contentHtml).toBe("");
-    });
-
-    it("should extract complex HTML with multiple component-paragraphs", async () => {
-      const mockEvaluate = vi.fn().mockResolvedValue({
-        title: "Multi-paragraph Article",
-        dateText: "20 декември 2025",
-        contentHtml: `
-          <div class="component-paragraph">
-            <p>First paragraph</p>
-          </div>
-          <div class="component-paragraph">
-            <p>Second paragraph</p>
-            <ul>
-              <li>Item 1</li>
-              <li>Item 2</li>
-            </ul>
-          </div>
-        `,
-      });
-
-      const page = createMockPage(mockEvaluate) as any;
-      const details = await extractPostDetails(page);
-
-      expect(details.contentHtml).toContain("First paragraph");
-      expect(details.contentHtml).toContain("Second paragraph");
-      expect(details.contentHtml).toContain("<ul>");
-    });
-
-    it("should handle all fields being empty", async () => {
+    it("should return empty strings when page has no matching elements", async () => {
       const mockEvaluate = vi.fn().mockResolvedValue({
         title: "",
         dateText: "",
         contentHtml: "",
       });
 
-      const page = createMockPage(mockEvaluate) as any;
+      const page = createMockPage(mockEvaluate) as unknown as Parameters<
+        typeof extractPostDetails
+      >[0];
       const details = await extractPostDetails(page);
 
       expect(details.title).toBe("");
       expect(details.dateText).toBe("");
       expect(details.contentHtml).toBe("");
+    });
+
+    it("should call page.evaluate once", async () => {
+      const mockEvaluate = vi.fn().mockResolvedValue({
+        title: "Test Title",
+        dateText: "",
+        contentHtml: "<p>Content</p>",
+      });
+
+      const page = createMockPage(mockEvaluate) as unknown as Parameters<
+        typeof extractPostDetails
+      >[0];
+      await extractPostDetails(page);
+
+      expect(mockEvaluate).toHaveBeenCalledTimes(1);
     });
   });
 });

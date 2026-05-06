@@ -27,6 +27,16 @@ export const GeoJsonGeometrySchema = z.discriminatedUnion("type", [
   GeoJsonPolygonSchema,
 ]);
 
+/**
+ * GeoJSON Feature with flexible properties
+ *
+ * Standard properties (when present):
+ * - `geometryQuality` (number, 0–3): Per-feature geometry precision grade
+ * - `qualityProvider` (string): The geocoding provider (google, overpass, cadastre, gtfs, educational, precomputed, source, street)
+ * - `qualitySignals` (object): Diagnostic metadata (locationType, partialMatch, osmElementType, etc.)
+ * - `feature_type` (string): Pin, street_closure, cadastral, bus_stop, educational, etc.
+ * - Other properties are application-specific
+ */
 export const GeoJsonFeatureSchema = z.object({
   type: z.literal("Feature"),
   geometry: GeoJsonGeometrySchema,

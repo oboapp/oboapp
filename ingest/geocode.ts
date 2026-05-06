@@ -107,6 +107,7 @@ Examples:
         const geoJson = await convertMessageGeocodingToGeoJson(
           typedExtracted,
           geocodingResult.preGeocodedMap,
+          geocodingResult.qualityMap,
           geocodingResult.cadastralGeometries,
         );
 

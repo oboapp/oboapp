@@ -5,7 +5,19 @@ import {
   OpenApiGeneratorV3,
 } from "@asteasolutions/zod-to-openapi";
 import type { OpenAPIObject } from "openapi3-ts/oas30";
-import { MessageSchema, SourceSchema } from "@oboapp/shared";
+import {
+  MessageSchema as SharedMessageSchema,
+  AddressSchema as SharedAddressSchema,
+  SourceSchema,
+} from "@oboapp/shared";
+// Public API contract — intentionally strips internal geocoding signals (qualitySignals)
+// so that changes to internal quality schemas don't silently alter the public API contract.
+const PublicAddressSchema = SharedAddressSchema.omit({
+  qualitySignals: true,
+});
+const MessageSchema = SharedMessageSchema.extend({
+  addresses: z.array(PublicAddressSchema).optional(),
+});
 
 const ErrorResponseSchema = z.object({
   error: z.string(),

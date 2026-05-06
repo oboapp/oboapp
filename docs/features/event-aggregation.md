@@ -62,9 +62,24 @@ When a candidate scores between 0.55 and 0.70, the score alone isn't confident e
 - **Conservative fallback**: if the LLM call fails or returns invalid data, the match is rejected (new event created). This avoids incorrectly merging unrelated incidents.
 - **Cost**: only ~5–15% of messages fall in the uncertain zone, so LLM verify calls are infrequent
 
+## Geometry Quality
+
+Geometry quality (0–3) reflects how reliable the location data is:
+
+- **3 (Authoritative)** — Official GeoJSON (precomputed by trusted sources like utility companies), authoritative cadastral polygons, Google ROOFTOP (without partial match), GTFS stops, or educational facility coordinates
+- **2 (Address-level)** — Good address-level geocoding (e.g., Google RANGE_INTERPOLATED / GEOMETRIC_CENTER); street closures with real Overpass way geometry and address-level endpoints also reach this tier
+- **1 (Approximate)** — Approximate or intersection-level geocoding, Overpass node, fallback coordinates from other sources
+- **0 (None)** — No geometry available (city-wide incidents, incomplete addresses)
+
+For geocoded geometry, quality is derived from **actual provider signals** — not from source reputation alone. For example, two messages from the same source may have different quality scores depending on their geocoding precision. Precomputed sources (those providing their own GeoJSON) are an exception: since no geocoding is performed, quality is derived from source trust instead (see _Source Trust_ below).
+
+When a message contains multiple location features (pins, streets, cadastral shapes), the lowest quality among them is used. This conservative approach ensures the event quality reflects its least-certain geometry element.
+
 ## Source Trust
 
-Higher-trust sources (e.g., utility companies with official GeoJSON) produce higher-quality geometry. When a more trusted source reports the same incident, its geometry replaces the existing one.
+Source trust (per-source configuration, 0–1) measures how reliable a source's metadata is — used for embedding selection and deduplication. For geocoded sources trust does not affect geometry quality; quality is determined by geocoding precision alone. For precomputed sources (those supplying their own GeoJSON), trust is used to derive geometry quality since no geocoding signals are available.
+
+Precomputed sources (those providing their own GeoJSON) skip geocoding. During ingest each feature is annotated with a geometry quality derived from the source's trust score: authoritative official sources (trust ≥ 0.9) receive quality 3; lower-trust precomputed sources such as sensor networks receive quality 2. Features that already carry a `geometryQuality` property (e.g., from a crawler that grades its own geometry) keep their existing value. Other sources are geocoded, and their final quality depends on geocoding precision, not source reputation.
 
 ## Migration
 

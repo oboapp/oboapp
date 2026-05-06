@@ -3,15 +3,9 @@ import { attachMessageToEvent } from "./attach-to-event";
 
 vi.mock("@/lib/source-trust", () => ({
   getSourceTrust: vi.fn((source: string) => {
-    if (source === "toplo-bg") return { trust: 1.0, geometryQuality: 3 };
-    if (source === "sofia-bg") return { trust: 0.8, geometryQuality: 2 };
-    return { trust: 0.5, geometryQuality: 0 };
-  }),
-  getGeometryQuality: vi.fn((source: string, hasPrecomputed: boolean) => {
-    if (hasPrecomputed) return 3;
-    if (source === "toplo-bg") return 3;
-    if (source === "sofia-bg") return 2;
-    return 0;
+    if (source === "toplo-bg") return { trust: 1.0 };
+    if (source === "sofia-bg") return { trust: 0.8 };
+    return { trust: 0.5 };
   }),
 }));
 
@@ -31,7 +25,12 @@ const mockDb = {
   events: { updateOne: mockUpdateEvent, findById: mockFindEventById },
 } as any;
 
-const baseSignals = { locationSimilarity: 0.9, timeOverlap: 0.8, categoryMatch: 1.0, textSimilarity: 0 };
+const baseSignals = {
+  locationSimilarity: 0.9,
+  timeOverlap: 0.8,
+  categoryMatch: 1.0,
+  textSimilarity: 0,
+};
 
 describe("attachMessageToEvent", () => {
   beforeEach(() => {
@@ -49,7 +48,12 @@ describe("attachMessageToEvent", () => {
     await attachMessageToEvent(
       mockDb,
       { _id: "msg-2", source: "sofia-bg" },
-      { _id: "evt-1", geometryQuality: 3, sources: ["toplo-bg"], messageCount: 1 },
+      {
+        _id: "evt-1",
+        geometryQuality: 3,
+        sources: ["toplo-bg"],
+        messageCount: 1,
+      },
       0.85,
       baseSignals,
     );
@@ -61,12 +65,20 @@ describe("attachMessageToEvent", () => {
   it("repairs event doc when link already exists for the same event", async () => {
     mockFindByMessageId.mockResolvedValueOnce([{ eventId: "evt-1" }]);
     // Simulate 2 links already in the collection
-    mockFindByEventId.mockResolvedValueOnce([{ messageId: "msg-1" }, { messageId: "msg-2" }]);
+    mockFindByEventId.mockResolvedValueOnce([
+      { messageId: "msg-1" },
+      { messageId: "msg-2" },
+    ]);
 
     await attachMessageToEvent(
       mockDb,
       { _id: "msg-2", source: "sofia-bg" },
-      { _id: "evt-1", geometryQuality: 3, sources: ["toplo-bg"], messageCount: 1 },
+      {
+        _id: "evt-1",
+        geometryQuality: 3,
+        sources: ["toplo-bg"],
+        messageCount: 1,
+      },
       0.85,
       baseSignals,
     );
@@ -84,7 +96,12 @@ describe("attachMessageToEvent", () => {
     await attachMessageToEvent(
       mockDb,
       { _id: "msg-2", source: "sofia-bg" },
-      { _id: "evt-1", geometryQuality: 3, sources: ["toplo-bg"], messageCount: 1 },
+      {
+        _id: "evt-1",
+        geometryQuality: 3,
+        sources: ["toplo-bg"],
+        messageCount: 1,
+      },
       0.85,
       baseSignals,
     );
@@ -107,7 +124,12 @@ describe("attachMessageToEvent", () => {
     await attachMessageToEvent(
       mockDb,
       { _id: "msg-2", source: "sofia-bg" },
-      { _id: "evt-1", geometryQuality: 3, sources: ["toplo-bg"], messageCount: 1 },
+      {
+        _id: "evt-1",
+        geometryQuality: 3,
+        sources: ["toplo-bg"],
+        messageCount: 1,
+      },
       0.85,
       baseSignals,
     );
@@ -123,7 +145,12 @@ describe("attachMessageToEvent", () => {
     await attachMessageToEvent(
       mockDb,
       { _id: "msg-2", source: "sofia-bg" },
-      { _id: "evt-1", geometryQuality: 3, sources: ["toplo-bg"], messageCount: 1 },
+      {
+        _id: "evt-1",
+        geometryQuality: 3,
+        sources: ["toplo-bg"],
+        messageCount: 1,
+      },
       0.85,
       baseSignals,
     );
@@ -139,7 +166,7 @@ describe("attachMessageToEvent", () => {
         _id: "msg-2",
         source: "sofia-bg",
         timespanStart: "2025-03-01T06:00:00Z", // earlier
-        timespanEnd: "2025-03-01T20:00:00Z",   // later
+        timespanEnd: "2025-03-01T20:00:00Z", // later
       },
       {
         _id: "evt-1",
@@ -165,7 +192,7 @@ describe("attachMessageToEvent", () => {
         _id: "msg-2",
         source: "sofia-bg",
         timespanStart: "2025-03-01T10:00:00Z", // later start
-        timespanEnd: "2025-03-01T16:00:00Z",   // earlier end
+        timespanEnd: "2025-03-01T16:00:00Z", // earlier end
       },
       {
         _id: "evt-1",
@@ -181,17 +208,37 @@ describe("attachMessageToEvent", () => {
 
     const update = mockUpdateEvent.mock.calls[0][1];
     expect(update.$set.timespanStart).toBeUndefined(); // not updated
-    expect(update.$set.timespanEnd).toBeUndefined();   // not updated
+    expect(update.$set.timespanEnd).toBeUndefined(); // not updated
   });
 
   it("upgrades geometry when new quality > existing (with fresh read)", async () => {
-    const newGeoJson = { type: "FeatureCollection" as const, features: [{ type: "Feature" as const, geometry: { type: "Point" as const, coordinates: [23.3, 42.7] as [number, number] }, properties: {} as Record<string, unknown> }] };
-    mockFindEventById.mockResolvedValueOnce({ _id: "evt-1", geometryQuality: 2 });
+    const newGeoJson = {
+      type: "FeatureCollection" as const,
+      features: [
+        {
+          type: "Feature" as const,
+          geometry: {
+            type: "Point" as const,
+            coordinates: [23.3, 42.7] as [number, number],
+          },
+          properties: { geometryQuality: 3 } as Record<string, unknown>,
+        },
+      ],
+    };
+    mockFindEventById.mockResolvedValueOnce({
+      _id: "evt-1",
+      geometryQuality: 2,
+    });
 
     await attachMessageToEvent(
       mockDb,
       { _id: "msg-2", source: "toplo-bg", geoJson: newGeoJson },
-      { _id: "evt-1", geometryQuality: 2, sources: ["sofia-bg"], messageCount: 1 },
+      {
+        _id: "evt-1",
+        geometryQuality: 2,
+        sources: ["sofia-bg"],
+        messageCount: 1,
+      },
       0.85,
       baseSignals,
     );
@@ -211,7 +258,12 @@ describe("attachMessageToEvent", () => {
     await attachMessageToEvent(
       mockDb,
       { _id: "msg-2", source: "sofia-bg", geoJson: newGeoJson },
-      { _id: "evt-1", geometryQuality: 3, sources: ["toplo-bg"], messageCount: 1 },
+      {
+        _id: "evt-1",
+        geometryQuality: 3,
+        sources: ["toplo-bg"],
+        messageCount: 1,
+      },
       0.85,
       baseSignals,
     );
@@ -227,7 +279,12 @@ describe("attachMessageToEvent", () => {
     await attachMessageToEvent(
       mockDb,
       { _id: "msg-2", source: "sofia-bg" },
-      { _id: "evt-1", geometryQuality: 3, sources: ["toplo-bg"], messageCount: 1 },
+      {
+        _id: "evt-1",
+        geometryQuality: 3,
+        sources: ["toplo-bg"],
+        messageCount: 1,
+      },
       0.85,
       baseSignals,
     );

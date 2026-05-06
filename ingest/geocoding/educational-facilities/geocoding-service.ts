@@ -3,6 +3,7 @@ import type { Address } from "../../lib/types";
 import type { IngestErrorRecorder } from "@/lib/ingest-errors";
 import { logger } from "@/lib/logger";
 import { EDUCATIONAL_FACILITY_PREFIX } from "@/lib/constants";
+import { gradeEducational } from "../shared/quality";
 
 interface FacilityGeometry {
   name: string;
@@ -81,6 +82,7 @@ export async function geocodeEducationalFacilities(
     }
 
     if (geometry) {
+      const qualitySignals = gradeEducational();
       addresses.push({
         originalText: `${EDUCATIONAL_FACILITY_PREFIX}${type}:${number}`,
         formattedAddress: `${geometry.name} (${number})`,
@@ -92,6 +94,7 @@ export async function geocodeEducationalFacilities(
           type: "Point",
           coordinates: [geometry.lng, geometry.lat],
         },
+        qualitySignals,
       });
       logger.info("Geocoded educational facility", {
         type,

@@ -1,6 +1,6 @@
 import type { OboDb } from "@oboapp/db";
 import type { GeoJSONFeatureCollection } from "@/lib/types";
-import { getSourceTrust, getGeometryQuality } from "@/lib/source-trust";
+import { aggregateMessageGeometryQuality } from "@/messageIngest/aggregate-quality";
 import { isAlreadyExistsError, toISOString } from "./utils";
 import { logger } from "@/lib/logger";
 import { getLocality } from "@/lib/target-locality";
@@ -42,12 +42,9 @@ export async function createEventFromMessage(
   }
 
   const source = typeof message.source === "string" ? message.source : "";
-  const hasGeoJson = Boolean(message.geoJson);
-  let geometryQuality = 0;
-  if (hasGeoJson) {
-    const isPrecomputedSource = getSourceTrust(source).geometryQuality === 3;
-    geometryQuality = getGeometryQuality(source, isPrecomputedSource);
-  }
+  // Pass ungradedFallback=1 so legacy messages without per-feature quality stamps
+  // are treated as quality 1 (geometry present, grade unknown) rather than 0.
+  const geometryQuality = aggregateMessageGeometryQuality(message.geoJson, 1);
   const now = new Date().toISOString();
 
   const eventId = await db.events.insertOne({

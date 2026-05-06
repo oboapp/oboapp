@@ -5,6 +5,7 @@ import { getLocality } from "../../lib/target-locality";
 import { getLocalityContext } from "../../lib/locality-context";
 import { delay } from "../../lib/delay";
 import { logger } from "@/lib/logger";
+import { gradeGoogle } from "../shared/quality";
 import { GoogleGeocodingMockService } from "../../__mocks__/services/google-geocoding-mock-service";
 import { overpassGeocodeAddresses } from "../overpass/service";
 
@@ -78,6 +79,11 @@ export async function geocodeAddress(address: string): Promise<Address | null> {
 
         // Validate that the result is actually within the locality's boundaries
         if (isWithinBounds(locality, lat, lng)) {
+          const qualitySignals = gradeGoogle(
+            result.geometry.location_type,
+            result.partial_match,
+          );
+
           return {
             originalText: address,
             formattedAddress: result.formatted_address,
@@ -86,6 +92,7 @@ export async function geocodeAddress(address: string): Promise<Address | null> {
               type: "Point",
               coordinates: [lng, lat],
             },
+            qualitySignals,
           };
         }
         logger.warn("Result is outside locality boundaries", {
