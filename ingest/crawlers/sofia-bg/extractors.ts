@@ -99,6 +99,24 @@ const UNWANTED_ELEMENTS = [
 ];
 
 /**
+ * Merge page-extracted post details with RSS feed data.
+ * The RSS date is always used (the detail page has no machine-readable date).
+ * The RSS title is used as a fallback when the page extractor returns an empty
+ * string (e.g. Liferay content pages where the first paragraph fragment has no
+ * CMS content placed in it).
+ */
+export function mergePostDetails(
+  extracted: { title: string; dateText: string; contentHtml: string },
+  rss: { title: string; date: string },
+): { title: string; dateText: string; contentHtml: string } {
+  return {
+    ...extracted,
+    dateText: rss.date,
+    title: extracted.title || rss.title,
+  };
+}
+
+/**
  * Extract post details from an individual post page.
  * Date is not extracted from the page — it comes from the RSS feed.
  *

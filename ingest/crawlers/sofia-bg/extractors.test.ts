@@ -3,6 +3,7 @@ import {
   fetchFeedXml,
   parseFeedItems,
   extractPostDetails,
+  mergePostDetails,
   FEED_FETCH_TIMEOUT_MS,
 } from "./extractors";
 
@@ -320,6 +321,42 @@ describe("sofia-bg/extractors", () => {
       await extractPostDetails(page);
 
       expect(mockEvaluate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("mergePostDetails", () => {
+    const rss = { title: "RSS Title", date: "2026-05-08T13:00:00.000Z" };
+
+    it("uses the RSS date regardless of extracted dateText", () => {
+      const result = mergePostDetails(
+        { title: "Page Title", dateText: "some date", contentHtml: "<p>hi</p>" },
+        rss,
+      );
+      expect(result.dateText).toBe("2026-05-08T13:00:00.000Z");
+    });
+
+    it("keeps the page title when it is non-empty", () => {
+      const result = mergePostDetails(
+        { title: "Page Title", dateText: "", contentHtml: "<p>hi</p>" },
+        rss,
+      );
+      expect(result.title).toBe("Page Title");
+    });
+
+    it("falls back to RSS title when the extracted title is empty", () => {
+      const result = mergePostDetails(
+        { title: "", dateText: "", contentHtml: "<p>hi</p>" },
+        rss,
+      );
+      expect(result.title).toBe("RSS Title");
+    });
+
+    it("preserves contentHtml from the extracted details", () => {
+      const result = mergePostDetails(
+        { title: "", dateText: "", contentHtml: "<p>article body</p>" },
+        rss,
+      );
+      expect(result.contentHtml).toBe("<p>article body</p>");
     });
   });
 });
