@@ -12,12 +12,16 @@ import { getConfiguredLocalityDescription } from "@/lib/locality-metadata";
 
 const description = getConfiguredLocalityDescription();
 
+const rawBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+if (!rawBaseUrl)
+  throw new Error(
+    "NEXT_PUBLIC_BASE_URL is required — set an absolute http/https URL (e.g. https://example.com) in web/.env.local",
+  );
+
 export const metadata: Metadata = {
   title: APP_NAME,
   description,
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_BASE_URL || "https://oboapp.online",
-  ),
+  metadataBase: new URL(rawBaseUrl),
   manifest: PWA_MANIFEST_PATH,
   icons: {
     icon: [

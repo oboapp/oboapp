@@ -558,7 +558,7 @@ export default function GeocodeCachePage() {
                 <p className="text-sm text-neutral mb-3">
                   Отчетът още не е генериран. Виж{" "}
                   <a
-                    href="https://github.com/vbuch/oboapp/blob/main/docs/features/geocode-cache.md"
+                    href="https://github.com/oboapp/oboapp/blob/main/docs/features/geocode-cache.md"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="underline"

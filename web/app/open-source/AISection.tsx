@@ -1,6 +1,7 @@
 import CopilotIcon from "@/components/icons/CopilotIcon";
 import ClaudeIcon from "@/components/icons/ClaudeIcon";
 import { ComponentType, SVGProps } from "react";
+import { GITHUB_REPO } from "@/lib/github";
 
 const AI_TOOLS: {
   name: string;
@@ -50,7 +51,7 @@ export default function AISection() {
       <p className="mt-4 text-sm text-neutral">
         * Възможно е да са участвали и други, но тези са видими в{" "}
         <a
-          href="https://github.com/vbuch/oboapp/graphs/contributors"
+          href={`https://github.com/${GITHUB_REPO}/graphs/contributors`}
           target="_blank"
           rel="noopener noreferrer"
           className="text-link hover:text-link-hover hover:underline"

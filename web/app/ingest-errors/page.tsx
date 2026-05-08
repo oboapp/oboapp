@@ -11,11 +11,12 @@ import type { InternalMessage, IngestError } from "@/lib/types";
 import { navigateBackOrReplace } from "@/lib/navigation-utils";
 import { getButtonClasses } from "@/lib/theme";
 import { useMessageByIdFallback } from "@/lib/hooks/useMessageByIdFallback";
+import { GITHUB_REPO } from "@/lib/github";
 
 const PAGE_SIZE = 12;
 
-const GITHUB_REPO = "vbuch/oboapp";
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://oboapp.online";
+// NEXT_PUBLIC_BASE_URL is enforced at app startup in layout.tsx
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL!;
 const MAX_URL_LENGTH = 8000;
 const MAX_INGEST_ERRORS_IN_GITHUB_BODY = 20;
 

@@ -24,6 +24,12 @@ import { OverpassMockService } from "../../__mocks__/services/overpass-mock-serv
 const USE_MOCK = process.env.MOCK_OVERPASS_API === "true";
 const mockService = USE_MOCK ? new OverpassMockService() : null;
 
+const APP_URL_ENV = process.env.APP_URL;
+if (!APP_URL_ENV && process.env.NODE_ENV === "production") {
+  throw new Error("Environment variable APP_URL must be set in production.");
+}
+const APP_URL = APP_URL_ENV ?? "http://localhost:3000";
+
 // Constants for API rate limiting
 const OVERPASS_DELAY_MS = 500; // 500ms for Overpass API (generous limits)
 const OVERPASS_TIMEOUT_MS = 25000; // 25 seconds timeout for HTTP requests
@@ -567,7 +573,7 @@ export async function getStreetGeometryFromOverpass(
             headers: {
               "Content-Type": "application/x-www-form-urlencoded",
               Accept: "application/json",
-              "User-Agent": "oboapp/1.0 (https://oboapp.online)",
+              "User-Agent": `oboapp/1.0 (${APP_URL})`,
             },
             body: `data=${encodeURIComponent(query)}`,
             signal: controller.signal,

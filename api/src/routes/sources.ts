@@ -5,10 +5,10 @@ import { apiKeyAuth } from "../middleware/api-key";
 export const sourcesRoute = new Hono();
 
 sourcesRoute.get("/sources", apiKeyAuth, (c) => {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    process.env.BASE_URL ||
-    "https://oboapp.online";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? process.env.BASE_URL;
+  if (!baseUrl) {
+    return c.json({ error: "NEXT_PUBLIC_BASE_URL or BASE_URL is required" }, 500);
+  }
   const locality = process.env.LOCALITY || "bg.sofia";
 
   const sources = SOURCES.filter((source) =>

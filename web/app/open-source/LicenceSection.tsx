@@ -1,5 +1,6 @@
 import GitHubRepoLink from "./GitHubRepoLink";
 import { APP_NAME } from "@/lib/pwa-metadata";
+import { GITHUB_REPO } from "@/lib/github";
 
 export default function LicenceSection() {
   return (
@@ -16,7 +17,7 @@ export default function LicenceSection() {
       <p className="text-neutral mb-4">
         {APP_NAME} е публикуван под{" "}
         <a
-          href="https://github.com/vbuch/oboapp/blob/main/LICENSE"
+          href={`https://github.com/${GITHUB_REPO}/blob/main/LICENSE`}
           target="_blank"
           rel="noopener noreferrer"
           className="text-link hover:text-link-hover hover:underline"

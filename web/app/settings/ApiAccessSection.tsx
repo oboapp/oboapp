@@ -14,6 +14,17 @@ interface ApiAccessSectionProps {
   readonly isLoading: boolean;
 }
 
+const apiDocsUrl = (() => {
+  const raw = process.env.NEXT_PUBLIC_API_DOCS_URL;
+  if (!raw) return null;
+  try {
+    const { protocol } = new URL(raw);
+    return protocol === "http:" || protocol === "https:" ? raw : null;
+  } catch {
+    return null;
+  }
+})();
+
 export default function ApiAccessSection({
   apiClient,
   onGenerate,
@@ -79,16 +90,21 @@ export default function ApiAccessSection({
       </h2>
       <p className="text-neutral text-sm mb-4">
         API ключът позволява достъп от приложения до публичните данни на{" "}
-        <span translate="no">{APP_NAME}</span>. Тук е{" "}
-        <a
-          href="https://api.oboapp.online/v1/docs"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-link underline"
-        >
-          документацията
-        </a>
-        .
+        <span translate="no">{APP_NAME}</span>
+        {apiDocsUrl ? (
+          <>
+            {". Тук е "}
+            <a
+              href={apiDocsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-link underline"
+            >
+              документацията
+            </a>
+            .
+          </>
+        ) : "."}
       </p>
 
       {apiClient ? (

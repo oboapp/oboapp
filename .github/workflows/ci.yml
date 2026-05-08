@@ -196,6 +196,7 @@ jobs:
         working-directory: ./web
         env:
           NEXT_PUBLIC_LOCALITY: ${{ vars.LOCALITY || 'bg.sofia' }}
+          NEXT_PUBLIC_BASE_URL: ${{ vars.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000' }}
           USE_FIREBASE_EMULATORS: "true"
           NEXT_PUBLIC_USE_FIREBASE_EMULATORS: "true"
           NEXT_PUBLIC_FIREBASE_PROJECT_ID: "demo-project"

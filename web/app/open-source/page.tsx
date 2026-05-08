@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { APP_NAME } from "@/lib/pwa-metadata";
+import { GITHUB_REPO } from "@/lib/github";
 import LicenceSection from "./LicenceSection";
 import ContributorsSection from "./ContributorsSection";
 import DepsSection from "./DepsSection";
@@ -42,7 +43,7 @@ interface GitHubContributor {
 async function getContributors(): Promise<GitHubContributor[]> {
   try {
     const res = await fetch(
-      "https://api.github.com/repos/vbuch/oboapp/contributors?per_page=100",
+      `https://api.github.com/repos/${GITHUB_REPO}/contributors?per_page=100`,
       {
         headers: { Accept: "application/vnd.github+json" },
         next: { revalidate: 86400 },
