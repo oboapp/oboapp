@@ -12,6 +12,7 @@
 const STRINGIFY_ON_WRITE: Record<string, Set<string>> = {
   messages: new Set(["geoJson", "addresses"]),
   events: new Set(["geoJson"]),
+  sources: new Set(["geoJson"]),
   geocodeCacheStreets: new Set(["geoJson"]),
   geocodeCachePins: new Set(["geoJson"]),
 };
@@ -20,6 +21,7 @@ const STRINGIFY_ON_WRITE: Record<string, Set<string>> = {
 const PARSE_ON_READ: Record<string, Set<string>> = {
   messages: new Set(["geoJson", "addresses", "ingestErrors"]),
   events: new Set(["geoJson"]),
+  sources: new Set(["geoJson"]),
   geocodeCacheStreets: new Set(["geoJson"]),
   geocodeCachePins: new Set(["geoJson"]),
 };

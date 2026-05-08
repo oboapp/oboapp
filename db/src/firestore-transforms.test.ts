@@ -53,16 +53,23 @@ describe("transformForFirestoreWrite", () => {
     expect(result.plainText).toBe("hello");
   });
 
-  it("does NOT stringify fields for non-messages collections", () => {
+  it("stringifies geoJson for sources collection", () => {
     const data = {
       geoJson: { type: "FeatureCollection", features: [] },
       name: "test",
     };
     const result = transformForFirestoreWrite("sources", data);
-    expect(result.geoJson).toEqual({
-      type: "FeatureCollection",
-      features: [],
-    });
+    expect(result.geoJson).toBe('{"type":"FeatureCollection","features":[]}');
+    expect(result.name).toBe("test");
+  });
+
+  it("does NOT stringify fields for unknown collections", () => {
+    const data = {
+      geoJson: { type: "FeatureCollection", features: [] },
+      name: "test",
+    };
+    const result = transformForFirestoreWrite("notifications", data);
+    expect(result.geoJson).toEqual({ type: "FeatureCollection", features: [] });
   });
 
   it("preserves primitive values unchanged", () => {
@@ -146,11 +153,20 @@ describe("transformFromFirestoreRead", () => {
     expect(result.geoJson).toEqual(geoJson);
   });
 
-  it("does NOT parse JSON strings for non-messages collections", () => {
+  it("parses geoJson JSON string for sources collection", () => {
+    const geoJson = { type: "FeatureCollection", features: [] };
+    const data = {
+      geoJson: JSON.stringify(geoJson),
+    };
+    const result = transformFromFirestoreRead("sources", data);
+    expect(result.geoJson).toEqual(geoJson);
+  });
+
+  it("does NOT parse JSON strings for unknown collections", () => {
     const data = {
       geoJson: '{"type":"FeatureCollection"}',
     };
-    const result = transformFromFirestoreRead("sources", data);
+    const result = transformFromFirestoreRead("notifications", data);
     expect(result.geoJson).toBe('{"type":"FeatureCollection"}');
   });
 
