@@ -21,6 +21,19 @@ When rebasing from upstream, `shared/src/sources/{id}.ts` files merge cleanly. `
 
 `EMERGENT_CRAWLERS` (the list of crawlers that run on the 30-minute schedule) is derived automatically from the `emergent` flag on each source definition — no separate list to maintain.
 
+## Configuring Geocoding Providers
+
+Geocoding provider selection (which service geocodes each supported location type) is configured in `shared/src/geocoding-sources.ts`. This is the single instance assembly file for geocoding, similar to how `shared/src/sources.ts` is the assembly for news sources.
+
+Fork operators replace `shared/src/geocoding-sources.ts` with their city's configuration. The file exports:
+
+- **`GEOCODING_RESOLVERS`** — which provider handles each supported location type; includes provider-specific URLs where needed
+- **`GEOCODING_SOURCES`** — metadata (provider names and URLs) displayed on the web app's sources page
+
+The ingest pipeline validates the configuration at startup (fail-fast if invalid).
+
+**On rebase from upstream:** `shared/src/geocoding-sources.ts` is the intentional conflict zone — the fork operator reviews it consciously to decide their city's provider configuration, similar to how `shared/src/sources.ts` is a conflict zone for source selection.
+
 ## Configuring Which Localities to Deploy
 
 Each city's crawlers are defined in a dedicated Terraform file named after its locality ID. The naming pattern is `crawlers.<locality-id>.tf` — for example, locality `bg.sofia` maps to `crawlers.bg.sofia.tf`. The `localities` Terraform variable controls which of these are active for a given deployment.

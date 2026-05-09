@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { getCurrentLocalitySources } from "@/lib/source-utils";
-import geocodingSources from "@/lib/geocoding.json";
+import geocodingSources from "@/lib/geocoding-sources";
 import SourceCard from "@/components/SourceCard";
 import GeocodingSourceCard from "@/components/GeocodingSourceCard";
 import { APP_NAME } from "@/lib/pwa-metadata";

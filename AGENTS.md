@@ -122,6 +122,20 @@ oboapp is designed to be forked and deployed for any city. The mechanism is `sha
 
 **On rebase from upstream:** `shared/src/sources/{id}.ts` files merge cleanly (each new upstream source is a new file). `shared/src/sources.ts` is the intentional conflict zone — the fork operator reviews it consciously to decide which upstream sources to include.
 
+### Geocoding Configuration
+
+Geocoding provider selection is configured in `shared/src/geocoding-sources.ts`, the instance assembly file (same pattern as `sources.ts`):
+
+- **`shared/src/geocoding-sources.ts`** — The instance assembly. This file exports `GEOCODING_RESOLVERS` (which provider handles each supported location type) and `GEOCODING_SOURCES` (metadata shown on the web sources page). Forks replace this file with their city's configuration.
+
+**When adding/changing geocoding providers:**
+- Update `shared/src/geocoding-sources.ts` — both the `GEOCODING_RESOLVERS` (backend routing) and `GEOCODING_SOURCES` (web display metadata)
+- Validation happens at ingest startup (Zod schema) — fail-fast if the config is invalid
+
+**For a new city fork:**
+1. Replace `shared/src/geocoding-sources.ts` with an assembly configured for your city
+2. Choose the providers appropriate for your locality (see the schema in `ingest/lib/locality-data-sources.ts`)
+
 ### Geocoding Rate Limits
 
 See `ingest/geocoding/README.md` for service routing details. **Rate limits are critical:**

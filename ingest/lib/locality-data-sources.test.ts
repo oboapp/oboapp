@@ -1,57 +1,31 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-// validateLocality is a registry check against known localities (bg.sofia etc.).
-// Test uses a synthetic "test.locality" that's not in the registry — mock it out.
-vi.mock("@oboapp/shared", () => ({
-  validateLocality: vi.fn(),
-}));
-
-const VALID_YAML = `
-geocoding-resolvers:
-  pins:
-    provider: google
-  streets:
-    provider: overpass
-  cadastral-properties:
-    provider: cadastre
-  bus-stops:
-    provider: gtfs
-    url: https://gtfs.example.com/api/v1/static
-  educational-facilities:
-    provider: educational-facilities
-    schools-url: https://api.example.com/schools
-    kindergartens-url: https://api.example.com/kindergartens
-`.trim();
-
-let tempDir: string;
-let localitiesDir: string;
+const VALID_GEOCODING_RESOLVERS = {
+  pins: { provider: "google" as const },
+  streets: { provider: "overpass" as const },
+  "cadastral-properties": { provider: "cadastre" as const },
+  "bus-stops": { provider: "gtfs" as const, url: "https://gtfs.example.com/api/v1/static" },
+  "educational-facilities": {
+    provider: "educational-facilities" as const,
+    "schools-url": "https://api.example.com/schools",
+    "kindergartens-url": "https://api.example.com/kindergartens",
+  },
+};
 
 beforeEach(() => {
   // Reset module cache so the per-module singleton (cachedSources) starts null
   vi.resetModules();
-
-  tempDir = mkdtempSync(join(tmpdir(), "locality-sources-test-"));
-  localitiesDir = join(tempDir, "localities");
-  mkdirSync(localitiesDir, { recursive: true });
-
-  // Redirect process.cwd() so loadLocalityDataSources() resolves paths into tempDir
-  vi.spyOn(process, "cwd").mockReturnValue(tempDir);
-  process.env.LOCALITY = "test.locality";
 });
 
 afterEach(() => {
-  rmSync(tempDir, { recursive: true, force: true });
   vi.restoreAllMocks();
-  delete process.env.LOCALITY;
 });
 
 describe("getLocalityDataSources()", () => {
   it("loads and returns a valid config with all resolvers", async () => {
-    writeFileSync(join(localitiesDir, "test.locality.yaml"), VALID_YAML);
+    vi.doMock("@oboapp/shared", () => ({
+      GEOCODING_RESOLVERS: VALID_GEOCODING_RESOLVERS,
+    }));
     const { getLocalityDataSources } = await import("./locality-data-sources");
 
     const config = getLocalityDataSources();
@@ -75,7 +49,9 @@ describe("getLocalityDataSources()", () => {
   });
 
   it("returns the cached instance on subsequent calls", async () => {
-    writeFileSync(join(localitiesDir, "test.locality.yaml"), VALID_YAML);
+    vi.doMock("@oboapp/shared", () => ({
+      GEOCODING_RESOLVERS: VALID_GEOCODING_RESOLVERS,
+    }));
     const { getLocalityDataSources } = await import("./locality-data-sources");
 
     const first = getLocalityDataSources();
@@ -85,10 +61,13 @@ describe("getLocalityDataSources()", () => {
   });
 
   it("accepts skip for cadastral-properties", async () => {
-    writeFileSync(
-      join(localitiesDir, "test.locality.yaml"),
-      VALID_YAML.replace("provider: cadastre", "provider: skip"),
-    );
+    const resolversWithSkip = {
+      ...VALID_GEOCODING_RESOLVERS,
+      "cadastral-properties": { provider: "skip" as const },
+    };
+    vi.doMock("@oboapp/shared", () => ({
+      GEOCODING_RESOLVERS: resolversWithSkip,
+    }));
     const { getLocalityDataSources } = await import("./locality-data-sources");
 
     const config = getLocalityDataSources();
@@ -98,13 +77,13 @@ describe("getLocalityDataSources()", () => {
   });
 
   it("accepts skip for bus-stops", async () => {
-    writeFileSync(
-      join(localitiesDir, "test.locality.yaml"),
-      VALID_YAML.replace(
-        "provider: gtfs\n    url: https://gtfs.example.com/api/v1/static",
-        "provider: skip",
-      ),
-    );
+    const resolversWithSkip = {
+      ...VALID_GEOCODING_RESOLVERS,
+      "bus-stops": { provider: "skip" as const },
+    };
+    vi.doMock("@oboapp/shared", () => ({
+      GEOCODING_RESOLVERS: resolversWithSkip,
+    }));
     const { getLocalityDataSources } = await import("./locality-data-sources");
 
     const config = getLocalityDataSources();
@@ -114,20 +93,13 @@ describe("getLocalityDataSources()", () => {
   });
 
   it("accepts skip for educational-facilities", async () => {
-    const skipYaml = `
-geocoding-resolvers:
-  pins:
-    provider: google
-  streets:
-    provider: overpass
-  cadastral-properties:
-    provider: skip
-  bus-stops:
-    provider: skip
-  educational-facilities:
-    provider: skip
-`.trim();
-    writeFileSync(join(localitiesDir, "test.locality.yaml"), skipYaml);
+    const resolversWithSkip = {
+      ...VALID_GEOCODING_RESOLVERS,
+      "educational-facilities": { provider: "skip" as const },
+    };
+    vi.doMock("@oboapp/shared", () => ({
+      GEOCODING_RESOLVERS: resolversWithSkip,
+    }));
     const { getLocalityDataSources } = await import("./locality-data-sources");
 
     const config = getLocalityDataSources();
@@ -138,72 +110,37 @@ geocoding-resolvers:
 });
 
 describe("loadLocalityDataSources() error handling", () => {
-  it("throws a file-not-found error for ENOENT — not a generic message", async () => {
-    // Do NOT write the YAML file => real readFileSync throws ENOENT
-    const { getLocalityDataSources } = await import("./locality-data-sources");
-
-    expect(() => getLocalityDataSources()).toThrow(
-      /Locality data sources file not found for "test\.locality"/,
-    );
-  });
-
-  it("includes hint to create the file in the ENOENT message", async () => {
-    const { getLocalityDataSources } = await import("./locality-data-sources");
-
-    expect(() => getLocalityDataSources()).toThrow(
-      /Create localities\/test\.locality\.yaml/,
-    );
-  });
-
-  it("throws a distinct 'Invalid YAML' error for YAML parse failures", async () => {
-    writeFileSync(
-      join(localitiesDir, "test.locality.yaml"),
-      "{ invalid yaml {{{",
-    );
-    const { getLocalityDataSources } = await import("./locality-data-sources");
-
-    expect(() => getLocalityDataSources()).toThrow(/Invalid YAML/);
-  });
-
-  it("throws a schema validation error when geocoding-resolvers is missing", async () => {
-    writeFileSync(join(localitiesDir, "test.locality.yaml"), "other-key: val");
-    const { getLocalityDataSources } = await import("./locality-data-sources");
-
-    expect(() => getLocalityDataSources()).toThrow(
-      /Invalid locality data sources file/,
-    );
-  });
-
   it("throws when a required resolver (e.g. bus-stops) is missing", async () => {
-    const missingBusStops = `
-geocoding-resolvers:
-  pins:
-    provider: google
-  streets:
-    provider: overpass
-  cadastral-properties:
-    provider: skip
-  educational-facilities:
-    provider: skip
-`.trim();
-    writeFileSync(join(localitiesDir, "test.locality.yaml"), missingBusStops);
+    const incompleteResolvers = {
+      pins: { provider: "google" as const },
+      streets: { provider: "overpass" as const },
+      "cadastral-properties": { provider: "skip" as const },
+      "educational-facilities": { provider: "skip" as const },
+      // missing "bus-stops"
+    };
+    vi.doMock("@oboapp/shared", () => ({
+      GEOCODING_RESOLVERS: incompleteResolvers,
+    }));
     const { getLocalityDataSources } = await import("./locality-data-sources");
 
     expect(() => getLocalityDataSources()).toThrow(
-      /Invalid locality data sources file/,
+      /Invalid GEOCODING_RESOLVERS export from @oboapp\/shared/,
     );
   });
 
   it("throws when gtfs provider is missing required url field", async () => {
-    const noUrl = VALID_YAML.replace(
-      "provider: gtfs\n    url: https://gtfs.example.com/api/v1/static",
-      "provider: gtfs",
-    );
-    writeFileSync(join(localitiesDir, "test.locality.yaml"), noUrl);
+    const badResolvers = {
+      ...VALID_GEOCODING_RESOLVERS,
+      "bus-stops": { provider: "gtfs" as const },
+      // missing url
+    };
+    vi.doMock("@oboapp/shared", () => ({
+      GEOCODING_RESOLVERS: badResolvers,
+    }));
     const { getLocalityDataSources } = await import("./locality-data-sources");
 
     expect(() => getLocalityDataSources()).toThrow(
-      /Invalid locality data sources file/,
+      /Invalid GEOCODING_RESOLVERS export from @oboapp\/shared/,
     );
   });
 });

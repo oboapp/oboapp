@@ -1,12 +1,6 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
-import { load as parseYaml } from "js-yaml";
 import { z } from "zod";
 
-import { validateLocality } from "@oboapp/shared";
-import { hasCode } from "@/lib/record-fields";
-import { getLocality } from "@/lib/target-locality";
+import { GEOCODING_RESOLVERS } from "@oboapp/shared";
 
 const LocalityDataSourcesSchema = z.object({
   "geocoding-resolvers": z.object({
@@ -47,42 +41,15 @@ export type GeocodingResolvers = LocalityDataSources["geocoding-resolvers"];
 let cachedSources: LocalityDataSources | null = null;
 
 function loadLocalityDataSources(): LocalityDataSources {
-  const locality = getLocality();
-  validateLocality(locality);
-  const filePath = join(process.cwd(), "localities", `${locality}.yaml`);
-
-  let content: string;
-  try {
-    content = readFileSync(filePath, "utf-8");
-  } catch (error: unknown) {
-    if (hasCode(error) && error.code === "ENOENT") {
-      throw new Error(
-        `Locality data sources file not found for "${locality}": ${filePath}. ` +
-          `Create localities/${locality}.yaml to configure geocoding resolvers.`,
-        { cause: error },
-      );
-    }
-
-    throw new Error(
-      `Unable to read locality data sources file for "${locality}": ${filePath}.`,
-      { cause: error },
-    );
-  }
-
-  let raw: unknown;
-  try {
-    raw = parseYaml(content);
-  } catch (error: unknown) {
-    throw new Error(
-      `Invalid YAML in locality data sources file for "${locality}": ${filePath}.`,
-      { cause: error },
-    );
-  }
-
-  const result = LocalityDataSourcesSchema.safeParse(raw);
+  // Load geocoding resolver config from shared (single-locality per deployment).
+  // The "locality" aspect is determined by which deployment this runs in — fork operators
+  // replace shared/src/geocoding-sources.ts with their city's configuration.
+  const result = LocalityDataSourcesSchema.safeParse({
+    "geocoding-resolvers": GEOCODING_RESOLVERS,
+  });
   if (!result.success) {
     throw new Error(
-      `Invalid locality data sources file for "${locality}": ${filePath}. ${result.error.message}`,
+      `Invalid GEOCODING_RESOLVERS export from @oboapp/shared: ${result.error.message}`,
     );
   }
 
