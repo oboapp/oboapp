@@ -10,20 +10,6 @@ import type {
   OpenDataSource,
 } from "./geocoding-source-definition";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// INSTANCE ASSEMBLY — replace this file in your fork
-// ─────────────────────────────────────────────────────────────────────────────
-// This file is the DEMO shipped with the upstream repo. It is configured for
-// Sofia, Bulgaria. Replace it in your fork to configure geocoding for your city.
-//
-// When you fork oboapp for your city:
-//   1. Replace this file with your own geocoding configuration.
-//   2. Set GEOCODING_RESOLVERS to the providers appropriate for your locality.
-//   3. Set GEOCODING_SOURCES to the data sources to display on the web sources page.
-//
-// See docs/setup/new-locality-instance.md for the full guide.
-// ─────────────────────────────────────────────────────────────────────────────
-
 /**
  * Geocoding resolver configuration — used by ingest to select the right provider
  * per location type. Validated with Zod at ingest startup (fail-fast).
