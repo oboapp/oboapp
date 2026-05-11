@@ -1,39 +1,29 @@
 import type { Page } from "playwright";
+import {
+  parseRssFeedItems,
+  stripWordPressFeedAttribution,
+} from "../shared/rss";
+import type { RssFeedItem } from "../shared/rss";
 import type { PostLink } from "./types";
 import { SELECTORS } from "./selectors";
-import {
-  extractPostLinks as extractPostLinksShared,
-  extractPostDetailsGeneric,
-} from "../shared/extractors";
+import { extractPostDetailsGeneric } from "../shared/extractors";
+
+const SOURCE_HOSTNAME = "rayon-oborishte.bg";
 
 /**
- * Extract post links from the index page
+ * Parse RSS feed items from rayon-oborishte.bg.
  */
-export async function extractPostLinks(page: Page): Promise<PostLink[]> {
-  // Filter to include repair notifications while excluding navigation pages.
-  // Accept URLs containing: 'уведомление' (notification), 'ремонт' (repair),
-  // 'затваряни' (closing), or numeric IDs (e.g., /21862-2/).
-  // The AI categorization stage will handle final relevance filtering.
-  const urlFilter = (url: string) => {
-    let decodedUrl: string;
-    try {
-      decodedUrl = decodeURIComponent(url).toLowerCase();
-    } catch {
-      decodedUrl = url.toLowerCase();
-    }
-    return (
-      decodedUrl.includes("уведомление") ||
-      decodedUrl.includes("ремонт") ||
-      decodedUrl.includes("затваряни") ||
-      /\/\d+(-\d+)?\/?$/.test(decodedUrl) // Numeric IDs like /21862-2/
-    );
-  };
-
-  return extractPostLinksShared(page, SELECTORS, urlFilter);
+export function extractFeedItems(xml: string): RssFeedItem[] {
+  return parseRssFeedItems(xml, {
+    hostname: SOURCE_HOSTNAME,
+    dateTag: "pubDate",
+    contentTag: "description",
+    contentTransform: stripWordPressFeedAttribution,
+  });
 }
 
 /**
- * Extract post details from individual post page
+ * Extract post details from an individual article page.
  */
 export async function extractPostDetails(
   page: Page,
@@ -47,4 +37,18 @@ export async function extractPostDetails(
     ".navigation",
     ".post-navigation",
   ]);
+}
+
+/**
+ * Merge page-extracted details with RSS metadata.
+ */
+export function mergePostDetails(
+  extracted: { title: string; dateText: string; contentHtml: string },
+  rss: Pick<PostLink, "title" | "date">,
+): { title: string; dateText: string; contentHtml: string } {
+  return {
+    ...extracted,
+    dateText: rss.date,
+    title: extracted.title || rss.title,
+  };
 }

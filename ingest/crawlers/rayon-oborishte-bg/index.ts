@@ -2,33 +2,32 @@
 
 import dotenv from "dotenv";
 import { resolve } from "node:path";
-import { Browser } from "playwright";
+import type { Browser } from "playwright";
 import type { OboDb } from "@oboapp/db";
-import { PostLink } from "./types";
-import { extractPostLinks, extractPostDetails } from "./extractors";
+import type { PostLink } from "../shared/types";
 import {
-  crawlWordpressPage,
-  processWordpressPost,
-} from "../shared/webpage-crawlers";
+  extractFeedItems,
+  mergePostDetails,
+  extractPostDetails,
+} from "./extractors";
+import { fetchFeedXml } from "../shared/rss";
+import { launchBrowser } from "../shared/browser";
+import { isUrlProcessed } from "../shared/firestore";
+import { processWordpressPost } from "../shared/webpage-crawlers";
 import { logger } from "@/lib/logger";
 
 // Load environment variables from .env.local
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 
-const INDEX_URL =
-  "https://rayon-oborishte.bg/%d1%83%d0%b2%d0%b5%d0%b4%d0%be%d0%bc%d0%bb%d0%b5%d0%bd%d0%b8%d1%8f-%d0%b7%d0%b0-%d1%80%d0%b5%d0%bc%d0%be%d0%bd%d1%82%d0%b8-%d1%81%d0%bc%d1%80-%d0%bf%d0%b8%d1%80%d0%be%d1%82%d0%b5%d1%85%d0%bd%d0%b8/";
+const FEED_URL = "https://rayon-oborishte.bg/feed/";
 const SOURCE_TYPE = "rayon-oborishte-bg";
 const LOCALITY = "bg.sofia";
-const DELAY_BETWEEN_REQUESTS = 2000; // 2 seconds
+const DELAY_BETWEEN_REQUESTS = 2000;
 
 /**
  * Process a single post
  */
-const processPost = (
-  browser: Browser,
-  postLink: PostLink,
-  db: OboDb,
-) =>
+const processPost = (browser: Browser, postLink: PostLink, db: OboDb) =>
   processWordpressPost(
     browser,
     postLink,
@@ -36,26 +35,111 @@ const processPost = (
     SOURCE_TYPE,
     LOCALITY,
     DELAY_BETWEEN_REQUESTS,
-    extractPostDetails,
+    async (page) => mergePostDetails(await extractPostDetails(page), postLink),
+    (dateText) => dateText,
   );
 
 /**
  * Main crawler function
  */
 export async function crawl(): Promise<void> {
-  await crawlWordpressPage({
-    indexUrl: INDEX_URL,
+  const { getDb } = await import("@/lib/db");
+  const db = await getDb();
+
+  logger.info("Starting crawler", { sourceType: SOURCE_TYPE });
+
+  let feedItems: PostLink[];
+  try {
+    const xml = await fetchFeedXml(FEED_URL);
+    feedItems = extractFeedItems(xml);
+  } catch (error) {
+    logger.error("Failed to fetch or parse RSS feed", {
+      sourceType: SOURCE_TYPE,
+      feedUrl: FEED_URL,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+
+  if (feedItems.length === 0) {
+    logger.warn("No posts found in RSS feed", { sourceType: SOURCE_TYPE });
+    return;
+  }
+
+  const seen = new Set<string>();
+  const uniqueItems = feedItems.filter((item) => {
+    if (seen.has(item.url)) {
+      return false;
+    }
+
+    seen.add(item.url);
+    return true;
+  });
+
+  logger.info("Fetched RSS feed", {
     sourceType: SOURCE_TYPE,
-    extractPostLinks,
-    processPost,
-    delayBetweenRequests: DELAY_BETWEEN_REQUESTS,
+    feedUrl: FEED_URL,
+    count: uniqueItems.length,
+  });
+
+  const browser = await launchBrowser();
+  let saved = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  try {
+    for (const item of uniqueItems) {
+      let wasProcessed = false;
+      try {
+        wasProcessed = await isUrlProcessed(item.url, db);
+      } catch (error) {
+        failed++;
+        logger.error("Failed to check existing URL state", {
+          sourceType: SOURCE_TYPE,
+          url: item.url,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        continue;
+      }
+
+      if (wasProcessed) {
+        skipped++;
+        continue;
+      }
+
+      try {
+        await processPost(browser, item, db);
+        saved++;
+      } catch (error) {
+        failed++;
+        // processWordpressPost already emits an error log with post-level context.
+        logger.debug("Post processing failed", {
+          sourceType: SOURCE_TYPE,
+          url: item.url,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+
+  logger.info("Crawl complete", {
+    sourceType: SOURCE_TYPE,
+    total: uniqueItems.length,
+    saved,
+    skipped,
+    failed,
   });
 }
 
 // Run the crawler if executed directly
 if (require.main === module) {
   crawl().catch((error) => {
-    logger.error("Fatal error", { sourceType: SOURCE_TYPE, error: error instanceof Error ? error.message : String(error) });
+    logger.error("Fatal error", {
+      sourceType: SOURCE_TYPE,
+      error: error instanceof Error ? error.message : String(error),
+    });
     process.exit(1);
   });
 }
