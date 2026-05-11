@@ -27,6 +27,7 @@ Each has its own `.env.local` configuration.
 - **[Public API](docs/features/public-api.md)** - `/api/v1` contract, API key auth, and client onboarding
 - **[External API Mocks](docs/features/external-api-mocks.md)** - Mock Gemini, Geocoding, Overpass, Cadastre
 - **[Geocoding](ingest/geocoding/README.md)** - Hybrid geocoding system documentation
+- **[Fork and Upstream PR Workflow](docs/setup/fork-upstream-pr-workflow.md)** - Branch from `oboapp/oboapp:main`, push to your fork, and open the PR upstream when the change belongs in the base repo
 
 ## Code Standards
 
@@ -39,6 +40,9 @@ Each has its own `.env.local` configuration.
 ## Pull Request Process
 
 1. Fork and create feature branch
+
+- For shared or upstream-facing work, follow the [Fork and Upstream PR Workflow](docs/setup/fork-upstream-pr-workflow.md).
+
 2. Follow [AGENTS.md](AGENTS.md) patterns
 3. Add tests for new functionality
 4. Run `pnpm test:run` in `web/`, `ingest/`, and `api/`
