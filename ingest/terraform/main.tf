@@ -1932,7 +1932,7 @@ resource "google_monitoring_alert_policy" "heartbeat_check_failures" {
   ]
 
   documentation {
-    content   = "The **notification pipeline heartbeat** detected zero notificationMatches in the last 24h. This is a silent-failure probe — the notify job may be running cleanly but producing no matches.\n\nFirst check: query notificationMatches in Firestore for recent matchedAt timestamps.\n\nLogs: https://console.cloud.google.com/run/jobs/details/${var.region}/heartbeat-check/logs?project=${var.project_id}"
+    content   = "The **notification pipeline heartbeat** alert fired because the `heartbeat-check` job logged an error. This can mean either:\n\n- the heartbeat probe detected zero `notificationMatches` in the last 24h, suggesting the notification pipeline may be stalled, or\n- the `heartbeat-check` job itself failed due to a runtime, configuration, or transient execution error.\n\nFirst check the `heartbeat-check` job logs for the specific error message:\n\nhttps://console.cloud.google.com/run/jobs/details/${var.region}/heartbeat-check/logs?project=${var.project_id}\n\nIf the error indicates zero recent matches, then query `notificationMatches` in Firestore and inspect recent `matchedAt` timestamps."
     mime_type = "text/markdown"
   }
 
