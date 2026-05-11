@@ -1863,7 +1863,7 @@ resource "google_cloud_run_v2_job" "heartbeat_check" {
         }
       }
 
-      max_retries = 0
+      max_retries = 1
     }
   }
 
@@ -1887,7 +1887,7 @@ resource "google_cloud_scheduler_job" "heartbeat_check_schedule" {
   region           = var.region
 
   retry_config {
-    retry_count = 0
+    retry_count = 1
   }
 
   http_target {
