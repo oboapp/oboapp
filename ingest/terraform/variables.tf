@@ -61,6 +61,7 @@ variable "schedules" {
     air_quality_fetch               = optional(string, "*/15 * * * *")
     geocode_cache_report            = optional(string, "0 5 * * 1")
     heatmap_report                  = optional(string, "0 4 * * 1")
+    heartbeat_check                 = optional(string, "30 17 * * *")
   })
   default = {
     pipeline_emergent               = "*/30 7-22 * * *"    # Every 30 minutes, 7:00AM–10:30PM (hours 7-22)
@@ -70,6 +71,7 @@ variable "schedules" {
     air_quality_fetch               = "*/15 * * * *"       # Every 15 minutes, 24/7
     geocode_cache_report            = "0 5 * * 1"          # Weekly on Monday at 5:00 AM
     heatmap_report                  = "0 4 * * 1"          # Weekly on Monday at 4:00 AM
+    heartbeat_check                 = "30 17 * * *"        # Daily at 17:30, after the last pipeline-all run (16:00)
   }
 }
 
