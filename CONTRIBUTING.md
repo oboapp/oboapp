@@ -41,7 +41,7 @@ Each has its own `.env.local` configuration.
 
 1. Fork and create feature branch
 
-- For shared or upstream-facing work, follow the [Fork and Upstream PR Workflow](docs/setup/fork-upstream-pr-workflow.md).
+   - For shared or upstream-facing work, follow the [Fork and Upstream PR Workflow](docs/setup/fork-upstream-pr-workflow.md).
 
 2. Follow [AGENTS.md](AGENTS.md) patterns
 3. Add tests for new functionality
