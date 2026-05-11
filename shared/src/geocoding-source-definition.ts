@@ -40,3 +40,10 @@ export interface GeocodingSourceMetadata {
   readonly name: string;
   readonly url: string;
 }
+
+/** Shape of an open-data source entry displayed on the /open-source page */
+export interface OpenDataSource {
+  readonly name: string;
+  readonly url: string;
+  readonly description: string;
+}

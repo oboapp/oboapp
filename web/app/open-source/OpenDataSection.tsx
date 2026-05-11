@@ -1,27 +1,5 @@
 import Link from "next/link";
-
-const OPEN_DATA_SOURCES = [
-  {
-    name: "Sofia Traffic GTFS",
-    url: "https://gtfs.sofiatraffic.bg",
-    description: "спирки и маршрути на градския транспорт",
-  },
-  {
-    name: "Sofia Plan",
-    url: "https://sofiaplan.bg",
-    description: "училища и детски градини от Столична община",
-  },
-  {
-    name: "OpenStreetMap",
-    url: "https://www.openstreetmap.org",
-    description: "геокодиране и улична геометрия",
-  },
-  {
-    name: "sensor.community",
-    url: "https://sensor.community",
-    description: "данни за качеството на въздуха от граждански сензори",
-  },
-] as const;
+import { OPEN_DATA_SOURCES } from "@oboapp/shared";
 
 export default function OpenDataSection() {
   return (
