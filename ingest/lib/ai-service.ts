@@ -4,6 +4,8 @@ import type { CategorizationResult } from "./categorize.schema";
 import { CATEGORIZE_JSON_SCHEMA } from "./categorize.schema";
 import type { ExtractedLocations } from "./extract-locations.schema";
 import { EXTRACT_LOCATIONS_JSON_SCHEMA } from "./extract-locations.schema";
+import type { SummarizeResult } from "./summarize.schema";
+import { SUMMARIZE_JSON_SCHEMA } from "./summarize.schema";
 import type { IngestErrorRecorder } from "./ingest-errors";
 import { logger } from "@/lib/logger";
 import { GeminiMockService } from "../__mocks__/services/gemini-mock-service";
@@ -17,11 +19,13 @@ import {
   parseFilterSplitResponse,
   parseCategorizeResponse,
   parseExtractLocationsResponse,
+  parseSummarizeResponse,
 } from "./ai-response-parser";
 import {
   getFilterSplitPrompt,
   getCategorizePrompt,
   getExtractLocationsPrompt,
+  getSummarizePrompt,
 } from "./ai-prompts";
 import { callGeminiApi } from "./ai-client";
 
@@ -195,4 +199,66 @@ export async function extractLocations(
   }
 
   return parseExtractLocationsResponse(responseText, ingestErrors);
+}
+
+/**
+ * Summarize: Create a brief summary for long messages
+ * Input should be plainText from Step 1 or categorized message text.
+ * Skipped if text is shorter than SUMMARIZE_MIN_LENGTH.
+ */
+const SUMMARIZE_MIN_LENGTH = parseInt(
+  process.env.SUMMARIZE_MIN_LENGTH ?? "1000",
+  10,
+);
+const SUMMARIZE_MAX_LENGTH = 30000;
+const SUMMARIZE_TRUNCATE_TO = 8000;
+
+export async function summarize(
+  text: string,
+  ingestErrors?: IngestErrorRecorder,
+): Promise<SummarizeResult | null> {
+  if (text.length < SUMMARIZE_MIN_LENGTH) {
+    return null;
+  }
+
+  const processedText = truncateText(text, {
+    maxLength: SUMMARIZE_MAX_LENGTH,
+    truncateTo: SUMMARIZE_TRUNCATE_TO,
+  });
+
+  if (
+    !validateText(
+      processedText,
+      { maxLength: SUMMARIZE_MAX_LENGTH, purpose: "summarization" },
+      ingestErrors,
+    )
+  ) {
+    return null;
+  }
+
+  if (USE_MOCK && mockService) {
+    logger.info("Using Gemini mock for summarization");
+    return mockService.summarize(processedText);
+  }
+
+  const modelConfig = validateModelConfig(ingestErrors);
+  if (!modelConfig.isValid) {
+    return null;
+  }
+
+  const responseText = await callGeminiApi(
+    {
+      model: modelConfig.model!,
+      contents: processedText,
+      systemInstruction: getSummarizePrompt(),
+      responseSchema: SUMMARIZE_JSON_SCHEMA,
+    },
+    ingestErrors,
+  );
+
+  if (!responseText) {
+    return null;
+  }
+
+  return parseSummarizeResponse(responseText, ingestErrors);
 }

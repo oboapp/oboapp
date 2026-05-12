@@ -32,6 +32,7 @@ export function recordToInternalMessage(
     locality: typeof record.locality === "string" ? record.locality : "",
     plainText: optionalString(record.plainText),
     markdownText: optionalString(record.markdownText),
+    summary: optionalString(record.summary),
     addresses: getAddresses(record.addresses),
     geoJson: getFeatureCollection(record.geoJson),
     crawledAt: toOptionalISOString(record.crawledAt, "crawledAt"),

@@ -465,6 +465,9 @@ exports[`V1 OpenAPI > matches snapshot 1`] = `
             },
             "type": "array",
           },
+          "summary": {
+            "type": "string",
+          },
           "text": {
             "type": "string",
           },
@@ -932,6 +935,9 @@ exports[`V1 OpenAPI > matches snapshot 1`] = `
                   "type": "object",
                 },
                 "type": "array",
+              },
+              "summary": {
+                "type": "string",
               },
               "text": {
                 "type": "string",
@@ -1407,6 +1413,9 @@ exports[`V1 OpenAPI > matches snapshot 1`] = `
                     "type": "object",
                   },
                   "type": "array",
+                },
+                "summary": {
+                  "type": "string",
                 },
                 "text": {
                   "type": "string",

@@ -23,6 +23,7 @@ export const MessageSchema = z.object({
   source: z.string().optional(),
   sourceUrl: z.string().optional(),
   markdownText: z.string().optional(),
+  summary: z.string().optional(),
   categories: z.array(CategoryEnum).optional(),
   timespanStart: z.string().optional(),
   timespanEnd: z.string().optional(),

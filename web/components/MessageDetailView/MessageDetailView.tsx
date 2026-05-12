@@ -331,6 +331,12 @@ export default function MessageDetailView({
           </DetailItem>
         )}
 
+        {message.summary && (
+          <DetailItem title="Резюме">
+            <p className="text-base text-foreground">{message.summary}</p>
+          </DetailItem>
+        )}
+
         <DetailItem title="Текст">
           <MessageText
             text={message.text}

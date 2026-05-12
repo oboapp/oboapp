@@ -52,6 +52,11 @@ async function loadResponseSchema(
         await import("../../lib/extract-locations.schema");
       return EXTRACT_LOCATIONS_JSON_SCHEMA;
     }
+    case "summarize.md": {
+      const { SUMMARIZE_JSON_SCHEMA } =
+        await import("../../lib/summarize.schema");
+      return SUMMARIZE_JSON_SCHEMA;
+    }
     default:
       return undefined;
   }

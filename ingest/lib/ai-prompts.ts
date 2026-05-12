@@ -46,6 +46,7 @@ export function loadPrompt(filename: string): string {
 let filterSplitPromptCache: string | null = null;
 let categorizePromptCache: string | null = null;
 let extractLocationsPromptCache: string | null = null;
+let summarizePromptCache: string | null = null;
 
 /**
  * Gets the filter & split prompt template (cached) — Step 1
@@ -75,4 +76,14 @@ export function getExtractLocationsPrompt(): string {
     extractLocationsPromptCache = loadPrompt("extract-locations.md");
   }
   return extractLocationsPromptCache;
+}
+
+/**
+ * Gets the summarization prompt template (cached)
+ */
+export function getSummarizePrompt(): string {
+  if (!summarizePromptCache) {
+    summarizePromptCache = loadPrompt("summarize.md");
+  }
+  return summarizePromptCache;
 }

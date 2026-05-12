@@ -61,6 +61,18 @@ export async function validateExtractLocationsSchema(
 }
 
 /**
+ * Validates that the output is valid JSON parseable by the SummarizeResponseSchema.
+ */
+export async function validateSummarizeSchema(
+  output: string,
+  _context: AssertionValueFunctionContext,
+): Promise<GradingResult> {
+  const { SummarizeResponseSchema } =
+    await import("../../lib/summarize.schema");
+  return validateWithSchema(output, SummarizeResponseSchema, "Summarize");
+}
+
+/**
  * Asserts that filter-split output marks the message as irrelevant.
  */
 export function assertIrrelevant(
@@ -489,6 +501,56 @@ export function assertHasEducationalFacility(
     reason: found
       ? `Found educational facility ${expected}`
       : `Expected educational facility ${expected} not found in [${JSON.stringify(facilities)}]`,
+  };
+}
+
+/**
+ * Asserts that summarize output contains a non-empty summary.
+ */
+export function assertSummaryNotEmpty(
+  output: string,
+  _context: AssertionValueFunctionContext,
+): GradingResult {
+  const parsed = parseOutput(output);
+  if (!parsed.success) return parsed.result;
+
+  const data = toRecord(parsed.data);
+  const pass =
+    typeof data.summary === "string" && data.summary.trim().length > 0;
+
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? "Summary is non-empty"
+      : "Expected non-empty summary string",
+  };
+}
+
+/**
+ * Asserts that summarize output has a summary shorter than a maximum length.
+ * Usage in YAML: config.value should be the maximum expected summary length, e.g., 300
+ */
+export function assertSummaryIsShorter(
+  output: string,
+  context: AssertionValueFunctionContext,
+): GradingResult {
+  const parsed = parseOutput(output);
+  if (!parsed.success) return parsed.result;
+
+  const data = toRecord(parsed.data);
+  const summaryLen =
+    typeof data.summary === "string" ? data.summary.length : 0;
+  const maxLen = Number(context.config?.value ?? 300);
+
+  const pass = summaryLen > 0 && summaryLen <= maxLen;
+
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? `Summary length ${summaryLen} ≤ ${maxLen}`
+      : `Summary length ${summaryLen} exceeds ${maxLen}`,
   };
 }
 

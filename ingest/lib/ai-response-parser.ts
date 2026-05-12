@@ -11,6 +11,10 @@ import {
   type ExtractedLocations,
 } from "./extract-locations.schema";
 import {
+  SummarizeResponseSchema,
+  type SummarizeResult,
+} from "./summarize.schema";
+import {
   formatIngestErrorText,
   getIngestErrorRecorder,
   truncateIngestPayload,
@@ -173,4 +177,31 @@ export function parseExtractLocationsResponse(
     `Full AI response (${summary.originalLength} chars): ${summary.summary}`,
   );
   return null;
+}
+
+/**
+ * Parses and validates summarization response from AI
+ */
+export function parseSummarizeResponse(
+  responseText: string,
+  ingestErrors?: IngestErrorRecorder,
+): SummarizeResult | null {
+  const recorder = getIngestErrorRecorder(ingestErrors);
+
+  try {
+    const parsed = JSON.parse(responseText);
+    return SummarizeResponseSchema.parse(parsed);
+  } catch (parseError) {
+    recorder.error(
+      `Failed to parse summarize response: ${formatIngestErrorText(parseError)}`,
+    );
+    const summary = truncateIngestPayload(
+      responseText,
+      MAX_INGEST_ERROR_LENGTH,
+    );
+    recorder.error(
+      `Full AI response (${summary.originalLength} chars): ${summary.summary}`,
+    );
+    return null;
+  }
 }
