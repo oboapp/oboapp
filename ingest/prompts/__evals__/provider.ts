@@ -26,9 +26,6 @@ import { resolve } from "node:path";
 // Load .env.local before anything reads process.env (AGENTS.md pattern)
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 
-// Dynamic import to ensure dotenv has loaded before locality context is initialised
-const { loadPrompt } = await import("../../lib/ai-prompts");
-
 /**
  * Loads the JSON schema matching a prompt file, for Gemini structured output.
  * Returns undefined if no schema is defined for the prompt.
@@ -51,6 +48,11 @@ async function loadResponseSchema(
       const { EXTRACT_LOCATIONS_JSON_SCHEMA } =
         await import("../../lib/extract-locations.schema");
       return EXTRACT_LOCATIONS_JSON_SCHEMA;
+    }
+    case "summarize.md": {
+      const { SUMMARIZE_JSON_SCHEMA } =
+        await import("../../lib/summarize.schema");
+      return SUMMARIZE_JSON_SCHEMA;
     }
     default:
       return undefined;
@@ -112,6 +114,7 @@ class GeminiPipelineProvider {
     let responseSchema: unknown | undefined;
 
     try {
+      const { loadPrompt } = await import("../../lib/ai-prompts");
       systemInstruction = loadPrompt(this.promptFile);
       responseSchema = await loadResponseSchema(this.promptFile);
     } catch (error) {

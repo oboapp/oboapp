@@ -198,6 +198,86 @@ describe("MessageDetailView AI notice", () => {
   });
 });
 
+describe("MessageDetailView summary notice", () => {
+  it("shows inline summary notice (not blue box) when summary is present", () => {
+    render(
+      <MessageDetailView
+        message={{
+          ...baseMessage,
+          summary: "Кратко резюме.",
+          sourceUrl: "https://example.com/msg",
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(/Съдържанието е съкратено от AI\./),
+    ).toBeInTheDocument();
+
+    // Blue box must not appear
+    expect(
+      screen.queryByText(
+        /Съдържанието е обработено от AI и може да съдържа неточности\./,
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it("inline summary notice links to sourceUrl when valid", () => {
+    render(
+      <MessageDetailView
+        message={{
+          ...baseMessage,
+          summary: "Кратко резюме.",
+          sourceUrl: "https://example.com/msg",
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: /оригиналния източник/i });
+    expect(link).toHaveAttribute("href", "https://example.com/msg");
+  });
+
+  it("inline summary notice has no link when sourceUrl is missing", () => {
+    render(
+      <MessageDetailView
+        message={{ ...baseMessage, summary: "Кратко резюме." }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(/Съдържанието е съкратено от AI\./),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("link", { name: /оригиналния източник/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("inline summary notice appears before responsible entity", () => {
+    render(
+      <MessageDetailView
+        message={{
+          ...baseMessage,
+          summary: "Кратко резюме.",
+          sourceUrl: "https://example.com/msg",
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const notice = screen.getByText(/Съдържанието е съкратено от AI\./);
+    const responsibleEntity = screen.getByText("Столична община");
+
+    expect(
+      notice.compareDocumentPosition(responsibleEntity) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+});
+
 describe("MessageDetailView locations accordion", () => {
   it("keeps location sections collapsed by default", () => {
     render(

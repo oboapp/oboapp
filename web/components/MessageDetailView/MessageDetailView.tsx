@@ -20,8 +20,9 @@ import SourceDisplay from "./Source";
 import Locations, { getLocationItemCount, hasAnyLocations } from "./Locations";
 import DetailItem from "./DetailItem";
 import MessageText from "./MessageText";
-import AiProcessedNotice from "./AiProcessedNotice";
+import AiProcessedNotice, { hasValidSourceUrl } from "./AiProcessedNotice";
 import CategoryChips from "@/components/CategoryChips";
+import ExternalLinkIcon from "@/components/icons/ExternalLinkIcon";
 import { getFeaturesCentroid } from "@/lib/geometry-utils";
 
 type CloseMethod = "drag" | "esc";
@@ -334,9 +335,32 @@ export default function MessageDetailView({
         <DetailItem title="Текст">
           <MessageText
             text={message.text}
-            markdownText={message.markdownText}
+            markdownText={message.summary ?? message.markdownText}
           />
         </DetailItem>
+
+        {message.summary && (
+          <p className="text-neutral">
+            Съдържанието е съкратено от AI.
+            {hasValidSourceUrl(message.sourceUrl) && message.sourceUrl && (
+              <>
+                {" "}
+                Виж{" "}
+                <a
+                  href={message.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="оригиналния източник (отваря се в нов таб)"
+                  className="inline-flex items-center gap-1 underline underline-offset-2"
+                >
+                  <span>оригиналния източник</span>
+                  <ExternalLinkIcon className="h-3.5 w-3.5 text-neutral" />
+                </a>
+                .
+              </>
+            )}
+          </p>
+        )}
 
         {message.responsibleEntity && (
           <DetailItem title="Отговорна институция">
@@ -346,7 +370,7 @@ export default function MessageDetailView({
           </DetailItem>
         )}
 
-        {message.plainText && (
+        {!message.summary && message.plainText && (
           <AiProcessedNotice sourceUrl={message.sourceUrl} />
         )}
 

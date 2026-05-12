@@ -1,0 +1,69 @@
+# promptfoo eval config for Summarization
+# Evaluates the summarize prompt against long-message fixtures.
+# Run: pnpm promptfoo:summarize
+
+description: "Summarize — concise message summary generation"
+
+providers:
+  - id: "file://provider.ts"
+    config:
+      promptFile: "summarize.md"
+    label: "Gemini (summarize)"
+
+prompts:
+  - "{{input}}"
+
+defaultTest:
+  assert:
+    # Every output must conform to SummarizeResponseSchema
+    - type: javascript
+      value: "file://assertions.ts:validateSummarizeSchema"
+    # Every summary must be non-empty
+    - type: javascript
+      value: "file://assertions.ts:assertSummaryNotEmpty"
+
+tests:
+  # Complex single message (bus rerouting + street closure)
+  - vars:
+      input: "file://../../__mocks__/fixtures/sources/complex-single-message.md"
+    assert:
+      - type: javascript
+        value: "file://assertions.ts:assertSummaryIsShorter"
+        config:
+          value: 300
+
+  # Complex multi-message (transit + road)
+  - vars:
+      input: "file://../../__mocks__/fixtures/sources/complex-multi-message.md"
+    assert:
+      - type: javascript
+        value: "file://assertions.ts:assertSummaryIsShorter"
+        config:
+          value: 300
+
+  # Housing complex blocks (building-specific disruption)
+  - vars:
+      input: "file://../../__mocks__/fixtures/sources/housing-complex-blocks.md"
+    assert:
+      - type: javascript
+        value: "file://assertions.ts:assertSummaryIsShorter"
+        config:
+          value: 300
+
+  # Bulky half-marathon traffic organization (YJSx6V8Q — referenced in issue #366)
+  - vars:
+      input: "file://../../__mocks__/fixtures/sources/bulky-message-YJSx6V8Q.md"
+    assert:
+      - type: javascript
+        value: "file://assertions.ts:assertSummaryIsShorter"
+        config:
+          value: 300
+
+  # Bulky Giro d'Italia traffic organization (1FDdUTUV — referenced in issue #366)
+  - vars:
+      input: "file://../../__mocks__/fixtures/sources/bulky-message-1FDdUTUV.md"
+    assert:
+      - type: javascript
+        value: "file://assertions.ts:assertSummaryIsShorter"
+        config:
+          value: 300

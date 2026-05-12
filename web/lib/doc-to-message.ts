@@ -37,6 +37,7 @@ export function recordToMessage(record: Record<string, unknown>): Message {
     source: optionalString(record.source),
     sourceUrl: optionalString(record.sourceUrl),
     markdownText: optionalString(record.markdownText),
+    summary: optionalString(record.summary),
     categories: getCategories(record.categories),
     timespanStart: toOptionalISOString(record.timespanStart, "timespanStart"),
     timespanEnd: toOptionalISOString(record.timespanEnd, "timespanEnd"),

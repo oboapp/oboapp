@@ -15,7 +15,11 @@ import {
 const PublicAddressSchema = SharedAddressSchema.omit({
   qualitySignals: true,
 });
-const MessageSchema = SharedMessageSchema.extend({
+// Explicitly exclude summary (internal-only) by spreading the shape without it
+const { summary: _summaryField, ...publicMessageShape } =
+  SharedMessageSchema.shape;
+const MessageSchema = z.object({
+  ...publicMessageShape,
   addresses: z.array(PublicAddressSchema).optional(),
 });
 

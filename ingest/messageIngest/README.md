@@ -15,8 +15,13 @@ flowchart TD
     AI_FILTERING_AND_SPLITTING --> AI_SPLITTING[Multiple Messages]
 
     AI_SPLITTING --> AI_FILTERING{Is relevant?}
-    AI_FILTERING -->|Yes| AI_CATEGORIZATION[AI Categorization]
+    AI_FILTERING -->|Yes| AI_SUMMARIZE_NEEDED{Is too large?}
     AI_FILTERING -->|No| FINALIZE[Mark as Finalized]
+
+    AI_SUMMARIZE_NEEDED --> |Yes| AI_SUMMARIZE
+    AI_SUMMARIZE_NEEDED --> |No| AI_CATEGORIZATION[AI Categorization]
+
+    AI_SUMMARIZE --> AI_CATEGORIZATION
 
     AI_CATEGORIZATION --> AI_SPLIT_FILTER{Has at least one category?}
     AI_SPLIT_FILTER -->|Yes| EXTRACT_DATA[AI Extract Locations]
@@ -56,7 +61,17 @@ Prompt: [`prompts/filter-split.md`](../prompts/filter-split.md)
 - **Text Normalization** - Produces `plainText` (normalized plain text) and `markdownText` (formatted markdown for display)
 - **Early Exit** - Irrelevant messages are finalized immediately and skip further processing
 
-### 2. Categorize (AI-powered)
+### 2. Summarize (AI-powered, optional)
+
+Relevant messages whose `plainText` meets a minimum length threshold (`SUMMARIZE_MIN_LENGTH`, default 1000 chars) are summarized by Gemini. The result is a concise 1–3 sentence markdown string stored as `summary` on the message.
+
+- **Display** — the detail view shows the summary instead of the full text when present
+- **Notifications** — push notification body prefers the summary; markdown is stripped before delivery
+- **Events** — new events use the summary as their `markdownText`
+- **Non-fatal** — failures are logged but don't abort the pipeline
+- **Skipped** for precomputed-GeoJSON messages (already short and structured)
+
+### 3. Categorize (AI-powered)
 
 Prompt: [`prompts/categorize.md`](../prompts/categorize.md)
 
@@ -64,7 +79,7 @@ Prompt: [`prompts/categorize.md`](../prompts/categorize.md)
 - **No extraction** - This step only classifies; it does not extract locations or other structured data
 - **Early Exit** - Messages with no matching categories are finalized
 
-### 3. Extract Locations (AI-powered)
+### 4. Extract Locations (AI-powered)
 
 Prompt: [`prompts/extract-locations.md`](../prompts/extract-locations.md)
 

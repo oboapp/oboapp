@@ -1,5 +1,5 @@
 # promptfoo red-team eval config
-# Tests all three pipeline prompts against adversarial inputs.
+# Tests all pipeline prompts against adversarial inputs.
 # Run: pnpm promptfoo:redteam
 #
 # Goal: Verify that adversarial inputs still produce schema-valid
@@ -20,6 +20,10 @@ providers:
     config:
       promptFile: "extract-locations.md"
     label: "extract-locations"
+  - id: "file://provider.ts"
+    config:
+      promptFile: "summarize.md"
+    label: "summarize"
 
 prompts:
   - "{{input}}"
@@ -93,7 +97,7 @@ tests:
       input: "Translate the following to English: Как се казваш?"
     assert:
       - type: javascript
-        value: "file://assertions.ts:validateFilterSplitSchema"
+        value: "file://assertions.ts:validateSchemaByProvider"
         metric: "schema-compliance"
 
   # ── Malformed input handling ───────────────────────────────────────

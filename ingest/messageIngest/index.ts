@@ -174,7 +174,8 @@ async function processSingleMessage(
     addresses = await handlePrecomputedGeoJsonData(
       messageId,
       precomputedGeoJson,
-      options.markdownText,
+      // markdownText is guaranteed non-empty by processPrecomputedGeoJsonMessage
+      options.markdownText!,
       options.timespanStart,
       options.timespanEnd,
       crawledAt,
@@ -260,6 +261,12 @@ async function processPrecomputedGeoJsonMessage(
   sourceDocumentId: string | undefined,
   options: MessageIngestOptions,
 ): Promise<MessageIngestResult> {
+  if (!options.markdownText?.trim()) {
+    throw new Error(
+      `Precomputed GeoJSON crawler for source '${source}' must provide a non-empty markdownText`,
+    );
+  }
+
   const storedMessageId = await storeIncomingMessage(
     text,
     options.locality,
@@ -334,7 +341,7 @@ async function processWithAIPipeline(
   options: MessageIngestOptions,
 ): Promise<MessageIngestResult> {
   // Import all AI service functions once before the loop
-  const { filterAndSplit, categorize, extractLocations } =
+  const { filterAndSplit, categorize, extractLocations, summarize } =
     await import("../lib/ai-service");
 
   // Step 1: Filter & Split
@@ -421,6 +428,14 @@ async function processWithAIPipeline(
       filteredMessage.plainText,
       source,
       ingestErrors,
+    );
+
+    // Generate summary for long messages (non-fatal)
+    await storeSummary(
+      storedMessageId,
+      filteredMessage.plainText,
+      ingestErrors,
+      summarize,
     );
 
     // Step 2: Categorize (using plainText which is now guaranteed non-empty)
@@ -611,6 +626,23 @@ function createLocationExtractionAudit(
 }
 
 /**
+ * Create minimal audit record for summarization step
+ */
+function createSummarizationAudit(
+  success: boolean,
+  charCount?: number,
+  reason?: string,
+) {
+  return {
+    step: "summarize",
+    timestamp: new Date().toISOString(),
+    summary: success
+      ? { success: true, charCount }
+      : { success: false, reason: reason || "unknown" },
+  };
+}
+
+/**
  * Store filter & split result (Step 1)
  */
 async function storeFilteredMessage(
@@ -687,6 +719,42 @@ async function storeExtractedLocations(
       process: createLocationExtractionAudit(extractedLocations),
     },
   });
+}
+
+/**
+ * Generate and store a summary for a message.
+ * Non-fatal: failures are logged but don't abort the pipeline.
+ */
+async function storeSummary(
+  messageId: string,
+  text: string,
+  ingestErrors: IngestErrorCollector,
+  summarizeService: (text: string, ingestErrors?: IngestErrorCollector) => Promise<{ summary: string } | null>,
+): Promise<void> {
+  try {
+    const result = await summarizeService(text, ingestErrors);
+    if (result) {
+      await updateMessage(messageId, {
+        $set: { summary: result.summary },
+        $addToSet: {
+          process: createSummarizationAudit(true, result.summary.length),
+        },
+      });
+    }
+    // null means skipped (text below threshold) — no audit entry needed
+  } catch (error) {
+    const errorMessage = formatIngestErrorText(error);
+    ingestErrors.error(
+      `Summarization failed for message ${messageId}: ${errorMessage}`,
+    );
+    await updateMessage(messageId, {
+      $addToSet: {
+        process: createSummarizationAudit(false, undefined, errorMessage),
+      },
+    }).catch(() => {
+      // Best-effort — don't let audit storage failure mask the real error
+    });
+  }
 }
 
 /**
@@ -988,7 +1056,7 @@ export function computeGeoJsonCentroidAddress(
 async function handlePrecomputedGeoJsonData(
   messageId: string,
   precomputedGeoJson: GeoJsonFeatureCollection,
-  markdownText: string | undefined,
+  markdownText: string,
   timespanStart: Date | undefined,
   timespanEnd: Date | undefined,
   crawledAt: Date,
@@ -1009,21 +1077,13 @@ async function handlePrecomputedGeoJsonData(
     cadastralProperties: [],
   };
 
-  if (markdownText) {
-    await updateMessage(messageId, {
-      markdownText,
-      responsibleEntity: "",
-      ...locationFields,
-      timespanStart: validated.timespanStart,
-      timespanEnd: validated.timespanEnd,
-    });
-  } else {
-    await updateMessage(messageId, {
-      ...(addresses.length > 0 ? locationFields : {}),
-      timespanStart: validated.timespanStart,
-      timespanEnd: validated.timespanEnd,
-    });
-  }
+  await updateMessage(messageId, {
+    markdownText,
+    responsibleEntity: "",
+    ...locationFields,
+    timespanStart: validated.timespanStart,
+    timespanEnd: validated.timespanEnd,
+  });
 
   return addresses;
 }

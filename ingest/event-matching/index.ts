@@ -19,10 +19,17 @@ import {
 
 export { computeMatchScore, type MatchSignals } from "./score";
 export { findCandidateEvents } from "./candidates";
-export { findBestMatch, type FindBestMatchResult, type FindBestMatchOutput } from "./match";
+export {
+  findBestMatch,
+  type FindBestMatchResult,
+  type FindBestMatchOutput,
+} from "./match";
 export { createEventFromMessage } from "./create-event";
 export { attachMessageToEvent } from "./attach-to-event";
-export { preGeocodeMatch, type PreGeocodeMatchResult } from "./pre-geocode-match";
+export {
+  preGeocodeMatch,
+  type PreGeocodeMatchResult,
+} from "./pre-geocode-match";
 export { verifyEventMatch } from "./llm-verify";
 
 export interface EventMatchResult {
@@ -45,7 +52,9 @@ export async function processEventMatching(
   const messageId = getString(message._id);
 
   // Extract GeoJSON with structural check
-  const geoJson: GeoJSONFeatureCollection | null = isFeatureCollection(message.geoJson)
+  const geoJson: GeoJSONFeatureCollection | null = isFeatureCollection(
+    message.geoJson,
+  )
     ? message.geoJson
     : null;
 
@@ -62,7 +71,10 @@ export async function processEventMatching(
     streets: getStreetArray(message.streets),
   };
 
-  const { match: bestMatch, candidateCount } = await findBestMatch(db, matchInput);
+  const { match: bestMatch, candidateCount } = await findBestMatch(
+    db,
+    matchInput,
+  );
 
   if (bestMatch) {
     const eventId = getString(bestMatch.event._id);
@@ -102,9 +114,9 @@ export async function processEventMatching(
   // No match found — create a new event
   const { eventId, confidence, action } = await createEventFromMessage(db, {
     _id: messageId,
-    plainText: getOptionalString(message.plainText),
-    text: getOptionalString(message.text),
-    markdownText: getOptionalString(message.markdownText),
+    markdownText:
+      getOptionalString(message.summary) ||
+      getOptionalString(message.markdownText),
     geoJson: isFeatureCollection(message.geoJson) ? message.geoJson : null,
     timespanStart: getStringOrDateOrNull(message.timespanStart),
     timespanEnd: getStringOrDateOrNull(message.timespanEnd),

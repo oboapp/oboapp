@@ -3,6 +3,7 @@ import {
   parseFilterSplitResponse,
   parseCategorizeResponse,
   parseExtractLocationsResponse,
+  parseSummarizeResponse,
 } from "./ai-response-parser";
 import type { IngestErrorRecorder } from "./ingest-errors";
 
@@ -229,6 +230,53 @@ describe("ai-response-parser", () => {
       // Invalid coordinates are stripped rather than causing item rejection
       expect(result!.streets[0].toCoordinates).toBeUndefined();
       expect(result!.streets[0].fromCoordinates).toBeUndefined();
+    });
+  });
+
+  describe("parseSummarizeResponse", () => {
+    it("should parse a valid summarize response", () => {
+      const response = JSON.stringify({ summary: "Водна авария на бул. Витоша" });
+      const result = parseSummarizeResponse(response);
+      expect(result).not.toBeNull();
+      expect(result!.summary).toBe("Водна авария на бул. Витоша");
+    });
+
+    it("should parse a markdown summary", () => {
+      const response = JSON.stringify({
+        summary: "**Водна авария** на бул. Витоша от **10:00** до **18:00**",
+      });
+      const result = parseSummarizeResponse(response);
+      expect(result).not.toBeNull();
+      expect(result!.summary).toBe(
+        "**Водна авария** на бул. Витоша от **10:00** до **18:00**",
+      );
+    });
+
+    it("should return null for invalid JSON", () => {
+      const recorder = createMockRecorder();
+      const result = parseSummarizeResponse("{ broken json }", recorder);
+      expect(result).toBeNull();
+      expect(recorder.errors.length).toBeGreaterThan(0);
+    });
+
+    it("should return null when summary field is missing", () => {
+      const recorder = createMockRecorder();
+      const result = parseSummarizeResponse(
+        JSON.stringify({ other: "field" }),
+        recorder,
+      );
+      expect(result).toBeNull();
+      expect(recorder.errors.length).toBeGreaterThan(0);
+    });
+
+    it("should return null when summary is not a string", () => {
+      const recorder = createMockRecorder();
+      const result = parseSummarizeResponse(
+        JSON.stringify({ summary: 42 }),
+        recorder,
+      );
+      expect(result).toBeNull();
+      expect(recorder.errors.length).toBeGreaterThan(0);
     });
   });
 });

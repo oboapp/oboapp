@@ -21,14 +21,15 @@ import { StreetSectionSchema } from "./street-section.schema";
 export const EventSchema = z.object({
   id: z.string().optional(),
   /**
-   * Canonical normalized text for the event. Required on events (unlike MessageSchema
-   * where it's optional) because events are always created from processed messages.
+   * Canonical normalized text for the event. Optional — new events carry
+   * `markdownText` instead; `plainText` exists for legacy events created before
+   * the summarization pipeline was introduced.
    *
    * NOTE: MessageSchema.text is a transient ingestion field (raw crawler/user input)
-   * not intended for public display. Events intentionally omit it — plainText is the
-   * correct public-facing text field for both messages and events.
+   * not intended for public display. Events intentionally omit it — `markdownText`
+   * is the correct public-facing text field for events.
    */
-  plainText: z.string(),
+  plainText: z.string().optional(),
   markdownText: z.string().optional(),
   geoJson: GeoJsonFeatureCollectionSchema.optional(),
   geometryQuality: z.number().int().min(0).max(3),
@@ -48,6 +49,12 @@ export const EventSchema = z.object({
   embedding: z.array(z.number().finite()).optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
-});
+}).refine(
+  (event) => Boolean(event.plainText?.trim()) || Boolean(event.markdownText?.trim()),
+  {
+    message: "Event must have non-empty plainText or markdownText",
+    path: ["markdownText"],
+  },
+);
 
 export type Event = z.infer<typeof EventSchema>;

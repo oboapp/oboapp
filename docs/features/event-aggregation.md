@@ -8,7 +8,7 @@ The **Event Aggregation** layer groups related messages into a single **Event** 
 
 ## Design Principle: Events Mirror the Message Shape
 
-**Events intentionally use the same field names and types as messages.** Fields like `plainText`, `markdownText`, `geoJson`, `categories`, `timespanStart`, `timespanEnd`, `cityWide`, `locality`, and `embedding` exist on both documents with identical semantics.
+**Events intentionally use the same field names and types as messages.** The fields that drive display, filtering, and matching exist on both documents with identical semantics. When a message has a `summary`, it is used as the event's `markdownText` — ensuring the event description matches what users see in the detail view.
 
 This is a deliberate forward-compatibility decision: the next phase will switch the map and public API from showing individual messages to showing events. Because the shapes are aligned, that switch requires only a data-source change — no schema migration, no API contract break, no frontend rewiring.
 

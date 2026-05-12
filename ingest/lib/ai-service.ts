@@ -4,6 +4,8 @@ import type { CategorizationResult } from "./categorize.schema";
 import { CATEGORIZE_JSON_SCHEMA } from "./categorize.schema";
 import type { ExtractedLocations } from "./extract-locations.schema";
 import { EXTRACT_LOCATIONS_JSON_SCHEMA } from "./extract-locations.schema";
+import type { SummarizeResult } from "./summarize.schema";
+import { SUMMARIZE_JSON_SCHEMA } from "./summarize.schema";
 import type { IngestErrorRecorder } from "./ingest-errors";
 import { logger } from "@/lib/logger";
 import { GeminiMockService } from "../__mocks__/services/gemini-mock-service";
@@ -17,11 +19,13 @@ import {
   parseFilterSplitResponse,
   parseCategorizeResponse,
   parseExtractLocationsResponse,
+  parseSummarizeResponse,
 } from "./ai-response-parser";
 import {
   getFilterSplitPrompt,
   getCategorizePrompt,
   getExtractLocationsPrompt,
+  getSummarizePrompt,
 } from "./ai-prompts";
 import { callGeminiApi } from "./ai-client";
 
@@ -30,35 +34,42 @@ const USE_MOCK = process.env.MOCK_GEMINI_API === "true";
 const mockService = USE_MOCK ? new GeminiMockService() : null;
 
 /**
- * Step 1: Filter & Split
- * Splits a notification into individual messages, assesses relevance,
- * normalizes text, and extracts metadata (responsibleEntity, markdownText).
+ * Shared helper that handles the common Gemini call pattern:
+ * truncate → validate → mock shortcut → validate model config → call API → parse.
  */
-const FILTER_SPLIT_MAX_LENGTH = 30000;
-const FILTER_SPLIT_TRUNCATE_TO = 15000;
-
-export async function filterAndSplit(
+async function callAiStep<T>(
   text: string,
+  options: {
+    maxLength: number;
+    truncateTo: number;
+    purpose: string;
+    sanitize?: boolean;
+    mockLabel: string;
+    mockFn: ((text: string) => Promise<T | null>) | null;
+    getPrompt: () => string;
+    schema: object;
+    parse: (text: string, errors?: IngestErrorRecorder) => T | null;
+  },
   ingestErrors?: IngestErrorRecorder,
-): Promise<FilterSplitResult | null> {
+): Promise<T | null> {
   const processedText = truncateText(text, {
-    maxLength: FILTER_SPLIT_MAX_LENGTH,
-    truncateTo: FILTER_SPLIT_TRUNCATE_TO,
+    maxLength: options.maxLength,
+    truncateTo: options.truncateTo,
   });
 
   if (
     !validateText(
       processedText,
-      { maxLength: FILTER_SPLIT_MAX_LENGTH, purpose: "filter & split" },
+      { maxLength: options.maxLength, purpose: options.purpose },
       ingestErrors,
     )
   ) {
     return null;
   }
 
-  if (USE_MOCK && mockService) {
-    logger.info("Using Gemini mock for filter & split");
-    return mockService.filterAndSplit(processedText);
+  if (USE_MOCK && options.mockFn) {
+    logger.info(`Using Gemini mock for ${options.mockLabel}`);
+    return options.mockFn(processedText);
   }
 
   const modelConfig = validateModelConfig(ingestErrors);
@@ -66,12 +77,16 @@ export async function filterAndSplit(
     return null;
   }
 
+  const apiInput = options.sanitize
+    ? sanitizeText(processedText)
+    : processedText;
+
   const responseText = await callGeminiApi(
     {
       model: modelConfig.model!,
-      contents: processedText,
-      systemInstruction: getFilterSplitPrompt(),
-      responseSchema: FILTER_SPLIT_JSON_SCHEMA,
+      contents: apiInput,
+      systemInstruction: options.getPrompt(),
+      responseSchema: options.schema,
     },
     ingestErrors,
   );
@@ -80,7 +95,32 @@ export async function filterAndSplit(
     return null;
   }
 
-  return parseFilterSplitResponse(responseText, ingestErrors);
+  return options.parse(responseText, ingestErrors);
+}
+
+/**
+ * Step 1: Filter & Split
+ * Splits a notification into individual messages, assesses relevance,
+ * normalizes text, and extracts metadata (responsibleEntity, markdownText).
+ */
+export async function filterAndSplit(
+  text: string,
+  ingestErrors?: IngestErrorRecorder,
+): Promise<FilterSplitResult | null> {
+  return callAiStep(
+    text,
+    {
+      maxLength: 30000,
+      truncateTo: 15000,
+      purpose: "filter & split",
+      mockLabel: "filter & split",
+      mockFn: mockService ? (t) => mockService.filterAndSplit(t) : null,
+      getPrompt: getFilterSplitPrompt,
+      schema: FILTER_SPLIT_JSON_SCHEMA,
+      parse: parseFilterSplitResponse,
+    },
+    ingestErrors,
+  );
 }
 
 /**
@@ -88,53 +128,24 @@ export async function filterAndSplit(
  * Classifies a single pre-split message into categories.
  * Input should be a plainText from Step 1.
  */
-const CATEGORIZE_MAX_LENGTH = 30000;
-const CATEGORIZE_TRUNCATE_TO = 8000;
-
 export async function categorize(
   text: string,
   ingestErrors?: IngestErrorRecorder,
 ): Promise<CategorizationResult | null> {
-  const processedText = truncateText(text, {
-    maxLength: CATEGORIZE_MAX_LENGTH,
-    truncateTo: CATEGORIZE_TRUNCATE_TO,
-  });
-
-  if (
-    !validateText(
-      processedText,
-      { maxLength: CATEGORIZE_MAX_LENGTH, purpose: "message categorization" },
-      ingestErrors,
-    )
-  ) {
-    return null;
-  }
-
-  if (USE_MOCK && mockService) {
-    logger.info("Using Gemini mock for categorization");
-    return mockService.categorize(processedText);
-  }
-
-  const modelConfig = validateModelConfig(ingestErrors);
-  if (!modelConfig.isValid) {
-    return null;
-  }
-
-  const responseText = await callGeminiApi(
+  return callAiStep(
+    text,
     {
-      model: modelConfig.model!,
-      contents: processedText,
-      systemInstruction: getCategorizePrompt(),
-      responseSchema: CATEGORIZE_JSON_SCHEMA,
+      maxLength: 30000,
+      truncateTo: 8000,
+      purpose: "message categorization",
+      mockLabel: "categorization",
+      mockFn: mockService ? (t) => mockService.categorize(t) : null,
+      getPrompt: getCategorizePrompt,
+      schema: CATEGORIZE_JSON_SCHEMA,
+      parse: parseCategorizeResponse,
     },
     ingestErrors,
   );
-
-  if (!responseText) {
-    return null;
-  }
-
-  return parseCategorizeResponse(responseText, ingestErrors);
 }
 
 /**
@@ -143,56 +154,57 @@ export async function categorize(
  * pins, streets, cadastralProperties, busStops, cityWide, withSpecificAddress.
  * Input should be a plainText from Step 1.
  */
-const EXTRACT_LOCATIONS_MAX_LENGTH = 30000;
-const EXTRACT_LOCATIONS_TRUNCATE_TO = 4000;
-
 export async function extractLocations(
   text: string,
   ingestErrors?: IngestErrorRecorder,
 ): Promise<ExtractedLocations | null> {
-  const processedText = truncateText(text, {
-    maxLength: EXTRACT_LOCATIONS_MAX_LENGTH,
-    truncateTo: EXTRACT_LOCATIONS_TRUNCATE_TO,
-  });
-
-  if (
-    !validateText(
-      processedText,
-      {
-        maxLength: EXTRACT_LOCATIONS_MAX_LENGTH,
-        purpose: "location extraction",
-      },
-      ingestErrors,
-    )
-  ) {
-    return null;
-  }
-
-  if (USE_MOCK && mockService) {
-    logger.info("Using Gemini mock for location extraction");
-    return mockService.extractLocations(processedText);
-  }
-
-  const sanitizedText = sanitizeText(processedText);
-
-  const modelConfig = validateModelConfig(ingestErrors);
-  if (!modelConfig.isValid) {
-    return null;
-  }
-
-  const responseText = await callGeminiApi(
+  return callAiStep(
+    text,
     {
-      model: modelConfig.model!,
-      contents: sanitizedText,
-      systemInstruction: getExtractLocationsPrompt(),
-      responseSchema: EXTRACT_LOCATIONS_JSON_SCHEMA,
+      maxLength: 30000,
+      truncateTo: 4000,
+      purpose: "location extraction",
+      sanitize: true,
+      mockLabel: "location extraction",
+      mockFn: mockService ? (t) => mockService.extractLocations(t) : null,
+      getPrompt: getExtractLocationsPrompt,
+      schema: EXTRACT_LOCATIONS_JSON_SCHEMA,
+      parse: parseExtractLocationsResponse,
     },
     ingestErrors,
   );
+}
 
-  if (!responseText) {
+/**
+ * Summarize: Create a brief summary for long messages.
+ * Input should be plainText from Step 1.
+ * Skipped if text is shorter than SUMMARIZE_MIN_LENGTH.
+ */
+const _parsedMinLength = parseInt(process.env.SUMMARIZE_MIN_LENGTH ?? "", 10);
+export const SUMMARIZE_MIN_LENGTH = Number.isNaN(_parsedMinLength)
+  ? 1000
+  : _parsedMinLength;
+
+export async function summarize(
+  text: string,
+  ingestErrors?: IngestErrorRecorder,
+): Promise<SummarizeResult | null> {
+  if (text.length < SUMMARIZE_MIN_LENGTH) {
     return null;
   }
 
-  return parseExtractLocationsResponse(responseText, ingestErrors);
+  return callAiStep(
+    text,
+    {
+      maxLength: 30000,
+      truncateTo: 8000,
+      purpose: "summarization",
+      mockLabel: "summarization",
+      mockFn: mockService ? (t) => mockService.summarize(t) : null,
+      getPrompt: getSummarizePrompt,
+      schema: SUMMARIZE_JSON_SCHEMA,
+      parse: parseSummarizeResponse,
+    },
+    ingestErrors,
+  );
 }

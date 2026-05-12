@@ -41,38 +41,25 @@ export function loadPrompt(filename: string): string {
 }
 
 /**
- * Cached prompt templates
+ * Cache of loaded prompt templates, keyed by filename.
  */
-let filterSplitPromptCache: string | null = null;
-let categorizePromptCache: string | null = null;
-let extractLocationsPromptCache: string | null = null;
+const promptCache: Record<string, string> = {};
 
-/**
- * Gets the filter & split prompt template (cached) — Step 1
- */
-export function getFilterSplitPrompt(): string {
-  if (!filterSplitPromptCache) {
-    filterSplitPromptCache = loadPrompt("filter-split.md");
+function getCachedPrompt(promptFile: string): string {
+  if (!promptCache[promptFile]) {
+    promptCache[promptFile] = loadPrompt(promptFile);
   }
-  return filterSplitPromptCache;
+  return promptCache[promptFile];
 }
 
-/**
- * Gets the categorization prompt template (cached) — Step 2
- */
-export function getCategorizePrompt(): string {
-  if (!categorizePromptCache) {
-    categorizePromptCache = loadPrompt("categorize.md");
-  }
-  return categorizePromptCache;
-}
+/** Gets the filter & split prompt template (cached) — Step 1 */
+export const getFilterSplitPrompt = (): string => getCachedPrompt("filter-split.md");
 
-/**
- * Gets the location extraction prompt template (cached) — Step 3
- */
-export function getExtractLocationsPrompt(): string {
-  if (!extractLocationsPromptCache) {
-    extractLocationsPromptCache = loadPrompt("extract-locations.md");
-  }
-  return extractLocationsPromptCache;
-}
+/** Gets the categorization prompt template (cached) — Step 2 */
+export const getCategorizePrompt = (): string => getCachedPrompt("categorize.md");
+
+/** Gets the location extraction prompt template (cached) — Step 3 */
+export const getExtractLocationsPrompt = (): string => getCachedPrompt("extract-locations.md");
+
+/** Gets the summarization prompt template (cached) */
+export const getSummarizePrompt = (): string => getCachedPrompt("summarize.md");

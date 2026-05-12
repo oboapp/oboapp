@@ -35,18 +35,17 @@ describe("MOCK_GEMINI_API flag - integration tests", () => {
       const { readFileSync } = await import("node:fs");
       const aiServiceSource = readFileSync("./lib/ai-service.ts", "utf-8");
 
+      // After refactoring, mock logic lives in callAiStep; each function
+      // passes mockFn to it. Verify the shared helper has the mock branch.
+      expect(aiServiceSource).toContain("if (USE_MOCK && options.mockFn)");
+      // Verify filterAndSplit delegates to the mock service
       const fnMatch = aiServiceSource.match(
         /export async function filterAndSplit[\s\S]*?(?=export async function|$)/,
       );
       expect(fnMatch).toBeTruthy();
-
       if (fnMatch) {
-        const fnSource = fnMatch[0];
-        expect(fnSource).toContain("if (USE_MOCK && mockService)");
-        expect(fnSource).toContain("Using Gemini mock for filter & split");
-        expect(fnSource).toContain(
-          "return mockService.filterAndSplit(processedText)",
-        );
+        expect(fnMatch[0]).toContain("mockFn: mockService");
+        expect(fnMatch[0]).toContain("filter & split");
       }
     });
 
@@ -58,16 +57,9 @@ describe("MOCK_GEMINI_API flag - integration tests", () => {
         /export async function categorize[\s\S]*?(?=export async function|$)/,
       );
       expect(categorizeFnMatch).toBeTruthy();
-
       if (categorizeFnMatch) {
-        const categorizeFnSource = categorizeFnMatch[0];
-        expect(categorizeFnSource).toContain("if (USE_MOCK && mockService)");
-        expect(categorizeFnSource).toContain(
-          "Using Gemini mock for categorization",
-        );
-        expect(categorizeFnSource).toContain(
-          "return mockService.categorize(processedText)",
-        );
+        expect(categorizeFnMatch[0]).toContain("mockFn: mockService");
+        expect(categorizeFnMatch[0]).toContain("categorization");
       }
     });
 
@@ -79,16 +71,9 @@ describe("MOCK_GEMINI_API flag - integration tests", () => {
         /export async function extractLocations[\s\S]*?(?=export async function|export const|$)/,
       );
       expect(extractFnMatch).toBeTruthy();
-
       if (extractFnMatch) {
-        const extractFnSource = extractFnMatch[0];
-        expect(extractFnSource).toContain("if (USE_MOCK && mockService)");
-        expect(extractFnSource).toContain(
-          "Using Gemini mock for location extraction",
-        );
-        expect(extractFnSource).toContain(
-          "return mockService.extractLocations(processedText)",
-        );
+        expect(extractFnMatch[0]).toContain("mockFn: mockService");
+        expect(extractFnMatch[0]).toContain("location extraction");
       }
     });
   });
@@ -126,30 +111,30 @@ describe("MOCK_GEMINI_API flag - integration tests", () => {
     it("should document that all three functions have mock branches", () => {
       const documentedBehavior = {
         filterAndSplit: {
-          mockCheck: "if (USE_MOCK && mockService)",
-          mockReturn: "mockService.filterAndSplit(processedText)",
-          logMessage: "[MOCK] Using Gemini mock for filter & split",
+          mockCheck: "if (USE_MOCK && options.mockFn)",
+          mockFnProp: "mockFn: mockService",
+          logMessage: "Using Gemini mock for filter & split",
         },
         categorize: {
-          mockCheck: "if (USE_MOCK && mockService)",
-          mockReturn: "mockService.categorize(processedText)",
-          logMessage: "[MOCK] Using Gemini mock for categorization",
+          mockCheck: "if (USE_MOCK && options.mockFn)",
+          mockFnProp: "mockFn: mockService",
+          logMessage: "Using Gemini mock for categorization",
         },
         extractLocations: {
-          mockCheck: "if (USE_MOCK && mockService)",
-          mockReturn: "mockService.extractLocations(processedText)",
-          logMessage: "[MOCK] Using Gemini mock for location extraction",
+          mockCheck: "if (USE_MOCK && options.mockFn)",
+          mockFnProp: "mockFn: mockService",
+          logMessage: "Using Gemini mock for location extraction",
         },
       };
 
       expect(documentedBehavior.filterAndSplit.mockCheck).toBe(
-        "if (USE_MOCK && mockService)",
+        "if (USE_MOCK && options.mockFn)",
       );
       expect(documentedBehavior.categorize.mockCheck).toBe(
-        "if (USE_MOCK && mockService)",
+        "if (USE_MOCK && options.mockFn)",
       );
       expect(documentedBehavior.extractLocations.mockCheck).toBe(
-        "if (USE_MOCK && mockService)",
+        "if (USE_MOCK && options.mockFn)",
       );
     });
   });

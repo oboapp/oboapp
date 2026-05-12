@@ -167,3 +167,78 @@ describe("AI service schema validation", () => {
     });
   });
 });
+
+describe("summarize()", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    process.env.GOOGLE_AI_MODEL = "gemini-1.5-flash";
+    process.env.GOOGLE_AI_API_KEY = "test-key";
+    delete process.env.MOCK_GEMINI_API;
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns null for text shorter than default threshold (1000)", async () => {
+    delete process.env.SUMMARIZE_MIN_LENGTH;
+    const { summarize } = await import("./ai-service");
+    const result = await summarize("x".repeat(999));
+    expect(result).toBeNull();
+  });
+
+  it("returns null for text exactly at threshold (strict less-than check)", async () => {
+    process.env.SUMMARIZE_MIN_LENGTH = "50";
+    const { summarize } = await import("./ai-service");
+    const result = await summarize("x".repeat(49));
+    expect(result).toBeNull();
+  });
+
+  it("calls API and returns parsed summary when text meets threshold", async () => {
+    process.env.SUMMARIZE_MIN_LENGTH = "10";
+    vi.doMock("./ai-client", () => ({
+      callGeminiApi: vi
+        .fn()
+        .mockResolvedValue(
+          JSON.stringify({ summary: "Резюме: кратко описание." }),
+        ),
+    }));
+    const { summarize } = await import("./ai-service");
+    const result = await summarize("x".repeat(11));
+    expect(result).toEqual({ summary: "Резюме: кратко описание." });
+  });
+
+  it("calls API when SUMMARIZE_MIN_LENGTH=0 even for very short text", async () => {
+    process.env.SUMMARIZE_MIN_LENGTH = "0";
+    vi.doMock("./ai-client", () => ({
+      callGeminiApi: vi
+        .fn()
+        .mockResolvedValue(JSON.stringify({ summary: "Кратко." })),
+    }));
+    const { summarize } = await import("./ai-service");
+    const result = await summarize("hi");
+    expect(result).toEqual({ summary: "Кратко." });
+  });
+
+  it("returns null when the Gemini API call returns null", async () => {
+    process.env.SUMMARIZE_MIN_LENGTH = "10";
+    vi.doMock("./ai-client", () => ({
+      callGeminiApi: vi.fn().mockResolvedValue(null),
+    }));
+    const { summarize } = await import("./ai-service");
+    const result = await summarize("x".repeat(11));
+    expect(result).toBeNull();
+  });
+
+  it("exports SUMMARIZE_MIN_LENGTH parsed from env", async () => {
+    process.env.SUMMARIZE_MIN_LENGTH = "500";
+    const { SUMMARIZE_MIN_LENGTH } = await import("./ai-service");
+    expect(SUMMARIZE_MIN_LENGTH).toBe(500);
+  });
+
+  it("defaults SUMMARIZE_MIN_LENGTH to 1000 when env is not a number", async () => {
+    process.env.SUMMARIZE_MIN_LENGTH = "not-a-number";
+    const { SUMMARIZE_MIN_LENGTH } = await import("./ai-service");
+    expect(SUMMARIZE_MIN_LENGTH).toBe(1000);
+  });
+});

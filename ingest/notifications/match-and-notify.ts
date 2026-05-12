@@ -100,10 +100,15 @@ async function sendNotifications(
 
     // plainText is set by AI pipeline (Filter & Split stage).
     // For precomputed-GeoJSON crawlers, text is already plain.
+    // summary (when present) is preferred to match what the detail view shows.
+    // summary may contain markdown — stripMarkdown() is applied downstream in
+    // buildNotificationPayload() before the text is used as notification body.
     const message: Message = {
       id: match.messageId,
       text:
-        getString(messageData.plainText) || getString(messageData.text),
+        getString(messageData.summary) ||
+        getString(messageData.plainText) ||
+        getString(messageData.text),
       locality: getString(messageData.locality),
       geoJson: isFeatureCollection(messageData.geoJson) ? messageData.geoJson : undefined,
       createdAt: toISOString(messageData.createdAt),

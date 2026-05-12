@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { ExtractedLocations } from "@/lib/extract-locations.schema";
 import type { CategorizationResult } from "@/lib/categorize.schema";
 import type { FilterSplitResult } from "@/lib/filter-split.schema";
+import type { SummarizeResult } from "@/lib/summarize.schema";
 
 interface FixtureMap {
   [key: string]: any;
@@ -146,5 +147,15 @@ export class GeminiMockService {
 
     // Default to pins and streets
     return this.extractFixtures.pins ?? null;
+  }
+
+  async summarize(text: string): Promise<SummarizeResult | null> {
+    if (this.customFixturePath) {
+      return JSON.parse(readFileSync(this.customFixturePath, "utf-8"));
+    }
+
+    return {
+      summary: `Резюме: ${text.slice(0, 50)}...`,
+    };
   }
 }

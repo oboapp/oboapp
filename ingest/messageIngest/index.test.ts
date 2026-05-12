@@ -255,6 +255,7 @@ describe("messageIngest sourceDocumentId precedence", () => {
   it("uses explicit sourceDocumentId directly without calling encodeDocumentId", async () => {
     await messageIngest("test text", "test-source", {
       precomputedGeoJson: PRECOMPUTED_GEOJSON,
+      markdownText: "Test markdown text",
       sourceUrl: "https://user-facing.example.com/article/42",
       sourceDocumentId: "explicit-doc-id-from-source-url",
       locality: "bg.sofia",
@@ -279,6 +280,7 @@ describe("messageIngest sourceDocumentId precedence", () => {
 
     await messageIngest("test text", "sofia-bg", {
       precomputedGeoJson: PRECOMPUTED_GEOJSON,
+      markdownText: "Test markdown text",
       sourceUrl,
       locality: "bg.sofia",
     });
@@ -300,6 +302,7 @@ describe("messageIngest sourceDocumentId precedence", () => {
   it("passes undefined sourceDocumentId when neither sourceDocumentId nor sourceUrl is provided", async () => {
     await messageIngest("test text", "web-interface", {
       precomputedGeoJson: PRECOMPUTED_GEOJSON,
+      markdownText: "Test markdown text",
       locality: "bg.sofia",
     });
 
@@ -321,6 +324,7 @@ describe("messageIngest sourceDocumentId precedence", () => {
 
     await messageIngest("test text", "sofia-bg", {
       precomputedGeoJson: PRECOMPUTED_GEOJSON,
+      markdownText: "Test markdown text",
       sourceUrl,
       sourceDocumentId: explicitId,
       locality: "bg.sofia",
@@ -335,16 +339,16 @@ describe("messageIngest sourceDocumentId precedence", () => {
     expect(callArgs[5]).not.toBe(`encoded(${sourceUrl})`);
   });
 
-  it("stores timespans for precomputed GeoJSON even when markdownText is missing", async () => {
+  it("stores timespans for precomputed GeoJSON alongside markdownText", async () => {
     const sourceTimespanStart = new Date("2026-03-01T08:00:00Z");
     const sourceTimespanEnd = new Date("2026-03-01T12:00:00Z");
 
     await messageIngest("test text", "sofiyska-voda", {
       precomputedGeoJson: PRECOMPUTED_GEOJSON,
+      markdownText: "**Прекъсване** на водоснабдяването",
       locality: "bg.sofia",
       timespanStart: sourceTimespanStart,
       timespanEnd: sourceTimespanEnd,
-      // markdownText intentionally omitted
     });
 
     const updatePayloads = mockUpdateMessage.mock.calls.map((call) => call[1]);
@@ -406,6 +410,7 @@ describe("event matching after finalization", () => {
   it("calls event matching after finalization when geoJson is present", async () => {
     await messageIngest("test text", "toplo-bg", {
       precomputedGeoJson: PRECOMPUTED_GEOJSON,
+      markdownText: "**Лошо** качество на въздуха",
       locality: "bg.sofia",
     });
 
@@ -431,6 +436,7 @@ describe("event matching after finalization", () => {
 
     const result = await messageIngest("test text", "toplo-bg", {
       precomputedGeoJson: PRECOMPUTED_GEOJSON,
+      markdownText: "**Лошо** качество на въздуха",
       boundaryFilter: BOUNDARY_GEOJSON,
       locality: "bg.sofia",
     });
@@ -447,6 +453,7 @@ describe("event matching after finalization", () => {
 
     const result = await messageIngest("test text", "toplo-bg", {
       precomputedGeoJson: PRECOMPUTED_GEOJSON,
+      markdownText: "**Лошо** качество на въздуха",
       locality: "bg.sofia",
     });
 
@@ -483,6 +490,7 @@ describe("event matching after finalization", () => {
 
     await messageIngest("test text", "toplo-bg", {
       precomputedGeoJson: PRECOMPUTED_GEOJSON,
+      markdownText: "**Лошо** качество на въздуха",
       locality: "bg.sofia",
     });
 
@@ -507,6 +515,7 @@ describe("event matching after finalization", () => {
   it("stores embedding null-result audit when embedding returns null", async () => {
     await messageIngest("test text", "toplo-bg", {
       precomputedGeoJson: PRECOMPUTED_GEOJSON,
+      markdownText: "**Лошо** качество на въздуха",
       locality: "bg.sofia",
     });
 

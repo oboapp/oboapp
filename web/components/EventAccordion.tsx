@@ -123,7 +123,7 @@ export default function EventAccordion({ event }: EventAccordionProps) {
   const contentId = useId();
   const titleId = useId();
 
-  const snippet = makeSnippet(event.plainText, 200);
+  const snippet = makeSnippet(event.markdownText || event.plainText || "", 200);
   const timespan = formatTimespan(event.timespanStart, event.timespanEnd);
 
   return (

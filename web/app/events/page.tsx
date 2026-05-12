@@ -42,7 +42,7 @@ const fetchEvents = async ({
 };
 
 function SingleEventCard({ event }: { readonly event: Event }) {
-  const displayText = event.markdownText || event.plainText;
+  const displayText = event.markdownText || event.plainText || "";
   const clean = stripMarkdown(displayText);
   const snippet = createSnippet(clean, 150);
   const timespan = formatTimespan(event.timespanStart, event.timespanEnd);
