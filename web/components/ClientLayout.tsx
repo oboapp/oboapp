@@ -12,8 +12,10 @@ import { Toaster, toast } from "sonner";
 
 export default function ClientLayout({
   children,
+  showHistoryReportLink,
 }: Readonly<{
   children: React.ReactNode;
+  showHistoryReportLink: boolean;
 }>) {
   const pathname = usePathname();
   const isClient = typeof window !== "undefined";
@@ -75,6 +77,7 @@ export default function ClientLayout({
             <div className="flex-1 flex flex-col overflow-y-auto">
               <main className="flex-1 flex flex-col">{children}</main>
               <Footer
+                showHistoryReportLink={showHistoryReportLink}
                 className={hideFooterOnMobile ? "hidden sm:block" : undefined}
               />
             </div>

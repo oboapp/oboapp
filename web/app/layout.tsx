@@ -9,6 +9,7 @@ import {
   PWA_MANIFEST_PATH,
 } from "@/lib/pwa-metadata";
 import { getConfiguredLocalityDescription } from "@/lib/locality-metadata";
+import { hasReportPagesEnabled } from "@/lib/report-pages";
 
 const description = getConfiguredLocalityDescription();
 
@@ -56,6 +57,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+  const showHistoryReportLink = hasReportPagesEnabled();
 
   return (
     <html lang="bg">
@@ -104,7 +106,9 @@ export default function RootLayout({
             </Script>
           </>
         )}
-        <ClientLayout>{children}</ClientLayout>
+        <ClientLayout showHistoryReportLink={showHistoryReportLink}>
+          {children}
+        </ClientLayout>
       </body>
     </html>
   );

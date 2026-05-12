@@ -1,9 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { APP_NAME } from "@/lib/pwa-metadata";
-import { hasReportPagesEnabled } from "@/lib/report-pages";
 
 interface FooterProps {
   readonly className?: string;
+  readonly showHistoryReportLink: boolean;
 }
 
 const NAV_LINKS = [
@@ -15,8 +17,11 @@ const NAV_LINKS = [
   { href: "/events", label: "Групирани съобщения" },
 ] as const;
 
-export default function Footer({ className = "" }: FooterProps) {
-  const navLinks = hasReportPagesEnabled()
+export default function Footer({
+  className = "",
+  showHistoryReportLink,
+}: FooterProps) {
+  const navLinks = showHistoryReportLink
     ? [
         ...NAV_LINKS.slice(0, 4),
         { href: "/history", label: "Исторически данни" },
