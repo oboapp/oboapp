@@ -1,7 +1,6 @@
-"use client";
-
 import Link from "next/link";
 import { APP_NAME } from "@/lib/pwa-metadata";
+import { hasReportPagesEnabled } from "@/lib/report-pages";
 
 interface FooterProps {
   readonly className?: string;
@@ -12,12 +11,19 @@ const NAV_LINKS = [
   { href: "/open-source", label: `${APP_NAME} е отворен` },
   { href: "/sources", label: "Източници на данни" },
   { href: "/ingest-errors", label: "Съобщения с грешки" },
-  { href: "/history", label: "Исторически данни" },
   { href: "/unreadable", label: "Нелокализирани съобщения" },
   { href: "/events", label: "Групирани съобщения" },
 ] as const;
 
 export default function Footer({ className = "" }: FooterProps) {
+  const navLinks = hasReportPagesEnabled()
+    ? [
+        ...NAV_LINKS.slice(0, 4),
+        { href: "/history", label: "Исторически данни" },
+        ...NAV_LINKS.slice(4),
+      ]
+    : NAV_LINKS;
+
   return (
     <footer className={`border-t border-neutral-border ${className}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -27,7 +33,7 @@ export default function Footer({ className = "" }: FooterProps) {
             За <span translate="no">{APP_NAME}</span>
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 text-sm">
-            {NAV_LINKS.map(({ href, label }) => (
+            {navLinks.map(({ href, label }) => (
               <div key={href}>
                 <Link
                   href={href}

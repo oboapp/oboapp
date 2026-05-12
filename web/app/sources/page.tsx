@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { getCurrentLocalitySources } from "@/lib/source-utils";
 import geocodingSources from "@/lib/geocoding-sources";
+import { hasReportPagesEnabled } from "@/lib/report-pages";
 import SourceCard from "@/components/SourceCard";
 import GeocodingSourceCard from "@/components/GeocodingSourceCard";
 import { APP_NAME } from "@/lib/pwa-metadata";
@@ -45,14 +46,16 @@ export default function SourcesPage() {
         >
           Geocoding
         </h2>
-        <p className="text-sm mb-6">
-          <Link
-            href="/geocode-cache"
-            className="text-link hover:text-link-hover hover:underline"
-          >
-            Преглед на кеша →
-          </Link>
-        </p>
+        {hasReportPagesEnabled() && (
+          <p className="text-sm mb-6">
+            <Link
+              href="/geocode-cache"
+              className="text-link hover:text-link-hover hover:underline"
+            >
+              Преглед на кеша →
+            </Link>
+          </p>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {geocodingSources.map((source) => (
