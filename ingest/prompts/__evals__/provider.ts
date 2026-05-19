@@ -81,6 +81,22 @@ interface ProviderResponse {
   error?: string;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+}
+
+function isTransientGeminiError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("high demand") ||
+    normalized.includes("overloaded") ||
+    normalized.includes("unavailable") ||
+    normalized.includes("rate limit") ||
+    normalized.includes("429") ||
+    normalized.includes("503")
+  );
+}
+
 /**
  * Default export class — instantiated by promptfoo via `new Provider(options)`.
  * Reads config.promptFile to load the appropriate system instruction.
@@ -104,7 +120,10 @@ class GeminiPipelineProvider {
     return this.providerId;
   }
 
-  async callApi(prompt: string): Promise<ProviderResponse> {
+  async callApi(
+    prompt: string,
+    context?: { vars?: Record<string, string> },
+  ): Promise<ProviderResponse> {
     const model = process.env.GOOGLE_AI_MODEL;
     if (!model) {
       return { error: "GOOGLE_AI_MODEL environment variable is not set" };
@@ -115,7 +134,28 @@ class GeminiPipelineProvider {
 
     try {
       const { loadPrompt } = await import("../../lib/ai-prompts");
-      systemInstruction = loadPrompt(this.promptFile);
+      const vars = context?.vars ?? {};
+
+      // Build a PromptContext from test vars when provided, so evals exercise
+      // the same date/source substitution as production.
+      let currentDate = new Date();
+      if (vars.currentDate) {
+        const parsed = new Date(vars.currentDate);
+        if (Number.isNaN(parsed.getTime())) {
+          console.error(
+            `[provider] Invalid currentDate var: "${vars.currentDate}" — falling back to now`,
+          );
+        } else {
+          currentDate = parsed;
+        }
+      }
+      const promptCtx = {
+        currentDate,
+        sourceType: vars.sourceType,
+        sourceUrl: vars.sourceUrl,
+      };
+
+      systemInstruction = loadPrompt(this.promptFile, promptCtx);
       responseSchema = await loadResponseSchema(this.promptFile);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -124,24 +164,40 @@ class GeminiPipelineProvider {
       };
     }
 
-    try {
-      const client = getClient();
-      const response = await client.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          systemInstruction,
-          responseMimeType: "application/json",
-          ...(responseSchema ? { responseJsonSchema: responseSchema } : {}),
-        },
-      });
+    const client = getClient();
+    const maxAttempts = 3;
+    const baseDelayMs = 1200;
 
-      const text = response.text || "";
-      return { output: text };
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      return { error: `Gemini API error: ${msg}` };
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const response = await client.models.generateContent({
+          model,
+          contents: prompt,
+          config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            ...(responseSchema ? { responseJsonSchema: responseSchema } : {}),
+          },
+        });
+
+        const text = response.text || "";
+        return { output: text };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        const canRetry = isTransientGeminiError(msg) && attempt < maxAttempts;
+
+        if (!canRetry) {
+          return { error: `Gemini API error: ${msg}` };
+        }
+
+        const delayMs = baseDelayMs * attempt;
+        await sleep(delayMs);
+      }
     }
+
+    return {
+      error: "Gemini API error: exhausted retry attempts without a response",
+    };
   }
 }
 

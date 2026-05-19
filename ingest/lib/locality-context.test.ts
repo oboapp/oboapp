@@ -57,7 +57,9 @@ describe("applyLocalityContext()", () => {
     writeFileSync(join(localitiesDir, "test.locality.yaml"), VALID_YAML);
     const { applyLocalityContext } = await import("./locality-context");
 
-    expect(applyLocalityContext("{{ADDRESS_HINTS}}")).toBe("near the main road");
+    expect(applyLocalityContext("{{ADDRESS_HINTS}}")).toBe(
+      "near the main road",
+    );
   });
 
   it("returns template unchanged when no placeholders are present", async () => {
@@ -76,6 +78,35 @@ describe("applyLocalityContext()", () => {
     expect(() => applyLocalityContext("{{UNKNOWN_KEY}}")).toThrow(
       /unresolved placeholders.*\{\{UNKNOWN_KEY\}\}/i,
     );
+  });
+
+  it("applies extraSubstitutions alongside locality placeholders", async () => {
+    writeFileSync(join(localitiesDir, "test.locality.yaml"), VALID_YAML);
+    const { applyLocalityContext } = await import("./locality-context");
+
+    expect(
+      applyLocalityContext("{{CITY}} - {{CURRENT_DATE}}", {
+        "{{CURRENT_DATE}}": "19.05.2026",
+      }),
+    ).toBe("TestCity - 19.05.2026");
+  });
+
+  it("extraSubstitutions prevent unresolved placeholder error", async () => {
+    writeFileSync(join(localitiesDir, "test.locality.yaml"), VALID_YAML);
+    const { applyLocalityContext } = await import("./locality-context");
+
+    expect(() =>
+      applyLocalityContext("{{DYNAMIC_KEY}}", { "{{DYNAMIC_KEY}}": "value" }),
+    ).not.toThrow();
+  });
+
+  it("extraSubstitutions can override locality placeholders", async () => {
+    writeFileSync(join(localitiesDir, "test.locality.yaml"), VALID_YAML);
+    const { applyLocalityContext } = await import("./locality-context");
+
+    expect(
+      applyLocalityContext("{{CITY}}", { "{{CITY}}": "OverrideCity" }),
+    ).toBe("OverrideCity");
   });
 });
 
@@ -98,7 +129,10 @@ describe("loadLocalityContext() error handling", () => {
   });
 
   it("throws a distinct 'Invalid YAML' error for YAML parse failures", async () => {
-    writeFileSync(join(localitiesDir, "test.locality.yaml"), "{ invalid yaml {{{");
+    writeFileSync(
+      join(localitiesDir, "test.locality.yaml"),
+      "{ invalid yaml {{{",
+    );
     const { applyLocalityContext } = await import("./locality-context");
 
     expect(() => applyLocalityContext("{{CITY}}")).toThrow(/Invalid YAML/);

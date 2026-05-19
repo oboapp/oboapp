@@ -80,9 +80,13 @@ export function getLocalityContext(): LocalityContext {
 
 /**
  * Applies locality-specific placeholder substitution to a prompt template string.
+ * Optionally accepts extra dynamic substitutions (e.g. current date, source info).
  * Throws if any {{PLACEHOLDER}} remains unresolved after substitution.
  */
-export function applyLocalityContext(template: string): string {
+export function applyLocalityContext(
+  template: string,
+  extraSubstitutions?: Record<string, string>,
+): string {
   const ctx = getLocalityContext();
 
   const substitutions: Record<string, string> = {
@@ -91,6 +95,7 @@ export function applyLocalityContext(template: string): string {
     "{{PRIMARY_LANGUAGE}}": ctx["primary-language"],
     "{{DISTRICTS}}": ctx.districts.join(", "),
     "{{ADDRESS_HINTS}}": ctx["address-hints"],
+    ...extraSubstitutions,
   };
 
   let result = template;

@@ -93,32 +93,26 @@ tests:
         config:
           value: 3
       - type: javascript
-        value: |
-          (output) => {
-            const data = typeof output === 'string' ? JSON.parse(output) : output;
-            const pins = Array.isArray(data?.pins) ? data.pins : [];
+        value: "file://assertions.ts:assertPinsUseNormalizedBlockAddress"
 
-            const positionalPattern = /(?:^|[\s,.])(до|пред|зад|срещу|при|между)(?:[\s,.]|$)/;
-            const normalizedPattern = /^бл\.\s*\d+,\s*ж\.к\. .+/;
-
-            for (const pin of pins) {
-              if (!pin || typeof pin.address !== 'string' || !pin.address.trim()) {
-                throw new Error('Every pin must have a non-empty address string');
-              }
-
-              const addrLower = pin.address.toLowerCase();
-              if (positionalPattern.test(addrLower)) {
-                throw new Error(
-                  `Unnormalized positional wording found in pin address: "${pin.address}"`
-                );
-              }
-
-              if (!normalizedPattern.test(addrLower)) {
-                throw new Error(
-                  `Pin address is not normalized as "бл. <n>, ж.к. <name>": "${pin.address}"`
-                );
-              }
-            }
-
-            return true;
-          }
+  # Regression: year-less date ("на 16 май от 16.00 часа") — LLM must use currentDate's year,
+  # not guess a past year (production bug: 2024 was guessed instead of 2026).
+  - vars:
+      input: "file://../../__mocks__/fixtures/sources/event-day-month-only.md"
+      currentDate: "2026-05-18T07:00:00.000Z"
+      sourceType: "sdvr-mvr-bg"
+      sourceUrl: "https://www.mvr.bg/sdvr"
+    assert:
+      - type: javascript
+        value: "file://assertions.ts:validateExtractLocationsSchema"
+      - type: javascript
+        value: "file://assertions.ts:assertHasLocations"
+      - type: javascript
+        value: "file://assertions.ts:assertWithSpecificAddress"
+        config:
+          value: "true"
+      # Core regression guard: the extracted year must be 2026, not 2024 or any other past year
+      - type: javascript
+        value: "file://assertions.ts:assertTimespanYear"
+        config:
+          value: 2026

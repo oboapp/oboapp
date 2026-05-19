@@ -496,6 +496,68 @@ export function assertMinPinCount(
 }
 
 /**
+ * Asserts that every pin address uses normalized block format
+ * "бл. <n>, ж.к. <name>" and does not contain positional wording.
+ */
+export function assertPinsUseNormalizedBlockAddress(
+  output: string,
+  _context: AssertionValueFunctionContext,
+): GradingResult {
+  const parsed = parseOutput(output);
+  if (!parsed.success) return parsed.result;
+
+  const data = toRecord(parsed.data);
+  const pins = Array.isArray(data.pins) ? data.pins : [];
+
+  const positionalPattern =
+    /(?:^|[\s,.])(до|пред|зад|срещу|при|между)(?:[\s,.]|$)/;
+  const normalizedPattern = /^бл\.\s*\d+,\s*ж\.к\. .+/;
+
+  for (const pin of pins) {
+    if (!isRecord(pin)) {
+      return {
+        pass: false,
+        score: 0,
+        reason: "Every pin must be an object",
+      };
+    }
+
+    const address = pin.address;
+    if (typeof address !== "string" || !address.trim()) {
+      return {
+        pass: false,
+        score: 0,
+        reason: "Every pin must have a non-empty address string",
+      };
+    }
+
+    const normalizedAddress = address.trim().toLowerCase();
+
+    if (positionalPattern.test(normalizedAddress)) {
+      return {
+        pass: false,
+        score: 0,
+        reason: `Unnormalized positional wording found in pin address: "${address}"`,
+      };
+    }
+
+    if (!normalizedPattern.test(normalizedAddress)) {
+      return {
+        pass: false,
+        score: 0,
+        reason: `Pin address is not normalized as "бл. <n>, ж.к. <name>": "${address}"`,
+      };
+    }
+  }
+
+  return {
+    pass: true,
+    score: 1,
+    reason: "All pin addresses use normalized block format",
+  };
+}
+
+/**
  * Asserts that extract-locations output contains a specific educational facility.
  * Usage in YAML: config.value should be "{type}:{number}", e.g., "school:93"
  */
@@ -578,6 +640,65 @@ export function assertSummaryIsShorter(
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
+
+/**
+ * Asserts that every timespan in every pin uses the expected year.
+ * Catches the bug where the LLM guesses a past year for a year-less date.
+ *
+ * Usage in YAML: config.value should be the expected 4-digit year, e.g. 2026
+ *
+ * The assertion matches the Bulgarian date format "DD.MM.YYYY HH:MM" produced
+ * by the extract-locations prompt, e.g. "16.05.2026 16:00".
+ */
+export function assertTimespanYear(
+  output: string,
+  context: AssertionValueFunctionContext,
+): GradingResult {
+  const parsed = parseOutput(output);
+  if (!parsed.success) return parsed.result;
+
+  const data = toRecord(parsed.data);
+  const expectedYear = String(context.config?.value ?? "").trim();
+
+  if (!expectedYear || !/^\d{4}$/.test(expectedYear)) {
+    return {
+      pass: false,
+      score: 0,
+      reason:
+        "assertTimespanYear requires config.value to be a 4-digit year, e.g. 2026",
+    };
+  }
+
+  // Collect all timespans across all pins
+  const pins = Array.isArray(data.pins) ? data.pins : [];
+  const violations: string[] = [];
+  const yearPattern = /\d{2}\.\d{2}\.(\d{4})/;
+
+  for (const pin of pins.filter(isRecord)) {
+    const timespans = Array.isArray(pin.timespans) ? pin.timespans : [];
+    for (const ts of timespans.filter(isRecord)) {
+      for (const field of ["start", "end"] as const) {
+        const val = ts[field];
+        if (typeof val !== "string" || val === null) continue;
+        const match = yearPattern.exec(val);
+        if (match && match[1] !== expectedYear) {
+          violations.push(
+            `pin "${String(pin.address ?? "?")}" ${field}="${val}" has year ${match[1]}, expected ${expectedYear}`,
+          );
+        }
+      }
+    }
+  }
+
+  const pass = violations.length === 0;
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? `All timespans use year ${expectedYear}`
+      : `Incorrect year in timespans: ${violations.join("; ")}`,
+  };
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

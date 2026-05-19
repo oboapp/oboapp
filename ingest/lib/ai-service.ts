@@ -27,6 +27,7 @@ import {
   getExtractLocationsPrompt,
   getSummarizePrompt,
 } from "./ai-prompts";
+import type { PromptContext } from "./ai-prompts";
 import { callGeminiApi } from "./ai-client";
 
 // Check if mocking is enabled
@@ -106,6 +107,7 @@ async function callAiStep<T>(
 export async function filterAndSplit(
   text: string,
   ingestErrors?: IngestErrorRecorder,
+  ctx?: PromptContext,
 ): Promise<FilterSplitResult | null> {
   return callAiStep(
     text,
@@ -115,7 +117,7 @@ export async function filterAndSplit(
       purpose: "filter & split",
       mockLabel: "filter & split",
       mockFn: mockService ? (t) => mockService.filterAndSplit(t) : null,
-      getPrompt: getFilterSplitPrompt,
+      getPrompt: () => getFilterSplitPrompt(ctx),
       schema: FILTER_SPLIT_JSON_SCHEMA,
       parse: parseFilterSplitResponse,
     },
@@ -131,6 +133,7 @@ export async function filterAndSplit(
 export async function categorize(
   text: string,
   ingestErrors?: IngestErrorRecorder,
+  ctx?: PromptContext,
 ): Promise<CategorizationResult | null> {
   return callAiStep(
     text,
@@ -140,7 +143,7 @@ export async function categorize(
       purpose: "message categorization",
       mockLabel: "categorization",
       mockFn: mockService ? (t) => mockService.categorize(t) : null,
-      getPrompt: getCategorizePrompt,
+      getPrompt: () => getCategorizePrompt(ctx),
       schema: CATEGORIZE_JSON_SCHEMA,
       parse: parseCategorizeResponse,
     },
@@ -157,6 +160,7 @@ export async function categorize(
 export async function extractLocations(
   text: string,
   ingestErrors?: IngestErrorRecorder,
+  ctx?: PromptContext,
 ): Promise<ExtractedLocations | null> {
   return callAiStep(
     text,
@@ -167,7 +171,7 @@ export async function extractLocations(
       sanitize: true,
       mockLabel: "location extraction",
       mockFn: mockService ? (t) => mockService.extractLocations(t) : null,
-      getPrompt: getExtractLocationsPrompt,
+      getPrompt: () => getExtractLocationsPrompt(ctx),
       schema: EXTRACT_LOCATIONS_JSON_SCHEMA,
       parse: parseExtractLocationsResponse,
     },
@@ -188,6 +192,7 @@ export const SUMMARIZE_MIN_LENGTH = Number.isNaN(_parsedMinLength)
 export async function summarize(
   text: string,
   ingestErrors?: IngestErrorRecorder,
+  ctx?: PromptContext,
 ): Promise<SummarizeResult | null> {
   if (text.length < SUMMARIZE_MIN_LENGTH) {
     return null;
@@ -201,7 +206,7 @@ export async function summarize(
       purpose: "summarization",
       mockLabel: "summarization",
       mockFn: mockService ? (t) => mockService.summarize(t) : null,
-      getPrompt: getSummarizePrompt,
+      getPrompt: () => getSummarizePrompt(ctx),
       schema: SUMMARIZE_JSON_SCHEMA,
       parse: parseSummarizeResponse,
     },

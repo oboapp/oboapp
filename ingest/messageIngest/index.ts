@@ -344,8 +344,15 @@ async function processWithAIPipeline(
   const { filterAndSplit, categorize, extractLocations, summarize } =
     await import("../lib/ai-service");
 
+  const crawledAt = ensureCrawledAtDate(options.crawledAt);
+  const promptCtx = {
+    currentDate: crawledAt,
+    sourceType: source,
+    sourceUrl: options.sourceUrl,
+  };
+
   // Step 1: Filter & Split
-  const filterResult = await filterAndSplit(text);
+  const filterResult = await filterAndSplit(text, undefined, promptCtx);
 
   if (!filterResult || filterResult.length === 0) {
     logger.error("Failed to filter & split message");
@@ -435,13 +442,14 @@ async function processWithAIPipeline(
       storedMessageId,
       filteredMessage.plainText,
       ingestErrors,
-      summarize,
+      (text, errors) => summarize(text, errors, promptCtx),
     );
 
     // Step 2: Categorize (using plainText which is now guaranteed non-empty)
     const categorizationResult = await categorize(
       filteredMessage.plainText,
       ingestErrors,
+      promptCtx,
     );
 
     // Early exit: Categorization failed (API error or parse failure)
@@ -486,6 +494,7 @@ async function processWithAIPipeline(
     const extractedLocations = await extractLocations(
       filteredMessage.plainText,
       ingestErrors,
+      promptCtx,
     );
 
     // If extraction failed, finalize without GeoJSON
@@ -506,7 +515,6 @@ async function processWithAIPipeline(
       continue;
     }
 
-    const crawledAt = ensureCrawledAtDate(options.crawledAt);
     await storeExtractedLocations(
       storedMessageId,
       extractedLocations,
@@ -729,7 +737,10 @@ async function storeSummary(
   messageId: string,
   text: string,
   ingestErrors: IngestErrorCollector,
-  summarizeService: (text: string, ingestErrors?: IngestErrorCollector) => Promise<{ summary: string } | null>,
+  summarizeService: (
+    text: string,
+    ingestErrors?: IngestErrorCollector,
+  ) => Promise<{ summary: string } | null>,
 ): Promise<void> {
   try {
     const result = await summarizeService(text, ingestErrors);
