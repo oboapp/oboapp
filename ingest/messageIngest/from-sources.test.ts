@@ -43,13 +43,9 @@ describe("isAlreadyIngested", () => {
   let mockAdminDb: MockFirestoreCollection;
   let mockQuery: MockFirestoreQuery;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     // Reset mocks
     vi.clearAllMocks();
-
-    // Import the function we want to test
-    // Note: This is an internal function, so we need to access it via a test export or dynamic import
-    const _module = await import("./from-sources");
 
     // Since isAlreadyIngested is not exported, we'll create a test helper
     // that mimics its functionality for testing purposes
