@@ -81,11 +81,14 @@ For event aggregation records, `null` is used intentionally to represent "known 
 MongoDB runs via Docker Compose:
 
 ```bash
-docker compose up -d          # Start MongoDB + Mongo Express
+docker compose up -d          # Start MongoDB + Mongo Express + one-shot index provisioning
 ```
 
 - **MongoDB**: `localhost:27017` (user: `oboapp`, password: `oboapp_dev`)
 - **Mongo Express** (admin UI): `localhost:8081`
+- **Indexes**: the `mongo-indexes` one-shot service waits for MongoDB to become healthy,
+  then runs `pnpm indexes:ensure` from the DB package to apply index definitions.
+  It attempts to create all indexes and reports failures at the end, and it is safe to re-run.
 
 ## Migration Scripts
 
@@ -97,13 +100,16 @@ cd db && npx tsx migrate/<script-name>.ts
 
 ## MongoDB Indexes
 
-Defined in `db/src/indexes.ts`. Applied automatically via `ensureIndexes()` or manually:
+Indexes are defined in the DB package and applied by the default Docker `mongo-indexes`
+service. For non-Docker environments, run them manually:
 
 ```bash
-cd db && npx tsx -e "import { ensureIndexes } from './src/indexes'; ensureIndexes(db)"
+cd db && MONGODB_URI=mongodb://localhost:27017 pnpm indexes:ensure
 ```
 
 Notable MongoDB-specific indexes beyond Firestore equivalents:
 
 - **2dsphere** on `geoJson.features.geometry` — enables native geospatial queries, replacing app-level viewport filtering
 - **Unique compound** on `notificationSubscriptions.userId + token` — prevents duplicate FCM registrations
+- **Locality-scoped message indexes** — support public consumers that filter by locality,
+  active timespan, category/city-wide status, and incremental sync timestamps

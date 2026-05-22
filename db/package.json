@@ -16,6 +16,8 @@
   },
   "scripts": {
     "build": "tsc -p .",
+    "indexes:ensure": "tsx src/scripts/ensure-indexes.ts",
+    "indexes:ensure:built": "node dist/scripts/ensure-indexes.js",
     "test": "vitest --config vitest.config.mts",
     "test:run": "vitest run --config vitest.config.mts",
     "lint": "eslint .",
@@ -36,6 +38,7 @@
   },
   "devDependencies": {
     "@types/node": "^20",
+    "tsx": "^4.22.3",
     "typescript": "^5",
     "vitest": "^4.0.15"
   }

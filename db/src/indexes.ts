@@ -56,6 +56,34 @@ export const INDEX_DEFINITIONS: IndexDefinition[] = [
     spec: { sourceDocumentId: 1 },
     options: { name: "sourceDocumentId" },
   },
+  // Indexes for public consumers that filter messages by locality before applying
+  // timespan, category, city-wide, and incremental sync constraints.
+  {
+    collection: "messages",
+    spec: { locality: 1, timespanEnd: 1, finalizedAt: -1 },
+    options: { name: "locality_timespanEnd_finalizedAt" },
+  },
+  {
+    collection: "messages",
+    spec: { locality: 1, categories: 1, timespanEnd: 1, finalizedAt: -1 },
+    options: { name: "locality_categories_timespanEnd_finalizedAt" },
+  },
+  {
+    collection: "messages",
+    spec: { locality: 1, cityWide: 1, timespanEnd: 1, finalizedAt: -1 },
+    options: { name: "locality_cityWide_timespanEnd_finalizedAt" },
+  },
+
+  // Required by ysm-api src/endpoints/updatesExport.ts, which filters by
+  // locality and sorts incremental exports by finalizedAt first, then
+  // crawledAt. No known consumer sorts the same query by crawledAt first.
+  // Once YSM has its fork, we can move this index to their codebase
+  // and remove it from oboapp/oboapp.
+  {
+    collection: "messages",
+    spec: { locality: 1, finalizedAt: -1, crawledAt: -1 },
+    options: { name: "locality_finalizedAt_crawledAt" },
+  },
   // 2dsphere index for geospatial queries (replaces app-level geo filtering)
   {
     collection: "messages",
@@ -175,6 +203,8 @@ export const INDEX_DEFINITIONS: IndexDefinition[] = [
 export async function ensureIndexes(db: Db): Promise<void> {
   console.log("Ensuring MongoDB indexes...\n");
 
+  const failures: string[] = [];
+
   for (const def of INDEX_DEFINITIONS) {
     try {
       const name = await db
@@ -186,7 +216,12 @@ export async function ensureIndexes(db: Db): Promise<void> {
         `  ✗ ${def.collection}: ${def.options?.name ?? "unnamed"}`,
         err instanceof Error ? err.message : err,
       );
+      failures.push(`${def.collection}:${def.options?.name ?? "unnamed"}`);
     }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`Failed to create MongoDB indexes: ${failures.join(", ")}`);
   }
 
   console.log("\nIndex creation complete.");

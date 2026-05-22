@@ -1,0 +1,18 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY db/package.json ./db/package.json
+COPY shared/package.json ./shared/package.json
+
+RUN pnpm install --frozen-lockfile --filter @oboapp/db... --ignore-scripts
+
+COPY db ./db
+COPY shared ./shared
+
+RUN pnpm --filter @oboapp/shared build && pnpm --filter @oboapp/db build
+
+CMD ["pnpm", "--filter", "@oboapp/db", "indexes:ensure:built"]
