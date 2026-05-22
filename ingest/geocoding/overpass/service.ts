@@ -1145,7 +1145,6 @@ export async function getStreetSectionGeometry(
           if (dist < nearestDist) {
             nearestDist = dist;
             nearestSegmentIdx = i;
-            // nearestSnap = snapped; // unused but kept for potential debugging
           }
         }
 

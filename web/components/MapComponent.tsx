@@ -52,12 +52,6 @@ interface MapComponentProps {
   readonly selectedMessageId?: string | null;
 }
 
-// Oborishte District center coordinates
-// const OBORISHTE_CENTER = {
-//   lat: 42.6977,
-//   lng: 23.3341,
-// };
-
 // Bounds to restrict map panning (imported from @/lib/bounds-utils)
 
 const mapContainerStyle = {
@@ -200,7 +194,8 @@ function MapLoaded({
     const baseOptions = {
       ...mapOptions,
       disableDefaultUI: true,
-      gestureHandling: "greedy" satisfies google.maps.MapOptions["gestureHandling"],
+      gestureHandling:
+        "greedy" satisfies google.maps.MapOptions["gestureHandling"],
     } as const;
 
     // Only include center if map hasn't loaded yet (mapInstance is null)
@@ -410,7 +405,9 @@ export default function MapComponent(props: MapComponentProps) {
   if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
     return (
       <div className="absolute inset-0 flex items-center justify-center bg-neutral-light">
-        <p className="text-destructive">Няма настроен ключ за Google Maps API</p>
+        <p className="text-destructive">
+          Няма настроен ключ за Google Maps API
+        </p>
       </div>
     );
   }

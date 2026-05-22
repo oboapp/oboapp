@@ -1,4 +1,5 @@
 import tseslint from "typescript-eslint";
+import sonarjs from "eslint-plugin-sonarjs";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 
@@ -7,6 +8,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const eslintConfig = [
   ...tseslint.configs.recommended,
   {
+    plugins: {
+      sonarjs,
+    },
     languageOptions: {
       parserOptions: {
         projectService: true,
@@ -37,6 +41,7 @@ const eslintConfig = [
         "error",
         { assertionStyle: "never" },
       ],
+      "sonarjs/no-commented-code": "error",
     },
   },
   // Allow 'any' and type assertions in test files, mocks, and scripts for testing/utility purposes

@@ -1,5 +1,6 @@
 import nextVitals from "eslint-config-next/core-web-vitals";
 import tseslint from "typescript-eslint";
+import sonarjs from "eslint-plugin-sonarjs";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 
@@ -9,6 +10,9 @@ const eslintConfig = [
   ...nextVitals,
   ...tseslint.configs.recommended,
   {
+    plugins: {
+      sonarjs,
+    },
     languageOptions: {
       parserOptions: {
         projectService: true,
@@ -58,6 +62,9 @@ const eslintConfig = [
 
       // Enforce all static imports at the top of the file
       "import/first": "error",
+
+      // Disallow commented-out code blocks
+      "sonarjs/no-commented-code": "error",
     },
   },
   // Allow 'any' and type assertions in test files for mocking purposes

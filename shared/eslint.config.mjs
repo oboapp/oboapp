@@ -1,4 +1,5 @@
 import tseslint from "typescript-eslint";
+import sonarjs from "eslint-plugin-sonarjs";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 
@@ -7,10 +8,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const eslintConfig = [
   ...tseslint.configs.recommended,
   {
+    plugins: {
+      sonarjs,
+    },
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ["src/*.test.ts"],
+          allowDefaultProject: ["src/*.test.ts", "src/*/*.test.ts"],
         },
         tsconfigRootDir: __dirname,
       },
@@ -33,6 +37,7 @@ const eslintConfig = [
         "error",
         { assertionStyle: "never" },
       ],
+      "sonarjs/no-commented-code": "error",
     },
   },
   // Allow type assertions in test files (Stage 2 will ban these too)
