@@ -135,7 +135,7 @@ describe("shared/webpage-crawlers", () => {
   });
 
   describe("resource blocking", () => {
-    it("blocks configured resource types on the index page", async () => {
+    it("uses lightweight defaults on the index page", async () => {
       const { page, getRouteHandler } = createMockPage();
       const browser = createMockBrowser(page);
 
@@ -144,8 +144,6 @@ describe("shared/webpage-crawlers", () => {
         sourceType: "test-source",
         extractPostLinks: async () => [],
         processPost: vi.fn(),
-        waitUntil: "domcontentloaded",
-        blockedResourceTypes: ["image", "font"],
         browser,
       });
 
@@ -156,18 +154,22 @@ describe("shared/webpage-crawlers", () => {
 
       const routeHandler = getRouteHandler();
       const imageRoute = createRoute("image");
+      const fontRoute = createRoute("font");
       const scriptRoute = createRoute("script");
 
       await routeHandler(imageRoute.route, {} as never);
+      await routeHandler(fontRoute.route, {} as never);
       await routeHandler(scriptRoute.route, {} as never);
 
       expect(imageRoute.route.abort).toHaveBeenCalledTimes(1);
       expect(imageRoute.route.continue).not.toHaveBeenCalled();
+      expect(fontRoute.route.abort).toHaveBeenCalledTimes(1);
+      expect(fontRoute.route.continue).not.toHaveBeenCalled();
       expect(scriptRoute.route.continue).toHaveBeenCalledTimes(1);
       expect(scriptRoute.route.abort).not.toHaveBeenCalled();
     });
 
-    it("blocks configured resource types on post pages", async () => {
+    it("uses lightweight defaults on post pages", async () => {
       const { page, getRouteHandler } = createMockPage();
       const browser = createMockBrowser(page);
       const db = {} as OboDb;
@@ -189,9 +191,6 @@ describe("shared/webpage-crawlers", () => {
           dateText: "2026-05-29T10:00:00+03:00",
           contentHtml: "<p>Content</p>",
         }),
-        undefined,
-        "domcontentloaded",
-        ["image", "media"],
       );
 
       expect(page.route).toHaveBeenCalledWith("**/*", expect.any(Function));
@@ -204,13 +203,17 @@ describe("shared/webpage-crawlers", () => {
 
       const routeHandler = getRouteHandler();
       const mediaRoute = createRoute("media");
+      const imageRoute = createRoute("image");
       const stylesheetRoute = createRoute("stylesheet");
 
       await routeHandler(mediaRoute.route, {} as never);
+      await routeHandler(imageRoute.route, {} as never);
       await routeHandler(stylesheetRoute.route, {} as never);
 
       expect(mediaRoute.route.abort).toHaveBeenCalledTimes(1);
       expect(mediaRoute.route.continue).not.toHaveBeenCalled();
+      expect(imageRoute.route.abort).toHaveBeenCalledTimes(1);
+      expect(imageRoute.route.continue).not.toHaveBeenCalled();
       expect(stylesheetRoute.route.continue).toHaveBeenCalledTimes(1);
       expect(stylesheetRoute.route.abort).not.toHaveBeenCalled();
     });

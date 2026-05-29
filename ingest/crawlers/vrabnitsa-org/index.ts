@@ -19,8 +19,6 @@ const INDEX_URL = "https://vrabnitsa.sofia.bg/aktualno/news";
 const SOURCE_TYPE = "vrabnitsa-org";
 const LOCALITY = "bg.sofia";
 const DELAY_BETWEEN_REQUESTS = 2000;
-const WAIT_UNTIL = "domcontentloaded";
-const BLOCKED_RESOURCE_TYPES = ["image", "media", "font"] as const;
 
 export function parseVrabnitsaDate(dateText: string): string {
   const cleaned = dateText.replace(/^Публикувано:\s*/i, "").trim();
@@ -47,11 +45,7 @@ export function parseVrabnitsaDate(dateText: string): string {
   return parseBulgarianMonthDate(cleaned);
 }
 
-const processPost = (
-  browser: Browser,
-  postLink: PostLink,
-  db: OboDb,
-) =>
+const processPost = (browser: Browser, postLink: PostLink, db: OboDb) =>
   processWordpressPost(
     browser,
     postLink,
@@ -61,8 +55,6 @@ const processPost = (
     DELAY_BETWEEN_REQUESTS,
     extractPostDetails,
     parseVrabnitsaDate,
-    WAIT_UNTIL,
-    [...BLOCKED_RESOURCE_TYPES],
   );
 
 export async function crawl(): Promise<void> {
@@ -72,8 +64,6 @@ export async function crawl(): Promise<void> {
     extractPostLinks,
     processPost,
     delayBetweenRequests: DELAY_BETWEEN_REQUESTS,
-    waitUntil: WAIT_UNTIL,
-    blockedResourceTypes: [...BLOCKED_RESOURCE_TYPES],
   });
 }
 

@@ -21,7 +21,7 @@ describe("vrabnitsa-org/crawl config", () => {
     vi.clearAllMocks();
   });
 
-  it("uses lightweight navigation for the index page", async () => {
+  it("uses shared lightweight defaults for the index page", async () => {
     const mockedCrawlWordpressPage = vi.mocked(crawlWordpressPage);
     mockedCrawlWordpressPage.mockResolvedValueOnce();
 
@@ -34,11 +34,11 @@ describe("vrabnitsa-org/crawl config", () => {
     expect(options.indexUrl).toBe("https://vrabnitsa.sofia.bg/aktualno/news");
     expect(options.sourceType).toBe("vrabnitsa-org");
     expect(options.extractPostLinks).toBe(extractPostLinks);
-    expect(options.waitUntil).toBe("domcontentloaded");
-    expect(options.blockedResourceTypes).toEqual(["image", "media", "font"]);
+    expect(options.waitUntil).toBeUndefined();
+    expect(options.blockedResourceTypes).toBeUndefined();
   });
 
-  it("uses lightweight navigation for post pages", async () => {
+  it("uses shared lightweight defaults for post pages", async () => {
     const mockedCrawlWordpressPage = vi.mocked(crawlWordpressPage);
     const mockedProcessWordpressPost = vi.mocked(processWordpressPost);
     mockedCrawlWordpressPage.mockResolvedValueOnce();
@@ -57,7 +57,11 @@ describe("vrabnitsa-org/crawl config", () => {
 
     await options.processPost(browser, postLink, db);
 
-    expect(mockedProcessWordpressPost).toHaveBeenCalledWith(
+    expect(mockedProcessWordpressPost).toHaveBeenCalledTimes(1);
+    const call = mockedProcessWordpressPost.mock.calls[0];
+
+    expect(call).toHaveLength(8);
+    expect(call).toEqual([
       browser,
       postLink,
       db,
@@ -66,8 +70,6 @@ describe("vrabnitsa-org/crawl config", () => {
       2000,
       extractPostDetails,
       expect.any(Function),
-      "domcontentloaded",
-      ["image", "media", "font"],
-    );
+    ]);
   });
 });
