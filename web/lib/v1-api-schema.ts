@@ -35,9 +35,12 @@ export const v1Schemas = {
   messageResponse: z.object({ message: MessageSchema }),
 };
 
+const compareStrings = (left: string, right: string): number =>
+  left < right ? -1 : left > right ? 1 : 0;
+
 const sortRecord = <T>(record: Record<string, T>): Record<string, T> =>
   Object.keys(record)
-    .sort()
+    .sort(compareStrings)
     .reduce<Record<string, T>>((acc, key) => {
       acc[key] = record[key];
       return acc;

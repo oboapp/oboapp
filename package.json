@@ -8,8 +8,8 @@
     "build:db": "pnpm --filter @oboapp/db build",
     "build:api": "pnpm --filter oboapp-api build",
     "build:all": "pnpm build:shared && pnpm build:db && pnpm --filter oboapp-ingest build && pnpm --filter oboapp-api build && pnpm --filter oboapp-web build",
-    "test:all": "pnpm -r --if-present --filter '*' run test:run",
-    "lint:all": "pnpm -r --if-present --filter '*' run lint",
+    "test:all": "pnpm -r --if-present run test:run",
+    "lint:all": "pnpm -r --if-present run lint",
     "postinstall": "pnpm build:shared && pnpm build:db",
     "prepare": "husky",
     "apm:install": "apm install --force --verbose"

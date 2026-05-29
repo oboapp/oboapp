@@ -9,6 +9,9 @@ import {
 import { Category, UNCATEGORIZED } from "@oboapp/shared";
 import { Message } from "@/lib/types";
 
+const compareStrings = (left: string, right: string): number =>
+  left < right ? -1 : left > right ? 1 : 0;
+
 const buildFeatureCollection = (count: number) => ({
   type: "FeatureCollection" as const,
   features: Array.from({ length: count }, (_, index) => ({
@@ -105,8 +108,12 @@ describe("useCategoryFilter helpers", () => {
 
       const next = toggleCategorySelection(current, "traffic");
 
-      expect(Array.from(next).sort()).toEqual(["water"].sort());
-      expect(Array.from(current).sort()).toEqual(["traffic", "water"].sort());
+      expect(Array.from(next).sort(compareStrings)).toEqual(
+        ["water"].sort(compareStrings),
+      );
+      expect(Array.from(current).sort(compareStrings)).toEqual(
+        ["traffic", "water"].sort(compareStrings),
+      );
     });
 
     it("adds a category when not selected", () => {
@@ -114,7 +121,9 @@ describe("useCategoryFilter helpers", () => {
 
       const next = toggleCategorySelection(current, UNCATEGORIZED);
 
-      expect(Array.from(next).sort()).toEqual(["water", UNCATEGORIZED].sort());
+      expect(Array.from(next).sort(compareStrings)).toEqual(
+        ["water", UNCATEGORIZED].sort(compareStrings),
+      );
     });
   });
 });

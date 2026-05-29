@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET, POST } from "./route";
 
+const compareStrings = (left: string, right: string): number =>
+  left < right ? -1 : left > right ? 1 : 0;
+
 type RecordData = Record<string, unknown>;
 
 let interestsStore: RecordData[] = [];
@@ -388,13 +391,16 @@ describe("/api/auth/upgrade", () => {
       beforeSubscriptions,
     );
 
-    expect(interestsStore.map((record) => record._id).sort()).toStrictEqual([
-      "a-interest-1",
-      "g-interest-1",
-    ]);
-    expect(subscriptionsStore.map((record) => record._id).sort()).toStrictEqual(
-      ["a-sub-1", "g-sub-1"],
-    );
+    expect(
+      interestsStore
+        .map((record) => String(record._id))
+        .sort(compareStrings),
+    ).toStrictEqual(["a-interest-1", "g-interest-1"]);
+    expect(
+      subscriptionsStore
+        .map((record) => String(record._id))
+        .sort(compareStrings),
+    ).toStrictEqual(["a-sub-1", "g-sub-1"]);
   });
 
   it("returns 400 for invalid upgrade option", async () => {

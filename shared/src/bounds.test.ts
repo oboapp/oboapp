@@ -14,6 +14,9 @@ import {
   assertLocalityRegistriesInSync,
 } from "./bounds";
 
+const compareStrings = (left: string, right: string): number =>
+  left < right ? -1 : left > right ? 1 : 0;
+
 describe("bounds", () => {
   describe("BOUNDS registry", () => {
     it("should have Sofia boundaries", () => {
@@ -164,9 +167,9 @@ describe("bounds", () => {
 
   describe("registry consistency", () => {
     it("should have matching keys across BOUNDS, CENTERS, and LOCALITY_METADATA", () => {
-      const boundsKeys = Object.keys(BOUNDS).sort();
-      const centerKeys = Object.keys(CENTERS).sort();
-      const metadataKeys = Object.keys(LOCALITY_METADATA).sort();
+      const boundsKeys = Object.keys(BOUNDS).sort(compareStrings);
+      const centerKeys = Object.keys(CENTERS).sort(compareStrings);
+      const metadataKeys = Object.keys(LOCALITY_METADATA).sort(compareStrings);
 
       expect(centerKeys).toEqual(boundsKeys);
       expect(metadataKeys).toEqual(boundsKeys);
