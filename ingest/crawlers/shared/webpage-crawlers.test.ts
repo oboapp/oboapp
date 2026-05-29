@@ -1,5 +1,64 @@
-import { describe, expect, it } from "vitest";
-import { buildWebPageSourceDocument } from "./webpage-crawlers";
+import type { Browser, Page, Route } from "playwright";
+import type { OboDb } from "@oboapp/db";
+import { describe, expect, it, vi } from "vitest";
+import {
+  buildWebPageSourceDocument,
+  crawlWordpressPage,
+  processWordpressPost,
+} from "./webpage-crawlers";
+import { isUrlProcessed, saveSourceDocument } from "./firestore";
+
+vi.mock("@/lib/db", () => ({
+  getDb: vi.fn(async () => ({ collection: vi.fn() })),
+}));
+
+vi.mock("@/lib/delay", () => ({
+  delay: vi.fn(async () => undefined),
+}));
+
+vi.mock("./firestore", () => ({
+  isUrlProcessed: vi.fn(async () => false),
+  saveSourceDocument: vi.fn(async () => undefined),
+}));
+
+function createRoute(resourceType: string) {
+  return {
+    route: {
+      request: vi.fn(() => ({ resourceType: vi.fn(() => resourceType) })),
+      abort: vi.fn(async () => undefined),
+      continue: vi.fn(async () => undefined),
+    } as unknown as Route,
+  };
+}
+
+function createMockPage() {
+  let routeHandler: Parameters<Page["route"]>[1] | null = null;
+
+  const page = {
+    route: vi.fn(async (_pattern, handler) => {
+      routeHandler = handler;
+    }),
+    goto: vi.fn(async () => null),
+    close: vi.fn(async () => undefined),
+  } as unknown as Page;
+
+  return {
+    page,
+    getRouteHandler: () => {
+      if (!routeHandler) {
+        throw new Error("Expected route handler to be configured");
+      }
+
+      return routeHandler;
+    },
+  };
+}
+
+function createMockBrowser(page: Page): Browser {
+  return {
+    newPage: vi.fn(async () => page),
+  } as unknown as Browser;
+}
 
 describe("shared/webpage-crawlers", () => {
   describe("buildWebPageSourceDocument", () => {
@@ -72,6 +131,88 @@ describe("shared/webpage-crawlers", () => {
       expect(doc.message).toContain("Item 1");
       expect(doc.message).toContain("**bold**");
       expect(doc.message).toContain("_italic_"); // Turndown uses underscores for emphasis
+    });
+  });
+
+  describe("resource blocking", () => {
+    it("blocks configured resource types on the index page", async () => {
+      const { page, getRouteHandler } = createMockPage();
+      const browser = createMockBrowser(page);
+
+      await crawlWordpressPage({
+        indexUrl: "https://example.com/news",
+        sourceType: "test-source",
+        extractPostLinks: async () => [],
+        processPost: vi.fn(),
+        waitUntil: "domcontentloaded",
+        blockedResourceTypes: ["image", "font"],
+        browser,
+      });
+
+      expect(page.route).toHaveBeenCalledWith("**/*", expect.any(Function));
+      expect(page.goto).toHaveBeenCalledWith("https://example.com/news", {
+        waitUntil: "domcontentloaded",
+      });
+
+      const routeHandler = getRouteHandler();
+      const imageRoute = createRoute("image");
+      const scriptRoute = createRoute("script");
+
+      await routeHandler(imageRoute.route, {} as never);
+      await routeHandler(scriptRoute.route, {} as never);
+
+      expect(imageRoute.route.abort).toHaveBeenCalledTimes(1);
+      expect(imageRoute.route.continue).not.toHaveBeenCalled();
+      expect(scriptRoute.route.continue).toHaveBeenCalledTimes(1);
+      expect(scriptRoute.route.abort).not.toHaveBeenCalled();
+    });
+
+    it("blocks configured resource types on post pages", async () => {
+      const { page, getRouteHandler } = createMockPage();
+      const browser = createMockBrowser(page);
+      const db = {} as OboDb;
+      const postLink = {
+        url: "https://example.com/news/heavy-post",
+        title: "Heavy post",
+        date: "",
+      };
+
+      await processWordpressPost(
+        browser,
+        postLink,
+        db,
+        "test-source",
+        "bg.sofia",
+        0,
+        async () => ({
+          title: "Heavy post",
+          dateText: "2026-05-29T10:00:00+03:00",
+          contentHtml: "<p>Content</p>",
+        }),
+        undefined,
+        "domcontentloaded",
+        ["image", "media"],
+      );
+
+      expect(page.route).toHaveBeenCalledWith("**/*", expect.any(Function));
+      expect(page.goto).toHaveBeenCalledWith(
+        "https://example.com/news/heavy-post",
+        { waitUntil: "domcontentloaded" },
+      );
+      expect(saveSourceDocument).toHaveBeenCalledTimes(1);
+      expect(isUrlProcessed).not.toHaveBeenCalled();
+
+      const routeHandler = getRouteHandler();
+      const mediaRoute = createRoute("media");
+      const stylesheetRoute = createRoute("stylesheet");
+
+      await routeHandler(mediaRoute.route, {} as never);
+      await routeHandler(stylesheetRoute.route, {} as never);
+
+      expect(mediaRoute.route.abort).toHaveBeenCalledTimes(1);
+      expect(mediaRoute.route.continue).not.toHaveBeenCalled();
+      expect(stylesheetRoute.route.continue).toHaveBeenCalledTimes(1);
+      expect(stylesheetRoute.route.abort).not.toHaveBeenCalled();
     });
   });
 });
