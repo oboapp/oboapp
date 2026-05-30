@@ -1,7 +1,10 @@
 import { z } from "../zod-openapi";
 import { AddressSchema } from "./address.schema";
 import { CategoryEnum } from "./category.schema";
-import { CadastralPropertySchema, EducationalFacilityRefSchema } from "./extracted-data.schema";
+import {
+  CadastralPropertySchema,
+  EducationalFacilityRefSchema,
+} from "./extracted-data.schema";
 import { GeoJsonFeatureCollectionSchema } from "./geojson.schema";
 import { IngestErrorSchema } from "./ingest-error.schema";
 import { PinSchema } from "./pin.schema";
@@ -71,7 +74,7 @@ export const InternalMessageSchema = MessageSchema.extend({
   isRelevant: z.boolean().optional(),
   isUnreadable: z.boolean().optional(),
   eventId: z.string().optional(),
-  embedding: z.array(z.number().finite()).optional(),
+  embedding: z.array(z.number().finite()).optional(),
 });
 
 export type InternalMessage = z.infer<typeof InternalMessageSchema>;

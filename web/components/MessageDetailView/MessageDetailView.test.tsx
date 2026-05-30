@@ -50,8 +50,18 @@ vi.mock("./Source", () => ({
 }));
 
 vi.mock("./LinkedMessagesAccordion", () => ({
-  default: ({ eventId, currentMessageId }: { eventId: string; currentMessageId: string }) => (
-    <div data-testid="linked-messages-accordion" data-event-id={eventId} data-current-message-id={currentMessageId} />
+  default: ({
+    eventId,
+    currentMessageId,
+  }: {
+    eventId: string;
+    currentMessageId: string;
+  }) => (
+    <div
+      data-testid="linked-messages-accordion"
+      data-event-id={eventId}
+      data-current-message-id={currentMessageId}
+    />
   ),
 }));
 
