@@ -2,7 +2,6 @@ import {
   Address,
   ExtractedLocations,
   GeoJsonFeatureCollection,
-  GeoJsonGeometry,
   InternalMessage,
   Coordinates,
   QualitySignals,
@@ -1031,23 +1030,39 @@ async function finalizeFailedMessage(
   return await buildMessageResponse(messageId, text, locality, [], null, true);
 }
 
-/** Extract all vertices from a GeoJSON geometry as [lng, lat] pairs. */
-function getGeometryVertices(geom: GeoJsonGeometry): [number, number][] {
-  switch (geom.type) {
-    case "Point":
-      return [geom.coordinates];
+function addCoordinatesFromGeometry(
+  geometry: GeoJsonFeatureCollection["features"][number]["geometry"],
+  addCoordinate: (coord: readonly number[]) => void,
+  addCoordinates: (coords: readonly (readonly number[])[]) => void,
+): void {
+  switch (geometry.type) {
+    case "Point": {
+      addCoordinate(geometry.coordinates);
+      break;
+    }
     case "MultiPoint":
-    case "LineString":
-      return geom.coordinates;
+    case "LineString": {
+      addCoordinates(geometry.coordinates);
+      break;
+    }
     case "Polygon": {
-      const ring = geom.coordinates[0];
-      if (!ring || ring.length === 0) return [];
-      // Skip the closing vertex if it duplicates the first (standard GeoJSON rings are closed)
+      const ring = geometry.coordinates[0];
+      if (!ring || ring.length === 0) {
+        break;
+      }
+
+      // Skip the closing vertex if it duplicates the first (standard GeoJSON rings are closed).
+      const first = ring[0];
+      const last = ring.at(-1);
       const isClosed =
         ring.length > 1 &&
-        ring[0][0] === ring.at(-1)![0] &&
-        ring[0][1] === ring.at(-1)![1];
-      return isClosed ? ring.slice(0, -1) : ring;
+        !!first &&
+        !!last &&
+        first[0] === last[0] &&
+        first[1] === last[1];
+      const vertices = isClosed ? ring.slice(0, -1) : ring;
+      addCoordinates(vertices);
+      break;
     }
   }
 }
@@ -1071,16 +1086,21 @@ export function computeGeoJsonCentroidAddress(
 
   const addCoordinate = (coord: readonly number[]) => {
     if (coord.length < 2) return;
-    totalLng += coord[0]!;
-    totalLat += coord[1]!;
+    totalLng += coord[0] ?? 0;
+    totalLat += coord[1] ?? 0;
     count++;
+  };
+
+  const addCoordinates = (coords: readonly (readonly number[])[]) => {
+    for (const coord of coords) {
+      addCoordinate(coord);
+    }
   };
 
   for (const feature of features) {
     const geom = feature.geometry;
     if (!geom) continue;
-
-    getGeometryVertices(feature.geometry).forEach(addCoordinate);
+    addCoordinatesFromGeometry(geom, addCoordinate, addCoordinates);
   }
 
   if (count === 0) return null;
