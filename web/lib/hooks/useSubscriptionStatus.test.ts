@@ -3,6 +3,14 @@ import { renderHook, waitFor, act } from "@testing-library/react";
 import type { User } from "firebase/auth";
 import { useSubscriptionStatus } from "./useSubscriptionStatus";
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolveFn) => {
+    resolve = resolveFn;
+  });
+  return { promise, resolve };
+}
+
 const {
   isMessagingSupportedMock,
   getMessagingMock,
@@ -111,5 +119,71 @@ describe("useSubscriptionStatus", () => {
     expect(result.current.isCurrentDeviceSubscribed).toBe(false);
     expect(result.current.hasAnySubscriptions).toBe(false);
     expect(result.current.hasStatusCheckError).toBe(true);
+  });
+
+  it("reports exception failures on repeated checks", async () => {
+    const user = { uid: "user-1" } as User;
+    const { result } = renderHook(() => useSubscriptionStatus(user));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    fetchWithAuthMock.mockRejectedValueOnce(new Error("network failure 1"));
+    await act(async () => {
+      await result.current.checkStatus();
+    });
+
+    fetchWithAuthMock.mockRejectedValueOnce(new Error("network failure 2"));
+    await act(async () => {
+      await result.current.checkStatus();
+    });
+
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores stale in-flight results after user switch", async () => {
+    const user1 = { uid: "user-1" } as User;
+    const user2 = { uid: "user-2" } as User;
+    const deferredResponse = createDeferred<Response>();
+
+    fetchWithAuthMock
+      .mockImplementationOnce(async () => deferredResponse.promise)
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([{ token: "token-1" }]), { status: 200 }),
+      );
+
+    const { result, rerender } = renderHook(
+      ({ user }) => useSubscriptionStatus(user),
+      { initialProps: { user: user1 } },
+    );
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      rerender({ user: user2 });
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isCurrentDeviceSubscribed).toBe(true);
+    expect(result.current.hasAnySubscriptions).toBe(true);
+
+    await act(async () => {
+      deferredResponse.resolve(
+        new Response(JSON.stringify([]), {
+          status: 200,
+        }),
+      );
+      await Promise.resolve();
+    });
+
+    expect(result.current.isCurrentDeviceSubscribed).toBe(true);
+    expect(result.current.hasAnySubscriptions).toBe(true);
+    expect(result.current.hasStatusCheckError).toBe(false);
   });
 });

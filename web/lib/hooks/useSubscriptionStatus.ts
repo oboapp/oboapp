@@ -3,18 +3,36 @@ import type { User } from "firebase/auth";
 import * as Sentry from "@sentry/nextjs";
 import { fetchWithAuth } from "@/lib/auth-fetch";
 
-const reportedStatusCheckErrors = new Set<string>();
+const reportedNonOkStatusCodes = new Set<number>();
+
+class StaleStatusCheckError extends Error {
+  constructor() {
+    super("Stale subscription status check");
+    this.name = "StaleStatusCheckError";
+  }
+}
+
+function throwIfStale(isStaleRequest: () => boolean): void {
+  if (isStaleRequest()) {
+    throw new StaleStatusCheckError();
+  }
+}
+
+function isStaleStatusCheckError(error: unknown): boolean {
+  return error instanceof StaleStatusCheckError;
+}
 
 function captureStatusCheckWarning(
   error: unknown,
   reason: "non_ok_response" | "exception",
   details?: { statusCode?: number },
 ): void {
-  const dedupeKey = `${reason}:${details?.statusCode ?? "none"}`;
-  if (reportedStatusCheckErrors.has(dedupeKey)) {
-    return;
+  if (reason === "non_ok_response" && details?.statusCode !== undefined) {
+    if (reportedNonOkStatusCodes.has(details.statusCode)) {
+      return;
+    }
+    reportedNonOkStatusCodes.add(details.statusCode);
   }
-  reportedStatusCheckErrors.add(dedupeKey);
 
   const normalizedError =
     error instanceof Error
@@ -53,8 +71,11 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
   const [isLoading, setIsLoading] = useState(true);
   const [hasStatusCheckError, setHasStatusCheckError] = useState(false);
   const previousUserIdRef = useRef<string | null>(null);
+  const requestIdRef = useRef(0);
 
   const checkStatus = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+
     if (!user) {
       setIsCurrentDeviceSubscribed(false);
       setHasAnySubscriptions(false);
@@ -75,6 +96,10 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       setHasStatusCheckError(false);
     }
     previousUserIdRef.current = user.uid;
+    const activeUserId = user.uid;
+
+    const isStaleRequest = (): boolean =>
+      requestId !== requestIdRef.current || previousUserIdRef.current !== activeUserId;
 
     try {
       setIsLoading(true);
@@ -83,7 +108,9 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       // Check if Firebase Messaging is supported
       const { isMessagingSupported } =
         await import("@/lib/notification-service");
+      throwIfStale(isStaleRequest);
       const supported = await isMessagingSupported();
+      throwIfStale(isStaleRequest);
 
       if (!supported) {
         setIsCurrentDeviceSubscribed(false);
@@ -95,6 +122,7 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       // Check notification permission
       const permission =
         "Notification" in globalThis ? Notification.permission : "denied";
+      throwIfStale(isStaleRequest);
 
       if (permission !== "granted") {
         setIsCurrentDeviceSubscribed(false);
@@ -117,6 +145,7 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       }
 
       const currentToken = await getToken(messaging, { vapidKey });
+      throwIfStale(isStaleRequest);
 
       if (!currentToken) {
         setIsCurrentDeviceSubscribed(false);
@@ -130,6 +159,7 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
         user,
         "/api/notifications/subscription/all",
       );
+      throwIfStale(isStaleRequest);
 
       if (!response.ok) {
         setHasStatusCheckError(true);
@@ -144,6 +174,7 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       }
 
       const subscriptions = await response.json();
+      throwIfStale(isStaleRequest);
       const hasCurrentDevice =
         Array.isArray(subscriptions) &&
         subscriptions.some((sub) => sub.token === currentToken);
@@ -153,12 +184,17 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
         Array.isArray(subscriptions) && subscriptions.length > 0,
       );
     } catch (err) {
+      if (isStaleStatusCheckError(err) || isStaleRequest()) {
+        return;
+      }
       // Preserve the last known status to avoid false "not subscribed" messages
       // when there are transient auth/network/backend failures.
       setHasStatusCheckError(true);
       captureStatusCheckWarning(err, "exception");
     } finally {
-      setIsLoading(false);
+      if (!isStaleRequest()) {
+        setIsLoading(false);
+      }
     }
   }, [user]);
 
