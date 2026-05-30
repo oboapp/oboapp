@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "firebase/auth";
 import * as Sentry from "@sentry/nextjs";
 import { fetchWithAuth } from "@/lib/auth-fetch";
@@ -52,6 +52,7 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
   const [hasAnySubscriptions, setHasAnySubscriptions] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasStatusCheckError, setHasStatusCheckError] = useState(false);
+  const previousUserIdRef = useRef<string | null>(null);
 
   const checkStatus = useCallback(async () => {
     if (!user) {
@@ -59,8 +60,21 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       setHasAnySubscriptions(false);
       setHasStatusCheckError(false);
       setIsLoading(false);
+      previousUserIdRef.current = null;
       return;
     }
+
+    if (
+      previousUserIdRef.current !== null &&
+      previousUserIdRef.current !== user.uid
+    ) {
+      // Reset cached state on account switch so transient failures cannot keep
+      // the previous account's last-known subscription status.
+      setIsCurrentDeviceSubscribed(false);
+      setHasAnySubscriptions(false);
+      setHasStatusCheckError(false);
+    }
+    previousUserIdRef.current = user.uid;
 
     try {
       setIsLoading(true);

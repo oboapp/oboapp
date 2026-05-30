@@ -60,7 +60,7 @@ describe("useSubscriptionStatus", () => {
     vi.unstubAllGlobals();
   });
   it("keeps last known subscription status when backend check fails", async () => {
-    const user = {} as User;
+    const user = { uid: "user-1" } as User;
     const { result } = renderHook(() => useSubscriptionStatus(user));
 
     await waitFor(() => {
@@ -81,5 +81,35 @@ describe("useSubscriptionStatus", () => {
     expect(result.current.hasAnySubscriptions).toBe(true);
     expect(result.current.hasStatusCheckError).toBe(true);
     expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("resets state when user changes before a failed status check", async () => {
+    const user1 = { uid: "user-1" } as User;
+    const user2 = { uid: "user-2" } as User;
+    const { result, rerender } = renderHook(
+      ({ user }) => useSubscriptionStatus(user),
+      { initialProps: { user: user1 } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isCurrentDeviceSubscribed).toBe(true);
+    expect(result.current.hasAnySubscriptions).toBe(true);
+
+    fetchWithAuthMock.mockResolvedValueOnce(new Response(null, { status: 503 }));
+
+    await act(async () => {
+      rerender({ user: user2 });
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isCurrentDeviceSubscribed).toBe(false);
+    expect(result.current.hasAnySubscriptions).toBe(false);
+    expect(result.current.hasStatusCheckError).toBe(true);
   });
 });
