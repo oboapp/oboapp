@@ -38,12 +38,23 @@ type MigrationStats = {
   setFalse: number;
 };
 
+function getServiceAccountKey(): string {
+  const key = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (!key) {
+    throw new Error(
+      "FIREBASE_SERVICE_ACCOUNT_KEY is required to run this migration",
+    );
+  }
+
+  return key;
+}
+
 async function getAdminDb(): Promise<FirebaseFirestore.Firestore> {
   const { initializeApp, getApps, cert } = await import("firebase-admin/app");
   const { getFirestore } = await import("firebase-admin/firestore");
 
   if (!getApps().length) {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
+    const serviceAccount = JSON.parse(getServiceAccountKey());
     const app = initializeApp({ credential: cert(serviceAccount) });
     return getFirestore(app);
   }

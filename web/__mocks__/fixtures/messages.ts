@@ -10,7 +10,6 @@ export const MOCK_MESSAGES: Message[] = [
     locality: "bg.sofia",
     id: "msg-water-center-1",
     text: "Планирано спиране на водоподаването на ул. Граф Игнатиев от No 5 до No 25",
-    aiProcessed: true,
     plainText:
       "Планирано спиране на водоподаването на ул. Граф Игнатиев от No 5 до No 25",
     markdownText:
@@ -57,7 +56,6 @@ export const MOCK_MESSAGES: Message[] = [
     locality: "bg.sofia",
     id: "msg-construction-center-2",
     text: "Ремонт на тротоара на бул. Витоша между ул. Московска и ул. Алабин",
-    aiProcessed: true,
     plainText:
       "Ремонт на тротоара на бул. Витоша между ул. Московска и ул. Алабин",
     markdownText:
@@ -115,7 +113,6 @@ export const MOCK_MESSAGES: Message[] = [
     locality: "bg.sofia",
     id: "msg-public-transport-center-3",
     text: "Промяна в движението на трамваи №10 и №12 поради ремонт на релсите на бул. Христо Ботев",
-    aiProcessed: true,
     plainText:
       "Промяна в движението на трамваи №10 и №12 поради ремонт на релсите на бул. Христо Ботев",
     categories: ["public-transport", "traffic"],
@@ -148,7 +145,6 @@ export const MOCK_MESSAGES: Message[] = [
     locality: "bg.sofia",
     id: "msg-heating-mladost-1",
     text: "Авария на топлопровод в ж.к. Младост 1, блокове 40-50",
-    aiProcessed: true,
     plainText: "Авария на топлопровод в ж.к. Младост 1, блокове 40-50",
     categories: ["heating"],
     createdAt: new Date("2026-02-09T06:30:00Z").toISOString(),
@@ -176,7 +172,6 @@ export const MOCK_MESSAGES: Message[] = [
     locality: "bg.sofia",
     id: "msg-waste-mladost-2",
     text: "Почистване на контейнери за смет в района на бул. Александър Малинов",
-    aiProcessed: true,
     plainText:
       "Почистване на контейнери за смет в района на бул. Александър Малинов",
     categories: ["waste"],
@@ -209,7 +204,6 @@ export const MOCK_MESSAGES: Message[] = [
     locality: "bg.sofia",
     id: "msg-electricity-lozenets-1",
     text: "Планирано прекъсване на електрозахранването в района на ул. Кричим и ул. Гоце Делчев",
-    aiProcessed: true,
     plainText:
       "Планирано прекъсване на електрозахранването в района на ул. Кричим и ул. Гоце Делчев",
     markdownText:
@@ -271,7 +265,6 @@ export const MOCK_MESSAGES: Message[] = [
     locality: "bg.sofia",
     id: "msg-road-block-oborishte-1",
     text: "Затворена за движение ул. Оборище заради асфалтиране",
-    aiProcessed: true,
     plainText: "Затворена за движение ул. Оборище заради асфалтиране",
     markdownText:
       "# Затворена улица\n\n**Улица:** ул. Оборище\n\n**Причина:** Асфалтиране\n\n**Период:** 10.02.2026 22:00 - 11.02.2026 06:00",
@@ -372,9 +365,8 @@ export const MOCK_MESSAGES: Message[] = [
   },
   {
     locality: "bg.sofia",
-    id: "msg-culture-slatina-1",
+    id: "msg-event-vazrazhdane-1",
     text: "Концерт на открито в парк Възраждане на 15 февруари",
-    aiProcessed: true,
     plainText: "Концерт на открито в парк Възраждане на 15 февруари",
     categories: ["culture"],
     createdAt: new Date("2026-02-05T10:00:00Z").toISOString(),
