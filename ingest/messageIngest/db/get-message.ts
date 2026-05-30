@@ -37,6 +37,7 @@ export async function getMessageById(
   return {
     id: getString(data._id),
     text: getString(data.text),
+    aiProcessed: getOptionalBoolean(data.aiProcessed) === true,
     locality: getString(data.locality),
     addresses: Array.isArray(data.addresses) ? data.addresses : [],
     geoJson: isFeatureCollection(data.geoJson) ? data.geoJson : undefined,

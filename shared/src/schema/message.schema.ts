@@ -14,6 +14,7 @@ import { StreetSectionSchema } from "./street-section.schema";
 export const MessageSchema = z.object({
   id: z.string().optional(),
   text: z.string(),
+  aiProcessed: z.boolean().optional(),
   plainText: z.string().optional(),
   addresses: z.array(AddressSchema).optional(),
   geoJson: GeoJsonFeatureCollectionSchema.optional(),

@@ -165,6 +165,7 @@ describe("message-classification", () => {
 
     it("should classify as active when latest timespan is today", () => {
       const message: Message = {
+        aiProcessed: false,
         id: "test-1",
         text: "Test message",
         source: "test",
@@ -178,6 +179,7 @@ describe("message-classification", () => {
 
     it("should classify as archived when latest timespan is not today", () => {
       const message: Message = {
+        aiProcessed: false,
         id: "test-1",
         text: "Test message",
         source: "test",
@@ -193,6 +195,7 @@ describe("message-classification", () => {
 
     it("should fallback to createdAt when no valid timespans", () => {
       const message: Message = {
+        aiProcessed: false,
         id: "test-1",
         text: "Test message",
         source: "test",
@@ -205,6 +208,7 @@ describe("message-classification", () => {
 
     it("should classify as archived using createdAt fallback", () => {
       const message: Message = {
+        aiProcessed: false,
         id: "test-1",
         text: "Test message",
         source: "test",
@@ -219,6 +223,7 @@ describe("message-classification", () => {
 
     it("should handle createdAt as string", () => {
       const message: Message = {
+        aiProcessed: false,
         id: "test-1",
         text: "Test message",
         source: "test",
@@ -231,6 +236,7 @@ describe("message-classification", () => {
 
     it("should default to archived when no date information available", () => {
       const message: Message = {
+        aiProcessed: false,
         id: "test-1",
         text: "Test message",
         source: "test",
@@ -246,6 +252,7 @@ describe("message-classification", () => {
 
     it("should prioritize timespan over createdAt", () => {
       const message: Message = {
+        aiProcessed: false,
         id: "test-1",
         text: "Test message",
         source: "test",
@@ -262,6 +269,7 @@ describe("message-classification", () => {
     it("should handle timezone conversion for timespans correctly", () => {
       // Test with a timespan that could be today or yesterday depending on timezone
       const message: Message = {
+        aiProcessed: false,
         id: "test-1",
         text: "Test message",
         source: "test",
@@ -275,6 +283,7 @@ describe("message-classification", () => {
 
     it("should classify as active when latest timespan is in the future", () => {
       const message: Message = {
+        aiProcessed: false,
         id: "test-1",
         text: "Test message",
         source: "test",
@@ -288,6 +297,7 @@ describe("message-classification", () => {
 
     it("should classify as active when latest timespan is multiple days in the future", () => {
       const message: Message = {
+        aiProcessed: false,
         id: "test-1",
         text: "Test message",
         source: "test",
@@ -301,6 +311,7 @@ describe("message-classification", () => {
 
     it("should classify as active when has mixed past and future timespans", () => {
       const message: Message = {
+        aiProcessed: false,
         id: "test-1",
         text: "Test message",
         source: "test",
@@ -317,6 +328,8 @@ describe("message-classification", () => {
       vi.setSystemTime(new Date("2026-01-16T10:00:00.000Z"));
 
       const message: Message = {
+
+        aiProcessed: false,
         id: "test-reported-case",
         text: "ул. Св. Св. Кирил и Методий\nОт: ул. Дунав → До: ул. 11-ти август",
         source: "test",

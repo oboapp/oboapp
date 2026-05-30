@@ -32,6 +32,7 @@ describe(buildMessageResponse, () => {
     expect(result).toMatchObject({
       id: "msg-123",
       text: "Test message",
+      aiProcessed: false,
       locality: "bg.sofia",
       addresses: [mockAddress],
       geoJson: mockGeoJson,
@@ -129,7 +130,21 @@ describe(buildMessageResponse, () => {
 
     expect(result.id).toBe("msg-456");
     expect(result.text).toBe("Another message");
+    expect(result.aiProcessed).toBe(false);
     expect(result.addresses).toBe(addresses);
     expect(result.geoJson).toBe(mockGeoJson);
+  });
+
+  it("should allow explicit aiProcessed=true", async () => {
+    const result = await buildMessageResponse(
+      "msg-789",
+      "AI processed message",
+      "bg.sofia",
+      [],
+      null,
+      true,
+    );
+
+    expect(result.aiProcessed).toBe(true);
   });
 });

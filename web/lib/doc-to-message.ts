@@ -27,6 +27,7 @@ export function recordToMessage(record: Record<string, unknown>): Message {
   return {
     id: typeof record._id === "string" ? record._id : undefined,
     text: typeof record.text === "string" ? record.text : "",
+    aiProcessed: record.aiProcessed === true,
     locality: typeof record.locality === "string" ? record.locality : "",
     plainText: optionalString(record.plainText),
     addresses: getAddresses(record.addresses),

@@ -43,6 +43,7 @@ describe("notification-sender", () => {
     const baseMessage: Message = {
       id: "aB3xYz12",
       text: "Test message",
+      aiProcessed: false,
       locality: "bg.sofia",
       createdAt: "2026-02-05T12:00:00.000Z",
     };
@@ -153,6 +154,7 @@ describe("notification-sender", () => {
     const baseMessage: Message = {
       id: "msg1",
       text: "Test message",
+      aiProcessed: false,
       locality: "bg.sofia",
       createdAt: "2026-02-05T12:00:00.000Z",
     };
@@ -282,6 +284,7 @@ describe("notification-sender", () => {
     const baseMessage: Message = {
       id: "msg1",
       text: "Test message",
+      aiProcessed: false,
       locality: "bg.sofia",
       createdAt: "2026-02-05T12:00:00.000Z",
     };

@@ -150,6 +150,7 @@ async function processSingleMessage(
   messageId: string,
   text: string,
   precomputedGeoJson: GeoJsonFeatureCollection | null,
+  aiProcessed: boolean,
   options: MessageIngestOptions,
   extractedLocations: ExtractedLocations | null,
   ingestErrors: IngestErrorCollector,
@@ -198,6 +199,7 @@ async function processSingleMessage(
         options.locality,
         addresses,
         null,
+        aiProcessed,
       );
     }
 
@@ -232,6 +234,7 @@ async function processSingleMessage(
       options.locality,
       addresses,
       null,
+      aiProcessed,
     );
   }
 
@@ -249,6 +252,7 @@ async function processSingleMessage(
     options.locality,
     addresses,
     geoJson,
+    aiProcessed,
   );
 }
 
@@ -318,6 +322,7 @@ async function processPrecomputedGeoJsonMessage(
     storedMessageId,
     text,
     annotatedGeoJson || null,
+    false,
     options,
     null,
     precomputedIngestErrors,
@@ -485,6 +490,7 @@ async function processWithAIPipeline(
         options.locality,
         [],
         null,
+        true,
       );
       messages.push(message);
       continue;
@@ -510,6 +516,7 @@ async function processWithAIPipeline(
         options.locality,
         [],
         null,
+        true,
       );
       messages.push(message);
       continue;
@@ -540,6 +547,7 @@ async function processWithAIPipeline(
       storedMessageId,
       filteredMessage.plainText,
       null,
+      true,
       options,
       extractedLocations,
       ingestErrors,
@@ -658,6 +666,7 @@ async function storeFilteredMessage(
   filteredMessage: FilteredMessage,
 ): Promise<void> {
   await updateMessage(messageId, {
+    aiProcessed: true,
     plainText: filteredMessage.plainText,
     isRelevant: filteredMessage.isRelevant,
     isUnreadable: filteredMessage.isUnreadable,
@@ -784,7 +793,7 @@ async function handleIrrelevantMessage(
     ...buildIngestErrorsField(ingestErrors),
   });
 
-  return await buildMessageResponse(messageId, text, locality, [], null);
+  return await buildMessageResponse(messageId, text, locality, [], null, true);
 }
 
 /**
@@ -982,7 +991,7 @@ async function finalizeFailedMessage(
     ...buildIngestErrorsField(ingestErrors),
   });
 
-  return await buildMessageResponse(messageId, text, locality, [], null);
+  return await buildMessageResponse(messageId, text, locality, [], null, true);
 }
 
 /**
@@ -1389,6 +1398,7 @@ async function tryPreGeocodeMatch(
       options.locality,
       [],
       filteredGeoJson,
+      true,
     );
   } catch (error) {
     // Pre-geocode match failures should not break the pipeline — fall through to normal geocoding

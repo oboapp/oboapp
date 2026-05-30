@@ -82,6 +82,7 @@ vi.mock("./Locations", () => ({
 }));
 
 const baseMessage: Message = {
+  aiProcessed: true,
   id: "m1",
   text: "Тестово съобщение",
   plainText: "Тестово съобщение",
