@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { recordToMessage } from "@/lib/doc-to-message";
+import { recordToInternalMessage } from "@/lib/doc-to-message";
 
 const DEFAULT_RELEVANCE_DAYS = 7;
 
@@ -38,7 +38,7 @@ export async function GET(request: Request) {
       limit,
     });
 
-    const messages = docs.map(recordToMessage);
+    const messages = docs.map(recordToInternalMessage);
 
     return NextResponse.json({ messages });
   } catch (error) {
