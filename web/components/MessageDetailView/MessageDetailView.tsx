@@ -346,7 +346,7 @@ export default function MessageDetailView({
             {hasValidSourceUrl(message.sourceUrl) && message.sourceUrl && (
               <>
                 {" "}
-                Виж{" "}
+                <span>Виж </span>
                 <a
                   href={message.sourceUrl}
                   target="_blank"
@@ -357,7 +357,7 @@ export default function MessageDetailView({
                   <span>оригиналния източник</span>
                   <ExternalLinkIcon className="h-3.5 w-3.5 text-neutral" />
                 </a>
-                .
+                <span>.</span>
               </>
             )}
           </p>
@@ -435,9 +435,9 @@ export default function MessageDetailView({
                   </div>
 
                   {hasLocations && (
-                    <div
+                    <section
                       id={locationsContentId}
-                      role="region"
+                      aria-label="Локации"
                       className="pt-1"
                       hidden={!isLocationsOpen}
                     >
@@ -449,7 +449,7 @@ export default function MessageDetailView({
                         addresses={message.addresses}
                         onLocationClick={onAddressClick}
                       />
-                    </div>
+                    </section>
                   )}
                 </div>
               </DetailItem>
@@ -473,9 +473,9 @@ export default function MessageDetailView({
               />
             </button>
 
-            <div
+            <section
               id={locationsContentId}
-              role="region"
+              aria-label="Локации"
               className="pt-1"
               hidden={!isLocationsOpen}
             >
@@ -487,7 +487,7 @@ export default function MessageDetailView({
                 addresses={message.addresses}
                 onLocationClick={onAddressClick}
               />
-            </div>
+            </section>
           </div>
         )}
 

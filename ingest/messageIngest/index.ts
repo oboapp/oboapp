@@ -728,10 +728,17 @@ async function storeExtractedLocations(
   // Extract timespans from extracted locations (pins/streets), preferring referenceDate
   // (datePublished when valid) over crawledAt as the fallback anchor.
   const { timespanStart, timespanEnd } =
-    extractTimespanRangeFromExtractedLocations(extractedLocations, referenceDate);
+    extractTimespanRangeFromExtractedLocations(
+      extractedLocations,
+      referenceDate,
+    );
 
   // Validate and fallback to referenceDate if extracted timespans are out of range
-  const validated = validateAndFallback(timespanStart, timespanEnd, referenceDate);
+  const validated = validateAndFallback(
+    timespanStart,
+    timespanEnd,
+    referenceDate,
+  );
 
   await updateMessage(messageId, {
     $set: {
@@ -1062,12 +1069,18 @@ export function computeGeoJsonCentroidAddress(
   let totalLng = 0;
   let count = 0;
 
+  const addCoordinate = (coord: readonly number[]) => {
+    if (coord.length < 2) return;
+    totalLng += coord[0]!;
+    totalLat += coord[1]!;
+    count++;
+  };
+
   for (const feature of features) {
-    for (const coord of getGeometryVertices(feature.geometry)) {
-      totalLng += coord[0];
-      totalLat += coord[1];
-      count++;
-    }
+    const geom = feature.geometry;
+    if (!geom) continue;
+
+    getGeometryVertices(feature.geometry).forEach(addCoordinate);
   }
 
   if (count === 0) return null;
@@ -1100,7 +1113,11 @@ async function handlePrecomputedGeoJsonData(
     : [];
 
   const { validateAndFallback } = await import("@/lib/timespan-utils");
-  const validated = validateAndFallback(timespanStart, timespanEnd, fallbackDate);
+  const validated = validateAndFallback(
+    timespanStart,
+    timespanEnd,
+    fallbackDate,
+  );
 
   const locationFields = {
     addresses,

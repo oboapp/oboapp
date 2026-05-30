@@ -51,22 +51,7 @@ async function sendNotifications(
   let successCount = 0;
   let errorCount = 0;
 
-  // Group matches by userId-messageId to send only one notification per user per message
-  const notificationMap = new Map<string, NotificationMatch>();
-  for (const match of matches) {
-    const key = `${match.userId}-${match.messageId}`;
-    const existing = notificationMap.get(key);
-    // Keep the match with the smallest distance
-    if (
-      !existing ||
-      (match.distance &&
-        (!existing.distance || match.distance < existing.distance))
-    ) {
-      notificationMap.set(key, match);
-    }
-  }
-
-  const uniqueMatches = Array.from(notificationMap.values());
+  const uniqueMatches = getUniqueMatches(matches);
   logger.info("Sending unique notifications", {
     unique: uniqueMatches.length,
     total: matches.length,
@@ -82,39 +67,11 @@ async function sendNotifications(
       continue;
     }
 
-    // Get message details
     const messageData = await db.messages.findById(match.messageId);
-    if (!messageData) {
-      logger.warn("Message not found for notification", {
-        messageId: match.messageId,
-      });
+    const message = buildNotificationMessage(match, messageData);
+    if (!message) {
       continue;
     }
-
-    // Validate required locality field
-    if (!messageData?.locality) {
-      console.error(
-        `Message ${match.messageId} missing required locality field`,
-      );
-      continue;
-    }
-
-    // plainText is set by AI pipeline (Filter & Split stage).
-    // For precomputed-GeoJSON crawlers, text is already plain.
-    // summary (when present) is preferred to match what the detail view shows.
-    // summary may contain markdown — stripMarkdown() is applied downstream in
-    // buildNotificationPayload() before the text is used as notification body.
-    const message: Message = {
-      id: match.messageId,
-      text:
-        getString(messageData.summary) ||
-        getString(messageData.plainText) ||
-        getString(messageData.text),
-      aiProcessed: getOptionalBoolean(messageData.aiProcessed) === true,
-      locality: getString(messageData.locality),
-      geoJson: isFeatureCollection(messageData.geoJson) ? messageData.geoJson : undefined,
-      createdAt: toISOString(messageData.createdAt),
-    };
 
     // Send to all user devices
     const { successCount: deviceSuccessCount, notifications } =
@@ -145,6 +102,63 @@ async function sendNotifications(
   await markMatchesAsNotified(db, allMatchIds);
 
   logger.info("Notification sending complete", { successCount, errorCount });
+}
+
+function getUniqueMatches(matches: NotificationMatch[]): NotificationMatch[] {
+  // Group matches by userId-messageId to send only one notification per user per message.
+  const notificationMap = new Map<string, NotificationMatch>();
+
+  for (const match of matches) {
+    const key = `${match.userId}-${match.messageId}`;
+    const existing = notificationMap.get(key);
+    // Keep the match with the smallest distance.
+    if (
+      !existing ||
+      (match.distance && (!existing.distance || match.distance < existing.distance))
+    ) {
+      notificationMap.set(key, match);
+    }
+  }
+
+  return Array.from(notificationMap.values());
+}
+
+function buildNotificationMessage(
+  match: NotificationMatch,
+  messageData: Record<string, unknown> | null,
+): Message | null {
+  if (!messageData) {
+    logger.warn("Message not found for notification", {
+      messageId: match.messageId,
+    });
+    return null;
+  }
+
+  if (!messageData.locality) {
+    logger.error("Message missing required locality field", {
+      messageId: match.messageId,
+    });
+    return null;
+  }
+
+  // plainText is set by AI pipeline (Filter & Split stage).
+  // For precomputed-GeoJSON crawlers, text is already plain.
+  // summary (when present) is preferred to match what the detail view shows.
+  // summary may contain markdown — stripMarkdown() is applied downstream in
+  // buildNotificationPayload() before the text is used as notification body.
+  return {
+    id: match.messageId,
+    text:
+      getString(messageData.summary) ||
+      getString(messageData.plainText) ||
+      getString(messageData.text),
+    aiProcessed: getOptionalBoolean(messageData.aiProcessed) === true,
+    locality: getString(messageData.locality),
+    geoJson: isFeatureCollection(messageData.geoJson)
+      ? messageData.geoJson
+      : undefined,
+    createdAt: toISOString(messageData.createdAt),
+  };
 }
 
 /**

@@ -71,7 +71,7 @@ export const InternalMessageSchema = MessageSchema.extend({
   isRelevant: z.boolean().optional(),
   isUnreadable: z.boolean().optional(),
   eventId: z.string().optional(),
-  embedding: z.array(z.number().finite()).optional(),
+  embedding: z.array(z.number()).optional(),
 });
 
 export type InternalMessage = z.infer<typeof InternalMessageSchema>;
