@@ -543,6 +543,16 @@ describe("event matching after finalization", () => {
  * observing the timespanStart/timespanEnd stored in the DB when no source timespans are
  * provided — the fallback date should prefer datePublished over crawledAt.
  */
+function findTimespanUpdate() {
+  const updatePayloads = mockUpdateMessage.mock.calls.map((call) => call[1]);
+  return updatePayloads.find(
+    (payload) =>
+      payload &&
+      payload.timespanStart instanceof Date &&
+      payload.timespanEnd instanceof Date,
+  );
+}
+
 describe("resolveReferenceDate via messageIngest (issue #499)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -550,16 +560,6 @@ describe("resolveReferenceDate via messageIngest (issue #499)", () => {
     mockUpdateMessage.mockResolvedValue(undefined);
     mockEncodeDocumentId.mockImplementation((url: string) => `encoded(${url})`);
   });
-
-  function findTimespanUpdate() {
-    const updatePayloads = mockUpdateMessage.mock.calls.map((call) => call[1]);
-    return updatePayloads.find(
-      (payload) =>
-        payload &&
-        payload.timespanStart instanceof Date &&
-        payload.timespanEnd instanceof Date,
-    );
-  }
 
   it("uses datePublished as fallback when valid and no source timespans provided", async () => {
     const datePublished = "2026-05-15T00:00:00.000Z";
