@@ -20,6 +20,43 @@ function isStaleStatusCheckError(error: unknown): boolean {
   return error instanceof StaleStatusCheckError;
 }
 
+async function resolveCurrentDeviceToken(
+  isStaleRequest: () => boolean,
+): Promise<string | null> {
+  const { isMessagingSupported } =
+    await import("@/lib/notification-service");
+  throwIfStale(isStaleRequest);
+
+  const supported = await isMessagingSupported();
+  throwIfStale(isStaleRequest);
+  if (!supported) {
+    return null;
+  }
+
+  const permission =
+    "Notification" in globalThis ? Notification.permission : "denied";
+  throwIfStale(isStaleRequest);
+  if (permission !== "granted") {
+    return null;
+  }
+
+  const { getMessaging, getToken } = await import("firebase/messaging");
+  const { app } = await import("@/lib/firebase");
+  const messaging = getMessaging(app);
+  const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+  if (!vapidKey) {
+    return null;
+  }
+
+  const currentToken = await getToken(messaging, { vapidKey });
+  throwIfStale(isStaleRequest);
+  if (!currentToken) {
+    return null;
+  }
+
+  return currentToken;
+}
+
 function captureStatusCheckWarning(
   error: unknown,
   reason: "non_ok_response" | "exception",
@@ -72,6 +109,7 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
   const previousUserIdRef = useRef<string | null>(null);
   const requestIdRef = useRef(0);
   const reportedNonOkStatusCodesRef = useRef(new Set<number>());
+  const hasKnownStatusRef = useRef(false);
 
   const checkStatus = useCallback(async () => {
     const requestId = ++requestIdRef.current;
@@ -82,6 +120,7 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       setHasStatusCheckError(false);
       setIsLoading(false);
       previousUserIdRef.current = null;
+      hasKnownStatusRef.current = false;
       return;
     }
 
@@ -94,6 +133,7 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       setIsCurrentDeviceSubscribed(false);
       setHasAnySubscriptions(false);
       setHasStatusCheckError(false);
+      hasKnownStatusRef.current = false;
     }
     previousUserIdRef.current = user.uid;
     const activeUserId = user.uid;
@@ -105,52 +145,11 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       setIsLoading(true);
       setHasStatusCheckError(false);
 
-      // Check if Firebase Messaging is supported
-      const { isMessagingSupported } =
-        await import("@/lib/notification-service");
-      throwIfStale(isStaleRequest);
-      const supported = await isMessagingSupported();
-      throwIfStale(isStaleRequest);
-
-      if (!supported) {
-        setIsCurrentDeviceSubscribed(false);
-        setHasAnySubscriptions(false);
-        setIsLoading(false);
-        return;
-      }
-
-      // Check notification permission
-      const permission =
-        "Notification" in globalThis ? Notification.permission : "denied";
-      throwIfStale(isStaleRequest);
-
-      if (permission !== "granted") {
-        setIsCurrentDeviceSubscribed(false);
-        setHasAnySubscriptions(false);
-        setIsLoading(false);
-        return;
-      }
-
-      // Get current device's FCM token
-      const { getMessaging, getToken } = await import("firebase/messaging");
-      const { app } = await import("@/lib/firebase");
-      const messaging = getMessaging(app);
-      const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
-
-      if (!vapidKey) {
-        setIsCurrentDeviceSubscribed(false);
-        setHasAnySubscriptions(false);
-        setIsLoading(false);
-        return;
-      }
-
-      const currentToken = await getToken(messaging, { vapidKey });
-      throwIfStale(isStaleRequest);
-
+      const currentToken = await resolveCurrentDeviceToken(isStaleRequest);
       if (!currentToken) {
         setIsCurrentDeviceSubscribed(false);
         setHasAnySubscriptions(false);
-        setIsLoading(false);
+        hasKnownStatusRef.current = true;
         return;
       }
 
@@ -162,6 +161,10 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       throwIfStale(isStaleRequest);
 
       if (!response.ok) {
+        if (!hasKnownStatusRef.current) {
+          setIsCurrentDeviceSubscribed(false);
+          setHasAnySubscriptions(false);
+        }
         setHasStatusCheckError(true);
         captureStatusCheckWarning(
           new Error(
@@ -184,12 +187,17 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       setHasAnySubscriptions(
         Array.isArray(subscriptions) && subscriptions.length > 0,
       );
+      hasKnownStatusRef.current = true;
     } catch (err) {
       if (isStaleStatusCheckError(err) || isStaleRequest()) {
         return;
       }
       // Preserve the last known status to avoid false "not subscribed" messages
       // when there are transient auth/network/backend failures.
+      if (!hasKnownStatusRef.current) {
+        setIsCurrentDeviceSubscribed(false);
+        setHasAnySubscriptions(false);
+      }
       setHasStatusCheckError(true);
       captureStatusCheckWarning(
         err,

@@ -91,6 +91,22 @@ describe("useSubscriptionStatus", () => {
     expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
   });
 
+  it("sets unsubscribed state when initial backend check fails", async () => {
+    const user = { uid: "user-initial-failure" } as User;
+    fetchWithAuthMock.mockResolvedValueOnce(new Response(null, { status: 503 }));
+
+    const { result } = renderHook(() => useSubscriptionStatus(user));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isCurrentDeviceSubscribed).toBe(false);
+    expect(result.current.hasAnySubscriptions).toBe(false);
+    expect(result.current.hasStatusCheckError).toBe(true);
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
   it("resets state when user changes before a failed status check", async () => {
     const user1 = { uid: "user-1" } as User;
     const user2 = { uid: "user-2" } as User;
