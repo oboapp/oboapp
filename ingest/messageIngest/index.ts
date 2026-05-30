@@ -2,6 +2,7 @@ import {
   Address,
   ExtractedLocations,
   GeoJsonFeatureCollection,
+  GeoJsonGeometry,
   InternalMessage,
   Coordinates,
   QualitySignals,
@@ -1015,6 +1016,27 @@ async function finalizeFailedMessage(
   return await buildMessageResponse(messageId, text, locality, [], null);
 }
 
+/** Extract all vertices from a GeoJSON geometry as [lng, lat] pairs. */
+function getGeometryVertices(geom: GeoJsonGeometry): [number, number][] {
+  switch (geom.type) {
+    case "Point":
+      return [geom.coordinates];
+    case "MultiPoint":
+    case "LineString":
+      return geom.coordinates;
+    case "Polygon": {
+      const ring = geom.coordinates[0];
+      if (!ring || ring.length === 0) return [];
+      // Skip the closing vertex if it duplicates the first (standard GeoJSON rings are closed)
+      const isClosed =
+        ring.length > 1 &&
+        ring[0][0] === ring.at(-1)![0] &&
+        ring[0][1] === ring.at(-1)![1];
+      return isClosed ? ring.slice(0, -1) : ring;
+    }
+  }
+}
+
 /**
  * Compute the centroid of all features in a GeoJSON FeatureCollection.
  * Returns an Address with the centroid coordinates, or null if it cannot be computed.
@@ -1033,49 +1055,10 @@ export function computeGeoJsonCentroidAddress(
   let count = 0;
 
   for (const feature of features) {
-    const geom = feature.geometry;
-    if (!geom) continue;
-
-    switch (geom.type) {
-      case "Point": {
-        totalLng += geom.coordinates[0];
-        totalLat += geom.coordinates[1];
-        count++;
-        break;
-      }
-      case "MultiPoint": {
-        for (const coord of geom.coordinates) {
-          totalLng += coord[0];
-          totalLat += coord[1];
-          count++;
-        }
-        break;
-      }
-      case "LineString": {
-        for (const coord of geom.coordinates) {
-          totalLng += coord[0];
-          totalLat += coord[1];
-          count++;
-        }
-        break;
-      }
-      case "Polygon": {
-        const ring = geom.coordinates[0];
-        if (ring && ring.length > 0) {
-          // Skip the closing vertex if it duplicates the first (standard GeoJSON rings are closed)
-          const first = ring[0];
-          const last = ring[ring.length - 1];
-          const isClosed =
-            ring.length > 1 && first[0] === last[0] && first[1] === last[1];
-          const vertices = isClosed ? ring.slice(0, -1) : ring;
-          for (const coord of vertices) {
-            totalLng += coord[0];
-            totalLat += coord[1];
-            count++;
-          }
-        }
-        break;
-      }
+    for (const coord of getGeometryVertices(feature.geometry)) {
+      totalLng += coord[0];
+      totalLat += coord[1];
+      count++;
     }
   }
 

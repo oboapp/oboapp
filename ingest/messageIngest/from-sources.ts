@@ -58,7 +58,7 @@ function toDate(value: unknown): Date | undefined {
   if (value instanceof Date) return value;
   if (typeof value === "string") {
     const d = new Date(value);
-    return isNaN(d.getTime()) ? undefined : d;
+    return Number.isNaN(d.getTime()) ? undefined : d;
   }
   return undefined;
 }
@@ -309,6 +309,31 @@ async function maybeInitDb(): Promise<OboDb> {
   return getDb();
 }
 
+function handleIngestError(
+  summary: IngestSummary,
+  source: SourceDocument,
+  error: unknown,
+): void {
+  summary.failed++;
+  const errorMessage = error instanceof Error ? error.message : String(error);
+
+  if (errorMessage.includes("No features within specified boundaries")) {
+    logger.info("Source outside boundaries after geocoding", {
+      title: source.title,
+    });
+  } else if (errorMessage.includes("Message filtering failed")) {
+    summary.filtered++;
+    logger.info("Source filtered as irrelevant", { title: source.title });
+  } else {
+    summary.errors.push({ url: source.url, error: errorMessage });
+    logger.error("Failed to ingest source", {
+      title: source.title,
+      error: errorMessage,
+      url: source.url,
+    });
+  }
+}
+
 export async function ingest(
   options: IngestOptions = {},
 ): Promise<IngestSummary> {
@@ -376,26 +401,7 @@ export async function ingest(
         summary.ingested++;
       }
     } catch (error) {
-      summary.failed++;
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-
-      // Don't log as error if it's just outside boundaries or filtered as irrelevant
-      if (errorMessage.includes("No features within specified boundaries")) {
-        logger.info("Source outside boundaries after geocoding", {
-          title: source.title,
-        });
-      } else if (errorMessage.includes("Message filtering failed")) {
-        summary.filtered++;
-        logger.info("Source filtered as irrelevant", { title: source.title });
-      } else {
-        summary.errors.push({ url: source.url, error: errorMessage });
-        logger.error("Failed to ingest source", {
-          title: source.title,
-          error: errorMessage,
-          url: source.url,
-        });
-      }
+      handleIngestError(summary, source, error);
     }
   }
 
@@ -449,7 +455,7 @@ if (require.main === module) {
     .option("-b, --boundaries <path>", "Path to GeoJSON boundaries file")
     .option("--dry-run", "Preview ingestion without actually writing")
     .option("-s, --source-type <type>", "Only ingest sources of this type")
-    .option("-l, --limit <n>", "Maximum number of sources to process", parseInt)
+    .option("-l, --limit <n>", "Maximum number of sources to process", Number.parseInt)
     .addHelpText(
       "after",
       `

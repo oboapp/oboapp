@@ -100,12 +100,12 @@ describe("computeGeoJsonCentroidAddress", () => {
       features: [
         {
           type: "Feature",
-          geometry: { type: "Point", coordinates: [23.0, 42.0] },
+          geometry: { type: "Point", coordinates: [23, 42] },
           properties: {},
         },
         {
           type: "Feature",
-          geometry: { type: "Point", coordinates: [24.0, 43.0] },
+          geometry: { type: "Point", coordinates: [24, 43] },
           properties: {},
         },
       ],
@@ -125,8 +125,8 @@ describe("computeGeoJsonCentroidAddress", () => {
           geometry: {
             type: "LineString",
             coordinates: [
-              [23.0, 42.0],
-              [24.0, 43.0],
+              [23, 42],
+              [24, 43],
             ],
           },
           properties: {},
@@ -149,11 +149,11 @@ describe("computeGeoJsonCentroidAddress", () => {
             type: "Polygon",
             coordinates: [
               [
-                [23.0, 42.0],
-                [24.0, 42.0],
-                [24.0, 43.0],
-                [23.0, 43.0],
-                [23.0, 42.0],
+                [23, 42],
+                [24, 42],
+                [24, 43],
+                [23, 43],
+                [23, 42],
               ],
             ],
           },
@@ -176,8 +176,8 @@ describe("computeGeoJsonCentroidAddress", () => {
           geometry: {
             type: "MultiPoint",
             coordinates: [
-              [23.0, 42.0],
-              [24.0, 43.0],
+              [23, 42],
+              [24, 43],
             ],
           },
           properties: {},
@@ -374,11 +374,11 @@ const BOUNDARY_GEOJSON: GeoJSONFeatureCollection = {
         type: "Polygon",
         coordinates: [
           [
-            [23.0, 42.0],
-            [24.0, 42.0],
-            [24.0, 43.0],
-            [23.0, 43.0],
-            [23.0, 42.0],
+            [23, 42],
+            [24, 42],
+            [24, 43],
+            [23, 43],
+            [23, 42],
           ],
         ],
       },
@@ -401,7 +401,7 @@ describe("event matching after finalization", () => {
     mockProcessEventMatching.mockResolvedValue({
       eventId: "evt-1",
       action: "created",
-      confidence: 1.0,
+      confidence: 1,
       candidateCount: 0,
     });
     mockDeleteOne.mockResolvedValue(undefined);
