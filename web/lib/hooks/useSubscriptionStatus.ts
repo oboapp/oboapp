@@ -165,6 +165,7 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       throwIfStale(isStaleRequest);
 
       if (!response.ok) {
+        throwIfStale(isStaleRequest);
         if (!hasKnownStatusRef.current) {
           setIsCurrentDeviceSubscribed(false);
           setHasAnySubscriptions(false);

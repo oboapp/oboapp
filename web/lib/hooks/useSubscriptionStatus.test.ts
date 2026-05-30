@@ -295,4 +295,43 @@ describe("useSubscriptionStatus", () => {
     expect(result.current.hasAnySubscriptions).toBe(true);
     expect(result.current.hasStatusCheckError).toBe(false);
   });
+
+  it("ignores stale non-ok backend responses after user switch", async () => {
+    const user1 = { uid: "user-1" } as User;
+    const user2 = { uid: "user-2" } as User;
+    const deferredResponse = createDeferred<Response>();
+
+    fetchWithAuthMock
+      .mockImplementationOnce(async () => deferredResponse.promise)
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([{ token: "token-1" }]), { status: 200 }),
+      );
+
+    const { result, rerender } = renderHook(
+      ({ user }) => useSubscriptionStatus(user),
+      { initialProps: { user: user1 } },
+    );
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      rerender({ user: user2 });
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    await act(async () => {
+      deferredResponse.resolve(new Response(null, { status: 503 }));
+      await Promise.resolve();
+    });
+
+    expect(result.current.isCurrentDeviceSubscribed).toBe(true);
+    expect(result.current.hasAnySubscriptions).toBe(true);
+    expect(result.current.hasStatusCheckError).toBe(false);
+    expect(sentryCaptureExceptionMock).not.toHaveBeenCalled();
+  });
 });
