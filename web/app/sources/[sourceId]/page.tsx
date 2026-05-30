@@ -10,7 +10,7 @@ import {
 import { useMessageByIdFallback } from "@/lib/hooks/useMessageByIdFallback";
 import Link from "next/link";
 import Image from "next/image";
-import { Message } from "@/lib/types";
+import { Message, InternalMessage } from "@/lib/types";
 import MessagesGrid from "@/components/MessagesGrid";
 import MessageDetailView from "@/components/MessageDetailView/MessageDetailView";
 import sourcesData from "@/lib/sources";
@@ -36,7 +36,7 @@ function SourcePageContent() {
     }
   }, [source]);
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<InternalMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [logoError, setLogoError] = useState(false);
 

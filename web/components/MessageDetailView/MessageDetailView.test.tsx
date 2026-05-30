@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { Message } from "@/lib/types";
+import type { InternalMessage } from "@/lib/types";
 import MessageDetailView from "./MessageDetailView";
 
 vi.mock("@/lib/analytics", () => ({
@@ -80,7 +80,7 @@ vi.mock("./Locations", () => ({
   default: () => <div data-testid="message-detail-locations" />,
 }));
 
-const baseMessage: Message = {
+const baseMessage: InternalMessage = {
   aiProcessed: true,
   id: "m1",
   text: "Тестово съобщение",

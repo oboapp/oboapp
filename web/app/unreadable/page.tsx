@@ -6,7 +6,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import MessageCard, { MessageCardSkeleton } from "@/components/MessageCard";
 import MessageDetailView from "@/components/MessageDetailView/MessageDetailView";
-import type { InternalMessage } from "@/lib/types";
+import type { InternalMessage, Message } from "@/lib/types";
 import { navigateBackOrReplace } from "@/lib/navigation-utils";
 import { getButtonClasses } from "@/lib/theme";
 import { useMessageByIdFallback } from "@/lib/hooks/useMessageByIdFallback";
@@ -81,7 +81,7 @@ function UnreadablePageContent() {
   const selectedMessage = useMessageByIdFallback(messageId, listMatch);
 
   const handleMessageClick = useCallback(
-    (message: InternalMessage) => {
+    (message: Message) => {
       const url = `/unreadable?messageId=${encodeURIComponent(String(message.id))}`;
       router.push(url, { scroll: false });
     },

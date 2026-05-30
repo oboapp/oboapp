@@ -43,6 +43,7 @@ export function recordToInternalMessage(
     categories: getCategories(record.categories),
     timespanStart: toOptionalISOString(record.timespanStart, "timespanStart"),
     timespanEnd: toOptionalISOString(record.timespanEnd, "timespanEnd"),
+    aiProcessed: record.aiProcessed === true,
     cityWide: record.cityWide === true,
     responsibleEntity: optionalString(record.responsibleEntity),
     pins: getPins(record.pins),

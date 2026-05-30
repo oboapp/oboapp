@@ -7,7 +7,7 @@ import Link from "next/link";
 import MessageCard, { MessageCardSkeleton } from "@/components/MessageCard";
 import MessageDetailView from "@/components/MessageDetailView/MessageDetailView";
 import GitHubIcon from "@/components/icons/GitHubIcon";
-import type { InternalMessage, IngestError } from "@/lib/types";
+import type { InternalMessage, IngestError, Message } from "@/lib/types";
 import { navigateBackOrReplace } from "@/lib/navigation-utils";
 import { getButtonClasses } from "@/lib/theme";
 import { useMessageByIdFallback } from "@/lib/hooks/useMessageByIdFallback";
@@ -155,7 +155,7 @@ function IngestErrorsPageContent() {
   const selectedMessage = useMessageByIdFallback(messageId, listMatch);
 
   const handleMessageClick = useCallback(
-    (message: InternalMessage) => {
+    (message: Message) => {
       const url = `/ingest-errors?messageId=${encodeURIComponent(String(message.id))}`;
       router.push(url, { scroll: false });
     },

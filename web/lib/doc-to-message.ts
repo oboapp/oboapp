@@ -56,6 +56,7 @@ export function recordToInternalMessage(
 ): InternalMessage {
   return {
     ...recordToMessage(record),
+    aiProcessed: record.aiProcessed === true,
     eventId: optionalString(record.eventId),
   };
 }
