@@ -6,6 +6,7 @@ export interface SubscriptionStatus {
   isCurrentDeviceSubscribed: boolean;
   hasAnySubscriptions: boolean;
   isLoading: boolean;
+  hasStatusCheckError: boolean;
   checkStatus: () => Promise<void>;
 }
 
@@ -18,17 +19,20 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
     useState(true);
   const [hasAnySubscriptions, setHasAnySubscriptions] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasStatusCheckError, setHasStatusCheckError] = useState(false);
 
   const checkStatus = useCallback(async () => {
     if (!user) {
       setIsCurrentDeviceSubscribed(false);
       setHasAnySubscriptions(false);
+      setHasStatusCheckError(false);
       setIsLoading(false);
       return;
     }
 
     try {
       setIsLoading(true);
+      setHasStatusCheckError(false);
 
       // Check if Firebase Messaging is supported
       const { isMessagingSupported } =
@@ -82,8 +86,7 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       );
 
       if (!response.ok) {
-        setIsCurrentDeviceSubscribed(false);
-        setHasAnySubscriptions(false);
+        setHasStatusCheckError(true);
         return;
       }
 
@@ -98,9 +101,9 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       );
     } catch (err) {
       console.error("Error checking subscription status:", err);
-      // On error, assume not subscribed to show the prompt
-      setIsCurrentDeviceSubscribed(false);
-      setHasAnySubscriptions(false);
+      // Preserve the last known status to avoid false "not subscribed" messages
+      // when there are transient auth/network/backend failures.
+      setHasStatusCheckError(true);
     } finally {
       setIsLoading(false);
     }
@@ -115,6 +118,7 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
     isCurrentDeviceSubscribed,
     hasAnySubscriptions,
     isLoading,
+    hasStatusCheckError,
     checkStatus,
   };
 }
