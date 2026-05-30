@@ -15,8 +15,12 @@ import {
 const PublicAddressSchema = SharedAddressSchema.omit({
   qualitySignals: true,
 });
-// Explicitly exclude summary (internal-only) by spreading the shape without it
-const { summary: _summaryField, ...publicMessageShape } =
+// Explicitly exclude internal-only fields from the v1 public contract.
+const {
+  summary: _summaryField,
+  aiProcessed: _aiProcessedField,
+  ...publicMessageShape
+} =
   SharedMessageSchema.shape;
 const MessageSchema = z.object({
   ...publicMessageShape,
