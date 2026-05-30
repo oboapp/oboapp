@@ -8,11 +8,17 @@ const {
   getMessagingMock,
   getTokenMock,
   fetchWithAuthMock,
+  sentryCaptureExceptionMock,
 } = vi.hoisted(() => ({
   isMessagingSupportedMock: vi.fn(),
   getMessagingMock: vi.fn(),
   getTokenMock: vi.fn(),
   fetchWithAuthMock: vi.fn(),
+  sentryCaptureExceptionMock: vi.fn(),
+}));
+
+vi.mock("@sentry/nextjs", () => ({
+  captureException: sentryCaptureExceptionMock,
 }));
 
 vi.mock("@/lib/notification-service", () => ({
@@ -74,5 +80,6 @@ describe("useSubscriptionStatus", () => {
     expect(result.current.isCurrentDeviceSubscribed).toBe(true);
     expect(result.current.hasAnySubscriptions).toBe(true);
     expect(result.current.hasStatusCheckError).toBe(true);
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
   });
 });
