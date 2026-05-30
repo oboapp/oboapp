@@ -30,33 +30,107 @@ function deriveAiProcessed(data: FirebaseFirestore.DocumentData): boolean {
   return typeof data.plainText === "string" && data.plainText.trim().length > 0;
 }
 
-async function main() {
+type MigrationStats = {
+  totalProcessed: number;
+  updated: number;
+  skippedAlreadySet: number;
+  setTrue: number;
+  setFalse: number;
+};
+
+async function getAdminDb(): Promise<FirebaseFirestore.Firestore> {
   const { initializeApp, getApps, cert } = await import("firebase-admin/app");
   const { getFirestore } = await import("firebase-admin/firestore");
 
-  let adminDb: FirebaseFirestore.Firestore;
   if (!getApps().length) {
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
     const app = initializeApp({ credential: cert(serviceAccount) });
-    adminDb = getFirestore(app);
-  } else {
-    adminDb = getFirestore(getApps()[0]);
+    return getFirestore(app);
   }
+
+  return getFirestore(getApps()[0]);
+}
+
+function createBaseQuery(adminDb: FirebaseFirestore.Firestore) {
+  return adminDb.collection("messages").orderBy("__name__").limit(PAGE_SIZE);
+}
+
+function logProgress(stats: MigrationStats) {
+  console.log(
+    `  Processed ${stats.totalProcessed} docs (updated: ${stats.updated}, skipped: ${stats.skippedAlreadySet})...`,
+  );
+}
+
+function logSummary(stats: MigrationStats) {
+  console.log("\n✓ Migration completed successfully!");
+  console.log(`  Total processed: ${stats.totalProcessed}`);
+  console.log(`  Updated: ${stats.updated}`);
+  console.log(`  Skipped (already boolean): ${stats.skippedAlreadySet}`);
+  console.log(`  Set aiProcessed=true: ${stats.setTrue}`);
+  console.log(`  Set aiProcessed=false: ${stats.setFalse}`);
+}
+
+async function processSnapshot(
+  adminDb: FirebaseFirestore.Firestore,
+  snapshot: FirebaseFirestore.QuerySnapshot,
+  stats: MigrationStats,
+): Promise<FirebaseFirestore.QueryDocumentSnapshot> {
+  let batch = adminDb.batch();
+  let batchOps = 0;
+  let lastDoc = snapshot.docs[snapshot.docs.length - 1]!;
+
+  for (const doc of snapshot.docs) {
+    stats.totalProcessed++;
+    lastDoc = doc;
+
+    const data = doc.data();
+    if (typeof data.aiProcessed === "boolean") {
+      stats.skippedAlreadySet++;
+      continue;
+    }
+
+    const aiProcessed = deriveAiProcessed(data);
+    if (aiProcessed) {
+      stats.setTrue++;
+    } else {
+      stats.setFalse++;
+    }
+
+    batch.update(doc.ref, { aiProcessed });
+    stats.updated++;
+    batchOps++;
+
+    if (batchOps >= MAX_BATCH_OPS) {
+      await batch.commit();
+      batch = adminDb.batch();
+      batchOps = 0;
+    }
+  }
+
+  if (batchOps > 0) {
+    await batch.commit();
+  }
+
+  return lastDoc;
+}
+
+async function main() {
+  const adminDb = await getAdminDb();
 
   console.log("Starting migration: backfill aiProcessed on messages...");
 
-  let totalProcessed = 0;
-  let updated = 0;
-  let skippedAlreadySet = 0;
-  let setTrue = 0;
-  let setFalse = 0;
+  const stats: MigrationStats = {
+    totalProcessed: 0,
+    updated: 0,
+    skippedAlreadySet: 0,
+    setTrue: 0,
+    setFalse: 0,
+  };
+
   let lastDoc: FirebaseFirestore.QueryDocumentSnapshot | undefined;
 
   while (true) {
-    let query = adminDb
-      .collection("messages")
-      .orderBy("__name__")
-      .limit(PAGE_SIZE);
+    let query = createBaseQuery(adminDb);
 
     if (lastDoc) {
       query = query.startAfter(lastDoc);
@@ -65,54 +139,13 @@ async function main() {
     const snapshot = await query.get();
     if (snapshot.empty) break;
 
-    let batch = adminDb.batch();
-    let batchOps = 0;
-
-    for (const doc of snapshot.docs) {
-      lastDoc = doc;
-      totalProcessed++;
-
-      const data = doc.data();
-      if (typeof data.aiProcessed === "boolean") {
-        skippedAlreadySet++;
-        continue;
-      }
-
-      const aiProcessed = deriveAiProcessed(data);
-      if (aiProcessed) {
-        setTrue++;
-      } else {
-        setFalse++;
-      }
-
-      batch.update(doc.ref, { aiProcessed });
-      updated++;
-      batchOps++;
-
-      if (batchOps >= MAX_BATCH_OPS) {
-        await batch.commit();
-        batch = adminDb.batch();
-        batchOps = 0;
-      }
-    }
-
-    if (batchOps > 0) {
-      await batch.commit();
-    }
-
-    console.log(
-      `  Processed ${totalProcessed} docs (updated: ${updated}, skipped: ${skippedAlreadySet})...`,
-    );
+    lastDoc = await processSnapshot(adminDb, snapshot, stats);
+    logProgress(stats);
 
     if (snapshot.size < PAGE_SIZE) break;
   }
 
-  console.log("\n✓ Migration completed successfully!");
-  console.log(`  Total processed: ${totalProcessed}`);
-  console.log(`  Updated: ${updated}`);
-  console.log(`  Skipped (already boolean): ${skippedAlreadySet}`);
-  console.log(`  Set aiProcessed=true: ${setTrue}`);
-  console.log(`  Set aiProcessed=false: ${setFalse}`);
+  logSummary(stats);
 }
 
 main().catch((error) => {
