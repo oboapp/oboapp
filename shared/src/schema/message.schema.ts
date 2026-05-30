@@ -64,6 +64,7 @@ const ProcessStepSchema = z.union([
  * Used by backend processing pipeline and admin features
  */
 export const InternalMessageSchema = MessageSchema.extend({
+  aiProcessed: z.boolean(),
   process: z.array(ProcessStepSchema).optional(),
   ingestErrors: z.array(IngestErrorSchema).optional(),
   sourceDocumentId: z.string().optional(),
