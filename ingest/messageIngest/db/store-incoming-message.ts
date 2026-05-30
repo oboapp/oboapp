@@ -36,6 +36,8 @@ export async function storeIncomingMessage(
     text,
     locality,
     source,
+    // New messages default to non-AI until the filter/split stage marks them.
+    aiProcessed: false,
     createdAt: new Date(),
     crawledAt: crawledAt ?? new Date(),
     // Notify pipeline queries explicit false; always initialize this flag.

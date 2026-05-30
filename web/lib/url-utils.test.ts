@@ -74,6 +74,7 @@ describe("extractHostname", () => {
 describe("createMessageUrl", () => {
   it("should create URL from message with ID", () => {
     const message: Message = {
+      aiProcessed: false,
       id: "aB3xYz12",
       text: "Test message",
       createdAt: "2024-01-01T00:00:00Z",

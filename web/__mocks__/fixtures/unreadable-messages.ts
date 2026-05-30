@@ -9,6 +9,7 @@ export const MOCK_UNREADABLE_MESSAGES: InternalMessage[] = [
     locality: "bg.sofia",
     id: "msg-unreadable-1",
     text: "Констативен акт № КА-002\n\nС пълния текст на акта можете да се запознаете от следния линк:\n\nhttps://lozenets.sofia.bg/wp-content/uploads/2026/03/ka-002.pdf",
+    aiProcessed: true,
     plainText: "",
     markdownText: "",
     categories: [],

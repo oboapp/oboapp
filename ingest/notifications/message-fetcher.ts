@@ -68,6 +68,7 @@ export async function getUnprocessedMessages(db: OboDb): Promise<Message[]> {
     .map((data) => ({
       id: getString(data._id),
       text: getString(data.text),
+      aiProcessed: getOptionalBoolean(data.aiProcessed) === true,
       locality: getString(data.locality),
       geoJson: isFeatureCollection(data.geoJson) ? data.geoJson : undefined,
       createdAt: toISOString(data.createdAt),

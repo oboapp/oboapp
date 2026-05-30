@@ -32,6 +32,7 @@ describe("geo-matcher", () => {
         locality: "bg.sofia",
         id: "msg1",
         text: "Test",
+        aiProcessed: false,
         geoJson,
         createdAt: "2026-02-01T00:00:00.000Z",
       };
@@ -61,6 +62,7 @@ describe("geo-matcher", () => {
         locality: "bg.sofia",
         id: "msg1",
         text: "Test",
+        aiProcessed: false,
         geoJson,
         createdAt: "2026-02-01T00:00:00.000Z",
       };
@@ -93,6 +95,7 @@ describe("geo-matcher", () => {
         locality: "bg.sofia",
         id: "msg1",
         text: "Test",
+        aiProcessed: false,
         geoJson,
         createdAt: "2026-02-01T00:00:00.000Z",
       };
@@ -130,6 +133,7 @@ describe("geo-matcher", () => {
         locality: "bg.sofia",
         id: "msg1",
         text: "Test",
+        aiProcessed: false,
         geoJson,
         createdAt: "2026-02-01T00:00:00.000Z",
       };
@@ -175,6 +179,7 @@ describe("geo-matcher", () => {
         locality: "bg.sofia",
         id: "msg1",
         text: "Test",
+        aiProcessed: false,
         geoJson,
         createdAt: "2026-02-01T00:00:00.000Z",
       };
@@ -190,6 +195,7 @@ describe("geo-matcher", () => {
         locality: "bg.sofia",
         id: "msg1",
         text: "Test",
+        aiProcessed: false,
         geoJson: undefined,
         createdAt: "2026-02-01T00:00:00.000Z",
       };
@@ -205,6 +211,7 @@ describe("geo-matcher", () => {
         locality: "bg.sofia",
         id: "msg1",
         text: "Test",
+        aiProcessed: false,
         geoJson: {
           type: "FeatureCollection",
           features: [],
@@ -224,6 +231,7 @@ describe("geo-matcher", () => {
         locality: "bg.sofia",
         id: "msg1",
         text: "City-wide alert",
+        aiProcessed: false,
         cityWide: true,
         geoJson: {
           // This GeoJSON will be ignored, sofia.geojson will be used instead
@@ -264,6 +272,7 @@ describe("geo-matcher", () => {
         locality: "bg.sofia",
         id: "msg1",
         text: "Test",
+        aiProcessed: false,
         geoJson,
         createdAt: "2026-02-01T00:00:00.000Z",
       };
@@ -302,6 +311,7 @@ describe("geo-matcher", () => {
         locality: "bg.sofia",
         id: "msg1",
         text: "Test",
+        aiProcessed: false,
         geoJson,
         createdAt: "2026-02-01T00:00:00.000Z",
       };
@@ -341,6 +351,7 @@ describe("geo-matcher", () => {
         locality: "bg.sofia",
         id: "msg1",
         text: "Test",
+        aiProcessed: false,
         geoJson,
         createdAt: "2026-02-01T00:00:00.000Z",
       };

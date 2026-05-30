@@ -7,6 +7,7 @@ import type { Messaging } from "firebase-admin/messaging";
 import { Message, NotificationMatch } from "@/lib/types";
 import {
   getString,
+  getOptionalBoolean,
   isFeatureCollection,
 } from "@/lib/record-fields";
 import {
@@ -109,6 +110,7 @@ async function sendNotifications(
         getString(messageData.summary) ||
         getString(messageData.plainText) ||
         getString(messageData.text),
+      aiProcessed: getOptionalBoolean(messageData.aiProcessed) === true,
       locality: getString(messageData.locality),
       geoJson: isFeatureCollection(messageData.geoJson) ? messageData.geoJson : undefined,
       createdAt: toISOString(messageData.createdAt),

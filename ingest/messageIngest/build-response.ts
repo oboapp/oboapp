@@ -14,10 +14,12 @@ export async function buildMessageResponse(
   locality: string,
   addresses: Address[],
   geoJson: GeoJSONFeatureCollection | null,
+  aiProcessed: boolean = false,
 ): Promise<InternalMessage> {
   return {
     id: messageId,
     text,
+    aiProcessed,
     locality,
     addresses,
     geoJson: geoJson || undefined,
