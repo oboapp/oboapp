@@ -529,7 +529,6 @@ async function processWithAIPipeline(
     await storeExtractedLocations(
       storedMessageId,
       extractedLocations,
-      crawledAt,
       referenceDate,
     );
 
@@ -705,7 +704,6 @@ async function storeCategorization(
 async function storeExtractedLocations(
   messageId: string,
   extractedLocations: ExtractedLocations | null,
-  crawledAt: Date,
   referenceDate: Date,
 ): Promise<void> {
   const { extractTimespanRangeFromExtractedLocations, validateAndFallback } =
@@ -718,11 +716,12 @@ async function storeExtractedLocations(
   const educationalFacilities = extractedLocations?.educationalFacilities || [];
   const cityWide = extractedLocations?.cityWide || false;
 
-  // Extract timespans from extracted locations (pins/streets)
+  // Extract timespans from extracted locations (pins/streets), preferring referenceDate
+  // (datePublished when valid) over crawledAt as the fallback anchor.
   const { timespanStart, timespanEnd } =
-    extractTimespanRangeFromExtractedLocations(extractedLocations, crawledAt);
+    extractTimespanRangeFromExtractedLocations(extractedLocations, referenceDate);
 
-  // Validate and fallback to referenceDate (datePublished if valid, else crawledAt) if invalid
+  // Validate and fallback to referenceDate if extracted timespans are out of range
   const validated = validateAndFallback(timespanStart, timespanEnd, referenceDate);
 
   await updateMessage(messageId, {
