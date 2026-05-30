@@ -3,8 +3,6 @@ import type { User } from "firebase/auth";
 import * as Sentry from "@sentry/nextjs";
 import { fetchWithAuth } from "@/lib/auth-fetch";
 
-const reportedNonOkStatusCodes = new Set<number>();
-
 class StaleStatusCheckError extends Error {
   constructor() {
     super("Stale subscription status check");
@@ -25,6 +23,7 @@ function isStaleStatusCheckError(error: unknown): boolean {
 function captureStatusCheckWarning(
   error: unknown,
   reason: "non_ok_response" | "exception",
+  reportedNonOkStatusCodes: Set<number>,
   details?: { statusCode?: number },
 ): void {
   if (reason === "non_ok_response" && details?.statusCode !== undefined) {
@@ -72,6 +71,7 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
   const [hasStatusCheckError, setHasStatusCheckError] = useState(false);
   const previousUserIdRef = useRef<string | null>(null);
   const requestIdRef = useRef(0);
+  const reportedNonOkStatusCodesRef = useRef(new Set<number>());
 
   const checkStatus = useCallback(async () => {
     const requestId = ++requestIdRef.current;
@@ -168,6 +168,7 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
             `Subscription status check failed with status ${response.status}`,
           ),
           "non_ok_response",
+          reportedNonOkStatusCodesRef.current,
           { statusCode: response.status },
         );
         return;
@@ -190,7 +191,11 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       // Preserve the last known status to avoid false "not subscribed" messages
       // when there are transient auth/network/backend failures.
       setHasStatusCheckError(true);
-      captureStatusCheckWarning(err, "exception");
+      captureStatusCheckWarning(
+        err,
+        "exception",
+        reportedNonOkStatusCodesRef.current,
+      );
     } finally {
       if (!isStaleRequest()) {
         setIsLoading(false);
