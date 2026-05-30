@@ -48,6 +48,7 @@ async function resolveCurrentDeviceToken(
     return null;
   }
 
+  throwIfStale(isStaleRequest);
   const currentToken = await getToken(messaging, { vapidKey });
   throwIfStale(isStaleRequest);
   if (!currentToken) {
@@ -120,6 +121,7 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       setHasStatusCheckError(false);
       setIsLoading(false);
       previousUserIdRef.current = null;
+      reportedNonOkStatusCodesRef.current.clear();
       hasKnownStatusRef.current = false;
       return;
     }
@@ -133,6 +135,7 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       setIsCurrentDeviceSubscribed(false);
       setHasAnySubscriptions(false);
       setHasStatusCheckError(false);
+      reportedNonOkStatusCodesRef.current.clear();
       hasKnownStatusRef.current = false;
     }
     previousUserIdRef.current = user.uid;
@@ -154,6 +157,7 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
       }
 
       // Check if this token is in the backend
+      throwIfStale(isStaleRequest);
       const response = await fetchWithAuth(
         user,
         "/api/notifications/subscription/all",

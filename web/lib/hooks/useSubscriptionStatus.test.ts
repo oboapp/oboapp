@@ -158,6 +158,99 @@ describe("useSubscriptionStatus", () => {
     expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(2);
   });
 
+  it("clears non-ok warning dedupe when user logs out", async () => {
+    const user = { uid: "user-1" } as User;
+    const { result, rerender } = renderHook(
+      ({ currentUser }) => useSubscriptionStatus(currentUser),
+      { initialProps: { currentUser: user as User | null } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    fetchWithAuthMock.mockResolvedValueOnce(new Response(null, { status: 503 }));
+    await act(async () => {
+      await result.current.checkStatus();
+    });
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      rerender({ currentUser: null });
+    });
+
+    fetchWithAuthMock.mockResolvedValueOnce(new Response(null, { status: 503 }));
+    await act(async () => {
+      rerender({ currentUser: user });
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears non-ok warning dedupe when user changes", async () => {
+    const user1 = { uid: "user-1" } as User;
+    const user2 = { uid: "user-2" } as User;
+    const { result, rerender } = renderHook(
+      ({ user }) => useSubscriptionStatus(user),
+      { initialProps: { user: user1 } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    fetchWithAuthMock.mockResolvedValueOnce(new Response(null, { status: 503 }));
+    await act(async () => {
+      await result.current.checkStatus();
+    });
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
+
+    fetchWithAuthMock.mockResolvedValueOnce(new Response(null, { status: 503 }));
+    await act(async () => {
+      rerender({ user: user2 });
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips stale backend fetch when an older token lookup completes late", async () => {
+    const user1 = { uid: "user-1" } as User;
+    const user2 = { uid: "user-2" } as User;
+    const deferredToken = createDeferred<string | null>();
+
+    getTokenMock
+      .mockImplementationOnce(async () => deferredToken.promise)
+      .mockResolvedValueOnce("token-1");
+
+    const { rerender } = renderHook(
+      ({ user }) => useSubscriptionStatus(user),
+      { initialProps: { user: user1 } },
+    );
+
+    await waitFor(() => {
+      expect(getTokenMock).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      rerender({ user: user2 });
+    });
+
+    await act(async () => {
+      deferredToken.resolve("token-1");
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("ignores stale in-flight results after user switch", async () => {
     const user1 = { uid: "user-1" } as User;
     const user2 = { uid: "user-2" } as User;
