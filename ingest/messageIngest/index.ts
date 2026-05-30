@@ -32,6 +32,7 @@ import {
   getNumberArray,
   getStringOrDateOrNull,
 } from "@/lib/record-fields";
+import { validateTimespanRange } from "@/lib/timespan-utils";
 
 export {
   geocodeAddressesFromExtractedData,
@@ -826,7 +827,7 @@ function resolveReferenceDate(
 ): Date {
   if (datePublished) {
     const parsed = new Date(datePublished);
-    if (!Number.isNaN(parsed.getTime())) {
+    if (!Number.isNaN(parsed.getTime()) && validateTimespanRange(parsed)) {
       return parsed;
     }
   }

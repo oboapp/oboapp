@@ -612,6 +612,23 @@ describe("resolveReferenceDate via messageIngest (issue #499)", () => {
     expect(timespanUpdate.timespanEnd).toEqual(crawledAt);
   });
 
+  it("falls back to crawledAt when datePublished is before 2025-01-01 (lower-bound guard)", async () => {
+    const crawledAt = new Date("2026-05-18T00:00:00.000Z");
+
+    await messageIngest("test text", "vrabnitsa-org", {
+      precomputedGeoJson: PRECOMPUTED_GEOJSON,
+      markdownText: "Test",
+      locality: "bg.sofia",
+      datePublished: "1970-01-01T00:00:00.000Z",
+      crawledAt,
+    });
+
+    const timespanUpdate = findTimespanUpdate();
+    expect(timespanUpdate).toBeDefined();
+    expect(timespanUpdate.timespanStart).toEqual(crawledAt);
+    expect(timespanUpdate.timespanEnd).toEqual(crawledAt);
+  });
+
   it("delayed crawl regression (#499): fallback is datePublished not crawledAt", async () => {
     // Mirrors the May 2026 production incident: article published May 15, crawler ran May 18.
     // Before the fix, timespans would fall back to May 18 (crawl time) instead of May 15.
