@@ -198,6 +198,7 @@ async function ingestSource(
     sourceDocumentId,
     boundaryFilter: boundaries ?? undefined,
     crawledAt: source.crawledAt,
+    datePublished: source.datePublished,
     markdownText: source.markdownText,
     categories: source.categories,
     isRelevant: source.isRelevant,

@@ -70,6 +70,13 @@ export interface MessageIngestOptions {
    */
   crawledAt?: Date;
   /**
+   * Optional publication date from the source document (ISO 8601 string).
+   * When valid, preferred over crawledAt as the temporal anchor for LLM reasoning
+   * and as the fallback date for timespan validation. Relevant for batch crawlers
+   * where crawledAt can be days after the source was written.
+   */
+  datePublished?: string;
+  /**
    * Optional markdown-formatted text for display (when crawler produces markdown)
    */
   markdownText?: string;
@@ -155,6 +162,7 @@ async function processSingleMessage(
   ingestErrors: IngestErrorCollector,
 ): Promise<InternalMessage> {
   const crawledAt = ensureCrawledAtDate(options.crawledAt);
+  const referenceDate = resolveReferenceDate(options.datePublished, crawledAt);
 
   // Early exit: No extracted locations and no precomputed GeoJSON
   if (!precomputedGeoJson && !extractedLocations) {
@@ -178,7 +186,7 @@ async function processSingleMessage(
       options.markdownText!,
       options.timespanStart,
       options.timespanEnd,
-      crawledAt,
+      referenceDate,
     );
   }
 
@@ -345,8 +353,9 @@ async function processWithAIPipeline(
     await import("../lib/ai-service");
 
   const crawledAt = ensureCrawledAtDate(options.crawledAt);
+  const referenceDate = resolveReferenceDate(options.datePublished, crawledAt);
   const promptCtx = {
-    currentDate: crawledAt,
+    currentDate: referenceDate,
     sourceType: source,
     sourceUrl: options.sourceUrl,
   };
@@ -519,6 +528,7 @@ async function processWithAIPipeline(
       storedMessageId,
       extractedLocations,
       crawledAt,
+      referenceDate,
     );
 
     // Pre-geocode matching: try to reuse geometry from an existing high-quality event
@@ -694,6 +704,7 @@ async function storeExtractedLocations(
   messageId: string,
   extractedLocations: ExtractedLocations | null,
   crawledAt: Date,
+  referenceDate: Date,
 ): Promise<void> {
   const { extractTimespanRangeFromExtractedLocations, validateAndFallback } =
     await import("@/lib/timespan-utils");
@@ -709,8 +720,8 @@ async function storeExtractedLocations(
   const { timespanStart, timespanEnd } =
     extractTimespanRangeFromExtractedLocations(extractedLocations, crawledAt);
 
-  // Validate and fallback to crawledAt if invalid
-  const validated = validateAndFallback(timespanStart, timespanEnd, crawledAt);
+  // Validate and fallback to referenceDate (datePublished if valid, else crawledAt) if invalid
+  const validated = validateAndFallback(timespanStart, timespanEnd, referenceDate);
 
   await updateMessage(messageId, {
     $set: {
@@ -802,6 +813,24 @@ function ensureCrawledAtDate(crawledAt: Date | string | undefined): Date {
     }
   }
   return new Date();
+}
+
+/**
+ * Resolve the best temporal anchor date for LLM reasoning and timespan fallback.
+ * Prefers datePublished (when the source was written) over crawledAt (when crawled).
+ * Relevant for batch crawlers where crawledAt can be days after the article was published.
+ */
+function resolveReferenceDate(
+  datePublished: string | undefined,
+  crawledAt: Date,
+): Date {
+  if (datePublished) {
+    const parsed = new Date(datePublished);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+  return crawledAt;
 }
 
 /**
@@ -1070,7 +1099,7 @@ async function handlePrecomputedGeoJsonData(
   markdownText: string,
   timespanStart: Date | undefined,
   timespanEnd: Date | undefined,
-  crawledAt: Date,
+  fallbackDate: Date,
 ): Promise<Address[]> {
   const centroidAddress = computeGeoJsonCentroidAddress(precomputedGeoJson);
   const addresses = centroidAddress ? [centroidAddress] : [];
@@ -1079,7 +1108,7 @@ async function handlePrecomputedGeoJsonData(
     : [];
 
   const { validateAndFallback } = await import("@/lib/timespan-utils");
-  const validated = validateAndFallback(timespanStart, timespanEnd, crawledAt);
+  const validated = validateAndFallback(timespanStart, timespanEnd, fallbackDate);
 
   const locationFields = {
     addresses,

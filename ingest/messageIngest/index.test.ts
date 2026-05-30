@@ -536,3 +536,100 @@ describe("event matching after finalization", () => {
     );
   });
 });
+
+/**
+ * Tests for resolveReferenceDate behavior (issue #499).
+ * Verified indirectly through messageIngest with precomputed GeoJSON (no AI pipeline),
+ * observing the timespanStart/timespanEnd stored in the DB when no source timespans are
+ * provided — the fallback date should prefer datePublished over crawledAt.
+ */
+describe("resolveReferenceDate via messageIngest (issue #499)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockStoreIncomingMessage.mockResolvedValue("test-msg-id");
+    mockUpdateMessage.mockResolvedValue(undefined);
+    mockEncodeDocumentId.mockImplementation((url: string) => `encoded(${url})`);
+  });
+
+  function findTimespanUpdate() {
+    const updatePayloads = mockUpdateMessage.mock.calls.map((call) => call[1]);
+    return updatePayloads.find(
+      (payload) =>
+        payload &&
+        payload.timespanStart instanceof Date &&
+        payload.timespanEnd instanceof Date,
+    );
+  }
+
+  it("uses datePublished as fallback when valid and no source timespans provided", async () => {
+    const datePublished = "2026-05-15T00:00:00.000Z";
+    const crawledAt = new Date("2026-05-18T00:00:00.000Z");
+
+    await messageIngest("test text", "vrabnitsa-org", {
+      precomputedGeoJson: PRECOMPUTED_GEOJSON,
+      markdownText: "Test",
+      locality: "bg.sofia",
+      datePublished,
+      crawledAt,
+    });
+
+    const timespanUpdate = findTimespanUpdate();
+    expect(timespanUpdate).toBeDefined();
+    expect(timespanUpdate.timespanStart).toEqual(new Date(datePublished));
+    expect(timespanUpdate.timespanEnd).toEqual(new Date(datePublished));
+  });
+
+  it("falls back to crawledAt when datePublished is absent", async () => {
+    const crawledAt = new Date("2026-05-18T00:00:00.000Z");
+
+    await messageIngest("test text", "vrabnitsa-org", {
+      precomputedGeoJson: PRECOMPUTED_GEOJSON,
+      markdownText: "Test",
+      locality: "bg.sofia",
+      crawledAt,
+    });
+
+    const timespanUpdate = findTimespanUpdate();
+    expect(timespanUpdate).toBeDefined();
+    expect(timespanUpdate.timespanStart).toEqual(crawledAt);
+    expect(timespanUpdate.timespanEnd).toEqual(crawledAt);
+  });
+
+  it("falls back to crawledAt when datePublished is an invalid string", async () => {
+    const crawledAt = new Date("2026-05-18T00:00:00.000Z");
+
+    await messageIngest("test text", "vrabnitsa-org", {
+      precomputedGeoJson: PRECOMPUTED_GEOJSON,
+      markdownText: "Test",
+      locality: "bg.sofia",
+      datePublished: "not-a-valid-date",
+      crawledAt,
+    });
+
+    const timespanUpdate = findTimespanUpdate();
+    expect(timespanUpdate).toBeDefined();
+    expect(timespanUpdate.timespanStart).toEqual(crawledAt);
+    expect(timespanUpdate.timespanEnd).toEqual(crawledAt);
+  });
+
+  it("delayed crawl regression (#499): fallback is datePublished not crawledAt", async () => {
+    // Mirrors the May 2026 production incident: article published May 15, crawler ran May 18.
+    // Before the fix, timespans would fall back to May 18 (crawl time) instead of May 15.
+    const datePublished = "2026-05-15T00:00:00.000Z";
+    const crawledAt = new Date("2026-05-18T00:00:00.000Z");
+
+    await messageIngest("test text", "vrabnitsa-org", {
+      precomputedGeoJson: PRECOMPUTED_GEOJSON,
+      markdownText: "Test",
+      locality: "bg.sofia",
+      datePublished,
+      crawledAt,
+    });
+
+    const timespanUpdate = findTimespanUpdate();
+    expect(timespanUpdate).toBeDefined();
+    // Must be May 15 (datePublished), not May 18 (crawledAt)
+    expect(timespanUpdate.timespanStart.toISOString()).toBe(datePublished);
+    expect(timespanUpdate.timespanEnd.toISOString()).toBe(datePublished);
+  });
+});
