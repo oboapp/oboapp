@@ -35,6 +35,7 @@ vi.mock("@/lib/auth-fetch", () => ({
 describe("useSubscriptionStatus", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
 
     isMessagingSupportedMock.mockResolvedValue(true);
     getMessagingMock.mockReturnValue({});
@@ -43,14 +44,15 @@ describe("useSubscriptionStatus", () => {
       new Response(JSON.stringify([{ token: "token-1" }]), { status: 200 }),
     );
 
-    Object.defineProperty(globalThis, "Notification", {
-      configurable: true,
-      value: { permission: "granted" },
-    });
+    vi.stubGlobal("Notification", { permission: "granted" });
 
     vi.stubEnv("NEXT_PUBLIC_FIREBASE_VAPID_KEY", "test-vapid-key");
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
   it("keeps last known subscription status when backend check fails", async () => {
     const user = {} as User;
     const { result } = renderHook(() => useSubscriptionStatus(user));
