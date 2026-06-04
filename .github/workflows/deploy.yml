@@ -16,6 +16,9 @@ env:
   SENTRY_DSN_SECRET_ID: ${{ vars.SENTRY_DSN_SECRET_ID || 'sentry-dsn' }}
   REGION: europe-west1
   IMAGE_NAME: oborishte-ingest
+  ARTIFACT_REGISTRY_REPO_ID: oborishte-ingest
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET || 'oborishte-map-terraform-state' }}
+  TF_STATE_PREFIX: ${{ vars.TF_STATE_PREFIX || 'oborishte-ingest' }}
   TF_INPUT: "false"
 
 jobs:
@@ -48,7 +51,7 @@ jobs:
         run: |
           set -e  # Exit on error
           IMAGE_TAG="latest"
-          REGISTRY_URL="europe-west1-docker.pkg.dev/$PROJECT_ID/oborishte-ingest"
+          REGISTRY_URL="europe-west1-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REGISTRY_REPO_ID"
 
           # Build and push with latest tag
           echo "========================================="
@@ -112,7 +115,9 @@ jobs:
       - name: Terraform Init
         run: |
           cd ingest/terraform
-          terraform init
+          terraform init \
+            -backend-config="bucket=$TF_STATE_BUCKET" \
+            -backend-config="prefix=$TF_STATE_PREFIX"
 
       - name: Terraform Plan
         run: |
@@ -138,6 +143,8 @@ jobs:
             -var="gcs_generic_bucket=$GCS_GENERIC_BUCKET" \
             -var="app_url=$APP_URL" \
             -var="sentry_dsn_secret_id=$SENTRY_DSN_SECRET_ID" \
+            -var="image_name=$IMAGE_NAME" \
+            -var="artifact_registry_repo_id=$ARTIFACT_REGISTRY_REPO_ID" \
             -out=tfplan
 
       - name: Terraform Apply
