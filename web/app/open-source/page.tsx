@@ -6,14 +6,14 @@ import LicenceSection from "./LicenceSection";
 import ContributorsSection from "./ContributorsSection";
 import DepsSection from "./DepsSection";
 import OpenDataSection from "./OpenDataSection";
+import OboAppOnlineSection from "./OboAppOnlineSection";
 import AISection from "./AISection";
 import SponsorsSection from "./SponsorsSection";
 
 export const revalidate = 86400;
 
 const PAGE_TITLE = `${APP_NAME} е отворен | ${APP_NAME}`;
-const PAGE_DESCRIPTION =
-  `${APP_NAME} е отворен код. Вижте лиценза, библиотеките, на които се крепи, и хората, които го изграждат.`;
+const PAGE_DESCRIPTION = `${APP_NAME} е отворен код. Вижте лиценза, библиотеките, на които се крепи, и хората, които го изграждат.`;
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -81,6 +81,7 @@ export default async function OpenSourcePage() {
           <div className="space-y-8">
             <LicenceSection />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+              <OboAppOnlineSection />
               <ContributorsSection contributors={contributors} />
               <SponsorsSection />
               <AISection />

@@ -25,6 +25,19 @@ export default function ClientLayout({
     isClient &&
     new URLSearchParams(window.location.search).has("messageId");
 
+  const reserveAuthorFooterSpace = pathname === "/author";
+
+  const footerClassName = [hideFooterOnMobile ? "hidden sm:block" : ""]
+    .filter(Boolean)
+    .join(" ");
+
+  const scrollContainerClassName = [
+    "flex-1 flex flex-col overflow-y-auto",
+    reserveAuthorFooterSpace ? "pb-28 sm:pb-0" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   useEffect(() => {
     // Deduplicate toasts while visible: repeated clicks update the same toast
     // instead of stacking duplicates. After dismiss, the same id can be shown again.
@@ -74,11 +87,11 @@ export default function ClientLayout({
         <QueryProvider>
           <AuthProvider>
             <Header />
-            <div className="flex-1 flex flex-col overflow-y-auto">
+            <div className={scrollContainerClassName}>
               <main className="flex-1 flex flex-col">{children}</main>
               <Footer
                 showHistoryReportLink={showHistoryReportLink}
-                className={hideFooterOnMobile ? "hidden sm:block" : undefined}
+                className={footerClassName || undefined}
               />
             </div>
             <CookieConsent />
