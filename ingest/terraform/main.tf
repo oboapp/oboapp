@@ -8,11 +8,12 @@ terraform {
     }
   }
 
-  # Recommended: Store state in GCS for team collaboration and CI/CD
-  backend "gcs" {
-    bucket = "oborishte-map-terraform-state"
-    prefix = "oborishte-ingest"
-  }
+  # Store state in GCS. Configure for your instance by passing -backend-config
+  # flags to terraform init, or by creating a backend.hcl file. Example:
+  #   terraform init \
+  #     -backend-config="bucket=<your-project>-terraform-state" \
+  #     -backend-config="prefix=ingest"
+  backend "gcs" {}
 }
 
 provider "google" {

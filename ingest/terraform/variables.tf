@@ -36,7 +36,7 @@ variable "image_registry" {
 variable "image_name" {
   description = "Container image name"
   type        = string
-  default     = "oborishte-ingest"
+  default     = "ingest"
 }
 
 variable "image_tag" {
@@ -120,5 +120,5 @@ variable "app_url" {
 variable "artifact_registry_repo_id" {
   description = "Artifact Registry repository ID for the ingest Docker image"
   type        = string
-  default     = "oborishte-ingest"
+  default     = "ingest"
 }

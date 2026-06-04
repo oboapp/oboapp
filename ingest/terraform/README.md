@@ -42,8 +42,12 @@ region     = "europe-west1"
 ### 2. Initialize Terraform
 
 ```bash
-terraform init
+terraform init \
+  -backend-config="bucket=<your-project>-terraform-state" \
+  -backend-config="prefix=ingest"
 ```
+
+Replace `<your-project>-terraform-state` with your GCS bucket name. The bucket must already exist (create it once via `gcloud storage buckets create gs://<your-project>-terraform-state`).
 
 ### 3. Preview Changes
 
@@ -166,23 +170,23 @@ gcloud run jobs update crawl-rayon-oborishte \
 
 All variables are defined in `variables.tf`. Override them in `terraform.tfvars`:
 
-| Variable                    | Description                              | Default              |
-| --------------------------- | ---------------------------------------- | -------------------- |
-| `project_id`                | GCP Project ID                           | _required_           |
-| `firebase_project_id`       | Firebase Project ID                      | _required_           |
-| `alert_email`               | Email for pipeline failure alerts        | _required_           |
-| `app_url`                   | Public URL of the web app                | _required_           |
-| `ci_service_account_email`  | CI/CD service account email              | _required_           |
-| `region`                    | GCP region                               | `europe-west1`       |
-| `locality`                  | Locality identifier (e.g. `bg.sofia`)    | `bg.sofia`           |
-| `image_name`                | Docker image name                        | `oborishte-ingest`   |
-| `image_tag`                 | Docker image tag                         | `latest`             |
-| `artifact_registry_repo_id` | Artifact Registry repository ID          | `oborishte-ingest`   |
-| `schedule_timezone`         | Timezone for schedules                   | `Europe/Sofia`       |
-| `localities`                | Locality IDs to deploy crawlers for      | `["bg.sofia"]`       |
-| `crawlers`                  | Manual override for the crawler map      | `{}` (auto-assembled)|
-| `gcs_generic_bucket`        | GCS bucket for file storage (optional)   | `""`                 |
-| `sentry_dsn_secret_id`      | Secret Manager ID for Sentry DSN         | `""`                 |
+| Variable                    | Description                            | Default               |
+| --------------------------- | -------------------------------------- | --------------------- |
+| `project_id`                | GCP Project ID                         | _required_            |
+| `firebase_project_id`       | Firebase Project ID                    | _required_            |
+| `alert_email`               | Email for pipeline failure alerts      | _required_            |
+| `app_url`                   | Public URL of the web app              | _required_            |
+| `ci_service_account_email`  | CI/CD service account email            | _required_            |
+| `region`                    | GCP region                             | `europe-west1`        |
+| `locality`                  | Locality identifier (e.g. `bg.sofia`)  | `bg.sofia`            |
+| `image_name`                | Docker image name                      | `oborishte-ingest`    |
+| `image_tag`                 | Docker image tag                       | `latest`              |
+| `artifact_registry_repo_id` | Artifact Registry repository ID        | `oborishte-ingest`    |
+| `schedule_timezone`         | Timezone for schedules                 | `Europe/Sofia`        |
+| `localities`                | Locality IDs to deploy crawlers for    | `["bg.sofia"]`        |
+| `crawlers`                  | Manual override for the crawler map    | `{}` (auto-assembled) |
+| `gcs_generic_bucket`        | GCS bucket for file storage (optional) | `""`                  |
+| `sentry_dsn_secret_id`      | Secret Manager ID for Sentry DSN       | `""`                  |
 
 ### Modifying Schedules
 
