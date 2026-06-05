@@ -3,11 +3,11 @@ import * as Sentry from "@sentry/node";
 /**
  * Initialize Sentry error monitoring for the public API.
  *
- * No-ops when SENTRY_DSN is not set, so self-hosters without a Sentry
- * account get identical behaviour — errors still appear in Vercel logs.
+ * No-ops when SENTRY_DSN is not set, so instances without a Sentry
+ * account get identical behaviour — errors still appear in host platform logs.
  *
- * Called at module load time in index.ts (env vars are available
- * immediately on Vercel without dotenv).
+ * Called at module load time in index.ts (env vars must be available
+ * at startup before this module is imported).
  */
 export function initSentry(): void {
   const dsn = process.env.SENTRY_DSN;

@@ -39,9 +39,6 @@ firestore-debug.log
 !.env.example.emulator
 !.env.example.msw
 
-# vercel
-.vercel
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts

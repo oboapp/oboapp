@@ -14,7 +14,7 @@ const eslintConfig = [
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ["vitest.config.ts", "eslint.config.mjs", "api/_handler.ts"],
+          allowDefaultProject: ["vitest.config.ts", "eslint.config.mjs"],
         },
         tsconfigRootDir: __dirname,
       },
@@ -52,7 +52,6 @@ const eslintConfig = [
       "build/**",
       "node_modules/**",
       "coverage/**",
-      ".vercel/**",
       "**/*.d.ts",
       "**/*.mjs",
     ],

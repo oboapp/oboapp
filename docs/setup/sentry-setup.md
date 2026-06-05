@@ -1,6 +1,6 @@
 # Sentry Error Monitoring
 
-Sentry is an optional error monitoring integration. When configured, it captures unhandled exceptions and error-level logs from the web app, the public API, and the ingest pipeline. When not configured, nothing changes — errors continue to appear in Vercel logs and Google Cloud Logging as before.
+Sentry is an optional error monitoring integration. When configured, it captures unhandled exceptions and error-level logs from the web app, the public API, and the ingest pipeline. When not configured, nothing changes — errors continue to appear in your host platform's logs and Google Cloud Logging as before.
 
 ## What Gets Captured
 
@@ -10,7 +10,7 @@ Sentry is an optional error monitoring integration. When configured, it captures
 - React render errors (via global error boundary)
 - All `console.error()` calls in the browser and in API route handlers
 
-**API (Hono/Vercel)**
+**API (Hono)**
 
 - Unhandled exceptions via the global `app.onError` handler
 - All `console.error()` calls via `captureConsoleIntegration`
@@ -26,8 +26,8 @@ Use **three separate Sentry projects** — one per service. This keeps browser e
 
 | Service | Runtime | Env var |
 |---------|---------|---------|
-| `web` (Next.js) | Vercel | `NEXT_PUBLIC_SENTRY_DSN` |
-| `api` (Hono) | Vercel | `SENTRY_DSN` |
+| `web` (Next.js) | Node.js host | `NEXT_PUBLIC_SENTRY_DSN` |
+| `api` (Hono) | Node.js host | `SENTRY_DSN` |
 | `ingest` (pipeline) | Cloud Run | `SENTRY_DSN` |
 
 ### Web
@@ -37,10 +37,7 @@ Use **three separate Sentry projects** — one per service. This keeps browser e
 NEXT_PUBLIC_SENTRY_DSN=https://...@o0.ingest.sentry.io/0
 ```
 
-**Vercel** (Project Settings → Environment Variables, or via CLI):
-```bash
-vercel env add NEXT_PUBLIC_SENTRY_DSN production --cwd web
-```
+**Production** — set `NEXT_PUBLIC_SENTRY_DSN` as an environment variable on your host (e.g. Vercel project settings, Fly.io secrets, a Docker env file, etc.).
 
 The DSN is visible to the browser by design — Sentry DSNs are public project identifiers, not credentials.
 
@@ -51,10 +48,7 @@ The DSN is visible to the browser by design — Sentry DSNs are public project i
 SENTRY_DSN=https://...@o0.ingest.sentry.io/0
 ```
 
-**Vercel** (Project Settings → Environment Variables, or via CLI):
-```bash
-vercel env add SENTRY_DSN production --cwd api
-```
+**Production** — set `SENTRY_DSN` as an environment variable on your host (e.g. Vercel project settings, Fly.io secrets, a Docker env file, etc.).
 
 ### Ingest (`ingest/.env.local` for local runs)
 

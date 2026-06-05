@@ -91,12 +91,12 @@ pnpm build:db
 | -------------- | ---------------------------------------------------------------------------------------------------------- |
 | Web app        | Next.js, React, TypeScript, Tailwind CSS, Google Maps API, Leaflet, TanStack React Query, MDX              |
 | BFF            | Next.js Route Handlers, Firebase Auth                                                                      |
-| Public API     | Hono on Vercel, Zod, OpenAPI auto-generation, API key auth                                                 |
+| Public API     | Hono (Node.js), Zod, OpenAPI auto-generation, API key auth                                                 |
 | Pipeline       | Node.js, Playwright, Google Cloud Run Jobs, Cloud Workflows                                                |
 | Database       | Firebase Auth, Firestore, Cloud Messaging, MongoDB, `@oboapp/db`                                           |
 | AI             | Google Gemini for filtering, categorization, location extraction, and embeddings; promptfoo for evaluation |
 | Geospatial     | Google Geocoding, OpenStreetMap Overpass, Bulgarian Cadastre, GTFS, Turf.js                                |
-| Infrastructure | Google Cloud Run, Workflows, Scheduler, Storage, Terraform, Docker, Vercel                                 |
+| Infrastructure | Google Cloud Run, Workflows, Scheduler, Storage, Terraform, Docker                                         |
 | Testing        | Vitest, Testing Library, MSW, Playwright                                                                   |
 | Tooling        | pnpm workspaces, ESLint, esbuild, TypeScript strict mode                                                   |
 
