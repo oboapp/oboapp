@@ -64,6 +64,8 @@ export default withSentryConfig(config, {
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,
   silent: !process.env.CI,
+  // Route browser events through our own domain so ad-blockers don't drop them.
+  tunnelRoute: "/monitoring",
   webpack: {
     treeshake: {
       removeDebugLogging: true,
