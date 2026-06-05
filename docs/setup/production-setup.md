@@ -192,16 +192,11 @@ See `ingest/terraform/` for infrastructure-as-code deployment.
 ### Web Application (Next.js)
 
 ```bash
-cd web
-next build
-next start   # or export the output and serve statically
+pnpm --filter web build
+pnpm --filter web start
 ```
 
-The web app is a standard Next.js application and can be deployed on any compatible host:
-
-- **Vercel** — connect the GitHub repository, configure environment variables in the dashboard, and deploy.
-- **Self-hosted** — run `next build` then `next start` on any Node.js server or in a Docker container.
-- **Other platforms** — Fly.io, Railway, Render, and similar Node.js-capable platforms all work.
+The web app is a standard Next.js application and can be deployed on any host that supports Node.js or a Next.js build output (for example, a managed Next.js platform, a self-hosted Node.js server, or a Docker container). Configure the required environment variables in your host's environment/secrets settings.
 
 ## Monitoring and Maintenance
 

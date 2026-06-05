@@ -21,7 +21,7 @@ Next.js uses `transpilePackages: ['@oboapp/shared']` to automatically transpile 
 
 ## Hosting
 
-The web app is a standard Next.js application and can be hosted on any platform that supports Node.js or Next.js output (Vercel, Fly.io, Railway, self-hosted Docker, etc.). Hosting configuration is a downstream/fork concern; the upstream repository is platform-neutral.
+The web app is a standard Next.js application and can be hosted on any platform that supports Node.js or a Next.js build output. Hosting configuration is a downstream/fork concern; the upstream repository is platform-neutral.
 
 ## Styling
 

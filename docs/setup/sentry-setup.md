@@ -37,7 +37,7 @@ Use **three separate Sentry projects** — one per service. This keeps browser e
 NEXT_PUBLIC_SENTRY_DSN=https://...@o0.ingest.sentry.io/0
 ```
 
-**Production** — set `NEXT_PUBLIC_SENTRY_DSN` as an environment variable on your host (e.g. Vercel project settings, Fly.io secrets, a Docker env file, etc.).
+**Production** — set `NEXT_PUBLIC_SENTRY_DSN` in your hosting platform's environment/secrets configuration.
 
 The DSN is visible to the browser by design — Sentry DSNs are public project identifiers, not credentials.
 
@@ -48,7 +48,7 @@ The DSN is visible to the browser by design — Sentry DSNs are public project i
 SENTRY_DSN=https://...@o0.ingest.sentry.io/0
 ```
 
-**Production** — set `SENTRY_DSN` as an environment variable on your host (e.g. Vercel project settings, Fly.io secrets, a Docker env file, etc.).
+**Production** — set `SENTRY_DSN` in your hosting platform's environment/secrets configuration.
 
 ### Ingest (`ingest/.env.local` for local runs)
 
