@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/serve.ts",
-    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json --resolve-full-paths",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json --resolve-full-paths && node build-vercel.mjs",
     "start": "node dist/serve.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "4.0.18",
+    "esbuild": "^0.27.4",
     "eslint": "^9.18.0",
     "tsc-alias": "^1.8.16",
     "tsx": "^4.19.4",
