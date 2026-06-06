@@ -1,15 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { MockedFunction } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 // Mock firebase-admin to avoid initialization
 vi.mock("@/lib/firebase-admin", () => ({
   adminDb: {},
-}));
-
-// Mock the firestore helper
-const mockEncodeDocumentId = vi.fn();
-vi.mock("../crawlers/shared/firestore", () => ({
-  encodeDocumentId: mockEncodeDocumentId,
 }));
 
 interface SourceDocument {
@@ -23,171 +16,42 @@ interface SourceDocument {
   markdownText?: string;
 }
 
-interface MockFirestoreQuery {
-  where: MockedFunction<
-    (field: string, op: string, value: any) => MockFirestoreQuery
-  >;
-  limit: MockedFunction<(count: number) => MockFirestoreQuery>;
-  get: MockedFunction<() => Promise<{ empty: boolean }>>;
-}
-
-interface MockFirestoreCollection {
-  collection: MockedFunction<(name: string) => MockFirestoreQuery>;
-}
-
 /**
- * Test the isAlreadyIngested function with various scenarios
+ * The ingest pipeline deduplicates at the query level: it only fetches sources
+ * that have not been processed yet (processed === false). This mirrors the
+ * where-clause construction in fetchSources (which is not exported) so the
+ * filter contract is covered.
  */
-describe("isAlreadyIngested", () => {
-  let isAlreadyIngested: (adminDb: any, sourceUrl: string) => Promise<boolean>;
-  let mockAdminDb: MockFirestoreCollection;
-  let mockQuery: MockFirestoreQuery;
+function buildSourcesWhere(options: {
+  sourceType?: string;
+}): { field: string; op: "=="; value: unknown }[] {
+  const where: { field: string; op: "=="; value: unknown }[] = [];
+  where.push({ field: "processed", op: "==", value: false });
+  if (options.sourceType) {
+    where.push({ field: "sourceType", op: "==", value: options.sourceType });
+  }
+  return where;
+}
 
-  beforeEach(() => {
-    // Reset mocks
-    vi.clearAllMocks();
-
-    // Since isAlreadyIngested is not exported, we'll create a test helper
-    // that mimics its functionality for testing purposes
-    isAlreadyIngested = async (
-      adminDb: any,
-      sourceUrl: string,
-    ): Promise<boolean> => {
-      const sourceDocumentId = mockEncodeDocumentId(sourceUrl);
-      const messagesSnapshot = await adminDb
-        .collection("messages")
-        .where("sourceDocumentId", "==", sourceDocumentId)
-        .limit(1)
-        .get();
-      return !messagesSnapshot.empty;
-    };
-
-    // Set up mock Firestore
-    mockQuery = {
-      where: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockReturnThis(),
-      get: vi.fn(),
-    };
-
-    mockAdminDb = {
-      collection: vi.fn().mockReturnValue(mockQuery),
-    };
+describe("fetchSources where clause", () => {
+  it("always filters on processed === false", () => {
+    const where = buildSourcesWhere({});
+    expect(where).toEqual([{ field: "processed", op: "==", value: false }]);
   });
 
-  it("should return false when no messages exist with the sourceDocumentId", async () => {
-    // Setup
-    const sourceUrl = "https://example.com/article-1";
-    const expectedSourceDocumentId = "encoded_url_123";
-
-    mockEncodeDocumentId.mockReturnValue(expectedSourceDocumentId);
-    mockQuery.get.mockResolvedValue({ empty: true });
-
-    // Execute
-    const result = await isAlreadyIngested(mockAdminDb, sourceUrl);
-
-    // Verify
-    expect(result).toBe(false);
-    expect(mockEncodeDocumentId).toHaveBeenCalledWith(sourceUrl);
-    expect(mockAdminDb.collection).toHaveBeenCalledWith("messages");
-    expect(mockQuery.where).toHaveBeenCalledWith(
-      "sourceDocumentId",
-      "==",
-      expectedSourceDocumentId,
-    );
-    expect(mockQuery.limit).toHaveBeenCalledWith(1);
+  it("adds the sourceType filter when provided, keeping processed first", () => {
+    const where = buildSourcesWhere({ sourceType: "sofia-bg" });
+    expect(where).toEqual([
+      { field: "processed", op: "==", value: false },
+      { field: "sourceType", op: "==", value: "sofia-bg" },
+    ]);
   });
 
-  it("should return true when messages exist with the sourceDocumentId", async () => {
-    // Setup
-    const sourceUrl = "https://example.com/article-2";
-    const expectedSourceDocumentId = "encoded_url_456";
-
-    mockEncodeDocumentId.mockReturnValue(expectedSourceDocumentId);
-    mockQuery.get.mockResolvedValue({ empty: false });
-
-    // Execute
-    const result = await isAlreadyIngested(mockAdminDb, sourceUrl);
-
-    // Verify
-    expect(result).toBe(true);
-    expect(mockEncodeDocumentId).toHaveBeenCalledWith(sourceUrl);
-    expect(mockAdminDb.collection).toHaveBeenCalledWith("messages");
-    expect(mockQuery.where).toHaveBeenCalledWith(
-      "sourceDocumentId",
-      "==",
-      expectedSourceDocumentId,
-    );
-    expect(mockQuery.limit).toHaveBeenCalledWith(1);
-  });
-
-  it("should handle different URLs correctly", async () => {
-    const testCases = [
-      {
-        url: "https://rayon-oborishte.bg/article-123",
-        expectedId: "rayon_encoded_123",
-      },
-      {
-        url: "https://sofia.bg/news-456",
-        expectedId: "sofia_encoded_456",
-      },
-      {
-        url: "https://toplo.bg/incidents/incident-789",
-        expectedId: "toplo_encoded_789",
-      },
-    ];
-
-    for (const testCase of testCases) {
-      mockEncodeDocumentId.mockReturnValue(testCase.expectedId);
-      mockQuery.get.mockResolvedValue({ empty: false });
-
-      const result = await isAlreadyIngested(mockAdminDb, testCase.url);
-
-      expect(result).toBe(true);
-      expect(mockEncodeDocumentId).toHaveBeenCalledWith(testCase.url);
+  it("never uses != / not-in operators (unsafe across Firestore + MongoDB)", () => {
+    const where = buildSourcesWhere({ sourceType: "toplo-bg" });
+    for (const clause of where) {
+      expect(clause.op).toBe("==");
     }
-  });
-
-  it("should handle URLs with special characters", async () => {
-    const specialUrl =
-      "https://example.com/path with spaces/файл.html?param=value&other=тест";
-    const encodedId = "special_encoded_url_with_unicode";
-
-    mockEncodeDocumentId.mockReturnValue(encodedId);
-    mockQuery.get.mockResolvedValue({ empty: true });
-
-    const result = await isAlreadyIngested(mockAdminDb, specialUrl);
-
-    expect(result).toBe(false);
-    expect(mockEncodeDocumentId).toHaveBeenCalledWith(specialUrl);
-    expect(mockQuery.where).toHaveBeenCalledWith(
-      "sourceDocumentId",
-      "==",
-      encodedId,
-    );
-  });
-
-  it("should propagate Firestore errors", async () => {
-    const sourceUrl = "https://example.com/error-test";
-    const firestoreError = new Error("Firestore connection failed");
-
-    mockEncodeDocumentId.mockReturnValue("encoded_error_url");
-    mockQuery.get.mockRejectedValue(firestoreError);
-
-    await expect(isAlreadyIngested(mockAdminDb, sourceUrl)).rejects.toThrow(
-      "Firestore connection failed",
-    );
-  });
-
-  it("should use limit(1) for efficiency", async () => {
-    const sourceUrl = "https://example.com/efficiency-test";
-
-    mockEncodeDocumentId.mockReturnValue("encoded_efficiency_url");
-    mockQuery.get.mockResolvedValue({ empty: false });
-
-    await isAlreadyIngested(mockAdminDb, sourceUrl);
-
-    expect(mockQuery.limit).toHaveBeenCalledWith(1);
-    expect(mockQuery.limit).toHaveBeenCalledTimes(1);
   });
 });
 

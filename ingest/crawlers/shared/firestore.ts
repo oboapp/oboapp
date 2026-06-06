@@ -12,13 +12,16 @@ export function encodeDocumentId(url: string): string {
 }
 
 /**
- * Check if a URL has already been processed
+ * Check if a source document already exists for the given URL.
+ *
+ * This looks up by document ID (derived from the URL), not by the `processed`
+ * boolean field introduced in the ingest pipeline. A source document can exist
+ * with `processed: false` (crawled but not yet ingested) — this function still
+ * returns `true` in that case, preventing duplicate crawl writes.
+ *
  * @throws Error if database operation fails
  */
-export async function isUrlProcessed(
-  url: string,
-  db: OboDb,
-): Promise<boolean> {
+export async function isUrlProcessed(url: string, db: OboDb): Promise<boolean> {
   const docId = encodeDocumentId(url);
   const doc = await db.sources.findById(docId);
   return doc !== null;
@@ -52,10 +55,22 @@ export async function saveSourceDocument<T extends BaseSourceDocument>(
   const record: Record<string, unknown> = Object.fromEntries(
     Object.entries(data),
   );
+
+  // New source documents start unprocessed. The ingest pipeline flips this to
+  // true once a corresponding message is created. Crawlers only ever write new
+  // documents (callers guard with isUrlProcessed / saveSourceDocumentIfNew), so
+  // this never resets an already-processed source.
+  if (record.processed === undefined) {
+    record.processed = false;
+  }
+
   await db.sources.setOne(docId, record);
 
   if (options?.logSuccess !== false) {
-    logger.debug("Saved document", { sourceType: doc.sourceType, title: doc.title.substring(0, 50) });
+    logger.debug("Saved document", {
+      sourceType: doc.sourceType,
+      title: doc.title.substring(0, 50),
+    });
   }
 }
 

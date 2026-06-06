@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { generateMessageId } from "@/lib/message-id-utils";
 
 /**
@@ -25,7 +26,7 @@ const ALREADY_EXISTS_CODES = new Set<string | number>([
 export async function storeIncomingMessage(
   text: string,
   locality: string,
-  source: string = "web-interface",
+  source: string,
   sourceUrl?: string,
   crawledAt?: Date,
   sourceDocumentId?: string,
@@ -53,6 +54,38 @@ export async function storeIncomingMessage(
   }
 
   // Atomically create document with retry on collision
+  const messageId = await createMessageWithUniqueId(db, docData);
+
+  // A message now exists for this source, so the source is processed.
+  // This is the dedup signal the ingest pipeline relies on: fetchSources only
+  // returns sources with processed === false. Marking here (the moment a
+  // message is created) mirrors the previous message-existence dedup.
+  //
+  // Best-effort: if marking fails (e.g. the source doc is missing or there is
+  // a transient DB error), the message has already been committed and must not
+  // be rolled back. The next ingest run will re-fetch this source and attempt
+  // to create a duplicate message, which the ID-collision retry will reject.
+  if (sourceDocumentId) {
+    try {
+      await db.sources.updateOne(sourceDocumentId, { processed: true });
+    } catch (err) {
+      logger.warn(
+        "Failed to mark source as processed — will retry on next run",
+        {
+          sourceDocumentId,
+          err,
+        },
+      );
+    }
+  }
+
+  return messageId;
+}
+
+async function createMessageWithUniqueId(
+  db: Awaited<ReturnType<typeof getDb>>,
+  docData: Record<string, unknown>,
+): Promise<string> {
   for (
     let attempt = 0;
     attempt < MAX_MESSAGE_ID_GENERATION_ATTEMPTS;

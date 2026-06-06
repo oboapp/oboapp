@@ -138,6 +138,14 @@ export const INDEX_DEFINITIONS: IndexDefinition[] = [
     spec: { sourceType: 1 },
     options: { name: "sourceType" },
   },
+  // Ingest fetches unprocessed sources (processed === false), optionally scoped
+  // by sourceType. The compound index also serves the processed-only query as a
+  // prefix, keeping per-run reads bounded.
+  {
+    collection: "sources",
+    spec: { processed: 1, sourceType: 1 },
+    options: { name: "processed_sourceType" },
+  },
 
   // --- apiClients ---
   // apiKey is looked up on every authenticated API request — needs an index

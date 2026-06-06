@@ -119,7 +119,7 @@ export interface MessageIngestResult {
 /**
  * Execute the full message ingest pipeline
  * @param text - The message text to process
- * @param source - The source of the message (e.g., 'web-interface', 'api', etc.)
+ * @param source - The source identifier (sourceType, e.g. 'sofia-bg', 'toplo-bg')
  * @returns Array of processed messages with geocoding and GeoJSON data
  */
 export async function messageIngest(

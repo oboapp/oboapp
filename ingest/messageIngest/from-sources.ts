@@ -5,7 +5,10 @@ import dotenv from "dotenv";
 import { resolve } from "node:path";
 import type { OboDb } from "@oboapp/db";
 import { GeoJSONFeatureCollection } from "@/lib/types";
-import { isWithinBoundaries, loadBoundaries } from "@/geocoding/shared/boundary-utils";
+import {
+  isWithinBoundaries,
+  loadBoundaries,
+} from "@/geocoding/shared/boundary-utils";
 import { logger } from "@/lib/logger";
 import {
   getString,
@@ -46,13 +49,10 @@ interface IngestSummary {
   withinBounds: number;
   outsideBounds: number;
   ingested: number;
-  alreadyIngested: number;
   filtered: number;
   failed: number;
   errors: Array<{ url: string; error: string }>;
 }
-
-
 
 function toDate(value: unknown): Date | undefined {
   if (value instanceof Date) return value;
@@ -70,6 +70,13 @@ async function fetchSources(
   const where: { field: string; op: "=="; value: unknown }[] = [];
   const filters: string[] = [];
 
+  // Only fetch sources that have not been processed yet. Processed sources
+  // already have corresponding messages and must never be re-ingested. This
+  // filter is what keeps per-run Firestore reads bounded — without it every run
+  // re-scans the entire sources history.
+  where.push({ field: "processed", op: "==", value: false });
+  filters.push("processed=false");
+
   if (options.sourceType) {
     where.push({ field: "sourceType", op: "==", value: options.sourceType });
     filters.push(`sourceType=${options.sourceType}`);
@@ -80,7 +87,7 @@ async function fetchSources(
   }
 
   const docs = await db.sources.findMany({
-    where: where.length > 0 ? where : undefined,
+    where,
     limit: options.limit,
   });
 
@@ -94,7 +101,8 @@ async function fetchSources(
       data.crawledAt instanceof Date
         ? data.crawledAt
         : new Date(getString(data.crawledAt) || Date.now()),
-    geoJson: isFeatureCollection(data.geoJson) ? data.geoJson
+    geoJson: isFeatureCollection(data.geoJson)
+      ? data.geoJson
       : getOptionalString(data.geoJson),
     markdownText: getOptionalString(data.markdownText),
     categories: getStringArray(data.categories),
@@ -112,32 +120,6 @@ async function fetchSources(
     filters: filterInfo || undefined,
   });
   return sources;
-}
-
-async function getAlreadyIngestedSet(
-  db: OboDb,
-  sources: SourceDocument[],
-): Promise<Set<string>> {
-  if (sources.length === 0) {
-    return new Set();
-  }
-
-  const { encodeDocumentId } = await import("../crawlers/shared/firestore");
-  const sourceDocumentIds = sources.map((s) => encodeDocumentId(s.url));
-
-  const docs = await db.messages.findBySourceDocumentIds(sourceDocumentIds, [
-    "sourceDocumentId",
-  ]);
-
-  const alreadyIngestedIds = new Set<string>();
-  for (const doc of docs) {
-    const sourceDocId = getOptionalString(doc.sourceDocumentId);
-    if (sourceDocId) {
-      alreadyIngestedIds.add(sourceDocId);
-    }
-  }
-
-  return alreadyIngestedIds;
 }
 
 async function ingestSource(
@@ -272,9 +254,10 @@ async function filterByBoundaries(
       continue;
     }
 
-    const parsed: unknown = typeof source.geoJson === "string"
-      ? JSON.parse(source.geoJson)
-      : source.geoJson;
+    const parsed: unknown =
+      typeof source.geoJson === "string"
+        ? JSON.parse(source.geoJson)
+        : source.geoJson;
     const geoJson = isFeatureCollection(parsed) ? parsed : null;
 
     // Validate GeoJSON structure
@@ -361,19 +344,11 @@ export async function ingest(
     boundaries,
   );
 
-  // Batch-check which sources are already ingested (avoids 1371 sequential DB queries!)
+  // Deduplication is handled at the query level: fetchSources only returns
+  // sources with processed === false, so every source reaching this point still
+  // needs to be ingested.
   const { encodeDocumentId } = await import("../crawlers/shared/firestore");
-  const alreadyIngestedSet = await getAlreadyIngestedSet(db, withinBounds);
-  const sourcesToIngest = withinBounds.filter(
-    (s) => !alreadyIngestedSet.has(encodeDocumentId(s.url)),
-  );
-  const alreadyIngestedCount = withinBounds.length - sourcesToIngest.length;
-
-  if (alreadyIngestedCount > 0) {
-    logger.info("Skipping already-ingested sources", {
-      count: alreadyIngestedCount,
-    });
-  }
+  const sourcesToIngest = withinBounds;
 
   const summary: IngestSummary = {
     total: allSources.length,
@@ -381,7 +356,6 @@ export async function ingest(
     withinBounds: withinBounds.length,
     outsideBounds,
     ingested: 0,
-    alreadyIngested: alreadyIngestedCount,
     filtered: 0,
     failed: 0,
     errors: [],
@@ -423,10 +397,9 @@ function logSummary(summary: IngestSummary, dryRun: boolean): void {
     summaryData.outsideBounds = summary.outsideBounds;
   }
   if (dryRun) {
-    summaryData.wouldIngest = summary.withinBounds - summary.alreadyIngested;
+    summaryData.wouldIngest = summary.withinBounds;
   } else {
     summaryData.ingested = summary.ingested;
-    summaryData.alreadyIngested = summary.alreadyIngested;
     if (summary.filtered > 0) {
       summaryData.filtered = summary.filtered;
       summaryData.filterPercentage = (
@@ -455,7 +428,11 @@ if (require.main === module) {
     .option("-b, --boundaries <path>", "Path to GeoJSON boundaries file")
     .option("--dry-run", "Preview ingestion without actually writing")
     .option("-s, --source-type <type>", "Only ingest sources of this type")
-    .option("-l, --limit <n>", "Maximum number of sources to process", Number.parseInt)
+    .option(
+      "-l, --limit <n>",
+      "Maximum number of sources to process",
+      Number.parseInt,
+    )
     .addHelpText(
       "after",
       `
@@ -466,7 +443,10 @@ Examples:
 `,
     )
     .action(async (opts) => {
-      dotenv.config({ path: resolve(process.cwd(), ".env.local"), debug: false });
+      dotenv.config({
+        path: resolve(process.cwd(), ".env.local"),
+        debug: false,
+      });
       const options: IngestOptions = {
         boundariesPath: opts.boundaries,
         dryRun: opts.dryRun,

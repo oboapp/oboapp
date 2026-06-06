@@ -320,7 +320,7 @@ describe("messageIngest sourceDocumentId precedence", () => {
   });
 
   it("passes undefined sourceDocumentId when neither sourceDocumentId nor sourceUrl is provided", async () => {
-    await messageIngest("test text", "web-interface", {
+    await messageIngest("test text", "toplo-bg", {
       precomputedGeoJson: PRECOMPUTED_GEOJSON,
       markdownText: "Test markdown text",
       locality: "bg.sofia",
@@ -331,7 +331,7 @@ describe("messageIngest sourceDocumentId precedence", () => {
     expect(mockStoreIncomingMessage).toHaveBeenCalledWith(
       "test text",
       "bg.sofia",
-      "web-interface",
+      "toplo-bg",
       undefined,
       undefined,
       undefined,
