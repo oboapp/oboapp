@@ -82,31 +82,73 @@ export async function crawl(): Promise<void> {
     count: uniqueItems.length,
   });
 
+  // Filter out already-processed URLs before launching the browser so that
+  // steady-state runs (feed unchanged since the last crawl) pay no Chromium
+  // startup cost.
+  const newItems = await filterUnprocessed(uniqueItems, db);
+  const skipped = uniqueItems.length - newItems.length;
+
+  if (newItems.length === 0) {
+    logger.info("Crawl complete", {
+      sourceType: SOURCE_TYPE,
+      total: uniqueItems.length,
+      saved: 0,
+      skipped,
+      failed: 0,
+    });
+    return;
+  }
+
+  const { saved, failed } = await processNewItems(newItems, db);
+
+  logger.info("Crawl complete", {
+    sourceType: SOURCE_TYPE,
+    total: uniqueItems.length,
+    saved,
+    skipped,
+    failed,
+  });
+}
+
+/**
+ * Return only the feed items whose URLs have not been processed yet.
+ * Lookups are sequential to avoid bursting Firestore read QPS. A failed lookup
+ * is treated as "not processed" (worst case: a harmless upsert on a duplicate).
+ */
+async function filterUnprocessed(
+  items: PostLink[],
+  db: OboDb,
+): Promise<PostLink[]> {
+  const newItems: PostLink[] = [];
+  for (const item of items) {
+    let wasProcessed = false;
+    try {
+      wasProcessed = await isUrlProcessed(item.url, db);
+    } catch (error) {
+      logger.warn("Dedup check failed, will attempt to process post", {
+        sourceType: SOURCE_TYPE,
+        url: item.url,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+    if (!wasProcessed) newItems.push(item);
+  }
+  return newItems;
+}
+
+/**
+ * Launch a browser, process each new post sequentially, and close the browser.
+ */
+async function processNewItems(
+  items: PostLink[],
+  db: OboDb,
+): Promise<{ saved: number; failed: number }> {
   const browser = await launchBrowser();
   let saved = 0;
-  let skipped = 0;
   let failed = 0;
 
   try {
-    for (const item of uniqueItems) {
-      let wasProcessed = false;
-      try {
-        wasProcessed = await isUrlProcessed(item.url, db);
-      } catch (error) {
-        failed++;
-        logger.error("Failed to check existing URL state", {
-          sourceType: SOURCE_TYPE,
-          url: item.url,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        continue;
-      }
-
-      if (wasProcessed) {
-        skipped++;
-        continue;
-      }
-
+    for (const item of items) {
       try {
         await processPost(browser, item, db);
         saved++;
@@ -124,13 +166,7 @@ export async function crawl(): Promise<void> {
     await browser.close();
   }
 
-  logger.info("Crawl complete", {
-    sourceType: SOURCE_TYPE,
-    total: uniqueItems.length,
-    saved,
-    skipped,
-    failed,
-  });
+  return { saved, failed };
 }
 
 // Run the crawler if executed directly
