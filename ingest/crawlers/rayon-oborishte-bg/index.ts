@@ -112,8 +112,9 @@ export async function crawl(): Promise<void> {
 
 /**
  * Return only the feed items whose URLs have not been processed yet.
- * Lookups are sequential to avoid bursting Firestore read QPS. A failed lookup
- * is treated as "not processed" (worst case: a harmless upsert on a duplicate).
+ * Lookups are sequential to avoid bursting Firestore read QPS.
+ * If the lookup fails, skip the item to avoid overwriting an existing source
+ * document (source writes use a non-merge set operation).
  */
 async function filterUnprocessed(
   items: PostLink[],
@@ -125,11 +126,15 @@ async function filterUnprocessed(
     try {
       wasProcessed = await isUrlProcessed(item.url, db);
     } catch (error) {
-      logger.warn("Dedup check failed, will attempt to process post", {
-        sourceType: SOURCE_TYPE,
-        url: item.url,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      logger.error(
+        "Failed to check existing URL state; skipping post to avoid duplicate writes",
+        {
+          sourceType: SOURCE_TYPE,
+          url: item.url,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+      wasProcessed = true;
     }
     if (!wasProcessed) newItems.push(item);
   }
