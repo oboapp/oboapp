@@ -2,11 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   parseBulgarianDate,
   validateTimespanRange,
-  duplicateSingleDate,
   extractTimespanRangeFromExtractedLocations,
-  extractTimespanRangeFromGeoJson,
 } from "./timespan-utils";
-import type { ExtractedLocations, GeoJSONFeatureCollection } from "./types";
+import type { ExtractedLocations } from "./types";
 
 describe("parseBulgarianDate", () => {
   it("should parse valid Bulgarian date format", () => {
@@ -86,41 +84,6 @@ describe("validateTimespanRange", () => {
 
     // Future dates are valid
     expect(validateTimespanRange(new Date("2030-01-01T00:00:00Z"))).toBe(true);
-  });
-});
-
-describe("duplicateSingleDate", () => {
-  it("should use start date for both when end is null", () => {
-    const start = new Date("2026-01-15T10:00:00Z");
-    const result = duplicateSingleDate(start, null);
-
-    expect(result).not.toBeNull();
-    expect(result?.start).toBe(start);
-    expect(result?.end).toBe(start);
-  });
-
-  it("should use end date for both when start is null", () => {
-    const end = new Date("2026-01-15T18:00:00Z");
-    const result = duplicateSingleDate(null, end);
-
-    expect(result).not.toBeNull();
-    expect(result?.start).toBe(end);
-    expect(result?.end).toBe(end);
-  });
-
-  it("should return both dates when both provided", () => {
-    const start = new Date("2026-01-15T10:00:00Z");
-    const end = new Date("2026-01-15T18:00:00Z");
-    const result = duplicateSingleDate(start, end);
-
-    expect(result).not.toBeNull();
-    expect(result?.start).toBe(start);
-    expect(result?.end).toBe(end);
-  });
-
-  it("should return null when both dates are null", () => {
-    const result = duplicateSingleDate(null, null);
-    expect(result).toBeNull();
   });
 });
 
@@ -336,170 +299,5 @@ describe("extractTimespanRangeFromExtractedLocations", () => {
     expect(result.timespanStart).toEqual(new Date(2026, 2, 4, 15, 0));
     // timespanEnd should be start + 7 days: 11.03.2026 15:00
     expect(result.timespanEnd).toEqual(new Date(2026, 2, 11, 15, 0));
-  });
-});
-
-describe("extractTimespanRangeFromGeoJson", () => {
-  const fallbackDate = new Date("2026-01-01T00:00:00Z");
-
-  it("should return fallback when geoJson is null", () => {
-    const result = extractTimespanRangeFromGeoJson(null, fallbackDate);
-
-    expect(result.timespanStart).toBe(fallbackDate);
-    expect(result.timespanEnd).toBe(fallbackDate);
-  });
-
-  it("should return fallback when features array is empty", () => {
-    const geoJson: GeoJSONFeatureCollection = {
-      type: "FeatureCollection",
-      features: [],
-    };
-
-    const result = extractTimespanRangeFromGeoJson(geoJson, fallbackDate);
-
-    expect(result.timespanStart).toBe(fallbackDate);
-    expect(result.timespanEnd).toBe(fallbackDate);
-  });
-
-  it("should extract from ISO format properties (ERM pattern)", () => {
-    const geoJson: GeoJSONFeatureCollection = {
-      type: "FeatureCollection",
-      features: [
-        {
-          type: "Feature",
-          geometry: { type: "Point", coordinates: [23.3, 42.7] },
-          properties: {
-            startTimeISO: "2026-01-10T08:00:00Z",
-            endTimeISO: "2026-01-10T12:00:00Z",
-          },
-        },
-      ],
-    };
-
-    const result = extractTimespanRangeFromGeoJson(geoJson, fallbackDate);
-
-    expect(result.timespanStart.toISOString()).toContain("2026-01-10T08:00");
-    expect(result.timespanEnd.toISOString()).toContain("2026-01-10T12:00");
-  });
-
-  it("should extract from Bulgarian format properties", () => {
-    const geoJson: GeoJSONFeatureCollection = {
-      type: "FeatureCollection",
-      features: [
-        {
-          type: "Feature",
-          geometry: { type: "Point", coordinates: [23.3, 42.7] },
-          properties: {
-            startTime: "10.01.2026 08:00",
-            endTime: "10.01.2026 12:00",
-          },
-        },
-      ],
-    };
-
-    const result = extractTimespanRangeFromGeoJson(geoJson, fallbackDate);
-
-    expect(result.timespanStart.getDate()).toBe(10);
-    expect(result.timespanStart.getHours()).toBe(8);
-    expect(result.timespanEnd.getDate()).toBe(10);
-    expect(result.timespanEnd.getHours()).toBe(12);
-  });
-
-  it("should extract MIN/MAX from multiple features", () => {
-    const geoJson: GeoJSONFeatureCollection = {
-      type: "FeatureCollection",
-      features: [
-        {
-          type: "Feature",
-          geometry: { type: "Point", coordinates: [23.3, 42.7] },
-          properties: {
-            startTimeISO: "2026-01-10T08:00:00Z",
-            endTimeISO: "2026-01-10T12:00:00Z",
-          },
-        },
-        {
-          type: "Feature",
-          geometry: { type: "Point", coordinates: [23.4, 42.8] },
-          properties: {
-            startTimeISO: "2026-01-05T06:00:00Z",
-            endTimeISO: "2026-01-15T18:00:00Z",
-          },
-        },
-      ],
-    };
-
-    const result = extractTimespanRangeFromGeoJson(geoJson, fallbackDate);
-
-    // MIN from second feature (Jan 5), MAX from second feature (Jan 15)
-    expect(result.timespanStart.toISOString()).toContain("2026-01-05T06:00");
-    expect(result.timespanEnd.toISOString()).toContain("2026-01-15T18:00");
-  });
-
-  it("should handle features without timespan properties", () => {
-    const geoJson: GeoJSONFeatureCollection = {
-      type: "FeatureCollection",
-      features: [
-        {
-          type: "Feature",
-          geometry: { type: "Point", coordinates: [23.3, 42.7] },
-          properties: {
-            name: "Feature without timespans",
-          },
-        },
-      ],
-    };
-
-    const result = extractTimespanRangeFromGeoJson(geoJson, fallbackDate);
-
-    expect(result.timespanStart).toBe(fallbackDate);
-    expect(result.timespanEnd).toBe(fallbackDate);
-  });
-
-  it("should handle invalid ISO dates", () => {
-    const geoJson: GeoJSONFeatureCollection = {
-      type: "FeatureCollection",
-      features: [
-        {
-          type: "Feature",
-          geometry: { type: "Point", coordinates: [23.3, 42.7] },
-          properties: {
-            startTimeISO: "invalid-iso",
-            endTimeISO: "2026-01-10T12:00:00Z",
-          },
-        },
-      ],
-    };
-
-    const result = extractTimespanRangeFromGeoJson(geoJson, fallbackDate);
-
-    // Should use valid endTimeISO only
-    expect(result.timespanStart.toISOString()).toContain("2026-01-10T12:00");
-    expect(result.timespanEnd.toISOString()).toContain("2026-01-10T12:00");
-  });
-
-  it("should extract MIN/MAX from both ISO and Bulgarian format properties", () => {
-    const geoJson: GeoJSONFeatureCollection = {
-      type: "FeatureCollection",
-      features: [
-        {
-          type: "Feature",
-          geometry: { type: "Point", coordinates: [23.3, 42.7] },
-          properties: {
-            startTimeISO: "2026-01-10T08:00:00Z",
-            endTimeISO: "2026-01-10T12:00:00Z",
-            startTime: "05.01.2026 06:00", // Should also be included
-            endTime: "15.01.2026 18:00", // Should also be included
-          },
-        },
-      ],
-    };
-
-    const result = extractTimespanRangeFromGeoJson(geoJson, fallbackDate);
-
-    // Should extract all dates and find MIN/MAX
-    expect(result.timespanStart.getDate()).toBe(5);
-    expect(result.timespanStart.getHours()).toBe(6);
-    expect(result.timespanEnd.getDate()).toBe(15);
-    expect(result.timespanEnd.getHours()).toBe(18);
   });
 });

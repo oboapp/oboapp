@@ -1,8 +1,4 @@
-import type {
-  ExtractedLocations,
-  GeoJSONFeatureCollection,
-  Timespan,
-} from "./types";
+import type { ExtractedLocations, Timespan } from "./types";
 
 // Use UTC to avoid timezone-dependent boundary behavior
 const TIMESPAN_MIN_DATE = new Date(Date.UTC(2025, 0, 1)); // 2025-01-01T00:00:00Z
@@ -92,31 +88,6 @@ export function validateAndFallback(
     timespanStart: isStartValid && timespanStart ? timespanStart : fallbackDate,
     timespanEnd: isEndValid && timespanEnd ? timespanEnd : fallbackDate,
   };
-}
-
-/**
- * When only one date available, use it for both start and end
- * @param start - Start date or null
- * @param end - End date or null
- * @returns Object with both dates, or null if both inputs are null
- */
-export function duplicateSingleDate(
-  start: Date | null,
-  end: Date | null,
-): { start: Date; end: Date } | null {
-  if (start && !end) {
-    return { start, end: start };
-  }
-
-  if (!start && end) {
-    return { start: end, end };
-  }
-
-  if (start && end) {
-    return { start, end };
-  }
-
-  return null;
 }
 
 /**
@@ -221,90 +192,6 @@ export function extractTimespanRangeFromExtractedLocations(
   }
 
   const timestamps = dates.map((d) => d.getTime());
-  const minTimestamp = Math.min(...timestamps);
-  const maxTimestamp = Math.max(...timestamps);
-
-  return {
-    timespanStart: new Date(minTimestamp),
-    timespanEnd: new Date(maxTimestamp),
-  };
-}
-
-/**
- * Extract dates from GeoJSON feature properties
- * Handles both ISO format (startTimeISO/endTimeISO) and Bulgarian format (startTime/endTime)
- * @param feature - GeoJSON feature with properties
- * @returns Array of parsed Date objects
- */
-function extractDatesFromFeature(feature: unknown): Date[] {
-  const dates: Date[] = [];
-
-  if (!feature || typeof feature !== "object" || !("properties" in feature)) {
-    return dates;
-  }
-
-  const rawProps = feature.properties;
-  if (!rawProps || typeof rawProps !== "object") return dates;
-  const props: Record<string, unknown> = Object.fromEntries(
-    Object.entries(rawProps),
-  );
-
-  // Try ISO format
-  const startISO = tryParseISODate(props["startTimeISO"]);
-  const endISO = tryParseISODate(props["endTimeISO"]);
-  if (startISO) dates.push(startISO);
-  if (endISO) dates.push(endISO);
-
-  // Try Bulgarian format
-  const startBG = tryParseBulgarianDate(props["startTime"]);
-  const endBG = tryParseBulgarianDate(props["endTime"]);
-  if (startBG) dates.push(startBG);
-  if (endBG) dates.push(endBG);
-
-  return dates;
-}
-
-function tryParseBulgarianDate(dateStr: unknown): Date | null {
-  if (!dateStr || typeof dateStr !== "string") return null;
-  return parseBulgarianDate(dateStr);
-}
-
-function tryParseISODate(dateStr: unknown): Date | null {
-  if (!dateStr || typeof dateStr !== "string") return null;
-  try {
-    const date = new Date(dateStr);
-    return Number.isNaN(date.getTime()) ? null : date;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Extract MIN start and MAX end from GeoJSON feature properties
- * @param geoJson - GeoJSON FeatureCollection
- * @param fallbackDate - Date to use when no timespans exist or all are invalid
- * @returns Object with timespanStart and timespanEnd dates
- */
-export function extractTimespanRangeFromGeoJson(
-  geoJson: GeoJSONFeatureCollection | null,
-  fallbackDate: Date,
-): { timespanStart: Date; timespanEnd: Date } {
-  if (!geoJson?.features || geoJson.features.length === 0) {
-    return { timespanStart: fallbackDate, timespanEnd: fallbackDate };
-  }
-
-  const allDates: Date[] = [];
-
-  for (const feature of geoJson.features) {
-    const dates = extractDatesFromFeature(feature);
-    allDates.push(...dates);
-  }
-
-  if (allDates.length === 0) {
-    return { timespanStart: fallbackDate, timespanEnd: fallbackDate };
-  }
-
-  const timestamps = allDates.map((d) => d.getTime());
   const minTimestamp = Math.min(...timestamps);
   const maxTimestamp = Math.max(...timestamps);
 
