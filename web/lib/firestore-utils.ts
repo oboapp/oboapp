@@ -11,48 +11,6 @@ export type FirestoreValue =
   | Date
   | string;
 
-export function convertTimestamp(timestamp: unknown): string {
-  if (!timestamp) {
-    return new Date().toISOString();
-  }
-
-  // Handle Firestore Timestamp with _seconds property
-  if (
-    typeof timestamp === "object" &&
-    timestamp !== null &&
-    "_seconds" in timestamp &&
-    typeof timestamp._seconds === "number"
-  ) {
-    return new Date(timestamp._seconds * 1000).toISOString();
-  }
-
-  // Handle objects with toDate method
-  if (
-    typeof timestamp === "object" &&
-    timestamp !== null &&
-    "toDate" in timestamp &&
-    typeof timestamp.toDate === "function"
-  ) {
-    const dateResult: unknown = timestamp.toDate();
-    if (dateResult instanceof Date) {
-      return dateResult.toISOString();
-    }
-  }
-
-  // Handle Date objects
-  if (timestamp instanceof Date) {
-    return timestamp.toISOString();
-  }
-
-  // Handle string timestamps
-  if (typeof timestamp === "string") {
-    return timestamp;
-  }
-
-  // Fallback
-  return new Date().toISOString();
-}
-
 /**
  * Safely parse JSON string with fallback to default value
  * Logs parse failures to help track data quality issues
