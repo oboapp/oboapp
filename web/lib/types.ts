@@ -1,7 +1,6 @@
 import type { z } from "zod";
 import {
   ApiClientSchema,
-  CoordinatesSchema,
   GeoJsonFeatureCollectionSchema,
   GeoJsonFeatureSchema,
   GeoJsonGeometrySchema,
@@ -57,9 +56,6 @@ export type GeoJSONFeature = z.infer<typeof GeoJsonFeatureSchema>;
 export type GeoJSONFeatureCollection = z.infer<
   typeof GeoJsonFeatureCollectionSchema
 >;
-
-// Intersection coordinates
-export type IntersectionCoordinates = z.infer<typeof CoordinatesSchema>;
 
 // User Interest (area of interest on the map)
 export interface Interest {
