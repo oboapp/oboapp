@@ -53,10 +53,22 @@ export class GcsReadingsBackend implements ReadingsBackend {
   async read(locality: string): Promise<StoredReading[] | null> {
     const storage = await this.getStorage();
     const file = storage.bucket(this.bucket).file(this.filePath(locality));
-    const [exists] = await file.exists();
-    if (!exists) return null;
-    const [content] = await file.download();
-    return JSON.parse(content.toString("utf-8"));
+    // Download directly instead of an extra exists() round-trip; a missing
+    // object surfaces as a 404 which we treat as "no stored readings".
+    try {
+      const [content] = await file.download();
+      return JSON.parse(content.toString("utf-8"));
+    } catch (err) {
+      if (
+        err != null &&
+        typeof err === "object" &&
+        "code" in err &&
+        err.code === 404
+      ) {
+        return null;
+      }
+      throw err;
+    }
   }
 
   async write(locality: string, readings: StoredReading[]): Promise<void> {

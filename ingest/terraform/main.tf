@@ -1131,7 +1131,7 @@ resource "google_cloud_run_v2_job" "air_quality_fetch" {
 
         resources {
           limits = {
-            cpu    = "1"
+            cpu    = "0.5"
             memory = "512Mi"
           }
         }
@@ -1139,16 +1139,6 @@ resource "google_cloud_run_v2_job" "air_quality_fetch" {
         env {
           name  = "NODE_ENV"
           value = "production"
-        }
-
-        env {
-          name = "FIREBASE_SERVICE_ACCOUNT_KEY"
-          value_source {
-            secret_key_ref {
-              secret  = data.google_secret_manager_secret.firebase_sa_key.secret_id
-              version = "latest"
-            }
-          }
         }
 
         env {
