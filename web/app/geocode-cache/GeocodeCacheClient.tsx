@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { GoogleMap, Marker, Polyline, useJsApiLoader } from "@react-google-maps/api";
+import {
+  GoogleMap,
+  Marker,
+  Polyline,
+  useJsApiLoader,
+} from "@react-google-maps/api";
 import { getButtonClasses } from "@/lib/theme";
 import { zIndex } from "@/lib/colors";
 import { getLocalityCenter } from "@/lib/bounds-utils";
@@ -365,18 +370,9 @@ function GeometryPanel({
   );
 }
 
-function CopyCommand({
-  entry,
-  messageId,
-  type,
-}: {
-  entry: FrequencyEntry;
-  messageId: string;
-  type: "pin" | "street";
-}) {
+function CopyCommandButton({ label, cmd }: { label: string; cmd: string }) {
   const [copied, setCopied] = useState(false);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cmd = `pnpm geocode-cache:add --message ${messageId} --address "${entry.originalText}" --type ${type}`;
 
   useEffect(() => {
     return () => {
@@ -407,10 +403,35 @@ function CopyCommand({
       title={cmd}
       className="shrink-0 flex items-center gap-1 text-neutral hover:text-info transition-colors text-sm font-mono"
     >
-      <span>geocode-cache:add</span>
+      <span>{label}</span>
       <span>{copied ? "✓" : "⧉"}</span>
     </button>
   );
+}
+
+function CopyCommand({
+  entry,
+  messageId,
+  type,
+}: {
+  entry: FrequencyEntry;
+  messageId: string;
+  type: "pin" | "street";
+}) {
+  const addCmd = `pnpm geocode-cache:add --message ${messageId} --address "${entry.originalText}" --type ${type}`;
+  const geocodeCmd = `pnpm geocode-cache:geocode --street "${entry.originalText}" --query "${entry.originalText}" --message ${messageId}`;
+
+  if (type === "street") {
+    return (
+      <span className="shrink-0 flex items-center gap-1 text-sm font-mono">
+        <span className="text-neutral">cache:</span>
+        <CopyCommandButton label="add" cmd={addCmd} />
+        <CopyCommandButton label="geocode" cmd={geocodeCmd} />
+      </span>
+    );
+  }
+
+  return <CopyCommandButton label="cache:add" cmd={addCmd} />;
 }
 
 function FrequencyTable({
@@ -624,7 +645,8 @@ export default function GeocodeCacheClient() {
           </h1>
           <p className="text-sm text-neutral/60 mb-6">
             Генериран: {new Date(report.generatedAt).toLocaleString("bg-BG")} ·{" "}
-            Анализирани съобщения: {report.messagesAnalyzed.toLocaleString("bg-BG")}
+            Анализирани съобщения:{" "}
+            {report.messagesAnalyzed.toLocaleString("bg-BG")}
           </p>
 
           <div className="flex flex-wrap gap-6 mb-6 text-sm">

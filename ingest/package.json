@@ -33,6 +33,7 @@
     "reprocess-message": "tsx scripts/reprocess-message.ts",
     "geocode-cache:report": "tsx scripts/geocode-frequency-report.ts",
     "geocode-cache:add": "tsx scripts/geocode-cache-add.ts",
+    "geocode-cache:geocode": "tsx scripts/geocode-cache-geocode.ts",
     "heatmap-report": "tsx scripts/heatmap-report.ts",
     "promptfoo": "cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/filter-split.yaml && cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/categorize.yaml && cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/extract-locations.yaml && cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/summarize.yaml && cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/verify-event-match.yaml",
     "promptfoo:filter": "cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/filter-split.yaml",
