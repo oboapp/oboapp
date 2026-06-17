@@ -18,44 +18,40 @@ await build({
   bundle: true,
   outfile: resolve(funcDir, "index.js"),
   platform: "node",
-  format: "esm",
+  // Firestore transitively depends on google-gax, which expects CommonJS
+  // globals (e.g. __dirname) at runtime.
+  format: "cjs",
   target: "node22",
   minify: false,
   sourcemap: false,
-  // @sentry/node pulls in @opentelemetry/core which uses CommonJS dynamic
-  // require() for Node built-ins. This banner creates a CJS-compatible
-  // require() so those calls don't throw at runtime.
-  banner: {
-    js: `import { createRequire } from "module"; const require = createRequire(import.meta.url);`,
-  },
 });
-
-// Ensure Node.js treats the bundle as ESM
-writeFileSync(
-  resolve(funcDir, "package.json"),
-  JSON.stringify({ type: "module" }, null, 2)
-);
 
 // Function config
 writeFileSync(
   resolve(funcDir, ".vc-config.json"),
-  JSON.stringify({
-    runtime: "nodejs22.x",
-    handler: "index.js",
-    launcherType: "Nodejs",
-    maxDuration: 30,
-  }, null, 2)
+  JSON.stringify(
+    {
+      runtime: "nodejs22.x",
+      handler: "index.js",
+      launcherType: "Nodejs",
+      maxDuration: 30,
+    },
+    null,
+    2,
+  ),
 );
 
 // Routing config — all requests go to the /api function
 writeFileSync(
   resolve(outDir, "config.json"),
-  JSON.stringify({
-    version: 3,
-    routes: [
-      { src: "/(.*)", dest: "/api" },
-    ],
-  }, null, 2)
+  JSON.stringify(
+    {
+      version: 3,
+      routes: [{ src: "/(.*)", dest: "/api" }],
+    },
+    null,
+    2,
+  ),
 );
 
 console.log("✅ Vercel Build Output API written to .vercel/output/");
