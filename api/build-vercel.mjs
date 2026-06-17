@@ -1,7 +1,7 @@
 import { build } from "esbuild";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
-import { mkdirSync, writeFileSync } from "fs";
+import { mkdirSync, writeFileSync, copyFileSync } from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -9,9 +9,23 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Writing here bypasses source-file validation — Vercel reads this dir directly.
 const funcDir = resolve(__dirname, ".vercel/output/functions/api.func");
 const outDir = resolve(__dirname, ".vercel/output");
+const staticDir = resolve(outDir, "static");
 
 mkdirSync(funcDir, { recursive: true });
-mkdirSync(resolve(outDir, "static"), { recursive: true });
+mkdirSync(staticDir, { recursive: true });
+
+copyFileSync(
+  resolve(__dirname, "public/favicon.ico"),
+  resolve(staticDir, "favicon.ico"),
+);
+copyFileSync(
+  resolve(__dirname, "public/favicon.png"),
+  resolve(staticDir, "favicon.png"),
+);
+copyFileSync(
+  resolve(__dirname, "public/favicon.svg"),
+  resolve(staticDir, "favicon.svg"),
+);
 
 await build({
   entryPoints: [resolve(__dirname, "api/_handler.ts")],
@@ -47,7 +61,7 @@ writeFileSync(
   JSON.stringify(
     {
       version: 3,
-      routes: [{ src: "/(.*)", dest: "/api" }],
+      routes: [{ handle: "filesystem" }, { src: "/(.*)", dest: "/api" }],
     },
     null,
     2,
