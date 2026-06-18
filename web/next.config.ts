@@ -28,8 +28,12 @@ const nextConfig: NextConfig = {
   },
   // 308 redirect /api/v1/* → api.oboapp.online/v1/* (issue #259)
   async redirects() {
-    const apiHost = process.env.PUBLIC_API_HOST?.replace(/\/+$/, "");
-    if (!apiHost) return [];
+    const apiHost = process.env.PUBLIC_API_HOST?.trim().replace(/\/+$/, "");
+    if (!apiHost) {
+      throw new Error(
+        "Missing required PUBLIC_API_HOST. Set it to the dedicated API host (for example https://api.oboapp.online) so /api/v1/* requests are always redirected.",
+      );
+    }
     return [
       {
         source: "/api/v1/:path*",

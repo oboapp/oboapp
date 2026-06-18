@@ -200,6 +200,7 @@ jobs:
           USE_FIREBASE_EMULATORS: "true"
           NEXT_PUBLIC_USE_FIREBASE_EMULATORS: "true"
           NEXT_PUBLIC_FIREBASE_PROJECT_ID: "demo-project"
+          PUBLIC_API_HOST: "https://api.example.com"
           # Sentry — all optional; omit secrets to disable Sentry for self-hosters
           NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}

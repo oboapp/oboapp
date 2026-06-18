@@ -4,11 +4,20 @@
 
 OboApp exposes a read-only public REST API for external consumption of Sofia city-infrastructure disruption data.
 
+The public API is served by the dedicated API module and (sub)domain.
+The web app does not serve public API endpoints directly.
+
+For backwards compatibility with existing clients that still call the web domain, web permanently redirects `/api/v1/*` requests to the configured public API host.
+
 **Base URL:** `https://api.oboapp.online/v1`
 
 **Interactive documentation:** [`https://api.oboapp.online/v1/docs`](https://api.oboapp.online/v1/docs)
 
 All data endpoints require a registered API key. The OpenAPI specification is available without authentication.
+
+## Legacy Client Redirect
+
+If clients still call `<web>/api/v1/...`, web redirects those requests to the public API host.
 
 ## Endpoints
 
