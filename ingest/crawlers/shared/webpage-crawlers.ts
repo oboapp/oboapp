@@ -53,7 +53,15 @@ export function buildWebPageSourceDocument(options: {
   sourceType: string;
   locality: string;
 } {
-  const { url, title, dateText, contentHtml, sourceType, locality, customDateParser } = options;
+  const {
+    url,
+    title,
+    dateText,
+    contentHtml,
+    sourceType,
+    locality,
+    customDateParser,
+  } = options;
 
   if (!title) {
     throw new Error(`Failed to extract title from ${url}`);
@@ -98,12 +106,11 @@ export async function processWordpressPost<
   extractPostDetails: (page: Page) => Promise<TDetails>,
   customDateParser?: (dateText: string) => string,
   waitUntil: PageGotoWaitUntil = DEFAULT_WAIT_UNTIL,
-  blockedResourceTypes: readonly BlockableResourceType[] | undefined = DEFAULT_BLOCKED_RESOURCE_TYPES,
+  blockedResourceTypes:
+    | readonly BlockableResourceType[]
+    | undefined = DEFAULT_BLOCKED_RESOURCE_TYPES,
 ): Promise<void> {
-  const { url, title } = postLink;
-
-  logger.debug("Fetching post", { sourceType, url, title: title.substring(0, 60) });
-
+  const { url } = postLink;
   const page = await browser.newPage();
 
   try {
@@ -128,10 +135,12 @@ export async function processWordpressPost<
     };
 
     await saveSourceDocument(sourceDoc, db, { logSuccess: false });
-
-    logger.debug("Saved post", { sourceType, title: title.substring(0, 60) });
   } catch (error) {
-    logger.error("Error processing post", { sourceType, url, error: error instanceof Error ? error.message : String(error) });
+    logger.error("Error processing post", {
+      sourceType,
+      url,
+      error: error instanceof Error ? error.message : String(error),
+    });
     throw error;
   } finally {
     await page.close();
@@ -203,20 +212,32 @@ export async function crawlWordpressPage(options: {
 
         if (wasProcessed) {
           skippedCount++;
-          logger.debug("Skipped already processed post", { sourceType, title: postLink.title.substring(0, 60) });
         } else {
           await processPost(browser, postLink, db);
           savedCount++;
         }
       } catch (error) {
         failedCount++;
-        logger.error("Error processing post", { sourceType, url: postLink.url, error: error instanceof Error ? error.message : String(error) });
+        logger.error("Error crawling wp page", {
+          sourceType,
+          url: postLink.url,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
-    logger.info("Crawl complete", { sourceType, total: postLinks.length, saved: savedCount, skipped: skippedCount, failed: failedCount });
+    logger.info("Crawl complete", {
+      sourceType,
+      total: postLinks.length,
+      saved: savedCount,
+      skipped: skippedCount,
+      failed: failedCount,
+    });
   } catch (error) {
-    logger.error("Crawl failed", { sourceType, error: error instanceof Error ? error.message : String(error) });
+    logger.error("Crawl failed", {
+      sourceType,
+      error: error instanceof Error ? error.message : String(error),
+    });
     throw error;
   } finally {
     if (ownsBrowser && browser) {
