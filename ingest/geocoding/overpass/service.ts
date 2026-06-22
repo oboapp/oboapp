@@ -412,8 +412,8 @@ type ErrorWithStatusCode = Error & { statusCode?: number };
 
 // Multiple Overpass API instances for fallback
 export const OVERPASS_INSTANCES = [
-  "https://overpass.private.coffee/api/interpreter", // No rate limit
   "https://overpass-api.de/api/interpreter", // Main instance (10k queries/day)
+  "https://overpass.private.coffee/api/interpreter", // No rate limit
 ];
 
 /**
