@@ -237,6 +237,206 @@ describe("GET /v1/messages", () => {
         { field: "locality", op: "==", value: "bg.sofia" },
       ],
       orderBy: [{ field: "timespanEnd", direction: "desc" }],
+      limit: 200,
+    });
+    expect(res.headers.get("cache-control")).toBe(
+      "public, s-maxage=3600, stale-while-revalidate=300",
+    );
+  });
+
+  it("sets aggressive Cache-Control for unbound requests", async () => {
+    const { getDb } = await import("@/lib/db");
+    const mockedGetDb = vi.mocked(getDb);
+    const findMany = vi.fn().mockResolvedValue([
+      {
+        _id: "msg-cache-1",
+        text: "Cached message",
+        createdAt: new Date("2025-01-01"),
+        locality: "bg.sofia",
+        source: "sofia-bg",
+        geoJson: {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              geometry: {
+                type: "Point",
+                coordinates: [23.32, 42.69],
+              },
+              properties: {},
+            },
+          ],
+        },
+        timespanEnd: new Date("2099-12-31"),
+      },
+    ]);
+
+    mockedGetDb.mockResolvedValue({
+      messages: {
+        findMany,
+        findById: vi.fn(),
+        findBySourceDocumentIds: vi.fn(),
+      },
+      apiClients: {
+        findByApiKey: vi.fn(),
+      },
+    } as any);
+
+    const first = await app.request("/v1/messages", {
+      headers: API_KEY_HEADER,
+    });
+    const second = await app.request("/v1/messages", {
+      headers: API_KEY_HEADER,
+    });
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(findMany).toHaveBeenCalledTimes(2);
+    expect(first.headers.get("cache-control")).toBe(
+      "public, s-maxage=3600, stale-while-revalidate=300",
+    );
+    expect(second.headers.get("cache-control")).toBe(
+      "public, s-maxage=3600, stale-while-revalidate=300",
+    );
+  });
+
+  it("uses provided limit query parameter", async () => {
+    const { getDb } = await import("@/lib/db");
+    const mockedGetDb = vi.mocked(getDb);
+    const findMany = vi.fn().mockResolvedValue([
+      {
+        _id: "msg-limit",
+        text: "Limited message",
+        createdAt: new Date("2025-01-01"),
+        locality: "bg.sofia",
+        source: "sofia-bg",
+        geoJson: {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              geometry: {
+                type: "Point",
+                coordinates: [23.32, 42.69],
+              },
+              properties: {},
+            },
+          ],
+        },
+        timespanEnd: new Date("2099-12-31"),
+      },
+    ]);
+
+    mockedGetDb.mockResolvedValue({
+      messages: {
+        findMany,
+        findById: vi.fn(),
+        findBySourceDocumentIds: vi.fn(),
+      },
+      apiClients: {
+        findByApiKey: vi.fn(),
+      },
+    } as any);
+
+    const res = await app.request("/v1/messages?limit=25", {
+      headers: API_KEY_HEADER,
+    });
+
+    expect(res.status).toBe(200);
+    expect(findMany).toHaveBeenCalledWith({
+      where: [
+        { field: "timespanEnd", op: ">=", value: expect.any(Date) },
+        { field: "locality", op: "==", value: "bg.sofia" },
+      ],
+      orderBy: [{ field: "timespanEnd", direction: "desc" }],
+      limit: 25,
+    });
+  });
+
+  it("does not apply DB limit before viewport filtering for category queries", async () => {
+    const { getDb } = await import("@/lib/db");
+    const mockedGetDb = vi.mocked(getDb);
+    const findMany = vi.fn().mockResolvedValue([
+      {
+        _id: "outside",
+        text: "Outside viewport",
+        createdAt: new Date("2025-01-01"),
+        locality: "bg.sofia",
+        source: "sofia-bg",
+        categories: ["traffic"],
+        geoJson: {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              geometry: {
+                type: "Point",
+                coordinates: [10, 10],
+              },
+              properties: {},
+            },
+          ],
+        },
+        timespanEnd: new Date("2099-12-31"),
+      },
+      {
+        _id: "inside",
+        text: "Inside viewport",
+        createdAt: new Date("2025-01-01"),
+        locality: "bg.sofia",
+        source: "sofia-bg",
+        categories: ["traffic"],
+        geoJson: {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              geometry: {
+                type: "Point",
+                coordinates: [23.32, 42.69],
+              },
+              properties: {},
+            },
+          ],
+        },
+        timespanEnd: new Date("2099-12-31"),
+      },
+    ]);
+
+    mockedGetDb.mockResolvedValue({
+      messages: {
+        findMany,
+        findById: vi.fn(),
+        findBySourceDocumentIds: vi.fn(),
+      },
+      apiClients: {
+        findByApiKey: vi.fn(),
+      },
+    } as any);
+
+    const res = await app.request(
+      "/v1/messages?categories=traffic&north=43&south=42&east=24&west=23&limit=1",
+      {
+        headers: API_KEY_HEADER,
+      },
+    );
+
+    expect(res.status).toBe(200);
+    const body: any = await res.json();
+    expect(body.messages).toHaveLength(1);
+    expect(body.messages[0]).toHaveProperty("id", "inside");
+    expect(findMany).toHaveBeenCalledWith({
+      where: [
+        {
+          field: "categories",
+          op: "array-contains-any",
+          value: ["traffic"],
+        },
+        { field: "timespanEnd", op: ">=", value: expect.any(Date) },
+        { field: "locality", op: "==", value: "bg.sofia" },
+      ],
+      orderBy: [{ field: "timespanEnd", direction: "desc" }],
+      limit: undefined,
     });
   });
 
@@ -527,6 +727,14 @@ describe("GET /v1/openapi", () => {
     expect(body.paths).toHaveProperty("/v1/sources");
     expect(body.paths).toHaveProperty("/v1/messages");
     expect(body.paths).toHaveProperty("/v1/messages/by-id");
+    const limitParam = body.paths["/v1/messages"]?.get?.parameters?.find(
+      (parameter: any) =>
+        parameter?.name === "limit" && parameter?.in === "query",
+    );
+    const limitSchema = limitParam?.schema;
+    expect(limitSchema?.type).toBe("integer");
+    expect(limitSchema?.minimum).toBe(1);
+    expect(typeof limitSchema?.maximum).toBe("number");
   });
 });
 
@@ -542,9 +750,9 @@ describe("GET /v1/docs", () => {
 
 describe("GET /", () => {
   it("redirects to docs", async () => {
-    const res = await app.request("/", undefined, undefined, {
-      redirect: "manual",
-    });
+    const res = await app.request(
+      new Request("http://localhost/", { redirect: "manual" }),
+    );
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/v1/docs");
   });

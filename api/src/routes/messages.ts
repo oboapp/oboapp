@@ -19,10 +19,16 @@ import {
   getRequiredLocality,
   LOCALITY_ENV_ERROR_MESSAGE,
 } from "../lib/locality";
+import {
+  clampMessagesLimit,
+  getDefaultUnfilteredMessagesLimit,
+} from "../lib/messages-limit-config";
 
 const DEFAULT_RELEVANCE_DAYS = 7;
 const CLUSTER_ZOOM_THRESHOLD = 15;
 const FIRESTORE_IN_OPERATOR_LIMIT = 10;
+const AGGRESSIVE_CACHE_CONTROL =
+  "public, s-maxage=3600, stale-while-revalidate=300";
 
 type DbClient = Awaited<ReturnType<typeof getDb>>;
 type MessageRecord = Record<string, unknown>;
@@ -103,6 +109,7 @@ async function findRecentMessageDocs(
   db: DbClient,
   cutoffDate: Date,
   locality?: string,
+  limit?: number,
 ): Promise<MessageRecord[]> {
   const where: WhereClause[] = [
     { field: "timespanEnd", op: ">=", value: cutoffDate },
@@ -113,6 +120,7 @@ async function findRecentMessageDocs(
   return db.messages.findMany({
     where,
     orderBy: [{ field: "timespanEnd", direction: "desc" }],
+    limit,
   });
 }
 
@@ -129,6 +137,7 @@ async function findRecentMessageDocsBySources(
   cutoffDate: Date,
   sources: string[],
   locality?: string,
+  limit?: number,
 ): Promise<MessageRecord[]> {
   if (sources.length === 0) {
     return [];
@@ -146,6 +155,7 @@ async function findRecentMessageDocsBySources(
     return db.messages.findMany({
       where,
       orderBy: [{ field: "timespanEnd", direction: "desc" }],
+      limit,
     });
   });
 
@@ -158,12 +168,14 @@ async function findMessagesBySources(
   cutoffDate: Date,
   sources: string[],
   locality?: string,
+  limit?: number,
 ): Promise<Message[]> {
   const results = await findRecentMessageDocsBySources(
     db,
     cutoffDate,
     sources,
     locality,
+    limit,
   );
   const messagesMap = new Map<string, Message>();
 
@@ -177,7 +189,7 @@ async function findMessagesBySources(
     }
   }
 
-  return sortMessagesByRelevance(Array.from(messagesMap.values()));
+  return Array.from(messagesMap.values());
 }
 
 function toSourceList(sourceSet?: Set<string>): string[] {
@@ -189,11 +201,18 @@ async function findUncategorizedDocs(
   cutoffDate: Date,
   sourceSet?: Set<string>,
   locality?: string,
+  limit?: number,
 ): Promise<MessageRecord[]> {
   const sourceList = toSourceList(sourceSet);
   const docs = sourceList.length
-    ? await findRecentMessageDocsBySources(db, cutoffDate, sourceList, locality)
-    : await findRecentMessageDocs(db, cutoffDate, locality);
+    ? await findRecentMessageDocsBySources(
+        db,
+        cutoffDate,
+        sourceList,
+        locality,
+        limit,
+      )
+    : await findRecentMessageDocs(db, cutoffDate, locality, limit);
 
   return docs.filter((doc) => isUncategorizedDoc(doc));
 }
@@ -212,6 +231,28 @@ function dedupeAndMapMessages(docs: MessageRecord[]): Message[] {
   }
 
   return Array.from(messagesMap.values());
+}
+
+function mapDocsToMessages(docs: MessageRecord[], context: string): Message[] {
+  return docs
+    .map((doc) => tryRecordToMessage(doc, context))
+    .filter((message): message is Message => message !== null);
+}
+
+function addRecordToMessageMap(
+  messagesMap: Map<string, Message>,
+  doc: MessageRecord,
+  context: string,
+): void {
+  const docId = typeof doc._id === "string" ? doc._id : "";
+  if (!docId || messagesMap.has(docId)) {
+    return;
+  }
+
+  const message = tryRecordToMessage(doc, context);
+  if (message) {
+    messagesMap.set(docId, message);
+  }
 }
 
 function applyOptionalSourceSet(
@@ -247,6 +288,7 @@ async function buildCategoryQueryPlans(
   includeUncategorized: boolean,
   sourceSet?: Set<string>,
   locality?: string,
+  limit?: number,
 ): Promise<Array<{ uncategorizedOnly: boolean; docs: MessageRecord[] }>> {
   const plans: Array<
     Promise<{ uncategorizedOnly: boolean; docs: MessageRecord[] }>
@@ -269,6 +311,7 @@ async function buildCategoryQueryPlans(
         .findMany({
           where,
           orderBy: [{ field: "timespanEnd", direction: "desc" }],
+          limit,
         })
         .then((docs) => ({ uncategorizedOnly: false, docs })),
     );
@@ -276,7 +319,7 @@ async function buildCategoryQueryPlans(
 
   if (includeUncategorized) {
     plans.push(
-      findUncategorizedDocs(db, cutoffDate, sourceSet, locality).then(
+      findUncategorizedDocs(db, cutoffDate, sourceSet, locality, limit).then(
         (docs) => ({
           uncategorizedOnly: true,
           docs,
@@ -294,6 +337,7 @@ async function findMessagesByCategoryFilters(
   selectedCategories: string[],
   sourceSet?: Set<string>,
   locality?: string,
+  limit?: number,
 ): Promise<Message[]> {
   const realCategories = selectedCategories.filter(
     (c) => c !== "uncategorized",
@@ -306,6 +350,7 @@ async function findMessagesByCategoryFilters(
       cutoffDate,
       sourceSet,
       locality,
+      limit,
     );
     return dedupeAndMapMessages(uncategorizedDocs);
   }
@@ -317,15 +362,23 @@ async function findMessagesByCategoryFilters(
     includeUncategorized,
     sourceSet,
     locality,
+    limit,
   );
+
+  return mapCategoryQueryPlansToMessages(queryPlans, sourceSet);
+}
+
+function mapCategoryQueryPlansToMessages(
+  queryPlans: Array<{ uncategorizedOnly: boolean; docs: MessageRecord[] }>,
+  sourceSet?: Set<string>,
+): Message[] {
   const messagesMap = new Map<string, Message>();
 
   for (const plan of queryPlans) {
-    const docs = applyOptionalSourceSet(plan.docs, sourceSet);
-    const { uncategorizedOnly } = plan;
+    const candidateDocs = applyOptionalSourceSet(plan.docs, sourceSet);
 
-    for (const doc of docs) {
-      if (uncategorizedOnly && !isUncategorizedDoc(doc)) {
+    for (const doc of candidateDocs) {
+      if (plan.uncategorizedOnly && !isUncategorizedDoc(doc)) {
         continue;
       }
 
@@ -333,20 +386,111 @@ async function findMessagesByCategoryFilters(
         continue;
       }
 
-      const docId = typeof doc._id === "string" ? doc._id : "";
-      if (docId && !messagesMap.has(docId)) {
-        const message = tryRecordToMessage(
-          doc,
-          "findMessagesByCategoryFilters",
-        );
-        if (message) {
-          messagesMap.set(docId, message);
-        }
-      }
+      addRecordToMessageMap(messagesMap, doc, "findMessagesByCategoryFilters");
     }
   }
 
-  return sortMessagesByRelevance(Array.from(messagesMap.values()));
+  return Array.from(messagesMap.values());
+}
+
+function getLocalitySourceIds(locality: string): Set<string> {
+  return new Set(
+    SOURCES.filter((source) => source.localities.includes(locality)).map(
+      (source) => source.id,
+    ),
+  );
+}
+
+interface FetchMessagesForRequestParams {
+  db: DbClient;
+  cutoffDate: Date;
+  categoryFilters: string[];
+  sourceFilters: string[];
+  hasCategoryFilter: boolean;
+  hasSourceFilter: boolean;
+  locality: string;
+  explicitLimit?: number;
+  queryFetchLimit?: number;
+}
+
+async function fetchMessagesForRequest(
+  params: FetchMessagesForRequestParams,
+): Promise<Message[]> {
+  const {
+    db,
+    cutoffDate,
+    categoryFilters,
+    sourceFilters,
+    hasCategoryFilter,
+    hasSourceFilter,
+    locality,
+    explicitLimit,
+    queryFetchLimit,
+  } = params;
+
+  if (hasCategoryFilter) {
+    const sourceSet = hasSourceFilter ? new Set(sourceFilters) : undefined;
+    return findMessagesByCategoryFilters(
+      db,
+      cutoffDate,
+      categoryFilters,
+      sourceSet,
+      locality,
+      queryFetchLimit,
+    );
+  }
+
+  if (hasSourceFilter) {
+    return findMessagesBySources(
+      db,
+      cutoffDate,
+      sourceFilters,
+      locality,
+      queryFetchLimit,
+    );
+  }
+
+  const where: WhereClause[] = [
+    { field: "timespanEnd", op: ">=", value: cutoffDate },
+    { field: "locality", op: "==", value: locality },
+  ];
+
+  const defaultBoundedLimit =
+    explicitLimit ?? getDefaultUnfilteredMessagesLimit();
+  const docs = await db.messages.findMany({
+    where,
+    orderBy: [{ field: "timespanEnd", direction: "desc" }],
+    limit: clampMessagesLimit(defaultBoundedLimit),
+  });
+
+  return mapDocsToMessages(docs, "messagesRoute.defaultQuery");
+}
+
+export function shouldApplyAggressiveCache(params: {
+  hasCategoryFilter: boolean;
+  hasSourceFilter: boolean;
+  hasViewport: boolean;
+  zoom?: number;
+  timespanEndGte?: Date;
+  limit?: number;
+}): boolean {
+  const {
+    hasCategoryFilter,
+    hasSourceFilter,
+    hasViewport,
+    zoom,
+    timespanEndGte,
+    limit,
+  } = params;
+
+  return (
+    !hasCategoryFilter &&
+    !hasSourceFilter &&
+    !hasViewport &&
+    zoom === undefined &&
+    timespanEndGte === undefined &&
+    limit === undefined
+  );
 }
 
 function filterMessagesByGeoAndViewport(
@@ -463,6 +607,7 @@ messagesRoute.get(
         categories: selectedCategories,
         sources: selectedSources,
         timespanEndGte,
+        limit,
       } = parsed.data;
 
       let locality: string;
@@ -480,10 +625,7 @@ messagesRoute.get(
         return c.json({ messages: [] });
       }
 
-      // Build set of all known source IDs for validation
-      const allSourceIds = new Set(
-        SOURCES.filter((s) => s.localities.includes(locality)).map((s) => s.id),
-      );
+      const allSourceIds = getLocalitySourceIds(locality);
 
       const validatedSources = getValidatedSources(
         selectedSources,
@@ -498,43 +640,33 @@ messagesRoute.get(
         return c.json({ messages: [] });
       }
 
-      let allMessages: Message[];
-      const hasSourceFilter = validatedSources && validatedSources.length > 0;
-      const hasCategoryFilter =
-        selectedCategories && selectedCategories.length > 0;
+      const hasSourceFilter = (validatedSources?.length ?? 0) > 0;
+      const hasCategoryFilter = (selectedCategories?.length ?? 0) > 0;
+      const hasViewport = viewportBounds !== null;
+      const effectiveLimit = clampMessagesLimit(limit);
+      const queryFetchLimit = hasViewport ? undefined : effectiveLimit;
+      const categoryFilters = selectedCategories ?? [];
+      const sourceFilters = validatedSources ?? [];
+      const useAggressiveCache = shouldApplyAggressiveCache({
+        hasCategoryFilter,
+        hasSourceFilter,
+        hasViewport,
+        zoom,
+        timespanEndGte,
+        limit,
+      });
 
-      if (hasCategoryFilter) {
-        const sourceSet = hasSourceFilter
-          ? new Set(validatedSources)
-          : undefined;
-        allMessages = await findMessagesByCategoryFilters(
-          db,
-          cutoffDate,
-          selectedCategories,
-          sourceSet,
-          locality,
-        );
-      } else if (hasSourceFilter) {
-        allMessages = await findMessagesBySources(
-          db,
-          cutoffDate,
-          validatedSources,
-          locality,
-        );
-      } else {
-        const where: WhereClause[] = [
-          { field: "timespanEnd", op: ">=", value: cutoffDate },
-        ];
-        where.push({ field: "locality", op: "==", value: locality });
-        const docs = await db.messages.findMany({
-          where,
-          orderBy: [{ field: "timespanEnd", direction: "desc" }],
-        });
-
-        allMessages = docs
-          .map((doc) => tryRecordToMessage(doc, "messagesRoute.defaultQuery"))
-          .filter((message): message is Message => message !== null);
-      }
+      const allMessages = await fetchMessagesForRequest({
+        db,
+        cutoffDate,
+        categoryFilters,
+        sourceFilters,
+        hasCategoryFilter,
+        hasSourceFilter,
+        locality,
+        explicitLimit: limit,
+        queryFetchLimit,
+      });
 
       let messages = filterMessagesByGeoAndViewport(
         allMessages,
@@ -542,6 +674,11 @@ messagesRoute.get(
       );
       messages = simplifyMessagesForClusterZoom(messages, zoom);
       messages = sortMessagesByRelevance(messages);
+      messages = messages.slice(0, effectiveLimit);
+
+      if (useAggressiveCache) {
+        c.header("Cache-Control", AGGRESSIVE_CACHE_CONTROL);
+      }
 
       return c.json({ messages });
     } catch (error) {

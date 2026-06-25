@@ -13,12 +13,21 @@ import {
   MessageResponseSchema,
   ErrorResponseSchema,
 } from "../schema/index";
+import { getMaxMessagesLimit } from "../lib/messages-limit-config";
 
 const compareStrings = (left: string, right: string): number => {
-  if (left < right) return -1;
-  if (left > right) return 1;
+  if (left < right) {
+    return -1;
+  }
+
+  if (left > right) {
+    return 1;
+  }
+
   return 0;
 };
+
+const maxMessagesLimit = getMaxMessagesLimit();
 
 const sortRecord = <T>(record: Record<string, T>): Record<string, T> =>
   Object.keys(record)
@@ -137,6 +146,7 @@ function buildOpenApiSpec(): OpenAPIObject {
         categories: z.string().optional(),
         sources: z.string().optional(),
         timespanEndGte: z.string().optional(),
+        limit: z.number().int().min(1).max(maxMessagesLimit).optional(),
       }),
     },
     responses: {

@@ -20,35 +20,42 @@ import {
   type GeoJsonFeatureCollection,
 } from "../schema/contract";
 
+const CATEGORIES_SCHEMA = z.array(CategoryEnum);
+const ADDRESSES_SCHEMA = z.array(AddressSchema);
+const PINS_SCHEMA = z.array(PinSchema);
+const STREETS_SCHEMA = z.array(StreetSectionSchema);
+const CADASTRAL_PROPERTIES_SCHEMA = z.array(CadastralPropertySchema);
+const BUS_STOPS_SCHEMA = z.array(z.string());
+
 export function getCategories(value: unknown): Category[] {
-  const result = z.array(CategoryEnum).safeParse(value);
+  const result = CATEGORIES_SCHEMA.safeParse(value);
   return result.success ? result.data : [];
 }
 
 export function getAddresses(value: unknown): Address[] {
-  const result = z.array(AddressSchema).safeParse(value);
+  const result = ADDRESSES_SCHEMA.safeParse(value);
   return result.success ? result.data : [];
 }
 
 export function getPins(value: unknown): Pin[] | undefined {
-  const result = z.array(PinSchema).safeParse(value);
+  const result = PINS_SCHEMA.safeParse(value);
   return result.success ? result.data : undefined;
 }
 
 export function getStreets(value: unknown): StreetSection[] | undefined {
-  const result = z.array(StreetSectionSchema).safeParse(value);
+  const result = STREETS_SCHEMA.safeParse(value);
   return result.success ? result.data : undefined;
 }
 
 export function getCadastralProperties(
   value: unknown,
 ): CadastralProperty[] | undefined {
-  const result = z.array(CadastralPropertySchema).safeParse(value);
+  const result = CADASTRAL_PROPERTIES_SCHEMA.safeParse(value);
   return result.success ? result.data : undefined;
 }
 
 export function getBusStops(value: unknown): string[] | undefined {
-  const result = z.array(z.string()).safeParse(value);
+  const result = BUS_STOPS_SCHEMA.safeParse(value);
   return result.success ? result.data : undefined;
 }
 

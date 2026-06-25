@@ -13,10 +13,11 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "incremental": true,
+    "types": ["node", "vitest/globals"],
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
   "exclude": ["node_modules", "dist"]
 }
