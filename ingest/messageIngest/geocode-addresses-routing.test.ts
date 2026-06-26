@@ -225,7 +225,8 @@ describe("pins routing", () => {
       pins: [
         {
           address: "Оборище 152",
-          // Outside Sofia bounds → invalid, coordinates discarded → falls through to geocoding
+          // Intentionally invalid coordinates (far outside any reasonable locality bounds)
+          // to trigger the bounds-validation rejection and force geocoding fallback
           coordinates: { lat: 43.5, lng: 23.3 },
           timespans: [],
         },
@@ -376,7 +377,7 @@ describe("streets routing", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("educational facilities routing", () => {
-  it("routes kindergarten to educational-facilities service (e.g. '151 ЦДГ Леда Милева')", async () => {
+  it("routes kindergarten to educational-facilities service", async () => {
     const locations: ExtractedLocations = {
       ...EMPTY_LOCATIONS,
       educationalFacilities: [{ type: "kindergarten", number: "151" }],
@@ -662,7 +663,9 @@ describe("edge cases", () => {
 
     await geocodeAddressesFromExtractedData(locations);
 
-    // Empty string address is forwarded to the geocoding service as-is (no filtering)
+    // Intentional: geocodeAddressesFromExtractedData does not filter empty address strings;
+    // it forwards them to the configured service. Filtering empty inputs is the
+    // responsibility of the caller (LLM extraction stage).
     expect(googleService).toHaveBeenCalledWith([""]);
   });
 });
