@@ -28,7 +28,6 @@ import krasnaPolyanaOrg from "./sources/krasna-polyana-org";
 import vrabnitsa from "./sources/vrabnitsa-org";
 import nadezhda from "./sources/nadezhda-org";
 import inspectoratSo from "./sources/inspectorat-so-org";
-import sensorCommunity from "./sources/sensor-community";
 import sofiaCapitalOfSport from "./sources/sofia-capital-of-sport";
 import serdikaEgovBg from "./sources/serdika-egov-bg";
 import sdvrMvrBg from "./sources/sdvr-mvr-bg";
@@ -53,7 +52,6 @@ export const SOURCES = [
   vrabnitsa,
   nadezhda,
   inspectoratSo,
-  sensorCommunity,
   sofiaCapitalOfSport,
   serdikaEgovBg,
   sdvrMvrBg,

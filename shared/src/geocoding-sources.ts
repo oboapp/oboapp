@@ -50,11 +50,6 @@ export const OPEN_DATA_SOURCES: readonly OpenDataSource[] = [
     url: "https://www.openstreetmap.org",
     description: "геокодиране и улична геометрия",
   },
-  {
-    name: "sensor.community",
-    url: "https://sensor.community",
-    description: "данни за качеството на въздуха от граждански сензори",
-  },
 ];
 
 /**
