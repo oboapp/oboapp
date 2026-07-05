@@ -70,7 +70,7 @@
     "firebase-admin": "^13.6.0",
     "html-entities": "^2.6.0",
     "js-yaml": "^4.1.1",
-    "playwright": "^1.57.0",
+    "playwright": "^1.60.0",
     "proj4": "^2.20.2",
     "turndown": "^7.2.2",
     "zod": "^4.3.6"
