@@ -1,18 +1,5 @@
-import BuyMeACoffeeButton from "@/components/BuyMeACoffeeButton";
 import Image from "next/image";
 import Link from "next/link";
-
-export function SupportCard() {
-  return (
-    <div className="rounded-lg border border-neutral-border bg-white p-4 shadow-sm">
-      <p className="text-sm text-neutral mb-3">
-        Ако искаш този проект да продължи да съществува и да расте, всяко кафе
-        помага.
-      </p>
-      <BuyMeACoffeeButton />
-    </div>
-  );
-}
 
 export function AuthorIntroSection() {
   return (
