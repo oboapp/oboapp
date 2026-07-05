@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import CookieConsent from "@/components/CookieConsent";
 import { AuthProvider } from "@/lib/auth-context";
 import QueryProvider from "@/components/QueryProvider";
 import { MSWProvider } from "@/components/MSWProvider";
@@ -94,7 +93,6 @@ export default function ClientLayout({
                 className={footerClassName || undefined}
               />
             </div>
-            <CookieConsent />
             <Toaster position="top-center" richColors />
           </AuthProvider>
         </QueryProvider>
