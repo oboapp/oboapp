@@ -2,7 +2,10 @@
 
 /**
  * Migration script to backfill locality field for existing sources and messages
- * Run with: cd db && npx tsx migrate/2026-02-10-add-locality-field.ts
+ * Run with:
+ *   cd db && npx tsx migrate/2026-02-10-add-locality-field.ts --locality=bg.sofia
+ *   cd db && MIGRATION_LOCALITY=bg.sofia npx tsx migrate/2026-02-10-add-locality-field.ts
+ * Add --dry-run to preview counts without writing.
  */
 
 import dotenv from "dotenv";
@@ -10,6 +13,26 @@ import { resolve } from "node:path";
 
 // Load environment variables from ingest/.env.local
 dotenv.config({ path: resolve(process.cwd(), "../ingest/.env.local") });
+
+function parseRequiredLocality(): string {
+  const localityArg = process.argv
+    .slice(2)
+    .find((arg) => arg.startsWith("--locality="));
+  const locality = localityArg?.split("=")[1] ?? process.env.MIGRATION_LOCALITY;
+  const trimmed = locality?.trim();
+
+  if (!trimmed) {
+    throw new Error(
+      "Missing locality. Provide --locality=<id> or MIGRATION_LOCALITY.",
+    );
+  }
+
+  return trimmed;
+}
+
+function isDryRun(): boolean {
+  return process.argv.slice(2).includes("--dry-run");
+}
 
 async function main() {
   const { initializeApp, getApps, cert } = await import("firebase-admin/app");
@@ -27,9 +50,16 @@ async function main() {
   }
 
   console.log("Starting migration to add locality field...");
+  const locality = parseRequiredLocality();
+  const dryRun = isDryRun();
 
-  // Default locality for all existing records
-  const DEFAULT_LOCALITY = "bg.sofia";
+  console.log("Preflight configuration:");
+  console.log(`  locality: ${locality}`);
+  console.log(`  dry-run: ${dryRun ? "yes" : "no"}`);
+
+  if (dryRun) {
+    console.log("  mode: no writes (preview only)");
+  }
 
   // Migrate sources collection
   console.log("\n1. Migrating sources collection...");
@@ -48,8 +78,9 @@ async function main() {
       continue;
     }
 
-    // Update with default locality
-    await doc.ref.update({ locality: DEFAULT_LOCALITY });
+    if (!dryRun) {
+      await doc.ref.update({ locality });
+    }
     sourcesUpdated++;
 
     if (sourcesUpdated % 100 === 0) {
@@ -78,8 +109,9 @@ async function main() {
       continue;
     }
 
-    // Update with default locality
-    await doc.ref.update({ locality: DEFAULT_LOCALITY });
+    if (!dryRun) {
+      await doc.ref.update({ locality });
+    }
     messagesUpdated++;
 
     if (messagesUpdated % 100 === 0) {
@@ -108,8 +140,9 @@ async function main() {
       continue;
     }
 
-    // Update with default locality
-    await doc.ref.update({ locality: DEFAULT_LOCALITY });
+    if (!dryRun) {
+      await doc.ref.update({ locality });
+    }
     eventsUpdated++;
 
     if (eventsUpdated % 100 === 0) {
@@ -125,6 +158,7 @@ async function main() {
   console.log(`  Total sources updated: ${sourcesUpdated}`);
   console.log(`  Total messages updated: ${messagesUpdated}`);
   console.log(`  Total events updated: ${eventsUpdated}`);
+  console.log(`  Locality used: ${locality}`);
 }
 
 main().catch((error) => {

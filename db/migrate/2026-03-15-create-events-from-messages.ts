@@ -14,7 +14,10 @@
  * Idempotent: skips messages that already have an eventId set.
  * Paginated: processes messages in batches to avoid loading entire collection.
  *
- * Run with: cd db && npx tsx migrate/2026-03-15-create-events-from-messages.ts
+ * Run with:
+ *   cd db && npx tsx migrate/2026-03-15-create-events-from-messages.ts --fallback-locality=bg.sofia
+ *   cd db && MIGRATION_FALLBACK_LOCALITY=bg.sofia npx tsx migrate/2026-03-15-create-events-from-messages.ts
+ * Add --dry-run to preview intended writes without committing.
  */
 
 import dotenv from "dotenv";
@@ -23,6 +26,27 @@ import { resolve } from "node:path";
 dotenv.config({ path: resolve(process.cwd(), "../ingest/.env.local") });
 
 const BATCH_SIZE = 200;
+
+function parseFallbackLocality(): string {
+  const fallbackArg = process.argv
+    .slice(2)
+    .find((arg) => arg.startsWith("--fallback-locality="));
+  const fallbackLocality =
+    fallbackArg?.split("=")[1] ?? process.env.MIGRATION_FALLBACK_LOCALITY;
+  const trimmed = fallbackLocality?.trim();
+
+  if (!trimmed) {
+    throw new Error(
+      "Missing fallback locality. Provide --fallback-locality=<id> or MIGRATION_FALLBACK_LOCALITY.",
+    );
+  }
+
+  return trimmed;
+}
+
+function isDryRun(): boolean {
+  return process.argv.slice(2).includes("--dry-run");
+}
 
 /** Source trust map (duplicated from ingest to avoid cross-package import) */
 const SOURCE_GEOMETRY_QUALITY: Record<string, number> = {
@@ -105,6 +129,16 @@ async function main() {
   }
 
   console.log("Starting migration: create events from messages...\n");
+  const fallbackLocality = parseFallbackLocality();
+  const dryRun = isDryRun();
+
+  console.log("Preflight configuration:");
+  console.log(`  fallback locality: ${fallbackLocality}`);
+  console.log(`  dry-run: ${dryRun ? "yes" : "no"}`);
+  if (dryRun) {
+    console.log("  mode: no writes (preview only)");
+  }
+  console.log("");
 
   let eventsCreated = 0;
   let skippedNoGeoJson = 0;
@@ -234,13 +268,15 @@ async function main() {
           sources: source ? [source] : [],
           messageCount: 1,
           confidence: 1.0,
-          locality: data.locality || "bg.sofia",
+          locality: data.locality || fallbackLocality,
           cityWide: data.cityWide || false,
           ...(data.embedding ? { embedding: data.embedding } : {}),
           createdAt: now,
           updatedAt: now,
         };
-        batch.set(eventRef, eventData);
+        if (!dryRun) {
+          batch.set(eventRef, eventData);
+        }
 
         // Create EventMessage link document (deterministic ID)
         const eventMessageRef = adminDb
@@ -259,16 +295,20 @@ async function main() {
         // the getAll() pre-check and batch.commit()) causes a hard failure rather
         // than silently overwriting an existing link. Run this migration with
         // ingestion paused; if it fails, re-run safely (idempotent via pre-check).
-        batch.create(eventMessageRef, eventMessageData);
+        if (!dryRun) {
+          batch.create(eventMessageRef, eventMessageData);
+        }
 
         // Store eventId on message
-        batch.update(doc.ref, { eventId: eventRef.id });
+        if (!dryRun) {
+          batch.update(doc.ref, { eventId: eventRef.id });
+        }
 
         batchCount += 3;
         eventsCreated++;
 
         // Firestore batches can have at most 500 operations
-        if (batchCount >= 498) {
+        if (!dryRun && batchCount >= 498) {
           await batch.commit();
           console.log(`  Committed batch (${eventsCreated} events so far)...`);
           batch = adminDb.batch();
@@ -278,7 +318,7 @@ async function main() {
     }
 
     // Commit remaining operations in this page
-    if (batchCount > 0) {
+    if (!dryRun && batchCount > 0) {
       await batch.commit();
     }
 
@@ -296,6 +336,7 @@ async function main() {
   console.log(`  Skipped (no geoJson): ${skippedNoGeoJson}`);
   console.log(`  Skipped (not finalized): ${skippedNotFinalized}`);
   console.log(`  Skipped (already linked): ${skippedAlreadyLinked}`);
+  console.log(`  Fallback locality used: ${fallbackLocality}`);
 }
 
 main().catch((error) => {
