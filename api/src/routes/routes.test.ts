@@ -155,19 +155,26 @@ describe("GET /v1/sources", () => {
   });
 
   it("returns 500 when LOCALITY is missing", async () => {
+    const previousLocality = process.env.LOCALITY;
     delete process.env.LOCALITY;
 
-    const res = await app.request("/v1/sources", {
-      headers: API_KEY_HEADER,
-    });
+    try {
+      const res = await app.request("/v1/sources", {
+        headers: API_KEY_HEADER,
+      });
 
-    expect(res.status).toBe(500);
-    const body: any = await res.json();
-    expect(body).toEqual({
-      error: "LOCALITY environment variable is required but not set",
-    });
-
-    process.env.LOCALITY = "bg.sofia";
+      expect(res.status).toBe(500);
+      const body: any = await res.json();
+      expect(body).toEqual({
+        error: "LOCALITY environment variable is required but not set",
+      });
+    } finally {
+      if (previousLocality === undefined) {
+        delete process.env.LOCALITY;
+      } else {
+        process.env.LOCALITY = previousLocality;
+      }
+    }
   });
 });
 
@@ -234,19 +241,26 @@ describe("GET /v1/messages", () => {
   });
 
   it("returns 500 when LOCALITY is missing", async () => {
+    const previousLocality = process.env.LOCALITY;
     delete process.env.LOCALITY;
 
-    const res = await app.request("/v1/messages", {
-      headers: API_KEY_HEADER,
-    });
+    try {
+      const res = await app.request("/v1/messages", {
+        headers: API_KEY_HEADER,
+      });
 
-    expect(res.status).toBe(500);
-    const body: any = await res.json();
-    expect(body).toEqual({
-      error: "LOCALITY environment variable is required but not set",
-    });
-
-    process.env.LOCALITY = "bg.sofia";
+      expect(res.status).toBe(500);
+      const body: any = await res.json();
+      expect(body).toEqual({
+        error: "LOCALITY environment variable is required but not set",
+      });
+    } finally {
+      if (previousLocality === undefined) {
+        delete process.env.LOCALITY;
+      } else {
+        process.env.LOCALITY = previousLocality;
+      }
+    }
   });
 
   it("returns empty messages when categories param is empty", async () => {
