@@ -190,12 +190,16 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const localityFromQuery = searchParams.get("locality");
   let locality: string;
-  if (localityFromQuery) {
+  if (localityFromQuery !== null) {
     locality = localityFromQuery;
   } else {
     try {
       locality = getConfiguredLocality();
-    } catch {
+    } catch (err) {
+      console.error(
+        "Missing NEXT_PUBLIC_LOCALITY configuration for /api/air-quality/status",
+        err,
+      );
       return NextResponse.json(
         { error: LOCALITY_ENV_ERROR_MESSAGE },
         { status: 500 },
