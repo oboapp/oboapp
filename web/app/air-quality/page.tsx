@@ -11,6 +11,7 @@ import MessagesGrid from "@/components/MessagesGrid";
 import MessageDetailView from "@/components/MessageDetailView/MessageDetailView";
 import { useMessageByIdFallback } from "@/lib/hooks/useMessageByIdFallback";
 import { navigateBackOrReplace } from "@/lib/navigation-utils";
+import { getConfiguredLocality } from "@/lib/locality-metadata";
 import type { Message, InternalMessage } from "@/lib/types";
 
 // Leaflet requires a browser DOM — load client-side only
@@ -26,7 +27,7 @@ const AirQualityMap = dynamic(() => import("@/components/AirQualityMap"), {
   ),
 });
 
-const LOCALITY = process.env.NEXT_PUBLIC_LOCALITY ?? "bg.sofia";
+const LOCALITY = getConfiguredLocality();
 const SOURCE_ID = "sensor-community";
 
 interface AqiCell {

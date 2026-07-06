@@ -66,6 +66,7 @@ describe("GET /api/air-quality/status", () => {
     // Pin env vars so tests are hermetic regardless of the host environment.
     // Force the GCS path so mockGcsDownload controls data supply consistently.
     vi.stubEnv("GCS_GENERIC_BUCKET", "test-bucket");
+    vi.stubEnv("NEXT_PUBLIC_LOCALITY", "bg.test-default");
     vi.stubEnv("FIREBASE_SERVICE_ACCOUNT_KEY", "");
     // Default: no data — GCS file not found
     mockGcsDownload.mockRejectedValue(gcsNotFound());
@@ -94,11 +95,23 @@ describe("GET /api/air-quality/status", () => {
       expect(body).toHaveProperty("error", "Unknown locality");
     });
 
-    it("defaults to bg.sofia when no locality param is provided", async () => {
+    it("defaults to NEXT_PUBLIC_LOCALITY when no locality param is provided", async () => {
       const res = await GET(makeRequest());
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body.locality).toBe("bg.sofia");
+      expect(body.locality).toBe("bg.test-default");
+    });
+
+    it("returns 500 when neither locality param nor NEXT_PUBLIC_LOCALITY is set", async () => {
+      vi.stubEnv("NEXT_PUBLIC_LOCALITY", "");
+
+      const res = await GET(makeRequest());
+      expect(res.status).toBe(500);
+      const body = await res.json();
+      expect(body).toHaveProperty(
+        "error",
+        "NEXT_PUBLIC_LOCALITY environment variable is required but not set",
+      );
     });
   });
 

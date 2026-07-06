@@ -153,6 +153,22 @@ describe("GET /v1/sources", () => {
     expect(source).toHaveProperty("url");
     expect(source).toHaveProperty("logoUrl");
   });
+
+  it("returns 500 when LOCALITY is missing", async () => {
+    delete process.env.LOCALITY;
+
+    const res = await app.request("/v1/sources", {
+      headers: API_KEY_HEADER,
+    });
+
+    expect(res.status).toBe(500);
+    const body: any = await res.json();
+    expect(body).toEqual({
+      error: "LOCALITY environment variable is required but not set",
+    });
+
+    process.env.LOCALITY = "bg.sofia";
+  });
 });
 
 describe("GET /v1/messages", () => {
@@ -215,6 +231,22 @@ describe("GET /v1/messages", () => {
       ],
       orderBy: [{ field: "timespanEnd", direction: "desc" }],
     });
+  });
+
+  it("returns 500 when LOCALITY is missing", async () => {
+    delete process.env.LOCALITY;
+
+    const res = await app.request("/v1/messages", {
+      headers: API_KEY_HEADER,
+    });
+
+    expect(res.status).toBe(500);
+    const body: any = await res.json();
+    expect(body).toEqual({
+      error: "LOCALITY environment variable is required but not set",
+    });
+
+    process.env.LOCALITY = "bg.sofia";
   });
 
   it("returns empty messages when categories param is empty", async () => {

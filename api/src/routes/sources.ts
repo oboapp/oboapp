@@ -3,6 +3,10 @@ import { SOURCES } from "@oboapp/shared";
 import { apiKeyAuth } from "../middleware/api-key";
 import { rateLimit } from "../middleware/rate-limit";
 import { usageMetrics } from "../middleware/usage-metrics";
+import {
+  getRequiredLocality,
+  LOCALITY_ENV_ERROR_MESSAGE,
+} from "../lib/locality";
 
 export const sourcesRoute = new Hono();
 
@@ -14,7 +18,13 @@ sourcesRoute.get("/sources", apiKeyAuth, rateLimit, usageMetrics, (c) => {
       500,
     );
   }
-  const locality = process.env.LOCALITY || "bg.sofia";
+  let locality: string;
+  try {
+    locality = getRequiredLocality();
+  } catch {
+    console.error("Missing LOCALITY configuration for /v1/sources");
+    return c.json({ error: LOCALITY_ENV_ERROR_MESSAGE }, 500);
+  }
 
   const sources = SOURCES.filter((source) =>
     source.localities.includes(locality),

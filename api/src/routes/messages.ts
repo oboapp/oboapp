@@ -15,6 +15,10 @@ import {
   type ViewportBounds,
 } from "../lib/bounds-utils";
 import { getCentroid } from "../lib/geometry-utils";
+import {
+  getRequiredLocality,
+  LOCALITY_ENV_ERROR_MESSAGE,
+} from "../lib/locality";
 
 const DEFAULT_RELEVANCE_DAYS = 7;
 const CLUSTER_ZOOM_THRESHOLD = 15;
@@ -461,6 +465,14 @@ messagesRoute.get(
         timespanEndGte,
       } = parsed.data;
 
+      let locality: string;
+      try {
+        locality = getRequiredLocality();
+      } catch {
+        console.error("Missing LOCALITY configuration for /v1/messages");
+        return c.json({ error: LOCALITY_ENV_ERROR_MESSAGE }, 500);
+      }
+
       const viewportBounds = toViewportBounds({ north, south, east, west });
       const cutoffDate = getCutoffDate(timespanEndGte);
 
@@ -469,7 +481,6 @@ messagesRoute.get(
       }
 
       // Build set of all known source IDs for validation
-      const locality = process.env.LOCALITY || "bg.sofia";
       const allSourceIds = new Set(
         SOURCES.filter((s) => s.localities.includes(locality)).map((s) => s.id),
       );
