@@ -80,6 +80,8 @@ Every pull request triggers the [CI pipeline](../../.github/workflows/ci.yml):
 3. **Test web** — `pnpm test:run` in `web/`
 4. **Build web** — Next.js build check
 
+The web build job sets `NEXT_PUBLIC_LOCALITY` explicitly for deterministic behavior in upstream CI. Instance forks can change this value in their own workflow configuration when targeting a different locality.
+
 On push to `main`, a separate [deploy workflow](../../.github/workflows/deploy.yml) handles Docker build, push to GCP, and Terraform apply. This workflow lives only in instance forks, not in the upstream `oboapp/oboapp` repo.
 
 A [CI failure agent](../../.github/workflows/ci-failure-agent.yml) creates GitHub issues for failed runs and labels them for Copilot triage (`ci-failure`, `copilot`).
