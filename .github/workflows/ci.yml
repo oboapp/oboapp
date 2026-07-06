@@ -7,6 +7,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   dependency-check:
     name: Dependency Check
@@ -212,6 +215,9 @@ jobs:
     name: SonarCloud
     runs-on: ubuntu-latest
     needs: [dependency-check, test-ingest, test-web, build-web]
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
 
     steps:
       - name: Checkout code
@@ -234,8 +240,29 @@ jobs:
       - name: Generate coverage reports
         run: pnpm test:coverage:sonar
 
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v5.0.0
+      - name: SonarCloud Scan (push)
+        if: github.event_name == 'push'
+        uses: SonarSource/sonarqube-scan-action@0303d6b62e310685c0e34d0b9cde218036885c4d # v5.0.0
+        with:
+          args: >
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.organization=oboapp
+            -Dsonar.projectKey=oboapp_oboapp
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: SonarCloud Scan (PR)
+        if: github.event_name == 'pull_request'
+        uses: SonarSource/sonarqube-scan-action@0303d6b62e310685c0e34d0b9cde218036885c4d # v5.0.0
+        with:
+          args: >
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.organization=oboapp
+            -Dsonar.projectKey=oboapp_oboapp
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
+            -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

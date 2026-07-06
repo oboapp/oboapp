@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import {
+  getConfiguredLocality,
+  LOCALITY_ENV_ERROR_MESSAGE,
+} from "@/lib/locality-metadata";
+import {
   getBoundsForLocality,
   calculateNowCastAqi,
   getAqiLabel,
@@ -184,7 +188,24 @@ async function readGcsReadings(
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const locality = searchParams.get("locality") ?? "bg.sofia";
+  const localityFromQuery = searchParams.get("locality");
+  let locality: string;
+  if (localityFromQuery !== null) {
+    locality = localityFromQuery;
+  } else {
+    try {
+      locality = getConfiguredLocality();
+    } catch (err) {
+      console.error(
+        "Missing NEXT_PUBLIC_LOCALITY configuration for /api/air-quality/status",
+        err,
+      );
+      return NextResponse.json(
+        { error: LOCALITY_ENV_ERROR_MESSAGE },
+        { status: 500 },
+      );
+    }
+  }
 
   if (
     process.env.NODE_ENV === "production" &&

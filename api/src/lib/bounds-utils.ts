@@ -6,6 +6,7 @@
 import { bbox } from "@turf/turf";
 import { getBoundsForLocality } from "@oboapp/shared";
 import type { GeoJsonFeature } from "../schema/contract";
+import { getRequiredLocality } from "./locality";
 
 export interface ViewportBounds {
   north: number;
@@ -15,7 +16,7 @@ export interface ViewportBounds {
 }
 
 function getLocality(): string {
-  return process.env.LOCALITY || "bg.sofia";
+  return getRequiredLocality();
 }
 
 function getLocalityBounds() {

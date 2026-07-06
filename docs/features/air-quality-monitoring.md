@@ -75,7 +75,7 @@ Both the ingest package (for the fetch job and crawler) and the web package (for
 | `GCS_GENERIC_BUCKET` | ingest, web | Production | GCS bucket name for general-purpose file storage |
 | `LOCAL_READINGS_PATH` | ingest, web | No | Local filesystem path for development (default: `./tmp/air-quality`) |
 | `LOCALITY` | ingest | Yes | Locality identifier that determines the geographic bounds |
-| `NEXT_PUBLIC_LOCALITY` | web | No | Locality shown on the `/air-quality` monitoring page; defaults to `bg.sofia` if not set |
+| `NEXT_PUBLIC_LOCALITY` | web | Yes | Locality shown on the `/air-quality` monitoring page and used as the default locality in `/api/air-quality/status` when no `locality` query parameter is provided |
 
 See the `.env.example` files in each package for the full list of variables.
 
