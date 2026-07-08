@@ -71,7 +71,7 @@ variable "schedules" {
   default = {
     pipeline_emergent               = "*/30 7-22 * * *"    # Every 30 minutes, 7:00AM–10:30PM (hours 7-22)
     pipeline_all                    = "0 10,14,16 * * *"   # 3x daily: 10:00, 14:00, 16:00
-    gtfs_sync                       = "0 3 * * *"          # Daily at 3:00 AM
+    gtfs_sync                       = "0 3 * * 1"          # Weekly on Monday at 3:00 AM
     educational_facilities_sync     = "0 4 1 * *"          # Monthly on the 1st at 4:00 AM
     air_quality_fetch               = "*/15 * * * *"       # Every 15 minutes, 24/7
     geocode_cache_report            = "0 5 * * 1"          # Weekly on Monday at 5:00 AM
