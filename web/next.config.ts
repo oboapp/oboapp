@@ -2,6 +2,22 @@ import type { NextConfig } from "next";
 import createMDX from "@next/mdx";
 import { withSentryConfig } from "@sentry/nextjs";
 
+function getApiHost(): string | null {
+  const raw = process.env.PUBLIC_API_HOST;
+  if (!raw) {
+    return null;
+  }
+
+  const trimmed = raw.trim();
+  let end = trimmed.length;
+  while (end > 0 && trimmed[end - 1] === "/") {
+    end -= 1;
+  }
+
+  const normalized = trimmed.slice(0, end);
+  return normalized.length > 0 ? normalized : null;
+}
+
 const nextConfig: NextConfig = {
   /* config options here */
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
@@ -35,6 +51,20 @@ const nextConfig: NextConfig = {
             exclude: ["error", "warn"],
           }
         : false,
+  },
+  async redirects() {
+    const apiHost = getApiHost();
+    if (!apiHost) {
+      return [];
+    }
+
+    return [
+      {
+        source: "/api/v1/:path*",
+        destination: `${apiHost}/v1/:path*`,
+        permanent: true,
+      },
+    ];
   },
 };
 

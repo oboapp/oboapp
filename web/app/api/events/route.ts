@@ -18,6 +18,8 @@ import type { Event } from "@oboapp/shared";
 
 const PAGE_SIZE = 20;
 const DEFAULT_RELEVANCE_DAYS = 3;
+const DEFAULT_EVENTS_CACHE_CONTROL =
+  "public, s-maxage=300, stale-while-revalidate=600";
 
 function getCutoffDate(): Date {
   const cutoff = new Date();
@@ -75,6 +77,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const cursorUpdatedAt = searchParams.get("cursorUpdatedAt");
     const cursorId = searchParams.get("cursorId");
+    const shouldApplyDefaultCache = !cursorUpdatedAt && !cursorId;
 
     if ((cursorUpdatedAt && !cursorId) || (!cursorUpdatedAt && cursorId)) {
       return NextResponse.json(
@@ -140,6 +143,17 @@ export async function GET(request: Request) {
             id: String(lastDoc._id),
           }
         : undefined;
+
+    if (shouldApplyDefaultCache) {
+      return NextResponse.json(
+        { events, nextCursor },
+        {
+          headers: {
+            "Cache-Control": DEFAULT_EVENTS_CACHE_CONTROL,
+          },
+        },
+      );
+    }
 
     return NextResponse.json({ events, nextCursor });
   } catch (error) {

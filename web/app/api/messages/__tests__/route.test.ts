@@ -8,9 +8,24 @@ let mockMessagesData: Record<string, unknown>[] = [];
 // upstream SOURCES assembly (which may be a minimal demo set).
 vi.mock("@/lib/sources", () => ({
   default: [
-    { id: "sofia-bg", url: "https://sofia.bg", name: "Столична община", localities: ["bg.sofia"] },
-    { id: "toplo-bg", url: "https://toplo.bg", name: "Топлофикация", localities: ["bg.sofia"] },
-    { id: "erm-zapad", url: "https://erm.bg", name: "ЧЕЗ Разпределение", localities: ["bg.sofia"] },
+    {
+      id: "sofia-bg",
+      url: "https://sofia.bg",
+      name: "Столична община",
+      localities: ["bg.sofia"],
+    },
+    {
+      id: "toplo-bg",
+      url: "https://toplo.bg",
+      name: "Топлофикация",
+      localities: ["bg.sofia"],
+    },
+    {
+      id: "erm-zapad",
+      url: "https://erm.bg",
+      name: "ЧЕЗ Разпределение",
+      localities: ["bg.sofia"],
+    },
   ],
 }));
 
@@ -608,5 +623,54 @@ describe("GET /api/messages - Source Filtering", () => {
 
     expect(data.messages).toHaveLength(1);
     expect(data.messages[0].id).toBe("msg1");
+  });
+});
+
+describe("GET /api/messages - Cache Headers", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockMessagesData = [];
+  });
+
+  it("sets Cache-Control for default unfiltered requests", async () => {
+    const now = new Date();
+    mockMessagesData = [
+      {
+        _id: "cache-msg-1",
+        text: "Cached default response",
+        source: "sofia-bg",
+        geoJson: createMockGeoJson(),
+        createdAt: now,
+        timespanEnd: now,
+      },
+    ];
+
+    const request = new Request("http://localhost/api/messages");
+    const response = await GET(request);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe(
+      "public, s-maxage=300, stale-while-revalidate=600",
+    );
+  });
+
+  it("does not set Cache-Control for filtered requests", async () => {
+    const now = new Date();
+    mockMessagesData = [
+      {
+        _id: "cache-msg-2",
+        text: "Filtered response",
+        source: "sofia-bg",
+        geoJson: createMockGeoJson(),
+        createdAt: now,
+        timespanEnd: now,
+      },
+    ];
+
+    const request = new Request("http://localhost/api/messages?zoom=12");
+    const response = await GET(request);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBeNull();
   });
 });

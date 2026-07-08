@@ -14,11 +14,15 @@ import { recordToInternalMessage } from "@/lib/doc-to-message";
 const DEFAULT_RELEVANCE_DAYS = 7;
 const CLUSTER_ZOOM_THRESHOLD = 15;
 const FIRESTORE_IN_OPERATOR_LIMIT = 10;
+const DEFAULT_MESSAGES_CACHE_CONTROL =
+  "public, s-maxage=300, stale-while-revalidate=600";
 
 type DbClient = Awaited<ReturnType<typeof getDb>>;
 type MessageRecord = Record<string, unknown>;
 
-function sortMessagesByRelevance(messages: InternalMessage[]): InternalMessage[] {
+function sortMessagesByRelevance(
+  messages: InternalMessage[],
+): InternalMessage[] {
   return [...messages].sort((a, b) => {
     const aFinalizedAt = a.finalizedAt ?? "";
     const bFinalizedAt = b.finalizedAt ?? "";
@@ -183,7 +187,9 @@ function isInvalidSourceForFilter(
     return false;
   }
 
-  return !doc.source || typeof doc.source !== "string" || !sourceSet.has(doc.source);
+  return (
+    !doc.source || typeof doc.source !== "string" || !sourceSet.has(doc.source)
+  );
 }
 
 async function buildCategoryQueryPlans(
@@ -368,6 +374,16 @@ export async function GET(request: Request) {
     const db = await getDb();
     // Validate query params
     const { searchParams } = new URL(request.url);
+    const shouldApplyDefaultCache =
+      !searchParams.has("north") &&
+      !searchParams.has("south") &&
+      !searchParams.has("east") &&
+      !searchParams.has("west") &&
+      !searchParams.has("zoom") &&
+      !searchParams.has("categories") &&
+      !searchParams.has("sources") &&
+      !searchParams.has("timespanEndGte");
+
     const parsed = messagesQuerySchema.safeParse(
       Object.fromEntries(searchParams.entries()),
     );
@@ -439,6 +455,17 @@ export async function GET(request: Request) {
     let messages = filterMessagesByGeoAndViewport(allMessages, viewportBounds);
     messages = simplifyMessagesForClusterZoom(messages, zoom);
     messages = sortMessagesByRelevance(messages);
+
+    if (shouldApplyDefaultCache) {
+      return NextResponse.json(
+        { messages },
+        {
+          headers: {
+            "Cache-Control": DEFAULT_MESSAGES_CACHE_CONTROL,
+          },
+        },
+      );
+    }
 
     return NextResponse.json({ messages });
   } catch (error) {
