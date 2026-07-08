@@ -178,10 +178,10 @@ describe("callGeminiApi", () => {
     expect(result).toBeNull();
     // 4 total attempts (initial + 3 retries)
     expect(mockGenerateContent).toHaveBeenCalledTimes(4);
-    // 3 retry warnings + 1 final error
-    expect(recorder.warnings).toHaveLength(3);
-    expect(recorder.errors).toHaveLength(1);
-    expect(recorder.errors[0]).toContain("Error calling Gemini API");
+    // 3 retry warnings + 1 final failure warning
+    expect(recorder.warnings).toHaveLength(4);
+    expect(recorder.warnings[3]).toContain("Error calling Gemini API");
+    expect(recorder.errors).toHaveLength(0);
   });
 
   it("does not retry on non-retryable errors (400)", async () => {
@@ -195,8 +195,9 @@ describe("callGeminiApi", () => {
 
     expect(result).toBeNull();
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
-    expect(recorder.warnings).toHaveLength(0);
-    expect(recorder.errors).toHaveLength(1);
+    expect(recorder.warnings).toHaveLength(1);
+    expect(recorder.warnings[0]).toContain("Error calling Gemini API");
+    expect(recorder.errors).toHaveLength(0);
     expect(vi.mocked(delay)).not.toHaveBeenCalled();
   });
 
@@ -209,8 +210,9 @@ describe("callGeminiApi", () => {
 
     expect(result).toBeNull();
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
-    expect(recorder.warnings).toHaveLength(0);
-    expect(recorder.errors).toHaveLength(1);
+    expect(recorder.warnings).toHaveLength(1);
+    expect(recorder.warnings[0]).toContain("Error calling Gemini API");
+    expect(recorder.errors).toHaveLength(0);
     expect(vi.mocked(delay)).not.toHaveBeenCalled();
   });
 

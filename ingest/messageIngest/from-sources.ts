@@ -306,7 +306,7 @@ function handleIngestError(
     });
   } else {
     summary.errors.push({ url: source.url, error: errorMessage });
-    logger.error("Failed to ingest source", {
+    logger.warn("Failed to ingest source", {
       title: source.title,
       error: errorMessage,
       url: source.url,
@@ -412,7 +412,7 @@ function logSummary(summary: IngestSummary, dryRun: boolean): void {
   logger.info("Ingestion summary", summaryData);
 
   if (summary.errors.length > 0) {
-    logger.error("Ingestion errors", { errors: summary.errors });
+    logger.warn("Ingestion errors", { errors: summary.errors });
   }
 }
 // Run only when executed directly

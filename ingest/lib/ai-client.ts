@@ -88,7 +88,7 @@ export async function callGeminiApi(
     }
   }
 
-  recorder.error(
+  recorder.warn(
     `Error calling Gemini API: ${formatIngestErrorText(lastError)}`,
   );
   return null;

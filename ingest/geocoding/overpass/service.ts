@@ -936,7 +936,7 @@ async function geocodeSingleIntersection(
   const [street1Name, street2Name] = parseIntersectionStreetNames(intersection);
 
   if (!street1Name || !street2Name) {
-    logger.error("Invalid intersection format", { intersection });
+    logger.warn("Invalid intersection format", { intersection });
     return null;
   }
 
@@ -950,7 +950,7 @@ async function geocodeSingleIntersection(
   const intersectionPoint = findGeometricIntersection(geom1, geom2);
 
   if (!intersectionPoint) {
-    logger.error(
+    logger.warn(
       `Could not find intersection of ${street1Name} and ${street2Name}`,
       {
         street1Name,
