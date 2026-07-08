@@ -12,7 +12,7 @@ terraform {
   # flags to terraform init, or by creating a backend.hcl file. Example:
   #   terraform init \
   #     -backend-config="bucket=<your-project>-terraform-state" \
-  #     -backend-config="prefix=ingest"
+  #     -backend-config="prefix=oborishte-ingest"
   backend "gcs" {}
 }
 

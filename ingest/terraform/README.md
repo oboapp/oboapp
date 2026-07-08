@@ -44,10 +44,12 @@ region     = "europe-west1"
 ```bash
 terraform init \
   -backend-config="bucket=<your-project>-terraform-state" \
-  -backend-config="prefix=ingest"
+  -backend-config="prefix=oborishte-ingest"
 ```
 
 Replace `<your-project>-terraform-state` with your GCS bucket name. The bucket must already exist (create it once via `gcloud storage buckets create gs://<your-project>-terraform-state`).
+
+Keep the backend prefix identical everywhere you run Terraform. Using a different prefix creates a separate state file and can duplicate notification channels and alert policies in Google Cloud Monitoring.
 
 ### 3. Preview Changes
 
