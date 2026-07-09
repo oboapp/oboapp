@@ -1,11 +1,47 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const webRoot = dirname(scriptDir);
 const templatePath = join(scriptDir, "firebase-messaging-sw.template.js");
 const outputPath = join(webRoot, "public", "firebase-messaging-sw.js");
+
+function inferRuntimeEnv() {
+  if (process.env.NODE_ENV) {
+    return process.env.NODE_ENV;
+  }
+
+  const lifecycleEvent = process.env.npm_lifecycle_event ?? "";
+  if (lifecycleEvent === "predev" || lifecycleEvent === "dev") {
+    return "development";
+  }
+
+  if (lifecycleEvent === "prebuild" || lifecycleEvent === "build") {
+    return "production";
+  }
+
+  if (lifecycleEvent === "prestart" || lifecycleEvent === "start") {
+    return "production";
+  }
+
+  return "development";
+}
+
+function loadNextStyleEnv() {
+  const nodeEnv = inferRuntimeEnv();
+  const envFiles = [
+    `.env.${nodeEnv}.local`,
+    ".env.local",
+    `.env.${nodeEnv}`,
+    ".env",
+  ];
+
+  for (const envFile of envFiles) {
+    dotenv.config({ path: join(webRoot, envFile), override: false });
+  }
+}
 
 const requiredConfigEnv = {
   apiKey: "NEXT_PUBLIC_FIREBASE_API_KEY",
@@ -36,6 +72,8 @@ function readFirebaseConfigFromEnv() {
 }
 
 function generateServiceWorker() {
+  loadNextStyleEnv();
+
   const template = readFileSync(templatePath, "utf8");
   const { config, missing } = readFirebaseConfigFromEnv();
 

@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { removeSubscriptionFromBackend } from "./notification-service";
+import {
+  removeSubscriptionFromBackend,
+  subscribeToPushNotifications,
+} from "./notification-service";
 
 // Mock Firebase modules before importing the notification service
 vi.mock("firebase/app", () => ({
@@ -228,5 +231,55 @@ describe("removeSubscriptionFromBackend", () => {
     );
 
     consoleErrorSpy.mockRestore();
+  });
+});
+
+describe("subscribeToPushNotifications", () => {
+  const requiredEnvVars = [
+    "NEXT_PUBLIC_FIREBASE_API_KEY",
+    "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
+    "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+    "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
+    "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+    "NEXT_PUBLIC_FIREBASE_APP_ID",
+    "NEXT_PUBLIC_FIREBASE_VAPID_KEY",
+  ] as const;
+
+  const originalEnv = new Map<string, string | undefined>();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    for (const envVar of requiredEnvVars) {
+      originalEnv.set(envVar, process.env[envVar]);
+      process.env[envVar] = "configured";
+    }
+  });
+
+  afterEach(() => {
+    for (const envVar of requiredEnvVars) {
+      const value = originalEnv.get(envVar);
+      if (value === undefined) {
+        delete process.env[envVar];
+      } else {
+        process.env[envVar] = value;
+      }
+    }
+    originalEnv.clear();
+    vi.restoreAllMocks();
+  });
+
+  it("returns null and warns when required messaging config is missing", async () => {
+    delete process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => {});
+
+    const result = await subscribeToPushNotifications("user-1", "token-1");
+
+    expect(result).toBeNull();
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "[Notifications] Messaging config missing (NEXT_PUBLIC_FIREBASE_VAPID_KEY). Notification subscription is disabled.",
+    );
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 });
