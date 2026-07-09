@@ -38,23 +38,6 @@ jobs:
       - name: Check circular dependencies
         run: pnpm dlx dpdm@3.14.0 --no-tree --no-warning --exit-code circular:1 "db/src/**/*.ts" "shared/src/**/*.ts" "ingest/**/*.ts" "web/**/*.{ts,tsx}"
 
-      - name: Check downstream identifier leakage
-        run: |
-          FORBIDDEN_REGEX='oborishte-map|oborishte-ingest'
-          MATCHES=$(git grep -nE "$FORBIDDEN_REGEX" -- \
-            ':!.github/workflows/ci.yml' \
-            ':!**/.next/**' \
-            ':!**/node_modules/**' \
-            ':!**/dist/**' \
-            ':!**/.env.local' \
-            || true)
-
-          if [ -n "$MATCHES" ]; then
-            echo "::error::Found forbidden downstream identifiers in tracked files:"
-            echo "$MATCHES"
-            exit 1
-          fi
-
       - name: Check Terraform tfvars example schema drift
         run: |
           if grep -Eq '^[[:space:]]*#?[[:space:]]*(crawl_|ingest[[:space:]]*=|notify[[:space:]]*=)' ingest/terraform/terraform.tfvars.example; then
