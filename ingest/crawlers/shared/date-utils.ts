@@ -54,7 +54,7 @@ export function parseBulgarianDate(dateStr: string): string {
  * Parse Bulgarian date-time format "DD.MM.YYYY HH:MM" to Date object
  *
  * @param dateStr - Date string in Bulgarian format (e.g., "29.12.2025 10:51")
- * @returns Date object in local timezone
+ * @returns Date object in runtime local timezone
  * @throws Error if date string is invalid
  */
 export function parseBulgarianDateTime(dateStr: string): Date {
@@ -99,7 +99,7 @@ export function parseBulgarianDateTime(dateStr: string): Date {
     throw new Error(`Invalid minute: ${minute}`);
   }
 
-  // Create date in local timezone (assumed to be Europe/Sofia)
+  // Create date in runtime local timezone.
   const date = new Date(
     parsedYear,
     parsedMonth,
@@ -136,8 +136,8 @@ export function parseBulgarianDateTime(dateStr: string): Date {
  * @returns ISO date string
  *
  * @example
- * parseShortBulgarianDateTime("17.07.25", "18:48") // "2025-07-17T18:48:00.000Z" (in Sofia timezone)
- * parseShortBulgarianDateTime("17.07.25") // "2025-07-17T00:00:00.000Z" (in Sofia timezone)
+ * parseShortBulgarianDateTime("17.07.25", "18:48") // "2025-07-17T18:48:00.000Z" (runtime timezone)
+ * parseShortBulgarianDateTime("17.07.25") // "2025-07-17T00:00:00.000Z" (runtime timezone)
  */
 export function parseShortBulgarianDateTime(
   dateStr: string,
@@ -165,7 +165,7 @@ export function parseShortBulgarianDateTime(
         }
       }
 
-      // Create date in local timezone (assumed to be Europe/Sofia)
+      // Create date in runtime local timezone.
       const date = new Date(
         Number.parseInt(year, 10),
         Number.parseInt(month, 10) - 1, // 0-indexed months
@@ -229,7 +229,7 @@ export function parseBulgarianMonthDate(dateStr: string): string {
       return new Date().toISOString();
     }
 
-    // Create date in local timezone (assumed to be Europe/Sofia)
+    // Create date in runtime local timezone.
     const date = new Date(
       Number.parseInt(year, 10),
       month - 1, // 0-indexed months

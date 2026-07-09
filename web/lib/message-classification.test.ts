@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   parseTimespanDate,
+  getClassificationTimeZone,
   getTodayBulgarianTime,
   isToday,
   classifyMessage,
@@ -80,10 +81,12 @@ describe("message-classification", () => {
   describe("getTodayBulgarianTime", () => {
     beforeEach(() => {
       vi.useFakeTimers();
+      vi.stubEnv("NEXT_PUBLIC_TIMEZONE", "Europe/Sofia");
     });
 
     afterEach(() => {
       vi.useRealTimers();
+      vi.unstubAllEnvs();
     });
 
     it("should return current date in Bulgarian timezone", () => {
@@ -110,6 +113,37 @@ describe("message-classification", () => {
       expect(result.getFullYear()).toBe(2024);
       expect(result.getMonth()).toBe(6); // July
       expect(result.getDate()).toBe(15);
+    });
+
+    it("should support non-Sofia timezone via env config", () => {
+      vi.stubEnv("NEXT_PUBLIC_TIMEZONE", "America/New_York");
+      // 01:30 UTC is still previous day in New York (UTC-5 winter)
+      vi.setSystemTime(new Date("2024-01-15T01:30:00.000Z"));
+
+      const result = getTodayBulgarianTime();
+
+      expect(result.getFullYear()).toBe(2024);
+      expect(result.getMonth()).toBe(0); // January
+      expect(result.getDate()).toBe(14);
+    });
+  });
+
+  describe("getClassificationTimeZone", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("defaults to UTC when no timezone env is configured", () => {
+      vi.stubEnv("NEXT_PUBLIC_TIMEZONE", "");
+      vi.stubEnv("NEXT_PUBLIC_TIME_ZONE", "");
+
+      expect(getClassificationTimeZone()).toBe("UTC");
+    });
+
+    it("uses configured timezone from env", () => {
+      vi.stubEnv("NEXT_PUBLIC_TIMEZONE", "America/New_York");
+
+      expect(getClassificationTimeZone()).toBe("America/New_York");
     });
   });
 
@@ -155,12 +189,14 @@ describe("message-classification", () => {
   describe("classifyMessage", () => {
     beforeEach(() => {
       vi.useFakeTimers();
+      vi.stubEnv("NEXT_PUBLIC_TIMEZONE", "Europe/Sofia");
       // Set to January 15, 2024, 12:00 Bulgarian time
       vi.setSystemTime(new Date("2024-01-15T10:00:00.000Z")); // UTC+2 winter time
     });
 
     afterEach(() => {
       vi.useRealTimers();
+      vi.unstubAllEnvs();
     });
 
     it("should classify as active when latest timespan is today", () => {
@@ -329,6 +365,22 @@ describe("message-classification", () => {
 
       // Reset to original test time
       vi.setSystemTime(new Date("2024-01-15T10:00:00.000Z"));
+    });
+
+    it("respects non-Sofia configured timezone when classifying createdAt fallback", () => {
+      vi.stubEnv("NEXT_PUBLIC_TIMEZONE", "America/New_York");
+      // In New York this is Jan 14 20:30, so 'today' should be Jan 14.
+      vi.setSystemTime(new Date("2024-01-15T01:30:00.000Z"));
+
+      const message: Message = {
+        id: "test-ny-timezone",
+        text: "Test message",
+        source: "test",
+        locality: "bg.sofia",
+        createdAt: "2024-01-14T23:00:00.000Z",
+      };
+
+      expect(classifyMessage(message)).toBe("active" as MessageClassification);
     });
   });
 });

@@ -48,7 +48,7 @@ variable "image_tag" {
 variable "schedule_timezone" {
   description = "Timezone for scheduler jobs"
   type        = string
-  default     = "Europe/Sofia"
+  default     = "UTC"
 }
 
 variable "schedules" {

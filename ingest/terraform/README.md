@@ -182,7 +182,7 @@ All variables are defined in `variables.tf`. Override them in `terraform.tfvars`
 | `image_name`                | Docker image name                      | `oborishte-ingest`    |
 | `image_tag`                 | Docker image tag                       | `latest`              |
 | `artifact_registry_repo_id` | Artifact Registry repository ID        | `oborishte-ingest`    |
-| `schedule_timezone`         | Timezone for schedules                 | `Europe/Sofia`        |
+| `schedule_timezone`         | Timezone for schedules                 | `UTC`                 |
 | `localities`                | Locality IDs to deploy crawlers for    | `["bg.sofia"]`        |
 | `crawlers`                  | Manual override for the crawler map    | `{}` (auto-assembled) |
 | `gcs_generic_bucket`        | GCS bucket for file storage (optional) | `""`                  |

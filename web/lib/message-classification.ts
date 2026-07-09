@@ -2,6 +2,16 @@ import type { Message } from "./types";
 
 export type MessageClassification = "active" | "archived";
 
+const DEFAULT_CLASSIFICATION_TIME_ZONE = "UTC";
+
+export function getClassificationTimeZone(): string {
+  const configuredTimeZone =
+    process.env.NEXT_PUBLIC_TIMEZONE?.trim() ||
+    process.env.NEXT_PUBLIC_TIME_ZONE?.trim();
+
+  return configuredTimeZone || DEFAULT_CLASSIFICATION_TIME_ZONE;
+}
+
 /**
  * Parse Bulgarian timespan date format "DD.MM.YYYY HH:MM"
  * Returns null if parsing fails
@@ -52,17 +62,17 @@ export function parseTimespanDate(dateStr: string): Date | null {
 }
 
 /**
- * Get current date in Bulgarian timezone (EET/EEST, UTC+2/+3)
- * Returns a Date object representing "now" in Bulgarian time
+ * Get current date in instance classification timezone.
+ * The timezone comes from NEXT_PUBLIC_TIMEZONE (or NEXT_PUBLIC_TIME_ZONE)
+ * and defaults to UTC.
  */
 export function getTodayBulgarianTime(): Date {
-  // Get current time in Bulgarian timezone
-  const bulgarianTimeString = new Date().toLocaleString("en-US", {
-    timeZone: "Europe/Sofia",
+  const classificationTimeString = new Date().toLocaleString("en-US", {
+    timeZone: getClassificationTimeZone(),
   });
 
   // Parse the localized string back to a Date object
-  return new Date(bulgarianTimeString);
+  return new Date(classificationTimeString);
 }
 
 /**
@@ -83,7 +93,7 @@ export function isToday(date: Date, referenceDate: Date): boolean {
 
 /**
  * Classify a message as "active" (today or future) or "archived" (past)
- * Uses Bulgarian timezone for date determination
+ * Uses configured instance timezone for date determination
  *
  * Classification logic:
  * 1. Try to use denormalized timespanEnd field at message root
@@ -91,6 +101,7 @@ export function isToday(date: Date, referenceDate: Date): boolean {
  * 3. Fallback: use createdAt, check if today → "active", else "archived"
  */
 export function classifyMessage(message: Message): MessageClassification {
+  const classificationTimeZone = getClassificationTimeZone();
   const today = getTodayBulgarianTime();
 
   // Try denormalized timespanEnd first
@@ -100,15 +111,14 @@ export function classifyMessage(message: Message): MessageClassification {
         ? new Date(message.timespanEnd)
         : message.timespanEnd;
 
-    // Convert to Bulgarian time for comparison
-    const bulgarianTimespanEnd = new Date(
+    const localizedTimespanEnd = new Date(
       timespanEnd.toLocaleString("en-US", {
-        timeZone: "Europe/Sofia",
+        timeZone: classificationTimeZone,
       }),
     );
 
     // Check if the timespan ends today or in the future
-    return isToday(bulgarianTimespanEnd, today) || bulgarianTimespanEnd > today
+    return isToday(localizedTimespanEnd, today) || localizedTimespanEnd > today
       ? "active"
       : "archived";
   }
@@ -120,14 +130,13 @@ export function classifyMessage(message: Message): MessageClassification {
         ? new Date(message.createdAt)
         : message.createdAt;
 
-    // Convert to Bulgarian time for comparison
-    const bulgarianCreatedAt = new Date(
+    const localizedCreatedAt = new Date(
       createdDate.toLocaleString("en-US", {
-        timeZone: "Europe/Sofia",
+        timeZone: classificationTimeZone,
       }),
     );
 
-    return isToday(bulgarianCreatedAt, today) ? "active" : "archived";
+    return isToday(localizedCreatedAt, today) ? "active" : "archived";
   }
 
   // Default to archived if no date information available
