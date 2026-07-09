@@ -97,6 +97,7 @@ describe("notification-sender", () => {
       expect(payload.data).toHaveProperty("title");
       expect(payload.data).toHaveProperty("body");
       expect(payload.data).toHaveProperty("icon");
+      expect(payload.data).toHaveProperty("senderIcon");
       expect(payload.data).toHaveProperty("badge");
       expect(payload.data).toHaveProperty("messageId", "aB3xYz12");
       expect(payload.data).toHaveProperty("interestId", "int123");
@@ -147,6 +148,23 @@ describe("notification-sender", () => {
       expect(payload.data.body).toContain("Първо");
       expect(payload.data.body).toContain("Второ");
       expect(payload.data.body).toContain("линк");
+    });
+
+    it("uses source logo as sender icon when source is present", () => {
+      const payload = buildNotificationPayload(
+        { ...baseMessage, source: "sofia-bg" },
+        baseMatch,
+      );
+
+      expect(payload.data.senderIcon).toContain("/sources/sofia-bg.png");
+      expect(payload.data.icon).toContain("/icon-192x192.png");
+      expect(payload.data.badge).toContain("/icon-72x72.png");
+    });
+
+    it("falls back to app icon as sender icon when source is missing", () => {
+      const payload = buildNotificationPayload(baseMessage, baseMatch);
+
+      expect(payload.data.senderIcon).toContain("/icon-192x192.png");
     });
   });
 

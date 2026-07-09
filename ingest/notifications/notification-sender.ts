@@ -122,12 +122,18 @@ export function buildNotificationPayload(
 
   // Message ID is URL-encoded to handle any special characters
   const messageUrl = `${APP_URL}/m/${encodeURIComponent(match.messageId)}`;
+  const sourceId = typeof message.source === "string" ? message.source : "";
+  const senderIcon =
+    sourceId.length > 0
+      ? `${APP_URL}/sources/${encodeURIComponent(sourceId)}.png`
+      : `${APP_URL}/icon-192x192.png`;
 
   return {
     data: {
       title: "Ново съобщение в OboApp",
       body: `${messagePreview}${distanceText}`,
       icon: `${APP_URL}/icon-192x192.png`,
+      senderIcon,
       badge: `${APP_URL}/icon-72x72.png`,
       messageId: match.messageId,
       interestId: match.interestId,

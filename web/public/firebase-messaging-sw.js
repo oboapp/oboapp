@@ -28,7 +28,7 @@ messaging.onBackgroundMessage((payload) => {
   const notificationTitle = payload.data?.title || "Ново съобщение в OboApp";
   const notificationOptions = {
     body: payload.data?.body || "",
-    icon: payload.data?.icon || "/icon-192x192.png",
+    icon: payload.data?.senderIcon || payload.data?.icon || "/icon-192x192.png",
     badge: payload.data?.badge || "/icon-72x72.png",
     tag: payload.data?.messageId || "default",
     data: {
