@@ -44,15 +44,11 @@ Each city's crawlers are defined in a dedicated Terraform file named after its l
 ["bg.sofia"]
 ```
 
-This is passed to Terraform as `-var='localities=["bg.sofia"]'`. Multiple cities can be combined:
-
-```
-["bg.sofia", "bg.burgas", "bg.plovdiv"]
-```
+This is passed to Terraform as `-var='localities=["bg.sofia"]'`.
 
 The default is `["bg.sofia"]` if `LOCALITIES` is not set.
 
-> **Note:** Multi-locality assembly creates one Cloud Run job per crawler across all listed cities. Until per-crawler locality scoping is implemented, all crawler jobs share the same `var.locality` execution context — for now, pass a single-element list to avoid data mis-tagging.
+> **Note:** Deployments are currently restricted to exactly one locality ID. Terraform fails fast when more than one locality is provided, preventing data mis-tagging until per-crawler locality scoping is implemented.
 
 **In the web app**, set `vars.LOCALITY` to the single locality the web app serves (the web app displays one city at a time):
 

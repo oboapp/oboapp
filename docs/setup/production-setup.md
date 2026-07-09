@@ -155,6 +155,8 @@ PUBLIC_API_HOST=https://api.yourdomain.com
 # NEXT_PUBLIC_USE_FIREBASE_EMULATORS=false
 ```
 
+If you enable push notifications, all Firebase web config values above plus `NEXT_PUBLIC_FIREBASE_VAPID_KEY` must be set. At startup/build, the web app generates the messaging service worker from these variables. When required values are missing, background push messaging is disabled by design.
+
 Get Firebase config values from: **Firebase Console → Project Settings → General → Your apps → Web app**
 
 ## Step 8: Run Application
