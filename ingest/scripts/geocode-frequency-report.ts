@@ -21,7 +21,7 @@ import type {
   GeocodingPinEntry,
   GeocodingStreetEntry,
 } from "@/messageIngest/geocoding-progress-tracker";
-import { isRecord } from "@/lib/record-fields";
+import { getString, isRecord } from "@/lib/record-fields";
 
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 
@@ -135,7 +135,9 @@ async function buildReport(dryRun: boolean): Promise<void> {
     );
 
     if (unfinalizedIds.length > 0) {
-      console.log(`Fetched ${unfinalizedIds.length} unfinalized messages individually.`);
+      console.log(
+        `Fetched ${unfinalizedIds.length} unfinalized messages individually.`,
+      );
     }
 
     // ── Load current cache keys ─────────────────────────────────────────────
@@ -145,6 +147,39 @@ async function buildReport(dryRun: boolean): Promise<void> {
     const cachedStreetKeys = new Set(
       cachedStreetEntries.map((e) => e.key as string),
     );
+    const cachedStreetOriginalTexts = new Map(
+      cachedStreetEntries.map((entry) => [
+        getString(entry["key"]),
+        getString(entry["originalText"]),
+      ]),
+    );
+    const dbWithOptionalSynonyms = db as typeof db & {
+      geocodeCacheStreetSynonyms?: {
+        findAll?: () => Promise<Record<string, unknown>[]>;
+      };
+    };
+    const streetSynonymEntries =
+      (await dbWithOptionalSynonyms.geocodeCacheStreetSynonyms?.findAll?.()) ??
+      [];
+    if (!dbWithOptionalSynonyms.geocodeCacheStreetSynonyms?.findAll) {
+      console.warn(
+        "Street synonym cache repository is unavailable in the current @oboapp/db build; continuing without synonym mappings.",
+      );
+    }
+    const streetSynonymToCanonical = new Map<
+      string,
+      { canonicalKey: string; canonicalText: string }
+    >();
+    for (const entry of streetSynonymEntries) {
+      const synonymKey = getString(entry["synonymKey"]);
+      const canonicalKey = getString(entry["canonicalKey"]);
+      const canonicalText = getString(entry["canonicalText"]);
+      if (!synonymKey || !canonicalKey) continue;
+      streetSynonymToCanonical.set(synonymKey, {
+        canonicalKey,
+        canonicalText,
+      });
+    }
 
     // ── Aggregate frequencies ───────────────────────────────────────────────
     // Finalized messages: use top-level `pins` / `streets` fields (canonical).
@@ -152,18 +187,33 @@ async function buildReport(dryRun: boolean): Promise<void> {
     // source when finalize() was never called due to an interrupted run).
     const pinCounts = new Map<
       string,
-      { originalText: string; count: number; messageIds: string[]; partial: boolean }
+      {
+        originalText: string;
+        count: number;
+        messageIds: string[];
+        partial: boolean;
+      }
     >();
     const streetCounts = new Map<
       string,
-      { originalText: string; count: number; messageIds: string[]; partial: boolean }
+      {
+        originalText: string;
+        count: number;
+        messageIds: string[];
+        partial: boolean;
+      }
     >();
 
     // Synthetic centroid key used for precomputed-GeoJSON messages — never a
     // real geocodable address and has no cacheable value in the geocode cache.
     const SYNTHETIC_CENTROID_KEY = normalizePinAddress("Местоположение");
 
-    function addPin(key: string, originalText: string, msgId: string, isPartial: boolean) {
+    function addPin(
+      key: string,
+      originalText: string,
+      msgId: string,
+      isPartial: boolean,
+    ) {
       if (key === SYNTHETIC_CENTROID_KEY) return; // skip synthetic centroid
       const existing = pinCounts.get(key);
       if (existing) {
@@ -171,18 +221,33 @@ async function buildReport(dryRun: boolean): Promise<void> {
         existing.messageIds.push(msgId);
         if (isPartial) existing.partial = true;
       } else {
-        pinCounts.set(key, { originalText, count: 1, messageIds: [msgId], partial: isPartial });
+        pinCounts.set(key, {
+          originalText,
+          count: 1,
+          messageIds: [msgId],
+          partial: isPartial,
+        });
       }
     }
 
-    function addStreet(key: string, originalText: string, msgId: string, isPartial: boolean) {
+    function addStreet(
+      key: string,
+      originalText: string,
+      msgId: string,
+      isPartial: boolean,
+    ) {
       const existing = streetCounts.get(key);
       if (existing) {
         existing.count++;
         existing.messageIds.push(msgId);
         if (isPartial) existing.partial = true;
       } else {
-        streetCounts.set(key, { originalText, count: 1, messageIds: [msgId], partial: isPartial });
+        streetCounts.set(key, {
+          originalText,
+          count: 1,
+          messageIds: [msgId],
+          partial: isPartial,
+        });
       }
     }
 
@@ -277,14 +342,29 @@ async function buildReport(dryRun: boolean): Promise<void> {
       .sort((a, b) => b.count - a.count);
 
     const streets: FrequencyEntry[] = Array.from(streetCounts.entries())
-      .map(([key, { originalText, count, messageIds, partial }]) => ({
-        key,
-        originalText,
-        count,
-        cached: cachedStreetKeys.has(key),
-        messageIds,
-        ...(partial ? { partial: true as const } : {}),
-      }))
+      .map(([key, { originalText, count, messageIds, partial }]) => {
+        const synonym = streetSynonymToCanonical.get(key);
+        const canonicalKey = synonym?.canonicalKey ?? key;
+        // Prefer explicit canonical text from synonym mapping, then canonical
+        // cache entry text, and finally the current entry text as a safe fallback.
+        const canonicalText =
+          synonym?.canonicalText ||
+          cachedStreetOriginalTexts.get(canonicalKey) ||
+          originalText;
+        return {
+          key,
+          originalText,
+          count,
+          cached:
+            cachedStreetKeys.has(key) ||
+            (streetSynonymToCanonical.has(key) &&
+              cachedStreetKeys.has(canonicalKey)),
+          messageIds,
+          canonicalKey,
+          canonicalText,
+          ...(partial ? { partial: true as const } : {}),
+        };
+      })
       .sort((a, b) => b.count - a.count);
 
     const report = {
@@ -329,7 +409,10 @@ async function buildReport(dryRun: boolean): Promise<void> {
 const program = new Command();
 program
   .description("Generate geocode-cache frequency report and save to GCS")
-  .option("--dry-run", "Print top uncached items to stdout without saving to GCS")
+  .option(
+    "--dry-run",
+    "Print top uncached items to stdout without saving to GCS",
+  )
   .action(async (opts: { dryRun?: boolean }) => {
     await buildReport(opts.dryRun ?? false);
   });

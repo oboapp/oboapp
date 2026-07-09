@@ -28,6 +28,7 @@ import { EventsRepository } from "./collections/events";
 import { EventMessagesRepository } from "./collections/event-messages";
 import { GeocodeCachePinsRepository } from "./collections/geocode-cache-pins";
 import { GeocodeCacheStreetsRepository } from "./collections/geocode-cache-streets";
+import { GeocodeCacheStreetSynonymsRepository } from "./collections/geocode-cache-street-synonyms";
 
 /** High-level database interface with typed collection repositories */
 export interface OboDb {
@@ -63,6 +64,8 @@ export interface OboDb {
   geocodeCachePins: GeocodeCachePinsRepository;
   /** Geocode cache: streets (Overpass) */
   geocodeCacheStreets: GeocodeCacheStreetsRepository;
+  /** Geocode cache: street name synonyms */
+  geocodeCacheStreetSynonyms: GeocodeCacheStreetSynonymsRepository;
   /** Close all database connections */
   close(): Promise<void>;
 }
@@ -99,6 +102,7 @@ function buildRepositories(client: DbClient): OboDb {
     eventMessages: new EventMessagesRepository(client),
     geocodeCachePins: new GeocodeCachePinsRepository(client),
     geocodeCacheStreets: new GeocodeCacheStreetsRepository(client),
+    geocodeCacheStreetSynonyms: new GeocodeCacheStreetSynonymsRepository(client),
     close: () => client.close(),
   };
 }

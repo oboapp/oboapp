@@ -18,6 +18,8 @@ interface FrequencyEntry {
   count: number;
   cached: boolean;
   messageIds: string[];
+  canonicalKey?: string;
+  canonicalText?: string;
   partial?: boolean;
 }
 
@@ -207,7 +209,9 @@ function GeometryPanel({
       messageIds: limitedMessageIds.join(","),
     });
 
-    void fetch(`/api/geocode-cache/geometries?${params.toString()}`)
+    void fetch(`/api/geocode-cache/geometries?${params.toString()}`, {
+      cache: "no-store",
+    })
       .then(async (r) => {
         if (!r.ok) throw new Error(`Грешка ${r.status}`);
         const json = await r.json();
@@ -302,68 +306,89 @@ function GeometryPanel({
           <p className="text-base text-destructive">{fetchError}</p>
         )}
         {!loading && !fetchError && data && data.items.length === 0 && (
-          <p className="text-base text-neutral">
-            Няма запазена геометрия в тези съобщения. Вероятно са по-стари от
-            функционалността с кеширане.
-          </p>
+          <div className="space-y-2">
+            <p className="text-base text-neutral">
+              {entry.cached
+                ? "Записът е маркиран като кеширан в отчета, но геометрията не беше намерена в достъпните съобщения или кеша за текущата среда."
+                : "Няма запазена геометрия в тези съобщения. Вероятно са по-стари от функционалността с кеширане."}
+            </p>
+            {type === "street" && (
+              <div className="inline-flex items-center gap-2 rounded border border-neutral-border bg-neutral-light px-2.5 py-1.5 text-sm">
+                <GeocodeSourceMessage entry={entry} />
+                <CopyGeocodeCommand entry={entry} />
+                <CopySynonymCommand entry={entry} />
+              </div>
+            )}
+          </div>
         )}
         {!loading && !fetchError && data && data.items.length > 0 && (
-          <ul className="space-y-2">
-            {data.type === "pin"
-              ? data.items.map((item, i) => (
-                  <li key={item.messageId} className="flex items-center gap-2">
-                    <span
-                      className="inline-block w-3 h-3 rounded-full shrink-0"
-                      style={{ background: COLORS[i % COLORS.length] }}
-                    />
-                    <a
-                      href={`/m/${item.messageId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-info hover:underline font-mono shrink-0"
+          <>
+            {data.type === "street" && (
+              <div className="mb-3 inline-flex items-center gap-2 rounded border border-neutral-border bg-neutral-light px-2.5 py-1.5 text-sm">
+                <GeocodeSourceMessage entry={entry} />
+                <CopyGeocodeCommand entry={entry} />
+                <CopySynonymCommand entry={entry} />
+              </div>
+            )}
+            <ul className="space-y-2">
+              {data.type === "pin"
+                ? data.items.map((item, i) => (
+                    <li
+                      key={item.messageId}
+                      className="flex items-center gap-2"
                     >
-                      {item.messageId}
-                    </a>
-                    <span className="text-neutral truncate flex-1">
-                      {item.formattedAddress}
-                    </span>
-                    {!entry.cached && (
+                      <span
+                        className="inline-block w-3 h-3 rounded-full shrink-0"
+                        style={{ background: COLORS[i % COLORS.length] }}
+                      />
+                      <a
+                        href={`/m/${item.messageId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-info hover:underline font-mono shrink-0"
+                      >
+                        {item.messageId}
+                      </a>
+                      <span className="text-neutral truncate flex-1">
+                        {item.formattedAddress}
+                      </span>
                       <CopyCommand
                         entry={entry}
                         messageId={item.messageId}
                         type={type}
                       />
-                    )}
-                  </li>
-                ))
-              : data.items.map((item, i) => (
-                  <li key={item.messageId} className="flex items-center gap-2">
-                    <span
-                      className="inline-block w-3 h-3 rounded-full shrink-0"
-                      style={{ background: COLORS[i % COLORS.length] }}
-                    />
-                    <a
-                      href={`/m/${item.messageId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-info hover:underline font-mono shrink-0"
+                    </li>
+                  ))
+                : data.items.map((item, i) => (
+                    <li
+                      key={item.messageId}
+                      className="flex items-center gap-2"
                     >
-                      {item.messageId}
-                    </a>
-                    <span className="text-neutral shrink-0">
-                      {item.coordinates.length} сегмент
-                      {item.coordinates.length !== 1 ? "а" : ""}
-                    </span>
-                    {!entry.cached && (
+                      <span
+                        className="inline-block w-3 h-3 rounded-full shrink-0"
+                        style={{ background: COLORS[i % COLORS.length] }}
+                      />
+                      <a
+                        href={`/m/${item.messageId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-info hover:underline font-mono shrink-0"
+                      >
+                        {item.messageId}
+                      </a>
+                      <span className="text-neutral shrink-0">
+                        {item.coordinates.length} сегмент
+                        {item.coordinates.length !== 1 ? "а" : ""}
+                      </span>
                       <CopyCommand
                         entry={entry}
                         messageId={item.messageId}
                         type={type}
                       />
-                    )}
-                  </li>
-                ))}
-          </ul>
+                    </li>
+                  ))}
+            </ul>
+          </>
         )}
       </div>
     </div>
@@ -419,14 +444,12 @@ function CopyCommand({
   type: "pin" | "street";
 }) {
   const addCmd = `pnpm geocode-cache:add --message ${messageId} --address "${entry.originalText}" --type ${type}`;
-  const geocodeCmd = `pnpm geocode-cache:geocode --street "${entry.originalText}" --query "${entry.originalText}" --message ${messageId}`;
 
   if (type === "street") {
     return (
       <span className="shrink-0 flex items-center gap-1 text-sm font-mono">
         <span className="text-neutral">cache:</span>
         <CopyCommandButton label="add" cmd={addCmd} />
-        <CopyCommandButton label="geocode" cmd={geocodeCmd} />
       </span>
     );
   }
@@ -434,26 +457,107 @@ function CopyCommand({
   return <CopyCommandButton label="cache:add" cmd={addCmd} />;
 }
 
+function CopySynonymCommand({ entry }: { entry: FrequencyEntry }) {
+  const synonymCmd = `pnpm geocode-cache:synonym --synonym "${entry.originalText}" --canonical "<canonical>"`;
+  return <CopyCommandButton label="cache:synonym" cmd={synonymCmd} />;
+}
+
+function CopyGeocodeCommand({ entry }: { entry: FrequencyEntry }) {
+  const sourceMessageId = entry.messageIds[0];
+  const geocodeCmd = `pnpm geocode-cache:geocode --street "${entry.originalText}" --query "${entry.originalText}" --message ${sourceMessageId ?? "<messageId>"}`;
+  return <CopyCommandButton label="cache:geocode" cmd={geocodeCmd} />;
+}
+
+function GeocodeSourceMessage({ entry }: { entry: FrequencyEntry }) {
+  const sourceMessageId = entry.messageIds[0];
+  if (!sourceMessageId) {
+    return (
+      <span className="text-neutral/60 font-mono text-xs">no-message-id</span>
+    );
+  }
+
+  return (
+    <a
+      href={`/m/${sourceMessageId}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-info hover:underline font-mono text-xs"
+      title="Избрано съобщение за geocode"
+    >
+      {sourceMessageId}
+    </a>
+  );
+}
+
+function PartialStatusHelp() {
+  return (
+    <p className="mb-3 text-xs text-neutral/70">
+      <span className="inline-flex items-center rounded bg-warning-light px-1.5 py-0.5 font-medium text-warning">
+        в процес
+      </span>{" "}
+      означава, че записът идва от съобщение без финализация. Геометрията е
+      налична, но е възможно броят и вариантите да се променят при следващо
+      успешно финализиране.
+    </p>
+  );
+}
+
+function AccordionSection({
+  title,
+  defaultOpen,
+  children,
+}: {
+  title: string;
+  defaultOpen: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="mb-8">
+      <details
+        open={defaultOpen}
+        className="rounded-lg border border-neutral-border bg-white shadow-sm group"
+      >
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-lg font-semibold text-neutral [&::-webkit-details-marker]:hidden">
+          <span>{title}</span>
+          <svg
+            className="h-4 w-4 shrink-0 text-neutral/70 transition-transform group-open:rotate-180"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              fillRule="evenodd"
+              d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </summary>
+        <div className="border-t border-neutral-border px-4 py-3">
+          {children}
+        </div>
+      </details>
+    </section>
+  );
+}
+
 function FrequencyTable({
   title,
   entries,
   type,
-  showAll,
   selectedKey,
   onSelect,
+  defaultOpen,
 }: {
   title: string;
   entries: FrequencyEntry[];
   type: "pin" | "street";
-  showAll: boolean;
   selectedKey: string | null;
   onSelect: (entry: FrequencyEntry, type: "pin" | "street") => void;
+  defaultOpen: boolean;
 }) {
-  const shown = showAll ? entries : entries.slice(0, 50);
   return (
-    <section className="mb-8">
-      <h2 className="text-lg font-semibold text-neutral mb-3">{title}</h2>
-      <div className="overflow-x-auto bg-white rounded-lg shadow-sm border border-neutral-border">
+    <AccordionSection title={title} defaultOpen={defaultOpen}>
+      <div className="overflow-x-auto rounded-lg border border-neutral-border bg-white">
         <table className="w-full text-sm">
           <thead className="bg-neutral-light text-neutral text-left">
             <tr>
@@ -465,7 +569,7 @@ function FrequencyTable({
             </tr>
           </thead>
           <tbody>
-            {shown.map((e) => (
+            {entries.map((e) => (
               <tr
                 key={e.key}
                 className={`border-t border-neutral-border cursor-pointer transition-colors ${
@@ -509,20 +613,227 @@ function FrequencyTable({
           </tbody>
         </table>
       </div>
-      {!showAll && entries.length > 50 && (
+    </AccordionSection>
+  );
+}
+
+interface StreetFrequencyGroup {
+  canonicalKey: string;
+  canonicalText: string;
+  totalCount: number;
+  entries: FrequencyEntry[];
+}
+
+function formatVariantCount(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return "вариант";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+    return "варианта";
+  }
+  return "варианти";
+}
+
+function buildStreetFrequencyGroups(
+  entries: FrequencyEntry[],
+): StreetFrequencyGroup[] {
+  const groups = new Map<string, StreetFrequencyGroup>();
+
+  for (const entry of entries) {
+    const canonicalKey = entry.canonicalKey ?? entry.key;
+    const canonicalText = entry.canonicalText ?? entry.originalText;
+    const existing = groups.get(canonicalKey);
+
+    if (existing) {
+      existing.totalCount += entry.count;
+      existing.entries.push(entry);
+      continue;
+    }
+
+    groups.set(canonicalKey, {
+      canonicalKey,
+      canonicalText,
+      totalCount: entry.count,
+      entries: [entry],
+    });
+  }
+
+  return Array.from(groups.values())
+    .map((group) => ({
+      ...group,
+      entries: [...group.entries].sort((a, b) => {
+        if (a.key === group.canonicalKey && b.key !== group.canonicalKey)
+          return -1;
+        if (b.key === group.canonicalKey && a.key !== group.canonicalKey)
+          return 1;
+        if (b.count !== a.count) return b.count - a.count;
+        return a.originalText.localeCompare(b.originalText, "bg");
+      }),
+    }))
+    .sort((a, b) => b.totalCount - a.totalCount);
+}
+
+function StreetFrequencyTable({
+  title,
+  entries,
+  showAll,
+  filterUncached,
+  selectedKey,
+  onSelect,
+  defaultOpen,
+  onToggleFilterUncached,
+  onSetShowAll,
+}: {
+  title: string;
+  entries: FrequencyEntry[];
+  showAll: boolean;
+  filterUncached: boolean;
+  selectedKey: string | null;
+  onSelect: (entry: FrequencyEntry, type: "pin" | "street") => void;
+  defaultOpen: boolean;
+  onToggleFilterUncached: () => void;
+  onSetShowAll: (value: boolean) => void;
+}) {
+  const groups = buildStreetFrequencyGroups(entries);
+  const shownGroups = showAll ? groups : groups.slice(0, 50);
+
+  return (
+    <AccordionSection title={title} defaultOpen={defaultOpen}>
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          className={getButtonClasses(
+            filterUncached ? "secondary" : "ghost",
+            "sm",
+          )}
+          onClick={onToggleFilterUncached}
+        >
+          {filterUncached ? "✓ Само некеширани" : "Само некеширани"}
+        </button>
+        <div className="flex rounded-md border border-neutral-border overflow-hidden text-sm">
+          <button
+            type="button"
+            className={`px-3 py-1.5 transition-colors cursor-pointer ${
+              !showAll
+                ? "bg-primary text-white"
+                : "bg-white text-neutral hover:bg-neutral-light"
+            }`}
+            onClick={() => onSetShowAll(false)}
+          >
+            Топ 50
+          </button>
+          <button
+            type="button"
+            className={`px-3 py-1.5 transition-colors cursor-pointer border-l border-neutral-border ${
+              showAll
+                ? "bg-primary text-white"
+                : "bg-white text-neutral hover:bg-neutral-light"
+            }`}
+            onClick={() => onSetShowAll(true)}
+          >
+            Всички
+          </button>
+        </div>
+      </div>
+      <div className="overflow-x-auto rounded-lg border border-neutral-border bg-white">
+        <table className="w-full text-sm">
+          <thead className="bg-neutral-light text-neutral text-left">
+            <tr>
+              <th className="px-3 py-2 font-medium">Улица</th>
+              <th className="px-3 py-2 font-medium w-20 text-right">Брой</th>
+              <th className="px-3 py-2 font-medium w-24 text-center">
+                Кеширан
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {shownGroups.flatMap((group) => {
+              const canonicalEntry =
+                group.entries.find((e) => e.key === group.canonicalKey) ??
+                group.entries[0];
+              const isGroupSelected = selectedKey === canonicalEntry.key;
+
+              return [
+                <tr
+                  key={`group-${group.canonicalKey}`}
+                  className={`border-t border-neutral-border cursor-pointer transition-colors ${
+                    isGroupSelected
+                      ? "bg-info-light"
+                      : "bg-neutral-light/40 hover:bg-neutral-light"
+                  }`}
+                  onClick={() => onSelect(canonicalEntry, "street")}
+                  onKeyDown={(ev) => {
+                    if (ev.key === "Enter" || ev.key === " ") {
+                      ev.preventDefault();
+                      onSelect(canonicalEntry, "street");
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                >
+                  <td className="px-3 py-2 font-medium text-foreground">
+                    {group.canonicalText}
+                    <span className="ml-2 text-xs text-neutral/50">
+                      {group.canonicalKey}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums font-medium">
+                    {group.totalCount}
+                  </td>
+                  <td className="px-3 py-2 text-center text-xs text-neutral/60">
+                    {group.entries.length}{" "}
+                    {formatVariantCount(group.entries.length)}
+                  </td>
+                </tr>,
+                ...group.entries.map((e) => (
+                  <tr key={e.key} className="border-t border-neutral-border">
+                    <td className="px-3 py-2">
+                      <span className="text-neutral/50 mr-1">↳</span>
+                      <span className="text-neutral">{e.originalText}</span>
+                      <span className="ml-2 text-xs text-neutral/50">
+                        {e.key}
+                      </span>
+                      {e.partial && (
+                        <span className="ml-2 text-xs font-medium text-warning bg-warning-light px-1.5 py-0.5 rounded">
+                          в процес
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {e.count}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      {e.cached ? (
+                        <span className="text-success text-xs font-medium">
+                          ✓ Да
+                        </span>
+                      ) : (
+                        <span className="text-destructive text-xs font-medium">
+                          ✗ Не
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                )),
+              ];
+            })}
+          </tbody>
+        </table>
+      </div>
+      {!showAll && groups.length > 50 && (
         <p className="mt-2 text-xs text-neutral/60">
-          Показани 50 от {entries.length} резултата.
+          Показани 50 от {groups.length} групи.
         </p>
       )}
-    </section>
+    </AccordionSection>
   );
 }
 
 export default function GeocodeCacheClient() {
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showAll, setShowAll] = useState(false);
-  const [filterUncached, setFilterUncached] = useState(false);
+  const [streetsShowAll, setStreetsShowAll] = useState(false);
+  const [streetsFilterUncached, setStreetsFilterUncached] = useState(false);
   const [selected, setSelected] = useState<{
     entry: FrequencyEntry;
     type: "pin" | "street";
@@ -531,7 +842,9 @@ export default function GeocodeCacheClient() {
   useEffect(() => {
     void (async () => {
       try {
-        const r = await fetch("/api/geocode-cache/report");
+        const r = await fetch("/api/geocode-cache/report", {
+          cache: "no-store",
+        });
         if (r.status === 404) {
           setError("not-generated");
           return;
@@ -608,12 +921,10 @@ export default function GeocodeCacheClient() {
     );
   }
 
-  const pins = report.pins
-    .filter((p) => p.count > 1 || p.partial)
-    .filter((p) => !filterUncached || !p.cached);
+  const pins = report.pins.filter((p) => p.count > 1 || p.partial);
   const streets = report.streets
     .filter((s) => s.count > 1 || s.partial)
-    .filter((s) => !filterUncached || !s.cached);
+    .filter((s) => !streetsFilterUncached || !s.cached);
 
   const cachedPinCount = report.pins.filter((p) => p.cached).length;
   const cachedStreetCount = report.streets.filter((s) => s.cached).length;
@@ -666,59 +977,27 @@ export default function GeocodeCacheClient() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              className={getButtonClasses(
-                filterUncached ? "secondary" : "ghost",
-                "sm",
-              )}
-              onClick={() => setFilterUncached((v) => !v)}
-            >
-              {filterUncached ? "✓ Само некеширани" : "Само некеширани"}
-            </button>
-            <div className="flex rounded-md border border-neutral-border overflow-hidden text-sm">
-              <button
-                type="button"
-                className={`px-3 py-1.5 transition-colors cursor-pointer ${
-                  !showAll
-                    ? "bg-primary text-white"
-                    : "bg-white text-neutral hover:bg-neutral-light"
-                }`}
-                onClick={() => setShowAll(false)}
-              >
-                Топ 50
-              </button>
-              <button
-                type="button"
-                className={`px-3 py-1.5 transition-colors cursor-pointer border-l border-neutral-border ${
-                  showAll
-                    ? "bg-primary text-white"
-                    : "bg-white text-neutral hover:bg-neutral-light"
-                }`}
-                onClick={() => setShowAll(true)}
-              >
-                Всички
-              </button>
-            </div>
-          </div>
+          <PartialStatusHelp />
         </div>
 
-        <FrequencyTable
+        <StreetFrequencyTable
           title={`Улици — ${streets.length}`}
           entries={streets}
-          type="street"
-          showAll={showAll}
+          showAll={streetsShowAll}
+          filterUncached={streetsFilterUncached}
           selectedKey={selected?.type === "street" ? selected.entry.key : null}
           onSelect={handleSelect}
+          defaultOpen={true}
+          onToggleFilterUncached={() => setStreetsFilterUncached((v) => !v)}
+          onSetShowAll={setStreetsShowAll}
         />
         <FrequencyTable
           title={`Адреси (пинове) — ${pins.length}`}
           entries={pins}
           type="pin"
-          showAll={showAll}
           selectedKey={selected?.type === "pin" ? selected.entry.key : null}
           onSelect={handleSelect}
+          defaultOpen={false}
         />
 
         {selected && (
@@ -728,6 +1007,12 @@ export default function GeocodeCacheClient() {
               aria-label="Затвори панела"
               className={`fixed inset-0 ${zIndex.overlay} bg-black/20 sm:hidden`}
               onClick={() => setSelected(null)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setSelected(null);
+                }
+              }}
             />
             <GeometryPanel
               key={`${selected.entry.key}-${selected.type}`}

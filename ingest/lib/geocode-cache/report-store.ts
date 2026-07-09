@@ -11,6 +11,10 @@ export interface FrequencyEntry {
   count: number;
   cached: boolean;
   messageIds: string[];
+  /** Canonical normalized key for grouped street terms (present on street report entries). */
+  canonicalKey?: string;
+  /** Canonical display text for grouped street terms (present on street report entries). */
+  canonicalText?: string;
   /** True if at least one source message has geocoding data but is not yet finalized. */
   partial?: true;
 }

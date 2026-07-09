@@ -70,9 +70,30 @@ pnpm geocode-cache:report
 # Pre-cache a pin or street geometry from an existing message
 pnpm geocode-cache:add --message <id> --address "ул. Граф Игнатиев 10" --type pin
 pnpm geocode-cache:add --message <id> --address "бул. Витоша" --type street
+
+# Manually geocode a street with an alternate Overpass query, then review the result
+# before caching it with geocode-cache:add
+pnpm geocode-cache:geocode --street "ул. Ген. Гурко" --query "Gen. Gurko, Sofia" --message <id>
+
+# Register a street name synonym (the canonical must already be cached)
+pnpm geocode-cache:synonym --synonym "ул. Гурко" --canonical "ул. Ген. Гурко"
 ```
 
 The frequency report script supports `--dry-run` to print results to stdout without uploading to GCS.
+
+## Synonyms
+
+Some streets appear in messages under multiple name variants (e.g. abbreviations, informal names, or transliterations). Instead of caching each variant separately, you can register a **synonym** that maps the alternative spelling to an already-cached canonical street:
+
+```bash
+pnpm geocode-cache:synonym --synonym "ул. Гурко" --canonical "ул. Ген. Гурко"
+```
+
+Requirements:
+- The canonical street must already exist in `geocodeCacheStreets`.
+- The synonym must not already be cached as a street or as another synonym.
+
+At startup, the pipeline loads synonyms from the database and seeds the in-memory street geometry cache with the canonical geometry under the synonym's name. From that point on, messages containing the synonym get the correct geometry without any Overpass API call.
 
 ## Admin Page
 
@@ -81,7 +102,10 @@ The `/geocode-cache` page (linked from `/sources`) provides:
 - **Frequency tables** for pins and streets — entries appearing more than once, sorted by count
 - **Filters** — toggle between top 50 / all entries, and filter to uncached-only
 - **Geometry visualization** — clicking an entry opens a side panel with a map showing markers (pins) or polylines (streets) from source messages. Partial results from interrupted runs appear here as soon as they are persisted.
-- **Copy command** — each message row has a button that copies the ready-to-run `geocode-cache:add` command to the clipboard
+- **Copy command** — each message row has buttons that copy ready-to-run commands to the clipboard:
+  - `cache:add` — copies a `geocode-cache:add` command to cache the geometry directly from the source message
+  - `cache:geocode` — (streets only) copies a `geocode-cache:geocode` command to re-geocode with an alternate Overpass query before caching
+  - `cache:synonym` — (streets only) copies a `geocode-cache:synonym` command with the current street pre-filled as `--synonym` and a `<canonical>` placeholder for you to replace with the canonical street name
 
 ## Historical Data Limitation
 

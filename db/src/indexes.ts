@@ -210,6 +210,18 @@ export const INDEX_DEFINITIONS: IndexDefinition[] = [
     spec: { key: 1 },
     options: { name: "key", unique: true },
   },
+
+  // --- geocodeCacheStreetSynonyms ---
+  {
+    collection: "geocodeCacheStreetSynonyms",
+    spec: { synonymKey: 1 },
+    options: { name: "synonymKey", unique: true },
+  },
+  {
+    collection: "geocodeCacheStreetSynonyms",
+    spec: { canonicalKey: 1 },
+    options: { name: "canonicalKey" },
+  },
 ];
 
 /**

@@ -87,6 +87,8 @@ export async function lookupCachedPin(
 
 /**
  * Pre-populate the Overpass street geometry cache from the DB collection.
+ * Also seeds synonym entries so alternative street name spellings resolve
+ * to the canonical geometry without an additional Overpass API call.
  * No-op after the first call per process.
  */
 export async function seedStreetCacheFromDb(): Promise<void> {
@@ -98,26 +100,56 @@ export async function seedStreetCacheFromDb(): Promise<void> {
   const entries = await db.geocodeCacheStreets.findAll();
   if (entries.length === 0) return;
 
+  // Build a map from normalized key → geometry for synonym resolution below.
+  const keyToGeometry = new Map<string, Feature<MultiLineString>>();
+
+  const canonicalEntries = entries.flatMap((e) => {
+    const originalName = getString(e.originalText);
+    const storedKey = getString(e.key);
+    const geometry = e.geoJson;
+    if (!originalName || !isFeatureMultiLineString(geometry)) return [];
+    // Validate data integrity: re-normalizing originalText must reproduce the
+    // stored key. A mismatch means the DB entry was written inconsistently,
+    // and seeding it would populate the wrong in-memory cache key.
+    if (storedKey && normalizePinAddress(originalName) !== storedKey) {
+      logger.warn(
+        "Geocode cache street entry key mismatch — skipping inconsistent DB entry",
+        { originalText: originalName, storedKey, recomputedKey: normalizePinAddress(originalName) },
+      );
+      return [];
+    }
+    if (storedKey) {
+      keyToGeometry.set(storedKey, geometry);
+    }
+    return [{ originalName, geometry }];
+  });
+
   const { seedStreetGeometryCache } = await import("./overpass/service");
-  seedStreetGeometryCache(
-    entries.flatMap((e) => {
-      const originalName = getString(e.originalText);
-      const storedKey = getString(e.key);
-      const geometry = e.geoJson;
-      if (!originalName || !isFeatureMultiLineString(geometry)) return [];
-      // Validate data integrity: re-normalizing originalText must reproduce the
-      // stored key. A mismatch means the DB entry was written inconsistently,
-      // and seeding it would populate the wrong in-memory cache key.
-      if (storedKey && normalizePinAddress(originalName) !== storedKey) {
-        logger.warn(
-          "Geocode cache street entry key mismatch — skipping inconsistent DB entry",
-          { originalText: originalName, storedKey, recomputedKey: normalizePinAddress(originalName) },
-        );
-        return [];
-      }
-      return [{ originalName, geometry }];
-    }),
-  );
+  seedStreetGeometryCache(canonicalEntries);
+
+  // Seed synonym entries: look up each synonym's canonical geometry and register
+  // it under the synonym's name so it hits the in-memory cache without an API call.
+  const synonymEntries = await db.geocodeCacheStreetSynonyms.findAll();
+  if (synonymEntries.length === 0) return;
+
+  const synonymSeedEntries = synonymEntries.flatMap((e) => {
+    const synonymText = getString(e.synonymText);
+    const canonicalKey = getString(e.canonicalKey);
+    if (!synonymText || !canonicalKey) return [];
+    const geometry = keyToGeometry.get(canonicalKey);
+    if (!geometry) {
+      logger.warn(
+        "Geocode cache synonym references unknown canonical key — skipping",
+        { synonymText, canonicalKey },
+      );
+      return [];
+    }
+    return [{ originalName: synonymText, geometry }];
+  });
+
+  if (synonymSeedEntries.length > 0) {
+    seedStreetGeometryCache(synonymSeedEntries);
+  }
 }
 
 /** Reset all caches. For test isolation only. */

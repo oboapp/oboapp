@@ -16,7 +16,12 @@ function isCoordinates(v: unknown): v is { lat: number; lng: number } {
 
 interface GeoJsonFeature {
   type: string;
-  geometry: { type: string; coordinates: number[][][] };
+  geometry: { type: string; coordinates: unknown };
+}
+
+interface GeoJsonPoint {
+  type: string;
+  coordinates: unknown;
 }
 
 function isGeoJsonFeature(v: unknown): v is GeoJsonFeature {
@@ -24,7 +29,79 @@ function isGeoJsonFeature(v: unknown): v is GeoJsonFeature {
   const geom = v.geometry;
   if (!isRecord(geom)) return false;
   if (typeof geom.type !== "string") return false;
-  return Array.isArray(geom.coordinates);
+  return "coordinates" in geom;
+}
+
+function isGeoJsonPoint(v: unknown): v is GeoJsonPoint {
+  return (
+    isRecord(v) &&
+    typeof v.type === "string" &&
+    "coordinates" in v &&
+    Array.isArray(v.coordinates)
+  );
+}
+
+function toMapMultiLineCoordinates(
+  value: unknown,
+): { lat: number; lng: number }[][] | null {
+  if (!Array.isArray(value)) return null;
+
+  const lines: { lat: number; lng: number }[][] = [];
+  for (const line of value) {
+    if (!Array.isArray(line)) continue;
+
+    const points: { lat: number; lng: number }[] = [];
+    for (const point of line) {
+      if (!Array.isArray(point) || point.length < 2) continue;
+      const [lng, lat] = point;
+      if (typeof lng !== "number" || typeof lat !== "number") continue;
+      points.push({ lat, lng });
+    }
+
+    if (points.length > 0) {
+      lines.push(points);
+    }
+  }
+
+  return lines;
+}
+
+function toGeoJsonFeature(value: unknown): GeoJsonFeature | null {
+  if (isGeoJsonFeature(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      return isGeoJsonFeature(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function toGeoJsonPoint(value: unknown): GeoJsonPoint | null {
+  if (isGeoJsonPoint(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      return isGeoJsonPoint(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+async function resolveCachedStreetGeometry(
+  db: Awaited<ReturnType<typeof getDb>>,
+  key: string,
+): Promise<Record<string, unknown> | null> {
+  try {
+    return await db.geocodeCacheStreets.findByKey(key);
+  } catch (err) {
+    void err;
+    return null;
+  }
 }
 
 interface GeocodingPinEntry {
@@ -60,9 +137,7 @@ type GeocodingStepData = {
  * Prefers the final `geocoding` step. For interrupted runs (no `geocoding` step),
  * falls back to merging all `geocodingBatch` entries for the most recent runId.
  */
-function extractGeocodingData(
-  msg: Record<string, unknown>,
-): GeocodingStepData {
+function extractGeocodingData(msg: Record<string, unknown>): GeocodingStepData {
   const rawProcess = msg["process"];
   if (!Array.isArray(rawProcess)) return { pins: [], streets: [] };
 
@@ -136,7 +211,14 @@ export async function GET(request: Request) {
   try {
     const db = await getDb();
     const messages = await Promise.all(
-      messageIds.map((id) => db.messages.findById(id)),
+      messageIds.map(async (id) => {
+        try {
+          return await db.messages.findById(id);
+        } catch (err) {
+          void err;
+          return null;
+        }
+      }),
     );
 
     if (type === "pin") {
@@ -192,6 +274,59 @@ export async function GET(request: Request) {
         });
       }
 
+      if (items.length === 0) {
+        let cacheEntry: Record<string, unknown> | null = null;
+        try {
+          cacheEntry = await db.geocodeCachePins.findByKey(key);
+        } catch (err) {
+          void err;
+        }
+        if (cacheEntry) {
+          if (isCoordinates(cacheEntry["coordinates"])) {
+            items.push({
+              messageId:
+                typeof cacheEntry["sourceMessageId"] === "string"
+                  ? cacheEntry["sourceMessageId"]
+                  : "cache",
+              lat: cacheEntry["coordinates"].lat,
+              lng: cacheEntry["coordinates"].lng,
+              formattedAddress:
+                typeof cacheEntry["formattedAddress"] === "string"
+                  ? cacheEntry["formattedAddress"]
+                  : typeof cacheEntry["originalText"] === "string"
+                    ? cacheEntry["originalText"]
+                    : key,
+            });
+          } else {
+            const point = toGeoJsonPoint(cacheEntry["geoJson"]);
+            if (
+              point &&
+              point.type === "Point" &&
+              Array.isArray(point.coordinates) &&
+              point.coordinates.length >= 2
+            ) {
+              const [lng, lat] = point.coordinates;
+              if (typeof lng === "number" && typeof lat === "number") {
+                items.push({
+                  messageId:
+                    typeof cacheEntry["sourceMessageId"] === "string"
+                      ? cacheEntry["sourceMessageId"]
+                      : "cache",
+                  lat,
+                  lng,
+                  formattedAddress:
+                    typeof cacheEntry["formattedAddress"] === "string"
+                      ? cacheEntry["formattedAddress"]
+                      : typeof cacheEntry["originalText"] === "string"
+                        ? cacheEntry["originalText"]
+                        : key,
+                });
+              }
+            }
+          }
+        }
+      }
+
       return NextResponse.json({ items });
     }
 
@@ -209,33 +344,43 @@ export async function GET(request: Request) {
       const entry = streets.find((s) => s.key === key);
       if (!entry) continue;
 
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(entry.geometry);
-      } catch (err) {
-        console.error("Invalid stored geometry JSON", { messageId: id, err });
-        continue;
-      }
+      const parsed = toGeoJsonFeature(entry.geometry);
+      if (!parsed) continue;
       if (!isGeoJsonFeature(parsed)) continue;
       const multiLine = parsed.geometry;
       if (multiLine.type !== "MultiLineString") continue;
 
-      // Convert GeoJSON [lng, lat] → Google Maps { lat, lng }
-      const coordinates = multiLine.coordinates.map((line) =>
-        line
-          .filter(
-            ([lng, lat]) =>
-              typeof lng === "number" && typeof lat === "number",
-          )
-          .map(([lng, lat]) => ({ lat, lng })),
-      );
+      // Convert GeoJSON [lng, lat] → Google Maps { lat, lng }, tolerating malformed points.
+      const coordinates = toMapMultiLineCoordinates(multiLine.coordinates);
+      if (!coordinates || coordinates.length === 0) continue;
 
       items.push({ messageId: id, coordinates });
     }
 
+    if (items.length === 0) {
+      const cacheEntry = await resolveCachedStreetGeometry(db, key);
+      if (cacheEntry) {
+        const parsed = toGeoJsonFeature(cacheEntry["geoJson"]);
+        if (parsed && parsed.geometry.type === "MultiLineString") {
+          const coordinates = toMapMultiLineCoordinates(
+            parsed.geometry.coordinates,
+          );
+          if (coordinates && coordinates.length > 0) {
+            items.push({
+              messageId:
+                typeof cacheEntry["sourceMessageId"] === "string"
+                  ? cacheEntry["sourceMessageId"]
+                  : "cache",
+              coordinates,
+            });
+          }
+        }
+      }
+    }
+
     return NextResponse.json({ items });
   } catch (err) {
-    console.error("Failed to fetch geocode geometries", err);
+    void err;
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },
