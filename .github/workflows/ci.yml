@@ -62,7 +62,15 @@ jobs:
             exit 1
           fi
 
-      - name: Install APM CLI
+      - name: Install APM CLI (attempt 1)
+        id: install_apm_attempt_1
+        continue-on-error: true
+        uses: microsoft/apm-action@v1
+        with:
+          apm-version: "0.8.11"
+
+      - name: Install APM CLI (attempt 2)
+        if: steps.install_apm_attempt_1.outcome == 'failure'
         uses: microsoft/apm-action@v1
         with:
           apm-version: "0.8.11"
