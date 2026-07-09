@@ -42,6 +42,7 @@ jobs:
         run: |
           FORBIDDEN_REGEX='oborishte-map|oborishte-ingest'
           MATCHES=$(git grep -nE "$FORBIDDEN_REGEX" -- \
+            ':!.github/workflows/ci.yml' \
             ':!**/.next/**' \
             ':!**/node_modules/**' \
             ':!**/dist/**' \
