@@ -14,6 +14,32 @@ import { NotificationSubscription } from "./types";
 let messaging: Messaging | null = null;
 let messagingSupported: boolean | null = null;
 
+const requiredMessagingEnvVars = [
+  "NEXT_PUBLIC_FIREBASE_API_KEY",
+  "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
+  "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+  "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
+  "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+  "NEXT_PUBLIC_FIREBASE_APP_ID",
+  "NEXT_PUBLIC_FIREBASE_VAPID_KEY",
+] as const;
+
+function hasCompleteMessagingConfig(): boolean {
+  const missing = requiredMessagingEnvVars.filter((envVar) => {
+    const value = process.env[envVar];
+    return !value || value.trim().length === 0;
+  });
+
+  if (missing.length > 0) {
+    console.warn(
+      `[Notifications] Messaging config missing (${missing.join(", ")}). Notification subscription is disabled.`,
+    );
+    return false;
+  }
+
+  return true;
+}
+
 // Initialize messaging (only in browser)
 if (globalThis.window !== undefined) {
   isSupported()
@@ -248,6 +274,10 @@ export async function subscribeToPushNotifications(
   userId: string,
   idToken: string,
 ): Promise<NotificationSubscription | null> {
+  if (!hasCompleteMessagingConfig()) {
+    return null;
+  }
+
   // Check if messaging is supported
   const supported = await isMessagingSupported();
   if (!supported) {

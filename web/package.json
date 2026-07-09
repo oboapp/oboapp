@@ -3,9 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/generate-firebase-messaging-sw.mjs",
     "dev": "next dev",
     "dev:emulator": "NEXT_PUBLIC_USE_FIREBASE_EMULATORS=true next dev",
+    "prebuild": "node scripts/generate-firebase-messaging-sw.mjs",
     "build": "next build",
+    "prestart": "node scripts/generate-firebase-messaging-sw.mjs",
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

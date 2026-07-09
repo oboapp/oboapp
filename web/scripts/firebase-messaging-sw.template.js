@@ -6,7 +6,7 @@ importScripts(
   "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js",
 );
 
-const firebaseConfig = null;
+const firebaseConfig = __FIREBASE_CONFIG_JSON__;
 
 let messaging = null;
 
