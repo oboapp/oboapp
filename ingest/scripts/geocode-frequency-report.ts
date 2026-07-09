@@ -98,6 +98,48 @@ function extractGeocodingData(msg: Record<string, unknown>): {
   return { pins: [], streets: [] };
 }
 
+function toEpochMillis(iso: string | undefined): number {
+  if (!iso) return Number.NEGATIVE_INFINITY;
+  const ts = Date.parse(iso);
+  return Number.isNaN(ts) ? Number.NEGATIVE_INFINITY : ts;
+}
+
+function normalizeIsoDate(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    const ts = Date.parse(value);
+    return Number.isNaN(ts) ? undefined : new Date(ts).toISOString();
+  }
+  if (value instanceof Date) {
+    const ts = value.getTime();
+    return Number.isNaN(ts) ? undefined : value.toISOString();
+  }
+  if (typeof value === "number") {
+    const parsed = new Date(value);
+    const ts = parsed.getTime();
+    return Number.isNaN(ts) ? undefined : parsed.toISOString();
+  }
+  if (typeof value === "object" && value !== null) {
+    const withToDate = value as { toDate?: () => Date };
+    if (typeof withToDate.toDate === "function") {
+      const parsed = withToDate.toDate();
+      const ts = parsed.getTime();
+      return Number.isNaN(ts) ? undefined : parsed.toISOString();
+    }
+
+    const withSeconds = value as { _seconds?: number; seconds?: number };
+    const seconds =
+      typeof withSeconds.seconds === "number"
+        ? withSeconds.seconds
+        : withSeconds._seconds;
+    if (typeof seconds === "number") {
+      const parsed = new Date(seconds * 1000);
+      const ts = parsed.getTime();
+      return Number.isNaN(ts) ? undefined : parsed.toISOString();
+    }
+  }
+  return undefined;
+}
+
 async function buildReport(dryRun: boolean): Promise<void> {
   const { getDb, closeDb } = await import("@/lib/db");
   const { saveFrequencyReport } =
@@ -114,7 +156,7 @@ async function buildReport(dryRun: boolean): Promise<void> {
     // individually via findById (direct document reads bypass the limit).
     console.log("Fetching messages...");
     const allMessages = await db.messages.findMany({
-      select: ["_id", "finalizedAt", "pins", "streets"],
+      select: ["_id", "createdAt", "finalizedAt", "pins", "streets"],
     });
 
     console.log(`Analyzing ${allMessages.length} messages...`);
@@ -190,6 +232,7 @@ async function buildReport(dryRun: boolean): Promise<void> {
       {
         originalText: string;
         count: number;
+        lastUsedAt: string;
         messageIds: string[];
         partial: boolean;
       }
@@ -199,6 +242,7 @@ async function buildReport(dryRun: boolean): Promise<void> {
       {
         originalText: string;
         count: number;
+        lastUsedAt: string;
         messageIds: string[];
         partial: boolean;
       }
@@ -212,6 +256,7 @@ async function buildReport(dryRun: boolean): Promise<void> {
       key: string,
       originalText: string,
       msgId: string,
+      usedAt: string | undefined,
       isPartial: boolean,
     ) {
       if (key === SYNTHETIC_CENTROID_KEY) return; // skip synthetic centroid
@@ -219,11 +264,15 @@ async function buildReport(dryRun: boolean): Promise<void> {
       if (existing) {
         existing.count++;
         existing.messageIds.push(msgId);
+        if (toEpochMillis(usedAt) > toEpochMillis(existing.lastUsedAt)) {
+          existing.lastUsedAt = usedAt ?? existing.lastUsedAt;
+        }
         if (isPartial) existing.partial = true;
       } else {
         pinCounts.set(key, {
           originalText,
           count: 1,
+          lastUsedAt: usedAt ?? "",
           messageIds: [msgId],
           partial: isPartial,
         });
@@ -234,17 +283,22 @@ async function buildReport(dryRun: boolean): Promise<void> {
       key: string,
       originalText: string,
       msgId: string,
+      usedAt: string | undefined,
       isPartial: boolean,
     ) {
       const existing = streetCounts.get(key);
       if (existing) {
         existing.count++;
         existing.messageIds.push(msgId);
+        if (toEpochMillis(usedAt) > toEpochMillis(existing.lastUsedAt)) {
+          existing.lastUsedAt = usedAt ?? existing.lastUsedAt;
+        }
         if (isPartial) existing.partial = true;
       } else {
         streetCounts.set(key, {
           originalText,
           count: 1,
+          lastUsedAt: usedAt ?? "",
           messageIds: [msgId],
           partial: isPartial,
         });
@@ -254,6 +308,7 @@ async function buildReport(dryRun: boolean): Promise<void> {
     for (const msg of allMessages) {
       const msgId = msg._id as string;
       const isPartial = !msg.finalizedAt;
+      const createdAt = normalizeIsoDate(msg.createdAt);
 
       if (!isPartial) {
         // Finalized: top-level pins/streets are canonical
@@ -262,7 +317,7 @@ async function buildReport(dryRun: boolean): Promise<void> {
           const key = normalizePinAddress(pin.address);
           if (!seenPins.has(key)) {
             seenPins.add(key);
-            addPin(key, pin.address, msgId, false);
+            addPin(key, pin.address, msgId, createdAt, false);
           }
         }
         const seenStreets = new Set<string>();
@@ -270,7 +325,7 @@ async function buildReport(dryRun: boolean): Promise<void> {
           const key = normalizePinAddress(s.street);
           if (!seenStreets.has(key)) {
             seenStreets.add(key);
-            addStreet(key, s.street, msgId, false);
+            addStreet(key, s.street, msgId, createdAt, false);
           }
         }
       } else {
@@ -291,7 +346,7 @@ async function buildReport(dryRun: boolean): Promise<void> {
             const key = normalizePinAddress(pin.address);
             if (!seenPins.has(key)) {
               seenPins.add(key);
-              addPin(key, pin.address, msgId, true);
+              addPin(key, pin.address, msgId, createdAt, true);
             }
           }
           const seenStreets = new Set<string>();
@@ -299,7 +354,7 @@ async function buildReport(dryRun: boolean): Promise<void> {
             const key = normalizePinAddress(s.street);
             if (!seenStreets.has(key)) {
               seenStreets.add(key);
-              addStreet(key, s.street, msgId, true);
+              addStreet(key, s.street, msgId, createdAt, true);
             }
           }
         } else {
@@ -314,7 +369,7 @@ async function buildReport(dryRun: boolean): Promise<void> {
             const key = normalizePinAddress(pin.originalText);
             if (!seenPins.has(key)) {
               seenPins.add(key);
-              addPin(key, pin.originalText, msgId, true);
+              addPin(key, pin.originalText, msgId, createdAt, true);
             }
           }
           const seenStreets = new Set<string>();
@@ -322,7 +377,7 @@ async function buildReport(dryRun: boolean): Promise<void> {
             const key = normalizePinAddress(s.originalName);
             if (!seenStreets.has(key)) {
               seenStreets.add(key);
-              addStreet(key, s.originalName, msgId, true);
+              addStreet(key, s.originalName, msgId, createdAt, true);
             }
           }
         }
@@ -331,40 +386,46 @@ async function buildReport(dryRun: boolean): Promise<void> {
 
     // ── Build sorted entries ────────────────────────────────────────────────
     const pins: FrequencyEntry[] = Array.from(pinCounts.entries())
-      .map(([key, { originalText, count, messageIds, partial }]) => ({
-        key,
-        originalText,
-        count,
-        cached: cachedPinKeys.has(key),
-        messageIds,
-        ...(partial ? { partial: true as const } : {}),
-      }))
-      .sort((a, b) => b.count - a.count);
-
-    const streets: FrequencyEntry[] = Array.from(streetCounts.entries())
-      .map(([key, { originalText, count, messageIds, partial }]) => {
-        const synonym = streetSynonymToCanonical.get(key);
-        const canonicalKey = synonym?.canonicalKey ?? key;
-        // Prefer explicit canonical text from synonym mapping, then canonical
-        // cache entry text, and finally the current entry text as a safe fallback.
-        const canonicalText =
-          synonym?.canonicalText ||
-          cachedStreetOriginalTexts.get(canonicalKey) ||
-          originalText;
-        return {
+      .map(
+        ([key, { originalText, count, lastUsedAt, messageIds, partial }]) => ({
           key,
           originalText,
           count,
-          cached:
-            cachedStreetKeys.has(key) ||
-            (streetSynonymToCanonical.has(key) &&
-              cachedStreetKeys.has(canonicalKey)),
+          lastUsedAt,
+          cached: cachedPinKeys.has(key),
           messageIds,
-          canonicalKey,
-          canonicalText,
           ...(partial ? { partial: true as const } : {}),
-        };
-      })
+        }),
+      )
+      .sort((a, b) => b.count - a.count);
+
+    const streets: FrequencyEntry[] = Array.from(streetCounts.entries())
+      .map(
+        ([key, { originalText, count, lastUsedAt, messageIds, partial }]) => {
+          const synonym = streetSynonymToCanonical.get(key);
+          const canonicalKey = synonym?.canonicalKey ?? key;
+          // Prefer explicit canonical text from synonym mapping, then canonical
+          // cache entry text, and finally the current entry text as a safe fallback.
+          const canonicalText =
+            synonym?.canonicalText ||
+            cachedStreetOriginalTexts.get(canonicalKey) ||
+            originalText;
+          return {
+            key,
+            originalText,
+            count,
+            lastUsedAt,
+            cached:
+              cachedStreetKeys.has(key) ||
+              (streetSynonymToCanonical.has(key) &&
+                cachedStreetKeys.has(canonicalKey)),
+            messageIds,
+            canonicalKey,
+            canonicalText,
+            ...(partial ? { partial: true as const } : {}),
+          };
+        },
+      )
       .sort((a, b) => b.count - a.count);
 
     const report = {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   GoogleMap,
@@ -11,11 +11,13 @@ import {
 import { getButtonClasses } from "@/lib/theme";
 import { zIndex } from "@/lib/colors";
 import { getLocalityCenter } from "@/lib/bounds-utils";
+import { formatDateTime } from "@/lib/date-format";
 
 interface FrequencyEntry {
   key: string;
   originalText: string;
   count: number;
+  lastUsedAt?: string;
   cached: boolean;
   messageIds: string[];
   canonicalKey?: string;
@@ -540,6 +542,57 @@ function AccordionSection({
   );
 }
 
+type SortBy = "count" | "lastUsedAt";
+type SortDirection = "asc" | "desc";
+
+function getTimestampValue(iso: string | undefined): number {
+  if (!iso) return Number.NEGATIVE_INFINITY;
+  const ts = Date.parse(iso);
+  return Number.isNaN(ts) ? Number.NEGATIVE_INFINITY : ts;
+}
+
+function nextSortDirection(
+  currentBy: SortBy,
+  currentDirection: SortDirection,
+  requestedBy: SortBy,
+): SortDirection {
+  if (currentBy !== requestedBy) return "desc";
+  return currentDirection === "desc" ? "asc" : "desc";
+}
+
+function SortHeader({
+  label,
+  field,
+  sortBy,
+  sortDirection,
+  onSort,
+  className,
+}: {
+  label: string;
+  field: SortBy;
+  sortBy: SortBy;
+  sortDirection: SortDirection;
+  onSort: (field: SortBy) => void;
+  className?: string;
+}) {
+  const isActive = sortBy === field;
+  const directionLabel = sortDirection === "desc" ? "низходящо" : "възходящо";
+  return (
+    <th className={className}>
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        className="inline-flex items-center gap-1 font-medium hover:text-foreground transition-colors cursor-pointer"
+      >
+        <span>{label}</span>
+        {isActive && (
+          <span className="text-xs text-neutral/60">({directionLabel})</span>
+        )}
+      </button>
+    </th>
+  );
+}
+
 function FrequencyTable({
   title,
   entries,
@@ -547,6 +600,9 @@ function FrequencyTable({
   selectedKey,
   onSelect,
   defaultOpen,
+  sortBy,
+  sortDirection,
+  onSort,
 }: {
   title: string;
   entries: FrequencyEntry[];
@@ -554,7 +610,33 @@ function FrequencyTable({
   selectedKey: string | null;
   onSelect: (entry: FrequencyEntry, type: "pin" | "street") => void;
   defaultOpen: boolean;
+  sortBy: SortBy;
+  sortDirection: SortDirection;
+  onSort: (field: SortBy) => void;
 }) {
+  const sortedEntries = useMemo(() => {
+    return [...entries].sort((a, b) => {
+      const directionMultiplier = sortDirection === "desc" ? -1 : 1;
+
+      if (sortBy === "count" && a.count !== b.count) {
+        return (a.count - b.count) * directionMultiplier;
+      }
+
+      if (sortBy === "lastUsedAt") {
+        const aTs = getTimestampValue(a.lastUsedAt);
+        const bTs = getTimestampValue(b.lastUsedAt);
+        if (aTs !== bTs) {
+          return (aTs - bTs) * directionMultiplier;
+        }
+      }
+
+      if (a.count !== b.count) {
+        return b.count - a.count;
+      }
+      return a.originalText.localeCompare(b.originalText, "bg");
+    });
+  }, [entries, sortBy, sortDirection]);
+
   return (
     <AccordionSection title={title} defaultOpen={defaultOpen}>
       <div className="overflow-x-auto rounded-lg border border-neutral-border bg-white">
@@ -562,14 +644,29 @@ function FrequencyTable({
           <thead className="bg-neutral-light text-neutral text-left">
             <tr>
               <th className="px-3 py-2 font-medium">Адрес</th>
-              <th className="px-3 py-2 font-medium w-20 text-right">Брой</th>
+              <SortHeader
+                label="Последно използване"
+                field="lastUsedAt"
+                sortBy={sortBy}
+                sortDirection={sortDirection}
+                onSort={onSort}
+                className="px-3 py-2 w-48"
+              />
+              <SortHeader
+                label="Брой"
+                field="count"
+                sortBy={sortBy}
+                sortDirection={sortDirection}
+                onSort={onSort}
+                className="px-3 py-2 w-20 text-right"
+              />
               <th className="px-3 py-2 font-medium w-24 text-center">
                 Кеширан
               </th>
             </tr>
           </thead>
           <tbody>
-            {entries.map((e) => (
+            {sortedEntries.map((e) => (
               <tr
                 key={e.key}
                 className={`border-t border-neutral-border cursor-pointer transition-colors ${
@@ -596,6 +693,9 @@ function FrequencyTable({
                     </span>
                   )}
                 </td>
+                <td className="px-3 py-2 text-xs text-neutral/60 tabular-nums whitespace-nowrap">
+                  {formatDateTime(e.lastUsedAt) || "—"}
+                </td>
                 <td className="px-3 py-2 text-right tabular-nums">{e.count}</td>
                 <td className="px-3 py-2 text-center">
                   {e.cached ? (
@@ -621,6 +721,7 @@ interface StreetFrequencyGroup {
   canonicalKey: string;
   canonicalText: string;
   totalCount: number;
+  lastUsedAt?: string;
   entries: FrequencyEntry[];
 }
 
@@ -636,6 +737,8 @@ function formatVariantCount(count: number): string {
 
 function buildStreetFrequencyGroups(
   entries: FrequencyEntry[],
+  sortBy: SortBy,
+  sortDirection: SortDirection,
 ): StreetFrequencyGroup[] {
   const groups = new Map<string, StreetFrequencyGroup>();
 
@@ -646,6 +749,12 @@ function buildStreetFrequencyGroups(
 
     if (existing) {
       existing.totalCount += entry.count;
+      if (
+        getTimestampValue(entry.lastUsedAt) >
+        getTimestampValue(existing.lastUsedAt)
+      ) {
+        existing.lastUsedAt = entry.lastUsedAt;
+      }
       existing.entries.push(entry);
       continue;
     }
@@ -654,6 +763,7 @@ function buildStreetFrequencyGroups(
       canonicalKey,
       canonicalText,
       totalCount: entry.count,
+      lastUsedAt: entry.lastUsedAt,
       entries: [entry],
     });
   }
@@ -670,7 +780,24 @@ function buildStreetFrequencyGroups(
         return a.originalText.localeCompare(b.originalText, "bg");
       }),
     }))
-    .sort((a, b) => b.totalCount - a.totalCount);
+    .sort((a, b) => {
+      const directionMultiplier = sortDirection === "desc" ? -1 : 1;
+
+      if (sortBy === "count" && a.totalCount !== b.totalCount) {
+        return (a.totalCount - b.totalCount) * directionMultiplier;
+      }
+
+      if (sortBy === "lastUsedAt") {
+        const aTs = getTimestampValue(a.lastUsedAt);
+        const bTs = getTimestampValue(b.lastUsedAt);
+        if (aTs !== bTs) {
+          return (aTs - bTs) * directionMultiplier;
+        }
+      }
+
+      if (a.totalCount !== b.totalCount) return b.totalCount - a.totalCount;
+      return a.canonicalText.localeCompare(b.canonicalText, "bg");
+    });
 }
 
 function StreetFrequencyTable({
@@ -683,6 +810,9 @@ function StreetFrequencyTable({
   defaultOpen,
   onToggleFilterUncached,
   onSetShowAll,
+  sortBy,
+  sortDirection,
+  onSort,
 }: {
   title: string;
   entries: FrequencyEntry[];
@@ -693,8 +823,11 @@ function StreetFrequencyTable({
   defaultOpen: boolean;
   onToggleFilterUncached: () => void;
   onSetShowAll: (value: boolean) => void;
+  sortBy: SortBy;
+  sortDirection: SortDirection;
+  onSort: (field: SortBy) => void;
 }) {
-  const groups = buildStreetFrequencyGroups(entries);
+  const groups = buildStreetFrequencyGroups(entries, sortBy, sortDirection);
   const shownGroups = showAll ? groups : groups.slice(0, 50);
 
   return (
@@ -740,7 +873,22 @@ function StreetFrequencyTable({
           <thead className="bg-neutral-light text-neutral text-left">
             <tr>
               <th className="px-3 py-2 font-medium">Улица</th>
-              <th className="px-3 py-2 font-medium w-20 text-right">Брой</th>
+              <SortHeader
+                label="Последно използване"
+                field="lastUsedAt"
+                sortBy={sortBy}
+                sortDirection={sortDirection}
+                onSort={onSort}
+                className="px-3 py-2 w-48"
+              />
+              <SortHeader
+                label="Брой"
+                field="count"
+                sortBy={sortBy}
+                sortDirection={sortDirection}
+                onSort={onSort}
+                className="px-3 py-2 w-20 text-right"
+              />
               <th className="px-3 py-2 font-medium w-24 text-center">
                 Кеширан
               </th>
@@ -777,6 +925,9 @@ function StreetFrequencyTable({
                       {group.canonicalKey}
                     </span>
                   </td>
+                  <td className="px-3 py-2 text-xs text-neutral/60 tabular-nums whitespace-nowrap">
+                    {formatDateTime(group.lastUsedAt) || "—"}
+                  </td>
                   <td className="px-3 py-2 text-right tabular-nums font-medium">
                     {group.totalCount}
                   </td>
@@ -798,6 +949,9 @@ function StreetFrequencyTable({
                           в процес
                         </span>
                       )}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-neutral/60 tabular-nums whitespace-nowrap">
+                      {formatDateTime(e.lastUsedAt) || "—"}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">
                       {e.count}
@@ -834,6 +988,12 @@ export default function GeocodeCacheClient() {
   const [error, setError] = useState<string | null>(null);
   const [streetsShowAll, setStreetsShowAll] = useState(false);
   const [streetsFilterUncached, setStreetsFilterUncached] = useState(false);
+  const [pinsSortBy, setPinsSortBy] = useState<SortBy>("count");
+  const [pinsSortDirection, setPinsSortDirection] =
+    useState<SortDirection>("desc");
+  const [streetsSortBy, setStreetsSortBy] = useState<SortBy>("count");
+  const [streetsSortDirection, setStreetsSortDirection] =
+    useState<SortDirection>("desc");
   const [selected, setSelected] = useState<{
     entry: FrequencyEntry;
     type: "pin" | "street";
@@ -937,6 +1097,20 @@ export default function GeocodeCacheClient() {
     );
   };
 
+  const handlePinsSort = (requestedBy: SortBy) => {
+    setPinsSortDirection((prevDirection) =>
+      nextSortDirection(pinsSortBy, prevDirection, requestedBy),
+    );
+    setPinsSortBy(requestedBy);
+  };
+
+  const handleStreetsSort = (requestedBy: SortBy) => {
+    setStreetsSortDirection((prevDirection) =>
+      nextSortDirection(streetsSortBy, prevDirection, requestedBy),
+    );
+    setStreetsSortBy(requestedBy);
+  };
+
   return (
     <div className="min-h-screen bg-neutral-light">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -955,9 +1129,8 @@ export default function GeocodeCacheClient() {
             Кеш на геокодирането
           </h1>
           <p className="text-sm text-neutral/60 mb-6">
-            Генериран: {new Date(report.generatedAt).toLocaleString("bg-BG")} ·{" "}
-            Анализирани съобщения:{" "}
-            {report.messagesAnalyzed.toLocaleString("bg-BG")}
+            Генериран: {formatDateTime(report.generatedAt)} · Анализирани
+            съобщения: {report.messagesAnalyzed.toLocaleString("bg-BG")}
           </p>
 
           <div className="flex flex-wrap gap-6 mb-6 text-sm">
@@ -990,6 +1163,9 @@ export default function GeocodeCacheClient() {
           defaultOpen={true}
           onToggleFilterUncached={() => setStreetsFilterUncached((v) => !v)}
           onSetShowAll={setStreetsShowAll}
+          sortBy={streetsSortBy}
+          sortDirection={streetsSortDirection}
+          onSort={handleStreetsSort}
         />
         <FrequencyTable
           title={`Адреси (пинове) — ${pins.length}`}
@@ -998,6 +1174,9 @@ export default function GeocodeCacheClient() {
           selectedKey={selected?.type === "pin" ? selected.entry.key : null}
           onSelect={handleSelect}
           defaultOpen={false}
+          sortBy={pinsSortBy}
+          sortDirection={pinsSortDirection}
+          onSort={handlePinsSort}
         />
 
         {selected && (

@@ -9,6 +9,7 @@ export interface FrequencyEntry {
   key: string;
   originalText: string;
   count: number;
+  lastUsedAt: string;
   cached: boolean;
   messageIds: string[];
   /** Canonical normalized key for grouped street terms (present on street report entries). */
