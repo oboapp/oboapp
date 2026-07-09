@@ -26,11 +26,12 @@ app_url            = "https://your-domain.com"
 #   "30 8 * * 1-5" - Weekdays at 8:30 AM
 #
 # schedules = {
-#   crawl_rayon_oborishte = "0 6 * * *"
-#   crawl_sofia           = "0 7 * * *"
-#   crawl_sofiyska_voda   = "0 8 * * *"
-#   crawl_toplo           = "0 9 * * *"
-#   crawl_erm_zapad       = "0 9 * * *"
-#   ingest                = "0 10 * * *"
-#   notify                = "0 11 * * *"
+#   pipeline_emergent           = "*/30 7-22 * * *"
+#   pipeline_all                = "0 10,14,16 * * *"
+#   gtfs_sync                   = "0 3 * * *"
+#   educational_facilities_sync = "0 4 1 * *"
+#   air_quality_fetch           = "*/15 * * * *"
+#   geocode_cache_report        = "0 5 * * 1"
+#   heatmap_report              = "0 4 * * 1"
+#   heartbeat_check             = "30 17 * * *"
 # }

@@ -97,9 +97,9 @@ docker push [CONTAINER_IMAGE_URL]
 **Example:**
 
 ```bash
-# If terraform output shows: europe-west1-docker.pkg.dev/my-project/oborishte-ingest/oborishte-ingest:latest
+# If terraform output shows: europe-west1-docker.pkg.dev/my-project/ingest/ingest:latest
 gcloud auth configure-docker europe-west1-docker.pkg.dev
-gcloud builds submit --tag europe-west1-docker.pkg.dev/my-project/oborishte-ingest/oborishte-ingest:latest
+gcloud builds submit --tag europe-west1-docker.pkg.dev/my-project/ingest/ingest:latest
 ```
 
 **Automatic Cleanup:** The repository keeps the `latest` tag indefinitely and removes untagged images after 1 day.
@@ -137,11 +137,11 @@ When you update the application code:
 
    ```bash
    # Build and push with Cloud Build (recommended)
-   gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/oborishte-ingest:v1.0.1
+  gcloud builds submit --tag [REGION]-docker.pkg.dev/YOUR_PROJECT_ID/ingest/ingest:v1.0.1
 
    # Or build locally
-   docker build -t gcr.io/YOUR_PROJECT_ID/oborishte-ingest:v1.0.1 .
-   docker push gcr.io/YOUR_PROJECT_ID/oborishte-ingest:v1.0.1
+  docker build -t [REGION]-docker.pkg.dev/YOUR_PROJECT_ID/ingest/ingest:v1.0.1 .
+  docker push [REGION]-docker.pkg.dev/YOUR_PROJECT_ID/ingest/ingest:v1.0.1
    ```
 
 2. **Update Terraform variable** (if using a specific tag):
@@ -160,7 +160,7 @@ Alternatively, update jobs directly without Terraform:
 
 ```bash
 gcloud run jobs update crawl-rayon-oborishte \
-  --image=gcr.io/YOUR_PROJECT_ID/oborishte-ingest:v1.0.1 \
+  --image=[REGION]-docker.pkg.dev/YOUR_PROJECT_ID/ingest/ingest:v1.0.1 \
   --region=europe-west1
 ```
 
@@ -179,9 +179,9 @@ All variables are defined in `variables.tf`. Override them in `terraform.tfvars`
 | `ci_service_account_email`  | CI/CD service account email            | _required_            |
 | `region`                    | GCP region                             | `europe-west1`        |
 | `locality`                  | Locality identifier (e.g. `bg.sofia`)  | `bg.sofia`            |
-| `image_name`                | Docker image name                      | `oborishte-ingest`    |
+| `image_name`                | Docker image name                      | `ingest`              |
 | `image_tag`                 | Docker image tag                       | `latest`              |
-| `artifact_registry_repo_id` | Artifact Registry repository ID        | `oborishte-ingest`    |
+| `artifact_registry_repo_id` | Artifact Registry repository ID        | `ingest`              |
 | `schedule_timezone`         | Timezone for schedules                 | `Europe/Sofia`        |
 | `localities`                | Locality IDs to deploy crawlers for    | `["bg.sofia"]`        |
 | `crawlers`                  | Manual override for the crawler map    | `{}` (auto-assembled) |
@@ -367,14 +367,14 @@ terraform force-unlock LOCK_ID
 Check scheduler status:
 
 ```bash
-gcloud scheduler jobs describe crawl-rayon-oborishte-schedule \
+gcloud scheduler jobs describe pipeline-emergent-schedule \
   --location=europe-west1
 ```
 
 Manually trigger:
 
 ```bash
-gcloud scheduler jobs run crawl-rayon-oborishte-schedule \
+gcloud scheduler jobs run pipeline-emergent-schedule \
   --location=europe-west1
 ```
 
