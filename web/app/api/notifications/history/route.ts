@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     // Get pagination parameters from query string with validation
     const { searchParams } = new URL(request.url);
-    
+
     const rawLimit = Number.parseInt(searchParams.get("limit") ?? "", 10);
     let limit = Number.isNaN(rawLimit) || rawLimit <= 0 ? 20 : rawLimit;
     limit = Math.min(limit, 100); // Max 100 items per request
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const offset = Number.isNaN(rawOffset) || rawOffset < 0 ? 0 : rawOffset;
 
     const db = await getDb();
-    
+
     // Fetch one extra item to check if there are more
     const docs = await db.notificationMatches.findByUserId(userId, {
       limit: limit + 1,
@@ -37,54 +37,75 @@ export async function GET(request: NextRequest) {
     const historyItems: NotificationHistoryItem[] = itemsToReturn
       .filter((doc) => {
         const hasId = typeof doc._id === "string" && doc._id !== "";
-        const hasMessageId = typeof doc.messageId === "string" && doc.messageId !== "";
-        const hasInterestId = typeof doc.interestId === "string" && doc.interestId !== "";
+        const hasMessageId =
+          typeof doc.messageId === "string" && doc.messageId !== "";
+        const hasInterestId =
+          typeof doc.interestId === "string" && doc.interestId !== "";
         return hasId && hasMessageId && hasInterestId;
       })
       .map((doc) => {
-      const notifiedAt = toRequiredISOString(doc.notifiedAt, "notifiedAt");
-      const rawSnapshot = doc.messageSnapshot;
-      const snapshotText =
-        typeof rawSnapshot === "object" &&
-        rawSnapshot !== null &&
-        "text" in rawSnapshot &&
-        typeof rawSnapshot.text === "string"
-          ? rawSnapshot.text
-          : "";
-      const snapshotCreatedAt =
-        typeof rawSnapshot === "object" &&
-        rawSnapshot !== null &&
-        "createdAt" in rawSnapshot
-          ? rawSnapshot.createdAt
-          : undefined;
+        const notifiedAt = toRequiredISOString(doc.notifiedAt, "notifiedAt");
+        const rawSnapshot = doc.messageSnapshot;
+        const snapshotText =
+          typeof rawSnapshot === "object" &&
+          rawSnapshot !== null &&
+          "text" in rawSnapshot &&
+          typeof rawSnapshot.text === "string"
+            ? rawSnapshot.text
+            : "";
+        const snapshotCreatedAt =
+          typeof rawSnapshot === "object" &&
+          rawSnapshot !== null &&
+          "createdAt" in rawSnapshot
+            ? rawSnapshot.createdAt
+            : undefined;
+        const snapshotSource =
+          typeof rawSnapshot === "object" &&
+          rawSnapshot !== null &&
+          "source" in rawSnapshot &&
+          typeof rawSnapshot.source === "string"
+            ? rawSnapshot.source
+            : undefined;
+        const snapshotSourceUrl =
+          typeof rawSnapshot === "object" &&
+          rawSnapshot !== null &&
+          "sourceUrl" in rawSnapshot &&
+          typeof rawSnapshot.sourceUrl === "string"
+            ? rawSnapshot.sourceUrl
+            : undefined;
 
-      // Calculate successful devices count from raw DB array
-      const rawDeviceNotifications = Array.isArray(doc.deviceNotifications)
-        ? doc.deviceNotifications
-        : [];
-      const successfulDevicesCount = rawDeviceNotifications.filter(
-        (d: unknown) =>
-          typeof d === "object" && d !== null && "success" in d && d.success === true,
-      ).length;
+        // Calculate successful devices count from raw DB array
+        const rawDeviceNotifications = Array.isArray(doc.deviceNotifications)
+          ? doc.deviceNotifications
+          : [];
+        const successfulDevicesCount = rawDeviceNotifications.filter(
+          (d: unknown) =>
+            typeof d === "object" &&
+            d !== null &&
+            "success" in d &&
+            d.success === true,
+        ).length;
 
-      return {
-        id: typeof doc._id === "string" ? doc._id : "",
-        messageId: typeof doc.messageId === "string" ? doc.messageId : "",
-        messageSnapshot: {
-          text: snapshotText,
-          createdAt:
-            toOptionalISOString(
-              snapshotCreatedAt,
-              "messageSnapshot.createdAt",
-            ) ?? notifiedAt,
-        },
-        notifiedAt,
-        distance: typeof doc.distance === "number" ? doc.distance : 0,
-        interestId: typeof doc.interestId === "string" ? doc.interestId : "",
-        successfulDevicesCount,
-        readAt: toOptionalISOString(doc.readAt, "readAt"),
-      };
-    });
+        return {
+          id: typeof doc._id === "string" ? doc._id : "",
+          messageId: typeof doc.messageId === "string" ? doc.messageId : "",
+          messageSnapshot: {
+            text: snapshotText,
+            createdAt:
+              toOptionalISOString(
+                snapshotCreatedAt,
+                "messageSnapshot.createdAt",
+              ) ?? notifiedAt,
+            source: snapshotSource,
+            sourceUrl: snapshotSourceUrl,
+          },
+          notifiedAt,
+          distance: typeof doc.distance === "number" ? doc.distance : 0,
+          interestId: typeof doc.interestId === "string" ? doc.interestId : "",
+          successfulDevicesCount,
+          readAt: toOptionalISOString(doc.readAt, "readAt"),
+        };
+      });
 
     return NextResponse.json({
       items: historyItems,

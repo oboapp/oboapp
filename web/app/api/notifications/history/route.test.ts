@@ -78,6 +78,39 @@ describe("GET /api/notifications/history", () => {
     });
   });
 
+  it("includes source fields from messageSnapshot when present", async () => {
+    findByUserIdMock.mockResolvedValue([
+      {
+        _id: "match-1",
+        messageId: "msg-1",
+        notifiedAt: new Date().toISOString(),
+        distance: 50,
+        interestId: "interest-1",
+        deviceNotifications: [],
+        messageSnapshot: {
+          text: "Message with source",
+          createdAt: new Date().toISOString(),
+          source: "sofia-bg",
+          sourceUrl: "https://www.sofia.bg",
+        },
+      },
+    ]);
+
+    const request = new Request("http://localhost/api/notifications/history", {
+      headers: { authorization: "Bearer test-token" },
+    });
+
+    const response = await GET(request as any);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.items).toHaveLength(1);
+    expect(data.items[0].messageSnapshot.source).toBe("sofia-bg");
+    expect(data.items[0].messageSnapshot.sourceUrl).toBe(
+      "https://www.sofia.bg",
+    );
+  });
+
   it("indicates hasMore when there are more results", async () => {
     // Return 21 items when limit is 20 (20 + 1 to check for more)
     const mockNotifications = Array.from({ length: 21 }, (_, i) => ({

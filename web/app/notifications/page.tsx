@@ -3,28 +3,20 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { NotificationHistoryItem } from "@/lib/types";
-import Link from "next/link";
-import { createMessageUrlFromId } from "@/lib/url-utils";
-import { createSnippet } from "@/lib/text-utils";
-import { useSubscriptionStatus } from "@/lib/hooks/useSubscriptionStatus";
 import { buttonStyles, buttonSizes } from "@/lib/theme";
 import { borderRadius } from "@/lib/colors";
 import BackButton from "@/components/BackButton";
 import SubscribeDevicePrompt from "@/app/settings/SubscribeDevicePrompt";
-import {
-  subscribeCurrentDeviceForUser,
-  getEnableNotificationsMessage,
-} from "@/lib/notification-service";
-import { formatNotificationDateTime } from "@/lib/notification-history";
 import { useNotificationHistory } from "@/lib/hooks/useNotificationHistory";
+import { useSubscribeCurrentDevice } from "@/lib/hooks/useSubscribeCurrentDevice";
 import LoadingSpinner from "@/components/LoadingSpinner";
-import { toast } from "sonner";
+import NotificationItem from "@/components/NotificationItem";
 
 export default function NotificationsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const subscriptionStatus = useSubscriptionStatus(user);
+  const { subscriptionStatus, handleSubscribeCurrentDevice } =
+    useSubscribeCurrentDevice(user);
   const {
     notifications,
     isLoading,
@@ -41,32 +33,14 @@ export default function NotificationsPage() {
     emitUnreadCountEvent: true,
   });
 
-  const handleSubscribeCurrentDevice = async () => {
-    if (!user) return;
-
-    try {
-      const result = await subscribeCurrentDeviceForUser(user);
-      if (!result.ok) {
-        toast.error(getEnableNotificationsMessage(result.reason));
-        return;
-      }
-
-      // Re-check subscription status after subscribing
-      await subscriptionStatus.checkStatus();
-    } catch (error) {
-      console.error("Error subscribing:", error);
-      toast.error("Грешка при абонирането");
-    }
-  };
-
   useEffect(() => {
-    if (!user) {
+    if (!authLoading && !user) {
       router.push("/");
       return;
     }
-  }, [user, router]);
+  }, [authLoading, user, router]);
 
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-neutral-light">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -151,55 +125,5 @@ export default function NotificationsPage() {
         )}
       </div>
     </div>
-  );
-}
-
-interface NotificationItemProps {
-  readonly notification: NotificationHistoryItem;
-  readonly onMarkAsRead: (id: string) => void;
-}
-
-function NotificationItem({
-  notification,
-  onMarkAsRead,
-}: NotificationItemProps) {
-  const isUnread = !notification.readAt;
-  const messagePreview = createSnippet(notification.messageSnapshot.text);
-
-  const formattedDate = formatNotificationDateTime(notification.notifiedAt);
-
-  const handleClick = () => {
-    if (isUnread) {
-      onMarkAsRead(notification.id);
-    }
-  };
-
-  return (
-    <Link
-      href={createMessageUrlFromId(notification.messageId)}
-      onClick={handleClick}
-      className={`block p-4 border-b border-neutral-border hover:bg-neutral-light transition-colors bg-white ${
-        isUnread ? "!bg-info-light" : ""
-      }`}
-    >
-      <div className="flex items-start gap-3">
-        {isUnread && (
-          <span className="mt-1 w-2 h-2 bg-primary rounded-full flex-shrink-0" />
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <span className="text-sm text-neutral">{formattedDate}</span>
-            {notification.distance !== undefined && (
-              <span className="text-sm text-neutral">
-                {Math.round(notification.distance)}m
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-foreground whitespace-pre-wrap">
-            {messagePreview}
-          </p>
-        </div>
-      </div>
-    </Link>
   );
 }
