@@ -23,7 +23,8 @@ if (firebaseConfig) {
     const notificationTitle = payload.data?.title || "Ново съобщение в OboApp";
     const notificationOptions = {
       body: payload.data?.body || "",
-      icon: payload.data?.senderIcon || payload.data?.icon || "/icon-192x192.png",
+      icon:
+        payload.data?.senderIcon || payload.data?.icon || "/icon-192x192.png",
       badge: payload.data?.badge || "/icon-72x72.png",
       tag: payload.data?.messageId || "default",
       data: {
@@ -52,6 +53,9 @@ self.addEventListener("notificationclick", (event) => {
 
   event.notification.close();
 
+  // The notification URL is /n/<matchId>. Navigating to it records the click
+  // server-side and redirects to the message. We must actually navigate (not just
+  // focus) so the tracking page loads even when an app window is already open.
   const urlToOpen = event.notification.data?.url || "/";
 
   event.waitUntil(
@@ -64,13 +68,12 @@ self.addEventListener("notificationclick", (event) => {
         for (const client of clientList) {
           if (
             client.url.startsWith(globalThis.registration.scope) &&
-            "focus" in client
+            "navigate" in client
           ) {
-            client.postMessage({
-              type: "NOTIFICATION_CLICKED",
-              messageId: event.notification.data?.messageId,
-            });
-            return client.focus();
+            return client
+              .navigate(urlToOpen)
+              .then((c) => (c ? c.focus() : clients.openWindow(urlToOpen)))
+              .catch(() => clients.openWindow(urlToOpen));
           }
         }
 

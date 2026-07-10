@@ -29,10 +29,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Mark as read
-    await db.notificationMatches.updateOne(notificationId, {
+    // Mark as read and set openedAt on first open (first-write-wins)
+    const updateData: Record<string, string> = {
       readAt: new Date().toISOString(),
-    });
+    };
+    if (!notification.openedAt) {
+      updateData.openedAt = new Date().toISOString();
+    }
+    await db.notificationMatches.updateOne(notificationId, updateData);
 
     return NextResponse.json({ success: true });
   } catch (error) {

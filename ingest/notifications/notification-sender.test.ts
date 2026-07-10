@@ -105,8 +105,16 @@ describe("notification-sender", () => {
       expect(payload.data).toHaveProperty("url");
     });
 
-    it("should use message ID in URL (ID is the slug)", () => {
+    it("should use match ID in notification redirect URL", () => {
       const payload = buildNotificationPayload(baseMessage, baseMatch);
+
+      expect(payload.data.url).toContain("/n/match123");
+      expect(payload.webpush.fcmOptions.link).toContain("/n/match123");
+    });
+
+    it("should fall back to message URL when match.id is empty", () => {
+      const matchWithoutId: NotificationMatch = { ...baseMatch, id: undefined };
+      const payload = buildNotificationPayload(baseMessage, matchWithoutId);
 
       expect(payload.data.url).toContain("/m/aB3xYz12");
       expect(payload.webpush.fcmOptions.link).toContain("/m/aB3xYz12");

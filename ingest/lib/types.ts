@@ -102,6 +102,8 @@ export interface NotificationMatch {
   distance?: number; // Distance in meters from interest center to closest point
   deviceNotifications?: DeviceNotification[]; // Array of device-specific sends
   messageSnapshot?: MessageSnapshot; // Denormalized message data
+  clickedAt?: Date | string; // First push-notification click event timestamp
+  openedAt?: Date | string; // First explicit open/read action by the user
 }
 
 // Source Configuration

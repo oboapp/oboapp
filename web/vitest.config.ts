@@ -14,7 +14,6 @@ export default defineConfig({
         "test/",
         "**/*.config.{js,ts}",
         "**/*.d.ts",
-        "app/api/**",
         "components/**",
         ".next/**",
       ],

@@ -120,8 +120,13 @@ export function buildNotificationPayload(
     ? ` (${Math.round(match.distance)}m от вашия район)`
     : "";
 
-  // Message ID is URL-encoded to handle any special characters
-  const messageUrl = `${APP_URL}/m/${encodeURIComponent(match.messageId)}`;
+  // Use match ID in the notification URL for server-side click tracking.
+  // The /n/[id] page records clickedAt then redirects to the message.
+  // Fall back to the direct message URL if match.id is not set (should not
+  // happen after notify, but guards against edge cases in tests/backfill).
+  const messageUrl = match.id
+    ? `${APP_URL}/n/${encodeURIComponent(match.id)}`
+    : `${APP_URL}/m/${encodeURIComponent(match.messageId)}`;
   const sourceId = typeof message.source === "string" ? message.source : "";
   const senderIcon =
     sourceId.length > 0

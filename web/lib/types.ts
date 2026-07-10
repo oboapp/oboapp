@@ -114,6 +114,8 @@ export interface NotificationMatch {
   deviceNotifications?: DeviceNotification[]; // Array of device-specific sends
   messageSnapshot?: MessageSnapshot; // Denormalized message data
   readAt?: Date | string; // When the notification was read by the user
+  clickedAt?: Date | string; // First push-notification click event timestamp
+  openedAt?: Date | string; // First explicit open/read action by the user
 }
 
 // Notification History Item (for API response)

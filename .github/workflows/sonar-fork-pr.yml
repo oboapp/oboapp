@@ -25,6 +25,21 @@ jobs:
       - name: Restore trusted Sonar config from base branch
         run: git checkout "${{ github.event.pull_request.base.sha }}" -- sonar-project.properties
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: "pnpm"
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate coverage reports
+        run: pnpm test:coverage:sonar
+
       - name: SonarCloud Scan (Fork PR)
         uses: SonarSource/sonarqube-scan-action@0303d6b62e310685c0e34d0b9cde218036885c4d # v5.0.0
         with:
@@ -35,8 +50,6 @@ jobs:
             -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
             -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
             -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}
-            -Dsonar.javascript.lcov.reportPaths=
-            -Dsonar.typescript.lcov.reportPaths=
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

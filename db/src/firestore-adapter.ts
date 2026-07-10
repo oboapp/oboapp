@@ -61,7 +61,21 @@ export class FirestoreAdapter implements DbClient {
 
     if (options?.where) {
       for (const clause of options.where) {
-        query = query.where(clause.field, OP_MAP[clause.op], clause.value);
+        // Firestore stores document IDs separately from field data.
+        // Filtering by "_id" requires FieldPath.documentId() — a literal
+        // where("_id", ...) query will always return zero results.
+        // Only import FieldPath when actually needed to avoid async overhead
+        // on the common path.
+        if (clause.field === "_id") {
+          const { FieldPath } = await import("firebase-admin/firestore");
+          query = query.where(
+            FieldPath.documentId(),
+            OP_MAP[clause.op],
+            clause.value,
+          );
+        } else {
+          query = query.where(clause.field, OP_MAP[clause.op], clause.value);
+        }
       }
     }
 
