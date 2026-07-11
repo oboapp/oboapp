@@ -18,7 +18,9 @@ if (globalThis.window !== undefined) {
   try {
     messaging = getMessaging(app);
   } catch (error) {
-    logger.error("Failed to initialize Firebase Messaging", { error: error instanceof Error ? error.message : String(error) });
+    logger.error("Failed to initialize Firebase Messaging", {
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 
@@ -70,7 +72,9 @@ export async function hasValidSubscription(userId: string): Promise<boolean> {
     const data = await response.json();
     return data.hasSubscription === true;
   } catch (error) {
-    logger.error("Error checking subscription", { error: error instanceof Error ? error.message : String(error) });
+    logger.error("Error checking subscription", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return false;
   }
 }
@@ -80,7 +84,7 @@ export async function hasValidSubscription(userId: string): Promise<boolean> {
  */
 export async function subscribeToPushNotifications(
   userId: string,
-  idToken: string
+  idToken: string,
 ): Promise<NotificationSubscription | null> {
   if (!messaging) {
     logger.error("Firebase Messaging not initialized");
@@ -124,7 +128,9 @@ export async function subscribeToPushNotifications(
     const subscription = await response.json();
     return subscription;
   } catch (error) {
-    logger.error("Error subscribing to push notifications", { error: error instanceof Error ? error.message : String(error) });
+    logger.error("Error subscribing to push notifications", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }
@@ -133,7 +139,7 @@ export async function subscribeToPushNotifications(
  * Setup foreground message listener
  */
 export function setupForegroundMessageListener(
-  onMessageReceived: (payload: FirebaseNotificationPayload) => void
+  onMessageReceived: (payload: FirebaseNotificationPayload) => void,
 ) {
   if (!messaging) {
     logger.error("Firebase Messaging not initialized");
@@ -162,7 +168,7 @@ export async function ensureNotificationPermission(
   userId: string,
   idToken: string,
   hasCircles: boolean,
-  showPrompt?: (onAccept: () => void, onDecline: () => void) => void
+  showPrompt?: (onAccept: () => void, onDecline: () => void) => void,
 ): Promise<void> {
   // Only proceed if user has circles
   if (!hasCircles) {
@@ -198,7 +204,7 @@ export async function ensureNotificationPermission(
       },
       () => {
         // User declined
-      }
+      },
     );
   } else {
     // Fallback: request permission directly

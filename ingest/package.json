@@ -28,6 +28,7 @@
     "capture:firestore": "tsx scripts/capture-from-firestore.ts",
     "report:api-usage": "tsx scripts/report-api-usage.ts",
     "fetch-message": "tsx scripts/fetch-message.ts",
+    "send-test-notification": "tsx scripts/send-test-notification.ts",
     "reprocess-failed-messages": "tsx scripts/reprocess-failed-messages.ts",
     "reprocess-message": "tsx scripts/reprocess-message.ts",
     "geocode-cache:report": "tsx scripts/geocode-frequency-report.ts",
