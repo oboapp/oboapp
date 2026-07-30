@@ -127,13 +127,6 @@ locals {
       timeout     = "1800s"
       description = "Crawl NIMH severe weather warnings"
     }
-    sensor-community = {
-      source      = "sensor-community"
-      memory      = "512Mi"
-      timeout     = "600s"
-      description = "Evaluate sensor.community air quality data"
-      emergent    = true
-    }
     sofia-capital-of-sport = {
       source      = "sofia-capital-of-sport"
       memory      = "1Gi"
