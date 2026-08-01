@@ -124,7 +124,7 @@ async function fetchSources(
 
 async function ingestSource(
   source: SourceDocument,
-  _db: OboDb,
+  db: OboDb,
   dryRun: boolean,
   boundaries: GeoJSONFeatureCollection | null,
   sourceDocumentId: string,
@@ -132,6 +132,17 @@ async function ingestSource(
   if (dryRun) {
     logger.info("[dry-run] Would ingest source", { title: source.title });
     return true;
+  }
+
+  // Guard: sources with no text cannot go through the AI pipeline and would
+  // retry forever (the source stays processed=false). Mark them done now.
+  if (!geoJsonOnly(source) && !source.message.trim()) {
+    logger.warn("Skipping source with empty message — marking as processed", {
+      url: source.url,
+      sourceType: source.sourceType,
+    });
+    await db.sources.updateOne(sourceDocumentId, { processed: true });
+    return false;
   }
 
   const logMeta: Record<string, unknown> = {
@@ -285,6 +296,11 @@ async function filterByBoundaries(
   });
 
   return { withinBounds, outsideBounds };
+}
+
+/** True when a source carries precomputed geoJson — text is not needed for AI. */
+function geoJsonOnly(source: SourceDocument): boolean {
+  return Boolean(source.geoJson);
 }
 
 async function maybeInitDb(): Promise<OboDb> {

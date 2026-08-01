@@ -100,6 +100,7 @@ export async function fetchFeedXml(
     const response = await fetch(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; oboapp-crawler/1.0)",
+        Accept: "application/rss+xml, application/xml, text/xml, */*",
       },
       signal: controller.signal,
     });
