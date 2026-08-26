@@ -1348,42 +1348,6 @@ resource "google_monitoring_notification_channel" "email" {
   depends_on = [google_project_service.monitoring]
 }
 
-# Per-crawler alerts
-resource "google_monitoring_alert_policy" "crawler_failures" {
-  for_each     = local.crawlers
-  display_name = "Crawler Failure: ${each.key}"
-  combiner     = "OR"
-
-  conditions {
-    display_name = "crawl-${each.key} error"
-
-    condition_matched_log {
-      filter = <<-EOT
-        resource.type="cloud_run_job"
-        resource.labels.job_name="crawl-${each.key}"
-        severity>=ERROR
-      EOT
-    }
-  }
-
-  alert_strategy {
-    notification_rate_limit {
-      period = "300s"
-    }
-  }
-
-  notification_channels = [
-    google_monitoring_notification_channel.email.name
-  ]
-
-  documentation {
-    content   = "Crawler **crawl-${each.key}** (${each.value.description}) logged an error.\n\nLogs: https://console.cloud.google.com/run/jobs/details/${var.region}/crawl-${each.key}/logs?project=${var.project_id}"
-    mime_type = "text/markdown"
-  }
-
-  depends_on = [google_project_service.monitoring]
-}
-
 # Pipeline workflow alerts
 resource "google_monitoring_alert_policy" "pipeline_emergent_failures" {
   display_name = "Pipeline Failure: Emergent"
