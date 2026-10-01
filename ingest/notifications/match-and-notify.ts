@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import { resolve } from "node:path";
 import type { OboDb } from "@oboapp/db";
 import type { Messaging } from "firebase-admin/messaging";
-import { Message, NotificationMatch } from "@/lib/types";
+import { Message, NotificationMatch, type Interest } from "@/lib/types";
 import {
   getString,
   getOptionalBoolean,
@@ -178,6 +178,37 @@ async function initServices(): Promise<{
   };
 }
 
+async function loadUserNotificationFilters(
+  db: OboDb,
+  interests: Interest[],
+): Promise<Map<string, UserNotificationFilters>> {
+  const uniqueUserIds = [...new Set(interests.map((interest) => interest.userId))];
+  const userFiltersMap = new Map<string, UserNotificationFilters>();
+  const allPrefs = await db.userPreferences.findByUserIds(uniqueUserIds);
+
+  for (const prefs of allPrefs) {
+    const userId = getString(prefs._id);
+    const rawCats = prefs.notificationCategories;
+    const cats = Array.isArray(rawCats)
+      ? rawCats.filter((value): value is string => typeof value === "string")
+      : [];
+    const rawSrcs = prefs.notificationSources;
+    const srcs = Array.isArray(rawSrcs)
+      ? rawSrcs.filter((value): value is string => typeof value === "string")
+      : [];
+    const experimentalFeatures = prefs.experimentalFeatures === true;
+    if (cats.length > 0 || srcs.length > 0 || experimentalFeatures) {
+      userFiltersMap.set(userId, {
+        notificationCategories: new Set(cats),
+        notificationSources: new Set(srcs),
+        experimentalFeatures,
+      });
+    }
+  }
+
+  return userFiltersMap;
+}
+
 /**
  * Main function
  */
@@ -195,30 +226,7 @@ export async function processNotificationWork(
       .filter((id): id is string => !!id);
 
     if (interests.length > 0) {
-      const uniqueUserIds = [...new Set(interests.map((interest) => interest.userId))];
-      const userFiltersMap = new Map<string, UserNotificationFilters>();
-      const allPrefs = await db.userPreferences.findByUserIds(uniqueUserIds);
-
-      for (const prefs of allPrefs) {
-        const userId = getString(prefs._id);
-        const rawCats = prefs.notificationCategories;
-        const cats = Array.isArray(rawCats)
-          ? rawCats.filter((value): value is string => typeof value === "string")
-          : [];
-        const rawSrcs = prefs.notificationSources;
-        const srcs = Array.isArray(rawSrcs)
-          ? rawSrcs.filter((value): value is string => typeof value === "string")
-          : [];
-        const experimentalFeatures = prefs.experimentalFeatures === true;
-        if (cats.length > 0 || srcs.length > 0 || experimentalFeatures) {
-          userFiltersMap.set(userId, {
-            notificationCategories: new Set(cats),
-            notificationSources: new Set(srcs),
-            experimentalFeatures,
-          });
-        }
-      }
-
+      const userFiltersMap = await loadUserNotificationFilters(db, interests);
       const matches = await matchMessagesWithInterests(
         unprocessedMessages,
         interests,
