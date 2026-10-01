@@ -35,7 +35,7 @@ function loadLocalityGeoJson(locality: string): GeoJSONFeatureCollection {
  * For city-wide messages (cityWide flag), uses the locality's geojson for geometric matching
  */
 export function matchMessageToInterest(
-  message: Message,
+  message: Pick<Message, "geoJson" | "cityWide" | "locality">,
   interest: Interest,
 ): { matches: boolean; distance: number | null } {
   // City-wide messages use locality boundary for matching

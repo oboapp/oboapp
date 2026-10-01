@@ -211,10 +211,20 @@ describe("NotificationMatchesRepository", () => {
     repo = new NotificationMatchesRepository(db);
   });
 
-  it("findUnnotified queries where notified == false", async () => {
-    await repo.findUnnotified();
+  it("findUnnotified queries a bounded projection", async () => {
+    await repo.findUnnotified(100);
     expect(db.findMany).toHaveBeenCalledWith("notificationMatches", {
       where: [{ field: "notified", op: "==", value: false }],
+      limit: 100,
+      select: [
+        "userId",
+        "messageId",
+        "interestId",
+        "matchedAt",
+        "notified",
+        "notifiedAt",
+        "distance",
+      ],
     });
   });
 

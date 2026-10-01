@@ -24,12 +24,11 @@ The notification system automatically notifies users when new messages are poste
 ```mermaid
 flowchart TD
     A[New Message Ingested] --> B[Run npx tsx notify]
-    B --> C[Find Unprocessed Messages]
-    C --> D[Get All User Interests]
-    D --> E[Match Messages to Interests]
-    E --> F[Deduplicate Matches]
-    F --> G[Store in notificationMatches]
-    G --> H[Get Unnotified Matches]
+    B --> C[Fetch up to 25 unprocessed messages]
+    C --> D[Match against user interests]
+    D --> E[Store matches and mark messages processed]
+    E --> H[Fetch up to 100 pending matches]
+    C --> H
     H --> I[Send Push Notifications]
     I --> J[Mark as Notified]
 ```
@@ -65,6 +64,11 @@ flowchart TD
 - Deduplicates matches (one notification per user per message)
 - Sends push notifications via FCM
 - Marks matches as processed
+
+Each run reads only the fields needed for matching. Expired messages in the
+oldest batch are marked processed so later runs can advance. Pending matches
+are sent in bounded batches even when there are no new messages. A backlog
+therefore drains over successive scheduled runs.
 
 **`app/api/notifications/subscription/route.ts`**
 

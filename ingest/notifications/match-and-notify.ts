@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import { resolve } from "node:path";
 import type { OboDb } from "@oboapp/db";
 import type { Messaging } from "firebase-admin/messaging";
-import { Message, NotificationMatch } from "@/lib/types";
+import { Message, NotificationMatch, type Interest } from "@/lib/types";
 import {
   getString,
   getOptionalBoolean,
@@ -178,54 +178,25 @@ async function initServices(): Promise<{
   };
 }
 
-/**
- * Main function
- */
-export async function main(): Promise<void> {
-  logger.info("Starting notification matching and sending");
-
-  const { db, messaging } = await initServices();
-
-  // Step 1: Get unprocessed messages (messages without notificationsSent flag)
-  const unprocessedMessages = await getUnprocessedMessages(db);
-
-  if (unprocessedMessages.length === 0) {
-    logger.info("No new messages to process");
-    return;
-  }
-
-  // Step 2: Get all user interests
-  const interests = await getAllInterests(db);
-
-  if (interests.length === 0) {
-    logger.info("No user interests configured");
-    // Still mark messages as processed so we don't reprocess them
-    const messageIds = unprocessedMessages
-      .map((m) => m.id)
-      .filter((id): id is string => !!id);
-    await markMessagesAsNotified(db, messageIds);
-    return;
-  }
-
-  // Step 3: Load user notification filter preferences (batch query to avoid N+1)
-  const uniqueUserIds = [...new Set(interests.map((i) => i.userId))];
+async function loadUserNotificationFilters(
+  db: OboDb,
+  interests: Interest[],
+): Promise<Map<string, UserNotificationFilters>> {
+  const uniqueUserIds = [...new Set(interests.map((interest) => interest.userId))];
   const userFiltersMap = new Map<string, UserNotificationFilters>();
-
   const allPrefs = await db.userPreferences.findByUserIds(uniqueUserIds);
+
   for (const prefs of allPrefs) {
     const userId = getString(prefs._id);
     const rawCats = prefs.notificationCategories;
     const cats = Array.isArray(rawCats)
-      ? rawCats.filter((v): v is string => typeof v === "string")
+      ? rawCats.filter((value): value is string => typeof value === "string")
       : [];
     const rawSrcs = prefs.notificationSources;
     const srcs = Array.isArray(rawSrcs)
-      ? rawSrcs.filter((v): v is string => typeof v === "string")
+      ? rawSrcs.filter((value): value is string => typeof value === "string")
       : [];
     const experimentalFeatures = prefs.experimentalFeatures === true;
-    // Include in map if user has active filters OR opted into experimental features.
-    // Users with only experimentalFeatures enabled need a map entry so that
-    // shouldNotifyUser() sees their opt-in (otherwise undefined → blocked).
     if (cats.length > 0 || srcs.length > 0 || experimentalFeatures) {
       userFiltersMap.set(userId, {
         notificationCategories: new Set(cats),
@@ -235,59 +206,62 @@ export async function main(): Promise<void> {
     }
   }
 
-  if (userFiltersMap.size > 0) {
-    logger.info("Loaded user notification filters", {
-      usersWithFilters: userFiltersMap.size,
-      totalUsers: uniqueUserIds.length,
-    });
-  }
+  return userFiltersMap;
+}
 
-  // Step 4: Match messages with interests (applying user filters)
-  const matches = await matchMessagesWithInterests(
-    unprocessedMessages,
-    interests,
-    userFiltersMap,
-  );
-
-  if (matches.length === 0) {
-    logger.info("No matches found");
-    // Still mark messages as processed
+/**
+ * Main function
+ */
+export async function processNotificationWork(
+  db: OboDb,
+  messaging: Messaging,
+): Promise<void> {
+  // Process one bounded page of new messages, then drain a bounded page of
+  // pending matches even when there are no new messages in this run.
+  const unprocessedMessages = await getUnprocessedMessages(db);
+  if (unprocessedMessages.length > 0) {
+    const interests = await getAllInterests(db);
     const messageIds = unprocessedMessages
-      .map((m) => m.id)
+      .map((message) => message.id)
       .filter((id): id is string => !!id);
+
+    if (interests.length > 0) {
+      const userFiltersMap = await loadUserNotificationFilters(db, interests);
+      const matches = await matchMessagesWithInterests(
+        unprocessedMessages,
+        interests,
+        userFiltersMap,
+      );
+      if (matches.length > 0) {
+        await storeNotificationMatches(db, deduplicateMatches(matches));
+      } else {
+        logger.info("No matches found");
+      }
+    } else {
+      logger.info("No user interests configured");
+    }
+
+    // Matches are durable now. Mark source messages before sending so a
+    // send failure cannot create a second set of matches on the next run.
     await markMessagesAsNotified(db, messageIds);
-    return;
+  } else {
+    logger.info("No new messages to process");
   }
 
-  // Step 5: Deduplicate matches
-  const dedupedMatches = deduplicateMatches(matches);
-
-  // Step 6: Store matches in database
-  await storeNotificationMatches(db, dedupedMatches);
-
-  // Step 7: Get all unnotified matches (including ones we just stored)
   const unnotifiedMatches = await getUnnotifiedMatches(db);
-
-  if (unnotifiedMatches.length === 0) {
+  if (unnotifiedMatches.length > 0) {
+    await sendNotifications(db, messaging, unnotifiedMatches);
+  } else {
     logger.info("No unnotified matches to send");
-    // Mark messages as processed
-    const messageIds = unprocessedMessages
-      .map((m) => m.id)
-      .filter((id): id is string => !!id);
-    await markMessagesAsNotified(db, messageIds);
-    return;
   }
-
-  // Step 8: Send notifications
-  await sendNotifications(db, messaging, unnotifiedMatches);
-
-  // Step 9: Mark messages as having notifications sent
-  const messageIds = unprocessedMessages
-    .map((m) => m.id)
-    .filter((id): id is string => !!id);
-  await markMessagesAsNotified(db, messageIds);
 
   logger.info("Notification processing complete");
+}
+
+export async function main(): Promise<void> {
+  logger.info("Starting notification matching and sending");
+  const { db, messaging } = await initServices();
+  await processNotificationWork(db, messaging);
 }
 
 // Run the script only when executed directly

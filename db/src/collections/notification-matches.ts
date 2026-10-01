@@ -33,9 +33,19 @@ export class NotificationMatchesRepository {
   }
 
   /** Find unnotified matches */
-  async findUnnotified(): Promise<Record<string, unknown>[]> {
+  async findUnnotified(limit: number): Promise<Record<string, unknown>[]> {
     return this.db.findMany(NOTIFICATION_MATCHES_COLLECTION, {
       where: [{ field: "notified", op: "==", value: false }],
+      limit,
+      select: [
+        "userId",
+        "messageId",
+        "interestId",
+        "matchedAt",
+        "notified",
+        "notifiedAt",
+        "distance",
+      ],
     });
   }
 
