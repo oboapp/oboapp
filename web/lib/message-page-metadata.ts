@@ -1,11 +1,42 @@
 import type { Metadata } from "next";
 import type { Message } from "@/lib/types";
-import { stripMarkdown } from "@/lib/markdown-utils";
+import { stripHtmlTags } from "@oboapp/shared";
 import { hasValidSourceUrl } from "@/lib/url-utils";
+
+function stripMarkdownLinks(text: string): string {
+  let result = "";
+  let cursor = 0;
+
+  while (cursor < text.length) {
+    const open = text.indexOf("[", cursor);
+    const middle = open < 0 ? -1 : text.indexOf("](", open + 1);
+    const close = middle < 0 ? -1 : text.indexOf(")", middle + 2);
+    if (close < 0) return result + text.slice(cursor);
+
+    const image = open > cursor && text[open - 1] === "!";
+    result += text.slice(cursor, image ? open - 1 : open);
+    if (!image) result += text.slice(open + 1, middle);
+    cursor = close + 1;
+  }
+
+  return result;
+}
+
+function markdownToPlainText(markdown: string): string {
+  return stripMarkdownLinks(stripHtmlTags(markdown))
+    .replace(/^\s{0,3}(?:#{1,6}\s+|[-*+]\s+|\d+[.)]\s+|>\s*)/gm, "")
+    .replace(/(\*\*|__|~~|`)(.*?)\1/g, "$2")
+    .replace(/(?<!\w)[*_]([^*_]+)[*_](?!\w)/g, "$1")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#(?:x27|39);/g, "'")
+    .replace(/&amp;/g, "&");
+}
 
 function visibleText(message: Message): string {
   const formatted = message.summary ?? message.markdownText;
-  return (formatted ? stripMarkdown(formatted) : message.text)
+  return (formatted ? markdownToPlainText(formatted) : message.text)
     .replace(/\s+/g, " ")
     .trim();
 }

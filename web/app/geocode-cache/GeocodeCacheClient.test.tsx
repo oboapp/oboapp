@@ -6,6 +6,15 @@ vi.mock("@/lib/bounds-utils", () => ({
   getLocalityCenter: () => ({ lat: 42.6977, lng: 23.3219 }),
 }));
 
+// This test exercises the list and panel, not Google Maps. Prevent the loader
+// from leaving a retry timer running after the DOM test environment closes.
+vi.mock("@react-google-maps/api", () => ({
+  useJsApiLoader: () => ({ isLoaded: false, loadError: null }),
+  GoogleMap: () => null,
+  Marker: () => null,
+  Polyline: () => null,
+}));
+
 describe("GeocodeCacheClient accessibility", () => {
   it("renders tappable overlay as button when panel is open", async () => {
     const user = userEvent.setup();
