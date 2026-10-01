@@ -27,11 +27,11 @@ function markdownToPlainText(markdown: string): string {
     .replace(/^\s{0,3}(?:#{1,6}\s+|[-*+]\s+|\d+[.)]\s+|>\s*)/gm, "")
     .replace(/(\*\*|__|~~|`)(.*?)\1/g, "$2")
     .replace(/(?<!\w)[*_]([^*_]+)[*_](?!\w)/g, "$1")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#(?:x27|39);/g, "'")
-    .replace(/&amp;/g, "&");
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll(/&#(?:x27|39);/g, "'")
+    .replaceAll("&amp;", "&");
 }
 
 function visibleText(message: Message): string {
@@ -76,6 +76,14 @@ export function messageMetadata(message: Message): Metadata {
 export function messageStructuredData(message: Message) {
   const url = messageUrl(message.id!);
   const content = visibleText(message);
+  let digitalSourceType: string | undefined;
+  if (message.summary) {
+    digitalSourceType =
+      "https://schema.org/TrainedAlgorithmicMediaDigitalSource";
+  } else if (message.aiProcessed) {
+    digitalSourceType =
+      "https://schema.org/CompositeWithTrainedAlgorithmicMediaDigitalSource";
+  }
 
   return {
     "@context": "https://schema.org",
@@ -92,20 +100,10 @@ export function messageStructuredData(message: Message) {
     ...(hasValidSourceUrl(message.sourceUrl) && {
       isBasedOn: message.sourceUrl,
     }),
-    ...(message.summary
-      ? {
-          digitalSourceType:
-            "https://schema.org/TrainedAlgorithmicMediaDigitalSource",
-        }
-      : message.aiProcessed
-        ? {
-            digitalSourceType:
-              "https://schema.org/CompositeWithTrainedAlgorithmicMediaDigitalSource",
-          }
-        : {}),
+    ...(digitalSourceType && { digitalSourceType }),
   };
 }
 
 export function safeJsonLd(data: unknown): string {
-  return JSON.stringify(data).replace(/</g, "\\u003c");
+  return JSON.stringify(data).replaceAll("<", String.raw`\u003c`);
 }

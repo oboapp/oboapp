@@ -15,7 +15,7 @@ import {
 import MessageText from "@/components/MessageDetailView/MessageText";
 import AiProcessedNotice from "@/components/MessageDetailView/AiProcessedNotice";
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = Readonly<{ params: Promise<{ slug: string }> }>;
 
 const getMessage = cache(async (id: string): Promise<InternalMessage | null> => {
   if (!isValidMessageId(id)) return null;
@@ -87,7 +87,7 @@ export default async function MessagePage({ params }: Props) {
                 <a href={sourceUrl} className="underline underline-offset-2">
                   оригиналния източник
                 </a>
-                .
+                {"."}
               </>
             )}
           </p>
