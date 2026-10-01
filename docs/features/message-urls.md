@@ -20,7 +20,7 @@ Internal links (map clicks, message cards, notification history) use query param
 
 **Example**: `https://oboapp.online/m/aB3xYz12`
 
-External links (push notifications, social sharing) use the clean `/m/{id}` path format. The `/m/[slug]` route **redirects** to `/?messageId={id}`, so the message detail always renders as a homepage overlay.
+External links (push notifications, social sharing) use the clean `/m/{id}` path format. The `/m/[slug]` route renders a standalone message page on the server with message-specific title, description, canonical URL, and Schema.org JSON-LD. Its "Виж на картата" link opens the homepage overlay.
 
 - **Short**: 8 characters, easy to share
 - **Persistent**: Document ID never changes
@@ -75,7 +75,7 @@ const url = createMessageUrlFromId(messageId);
 
 ### Route Handling
 
-All message details render as an overlay on the homepage map:
+Internal message details render as an overlay on the homepage map; shareable URLs render a standalone page:
 
 1. **Homepage `/?messageId={id}`** — Primary route
    - `HomeContent` looks up the message in viewport messages by ID
@@ -84,9 +84,10 @@ All message details render as an overlay on the homepage map:
    - Uses `router.push()` to add history entry when opening (enables browser back to close)
    - Uses `router.back()` when explicitly closing, with a `router.replace()` fallback if there is no prior history entry (avoids duplicate history entries)
 
-2. **`/m/[slug]/page.tsx`** — External URL redirect
-   - Redirects to `/?messageId={id}`
-   - Exists to support clean shareable URLs from push notifications and social sharing
+2. **`/m/[slug]/page.tsx`** — Shareable message page
+   - Fetches and renders the message in the initial HTML response
+   - Provides a canonical URL, social metadata, and Schema.org `CreativeWork` JSON-LD with source and AI processing metadata where available
+   - Links to `/?messageId={id}` for the map overlay
    - Note: The file is named `[slug]` for Next.js dynamic routing, but the parameter represents the message ID
 
 ### Browser History Behavior
@@ -148,4 +149,4 @@ Notification payloads include slug-based URLs:
 }
 ```
 
-Users clicking notifications navigate directly to the message detail overlay via clean URLs.
+Users clicking notifications navigate directly to the standalone message page via clean URLs and can open the map overlay from there.
