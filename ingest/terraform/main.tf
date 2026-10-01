@@ -1578,9 +1578,12 @@ resource "google_monitoring_alert_policy" "ingest_failures" {
   }
 
   alert_strategy {
+    # Alert promptly, then send at most one reminder per day for a persistent fault.
+    # Close after an hour without errors so a later regression alerts again.
     notification_rate_limit {
-      period = "300s"
+      period = "86400s"
     }
+    auto_close = "3600s"
   }
 
   notification_channels = [
@@ -1612,9 +1615,11 @@ resource "google_monitoring_alert_policy" "notify_failures" {
   }
 
   alert_strategy {
+    # Keep a persistent notification failure visible without emailing every run.
     notification_rate_limit {
-      period = "300s"
+      period = "86400s"
     }
+    auto_close = "3600s"
   }
 
   notification_channels = [

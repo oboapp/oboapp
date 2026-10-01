@@ -1,5 +1,6 @@
 import type { OboDb } from "@oboapp/db";
 import type { Message, Interest, NotificationMatch } from "@/lib/types";
+import type { NotificationCandidate } from "./message-fetcher";
 import { matchMessageToInterest } from "./geo-matcher";
 import { logger } from "@/lib/logger";
 import { UNCATEGORIZED, isExperimentalSource } from "@oboapp/shared";
@@ -15,6 +16,8 @@ export interface MatchResult {
   interestId: string;
   distance: number;
 }
+
+export const MATCH_BATCH_SIZE = 100;
 
 /** User notification filter preferences (loaded from userPreferences collection) */
 export interface UserNotificationFilters {
@@ -101,7 +104,7 @@ function passesUserFilters(
  * Returns a MatchResult if the pair passes all checks, or null otherwise.
  */
 function tryMatchPair(
-  message: Message,
+  message: NotificationCandidate,
   interest: Interest,
   userFiltersMap?: Map<string, UserNotificationFilters>,
 ): MatchResult | null {
@@ -137,7 +140,7 @@ function tryMatchPair(
  * notification filters are skipped (no match record created).
  */
 export async function matchMessagesWithInterests(
-  messages: Message[],
+  messages: NotificationCandidate[],
   interests: Interest[],
   userFiltersMap?: Map<string, UserNotificationFilters>,
 ): Promise<MatchResult[]> {
@@ -229,7 +232,7 @@ export async function getUnnotifiedMatches(
 ): Promise<NotificationMatch[]> {
   logger.info("Fetching unnotified matches");
 
-  const docs = await db.notificationMatches.findUnnotified();
+  const docs = await db.notificationMatches.findUnnotified(MATCH_BATCH_SIZE);
 
   const matches: NotificationMatch[] = docs.map((data) => {
     const toStr = (v: unknown): string =>

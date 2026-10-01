@@ -6,11 +6,22 @@ import { logger } from "@/lib/logger";
 import {
   getString,
   getOptionalString,
-  getOptionalBoolean,
   isFeatureCollection,
 } from "@/lib/record-fields";
 
 const categorySet: ReadonlySet<string> = new Set(CATEGORIES);
+export const MESSAGE_BATCH_SIZE = 25;
+export type NotificationCandidate = Pick<
+  Message,
+  | "id"
+  | "geoJson"
+  | "createdAt"
+  | "source"
+  | "categories"
+  | "timespanEnd"
+  | "cityWide"
+  | "locality"
+>;
 
 function isCategory(v: unknown): v is Category {
   return typeof v === "string" && categorySet.has(v);
@@ -49,30 +60,42 @@ export function isMessageStale(
 }
 
 /**
- * Get all unprocessed messages whose event has not yet ended.
+ * Get the oldest batch of unprocessed messages whose event has not yet ended.
  * Messages must have notificationsSent set and not equal to true.
  * Messages whose timespanEnd is in the past are excluded to prevent
  * stale-event notifications.
  */
-export async function getUnprocessedMessages(db: OboDb): Promise<Message[]> {
+export async function getUnprocessedMessages(
+  db: OboDb,
+): Promise<NotificationCandidate[]> {
   logger.info("Fetching unprocessed messages");
 
   const docs = await db.messages.findMany({
     where: [{ field: "notificationsSent", op: "!=", value: true }],
     orderBy: [{ field: "createdAt", direction: "asc" }],
+    limit: MESSAGE_BATCH_SIZE,
+    // Matching needs geometry and filters, not the message body or other large fields.
+    select: [
+      "createdAt",
+      "geoJson",
+      "locality",
+      "cityWide",
+      "source",
+      "categories",
+      "timespanEnd",
+    ],
   });
 
   const now = new Date();
+  const staleIds: string[] = [];
 
-  const unprocessedMessages: Message[] = docs
+  const unprocessedMessages: NotificationCandidate[] = docs
     .map((data) => ({
       id: getString(data._id),
-      text: getString(data.text),
-      aiProcessed: getOptionalBoolean(data.aiProcessed) === true,
-      locality: getString(data.locality),
       geoJson: isFeatureCollection(data.geoJson) ? data.geoJson : undefined,
+      locality: getString(data.locality),
+      cityWide: data.cityWide === true,
       createdAt: toISOString(data.createdAt),
-      cityWide: getOptionalBoolean(data.cityWide),
       source: getOptionalString(data.source),
       categories: Array.isArray(data.categories)
         ? data.categories.filter(isCategory)
@@ -81,6 +104,7 @@ export async function getUnprocessedMessages(db: OboDb): Promise<Message[]> {
     }))
     .filter((message) => {
       if (!isMessageStale(message.timespanEnd, now)) return true;
+      if (message.id) staleIds.push(message.id);
       logger.info("Skipping stale message (timespanEnd in the past)", {
         messageId: message.id,
         timespanEnd: message.timespanEnd,
@@ -88,8 +112,17 @@ export async function getUnprocessedMessages(db: OboDb): Promise<Message[]> {
       return false;
     });
 
+  // Clear expired messages from the oldest page so later runs can reach
+  // live messages instead of fetching the same expired page indefinitely.
+  if (staleIds.length > 0) {
+    await markMessagesAsNotified(db, staleIds);
+  }
+
   logger.info("Found unprocessed messages", {
     count: unprocessedMessages.length,
+    fetched: docs.length,
+    stale: staleIds.length,
+    batchSize: MESSAGE_BATCH_SIZE,
   });
 
   return unprocessedMessages;

@@ -1,6 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import type { OboDb } from "@oboapp/db";
 
-import { isMessageStale } from "./message-fetcher";
+import {
+  getUnprocessedMessages,
+  isMessageStale,
+  MESSAGE_BATCH_SIZE,
+} from "./message-fetcher";
 
 describe("isMessageStale()", () => {
   const now = new Date("2026-05-19T10:00:00.000Z");
@@ -40,5 +45,70 @@ describe("isMessageStale()", () => {
 
   it("accepts a Date object — returns false when the Date is in the future", () => {
     expect(isMessageStale(new Date("2026-05-20T00:00:00.000Z"), now)).toBe(false);
+  });
+});
+
+describe("getUnprocessedMessages()", () => {
+  it("fetches only a bounded projection needed for matching", async () => {
+    const findMany = vi.fn().mockResolvedValue([
+      {
+        _id: "message-1",
+        createdAt: new Date("2026-10-01T10:00:00Z"),
+        locality: "bg.sofia",
+        source: "source-1",
+      },
+    ]);
+    const db = { messages: { findMany, updateOne: vi.fn() } } as unknown as OboDb;
+
+    const messages = await getUnprocessedMessages(db);
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: [{ field: "notificationsSent", op: "!=", value: true }],
+      orderBy: [{ field: "createdAt", direction: "asc" }],
+      limit: MESSAGE_BATCH_SIZE,
+      select: [
+        "createdAt",
+        "geoJson",
+        "locality",
+        "cityWide",
+        "source",
+        "categories",
+        "timespanEnd",
+      ],
+    });
+    expect(messages).toEqual([
+      {
+        id: "message-1",
+        createdAt: "2026-10-01T10:00:00.000Z",
+        locality: "bg.sofia",
+        cityWide: false,
+        geoJson: undefined,
+        source: "source-1",
+        categories: undefined,
+        timespanEnd: undefined,
+      },
+    ]);
+  });
+
+  it("clears expired messages from the oldest page", async () => {
+    const updateOne = vi.fn().mockResolvedValue(undefined);
+    const db = {
+      messages: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            _id: "expired",
+            createdAt: new Date("2026-01-01T00:00:00Z"),
+            timespanEnd: new Date("2026-01-02T00:00:00Z"),
+          },
+        ]),
+        updateOne,
+      },
+    } as unknown as OboDb;
+
+    expect(await getUnprocessedMessages(db)).toEqual([]);
+    expect(updateOne).toHaveBeenCalledWith(
+      "expired",
+      expect.objectContaining({ notificationsSent: true }),
+    );
   });
 });
