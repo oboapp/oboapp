@@ -3,6 +3,64 @@ import type { PostLink } from "./types";
 import { parseRssFeedItems } from "../shared/rss";
 export { fetchFeedXml, RSS_FEED_FETCH_TIMEOUT_MS as FEED_FETCH_TIMEOUT_MS } from "../shared/rss";
 
+export const REPAIRS_LISTING_URL =
+  "https://www.sofia.bg/bg/repairs-and-traffic-changes";
+
+/** Extract dated article links and the next page from the current Liferay listing. */
+export async function extractListingPage(page: Page, listingUrl = REPAIRS_LISTING_URL): Promise<{
+  posts: PostLink[];
+  nextUrl: string | null;
+}> {
+  return page.evaluate((baseUrl) => {
+    const posts: PostLink[] = [];
+    for (const titleEl of Array.from(document.querySelectorAll("#main-content .news-title"))) {
+      const link = titleEl.closest("a");
+      const href = link?.getAttribute("href");
+      const title = titleEl.textContent?.replaceAll(/\s+/g, " ").trim();
+      const dateText = link?.querySelector(".date")?.textContent?.trim() ?? "";
+      const match = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(dateText);
+      if (!href || !title || !match) continue;
+      const [, day, month, year] = match;
+      const date = new Date(`${year}-${month}-${day}T00:00:00.000Z`);
+      if (
+        Number.isNaN(date.getTime()) ||
+        date.toISOString().slice(0, 10) !== `${year}-${month}-${day}`
+      ) continue;
+      const url = new URL(href, baseUrl);
+      if (
+        url.hostname !== "www.sofia.bg" ||
+        url.protocol !== "https:" ||
+        !url.pathname.includes("/w/")
+      ) continue;
+      url.search = "";
+      url.hash = "";
+      posts.push({ url: url.toString(), title, date: date.toISOString() });
+    }
+    const next = document.querySelector("#main-content a[title='Следваща страница']")?.getAttribute("href");
+    const nextUrl = next ? new URL(next, baseUrl) : null;
+    return {
+      posts,
+      nextUrl:
+        nextUrl?.hostname === "www.sofia.bg" &&
+        nextUrl.protocol === "https:" &&
+        nextUrl.pathname.endsWith(new URL(baseUrl).pathname.split("/").at(-1) ?? "")
+          ? nextUrl.toString() : null,
+    };
+  }, listingUrl);
+}
+
+/** Normalize locale/guest prefixes and tracking parameters on historical article URLs. */
+export function articleUrlKey(url: string): string {
+  const parsed = new URL(url);
+  const path = decodeURIComponent(parsed.pathname).replace(/\/$/, "");
+  const articlePath = path.slice(path.indexOf("/w/"));
+  return path.includes("/w/") ? `${parsed.hostname}${articlePath}` : `${parsed.hostname}${path}`;
+}
+
+export function articleTitleKey(title: string): string {
+  return title.normalize("NFKC").replaceAll(/\s+/g, " ").trim();
+}
+
 const UNWANTED_ELEMENTS = [
   "script",
   "style",
@@ -15,9 +73,9 @@ const UNWANTED_ELEMENTS = [
 ];
 
 /**
- * Merge page-extracted post details with RSS feed data.
- * The RSS date is always used (the detail page has no machine-readable date).
- * The RSS title is used as a fallback when the page extractor returns an empty
+ * Merge page-extracted post details with listing or RSS data.
+ * The discovery date is always used (the detail page has no machine-readable date).
+ * The discovery title is used as a fallback when the page extractor returns an empty
  * string (e.g. Liferay content pages where the first paragraph fragment has no
  * CMS content placed in it).
  */
@@ -31,10 +89,6 @@ export function mergePostDetails(
     title: extracted.title || rss.title,
   };
 }
-
-/**
- * Fetch the RSS feed XML for the sofia.bg repairs page.
- */
 
 /**
  * Parse RSS feed XML into a list of post links.
@@ -53,7 +107,7 @@ export function parseFeedItems(xml: string): PostLink[] {
 
 /**
  * Extract post details from an individual post page.
- * Date is not extracted from the page — it comes from the RSS feed.
+ * Date comes from the listing or news RSS feed.
  *
  * Handles two Liferay page layouts used by sofia.bg:
  *  - Asset publisher pages (repairs): `.asset-title` + `.asset-content`
