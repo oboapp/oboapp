@@ -1,8 +1,8 @@
 import {
   INTEREST_REPORT_PATH,
-  InterestCoverageReportSchema,
+  InterestCoverageImageReportSchema,
 } from "@oboapp/shared";
-import type { InterestCoverageReport } from "@oboapp/shared";
+import type { InterestCoverageImageReport } from "@oboapp/shared";
 
 let storage: import("@google-cloud/storage").Storage | undefined;
 
@@ -16,9 +16,9 @@ async function getBucket() {
   return storage.bucket(name);
 }
 
-export async function saveInterestReport(report: InterestCoverageReport) {
+export async function saveInterestReport(report: InterestCoverageImageReport) {
   const bucket = await getBucket();
-  await bucket.file(INTEREST_REPORT_PATH).save(JSON.stringify(InterestCoverageReportSchema.parse(report)), {
+  await bucket.file(INTEREST_REPORT_PATH).save(JSON.stringify(InterestCoverageImageReportSchema.parse(report)), {
     contentType: "application/json", resumable: false,
   });
 }

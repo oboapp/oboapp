@@ -10,7 +10,7 @@ import { generateInterestReport } from "@/lib/interest-coverage/generate";
 
 const program = new Command();
 program.name("interest-coverage-report")
-  .description("Generate an anonymized interest coverage report in GCS")
+  .description("Generate an aggregate interest heatmap image in GCS")
   .option("--dry-run", "Compute approved aggregate metadata without publishing")
   .addHelpText("after", "\nExamples:\n  pnpm interest-coverage-report\n  pnpm interest-coverage-report --dry-run\n")
   .action(async (opts: { dryRun?: boolean }) => {
@@ -22,6 +22,7 @@ program.name("interest-coverage-report")
       const report = await generateInterestReport({
         readInterests: () => db.interests.findMany({ select: ["userId", "coordinates", "radius"] }),
         save: saveInterestReport,
+        jitterSecret: process.env.INTEREST_COVERAGE_JITTER_SECRET ?? "",
       }, process.env.LOCALITY || "bg.sofia", opts.dryRun);
       console.log("Interest coverage report", { status: report.status, summary: report.summary, generatedAt: report.generatedAt, dryRun: !!opts.dryRun });
     } finally {

@@ -1,101 +1,112 @@
-# Public interest coverage report
+# Public interest heatmap
 
-`/interest-coverage` displays a precomputed, anonymized snapshot of saved zones
-at generation time through the public `GET /api/interests/report` endpoint. No sign-in is
-required. Both are available when `GCS_GENERIC_BUCKET` is configured, using the
-same report-page gate and footer section as the history report.
+`/interest-coverage` shows where people have saved zones to receive notifications.
+The public `GET /api/interests/report` endpoint serves a weekly precomputed
+snapshot. Both require `GCS_GENERIC_BUCKET`, but no sign-in. Saved zones are an
+expression of interest; they do not imply a registered push device or delivery.
 
 ## Generation and storage
 
 From `ingest/`, run `pnpm interest-coverage-report` or
-`pnpm interest-coverage-report --dry-run`. The script loads dotenv before database
-initialization, reads only user ID, coordinates and radius through `@oboapp/db`,
-and uploads **only the approved aggregate** to `interests/report.json`.
-Terraform schedules a Cloud Run job weekly on Monday at 06:00 in
-`schedule_timezone` (Europe/Sofia by default). Override
-`schedules.interest_coverage_report` to change the cadence, or execute the job
-manually. A failed job logs an error and is covered by the standard log alert.
+`pnpm interest-coverage-report --dry-run`. Dotenv loads before database
+initialization. The generator reads user IDs, coordinates and radii through
+`@oboapp/db`; individual records never reach the report bucket or browser.
+Dry runs compute the image but print only status, banded totals and the timestamp.
+They never write the snapshot. Both modes require the stable private key below.
 
-The report uses the existing generic bucket's ten-day retention, which covers
-the weekly interval. Each run overwrites the previous JSON. The web service uses
-the same read access as other report pages. The ingest job alone writes the
-report; there are no revision markers or additional web write permissions.
+Version 2 contains `version`, `locality`, `generatedAt`, `status`, `summary` and
+`image`. An available image has a PNG data URL and its fixed width/height; an
+unavailable report has null image and summary. There are no cell counts,
+individual centers, radii, user IDs, labels, signatures or per-person layers.
+The PNG is embedded in `interests/report.json`, keeping pixels and metadata
+atomic and preventing mismatched image/JSON caches. PNG encoding adds no private
+metadata. The bucket stays private; the endpoint validates and serves the report.
 
-## Coverage and privacy
+The Cloud Run job runs weekly on Monday at 06:00 in `schedule_timezone`
+(Europe/Sofia by default). Override `schedules.interest_coverage_report` or run
+manually. Every successful run replaces the old snapshot, including unavailable
+results. Read/render/upload failures leave the prior object intact and trigger
+the existing log alert. The generic bucket's ten-day retention covers the weekly
+interval. Successful API responses have a one-hour public cache and up to a day
+of stale-while-revalidate; missing/error responses are not cached.
 
-The map uses the same Leaflet heat renderer and blue-to-yellow-to-red gradient
-as `/history`, with pan and zoom available. Published cells are sampled uniformly
-for rendering and weighted by their user-band lower bound, relative to the
-densest published cell. These samples are not zone centers or new location data.
-Smoothing stays at a fixed geographic scale across zoom levels and may extend
-color beyond a published cell; colors are relative density, not exact counts or
-coverage boundaries. The existing version-1 JSON remains compatible; deploying
-this display change does not require regenerating reports.
+## Spatial processing and interpretation
 
-Active means valid zones saved when the report is generated, with circle coverage intersecting the
-configured locality's shared rectangular bounds. It does not imply a registered
-push device. Malformed IDs/coordinates and radii outside 100–1000 meters are
-excluded. Zones centered just outside the bounds can contribute if their circles
-intersect the city grid. The default locality is Sofia; forks can use another
-locality present in the shared bounds registry.
+1. Validate IDs, finite coordinates and radii of 100–1000 m. Include circles
+   intersecting the configured locality bounds, including circles centered just
+   outside. Totals describe these valid saved zones and distinct people.
+2. Shift every person's circles by the same stable vector, uniformly sampled
+   within a 200 m disk using HMAC-SHA256 of the user ID and locality with a private
+   key. Preserve the circle radii. Offsets do not depend on run date or record
+   order, and different people receive different offsets.
+3. Rasterize circles in Web Mercator at approximately 100 m ground sampling.
+   The image always covers the fixed locality bounds. Count each person's union
+   of circles once per pixel, so overlapping or duplicated zones do not inflate
+   interest. This is circle coverage, not a map of residences or zone centers.
+4. Require at least ten distinct contributing people overall. Remove pixels
+   covered by fewer than **three distinct people**, then round remaining counts
+   down into three-person bands. Unlike version 1, people do not need to share
+   an identical complete spatial signature.
+5. Smooth only the eligible field with a Gaussian of approximately 150 m sigma.
+   Removed contributions do not enter the blur. Soft edges can extend beyond
+   eligible pixels and are not evidence of precise coverage at those addresses.
+6. Encode a transparent PNG with a fixed blue–amber–red scale (full color at
+   about 20 contributors before smoothing). Opacity follows
+   `230 * (1 - exp(-density / 15))`: small groups stay faint and larger overlaps
+   become prominent. Do not normalize to the brightest point in a report or
+   viewport. Pixels whose final alpha rounds to zero have all RGBA channels zero.
 
-The fixed grid uses approximately 2 km cells (clipped at the city bounds).
-Circle/rectangle intersections use a local metric approximation. A colored cell
-means some zone coverage intersects that cell, not that every address in it is
-covered. The map intentionally sacrifices precision and completeness.
+The browser places the image on the basemap. Zooming changes neither image
+content nor intensity. The 100 m sampling is a rendering resolution, **not** a
+claim of 100 m location accuracy. Counts in the summary remain ten-wide bands
+and include zones whose spatial contribution is suppressed. No color can mean
+missing or suppressed interest; it does not establish that nobody is interested.
+There are no public per-user, category, source or geographic subset filters.
 
-1. Fewer than ten distinct contributing users produces an unavailable snapshot
-   with **no cells and no counts**. Multiple zones from one user count once.
-2. Each user's union of touched cells forms a coarse spatial signature. Only
-   signatures shared by at least ten users contribute to the published map. This
-   protects uncommon multi-cell combinations as well as isolated cells.
-3. Each cell counts distinct users from those eligible groups. Overlapping zones
-   belonging to one user never inflate its density. Counts are published in
-   ten-wide bands; total zone/user bands include valid saved zones even when their
-   spatial contribution is suppressed. No group memberships or signatures are
-   published.
-4. Empty and suppressed cells are indistinguishable: both have no published
-   color. Never describe an uncolored cell as confirmed zero coverage.
-5. The report/API contain no raw centers, radii, labels, IDs or individual records.
-   The server validates the schema, fixed-grid coordinates and minimum band sizes.
-   There are no geographic/category/source filters or alternate grid resolutions;
-   zooming displays the same coarse aggregates through a smoothed heatmap.
+## Privacy limits
 
-This is conservative spatial suppression, not a claim of differential privacy or
-protection against every auxiliary-data attack. Public snapshots can be copied
-and compared over time. Review changes to grid resolution, thresholds, bands and
-release cadence as changes to the privacy policy; never introduce raw details or
-personalized subsets. If no signature can be published, the whole map is withheld.
+This is reduced-precision aggregate publication, not differential privacy or a
+guarantee of anonymity. A public image still conveys geographic information and
+can be downloaded, enhanced or compared with older snapshots. Transparency alone
+would not protect sparse contributors: their pixels are removed before blur.
+Stable offsets prevent averaging independent jitter across routine reports, but
+do not eliminate inference from other information, changes over time or known
+contributors. Three-person suppression is an explicit utility/privacy tradeoff,
+not a universal anonymity threshold. Review changes to thresholds, smoothing,
+release cadence and key management as changes to this policy.
 
-## Snapshot freshness
+## Stable key and rollout
 
-Privacy thresholds and spatial suppression are reevaluated from the data read on
-every scheduled or manual generation. If the next run has fewer than ten users
-or no safely publishable cells, it writes an unavailable snapshot with no counts
-or geometry, replacing the previous map.
+Set `INTEREST_COVERAGE_JITTER_SECRET` to a persistent, cryptographically random
+secret of at least 32 bytes. Missing/short keys fail before reading private data.
+Never use the public user ID alone, a hardcoded fallback, or a fresh key per run.
+The key stays in the ingest environment; it is never sent to the web service.
 
-The public endpoint only reads and validates the stored JSON. Like the other
-reports, successful responses use a one-hour public cache with up to a day of
-stale-while-revalidate; missing/error responses are not cached. The page fetches
-once on load and shows **Генериран: <date time>** using the shared `formatDateTime`
-helper. There is no live refresh, database query, zone-mutation hook or effect on
-account/zone changes. Changes appear in the next generated report; the timestamp
-describes the snapshot's age rather than the current subscriber population.
+Before applying Terraform, create Secret Manager secret
+`interest-coverage-jitter-key` with a random value (for example, 32 random bytes
+encoded as hex). Terraform references that existing secret, consistent with the
+other ingest secrets; it does not store its value in configuration or state.
+The ingest runner already has secret accessor permissions. Override
+`interest_coverage_jitter_secret_id` if needed. The version defaults to `1` and
+must be pinned numerically using `interest_coverage_jitter_secret_version`.
+Do not rotate routinely: independently shifted releases can be averaged. Treat
+necessary rotation as a publication-policy decision; previous public snapshots
+cannot be recalled.
 
-This weekly snapshot behavior is the agreed downstream scope. It deliberately
-does not implement immediate withdrawal after individual zone changes. Keep the
-bucket private and expose the approved JSON through the public report endpoint.
+Deploy the web/shared changes first: readers support both versions, and legacy
+2 km snapshots are clearly labeled while awaiting regeneration. Then provision
+the key, deploy ingest/Terraform and run the report job. The generator writes only
+version 2. The old frontend cannot parse version 2, so retain the updated reader
+when rolling back a generator. No raw-data migration is needed.
 
-## Interpreting a heartbeat with no matches
+## Snapshot freshness and notification matching
 
-The timestamp says when **coverage** was sampled. It does not identify messages
-eligible during the heartbeat's default 24-hour lookback. `/history` displays
-historic finalized message locations and cannot establish recent eligibility.
+The page fetches once on load and shows the generation timestamp. Account/zone
+changes appear in the next generated report; there is no live database query,
+mutation hook or immediate withdrawal. Cached snapshots may remain visible.
 
-Check notification pipeline logs and `message-fetcher.ts` / `match-processor.ts`
-for: unprocessed status, expired `timespanEnd`, message creation after the zone
-was created, geometry/city-wide matching, category/source preferences and
-experimental-source opt-in. City-wide messages can match without local geometry.
-Match creation and successful push delivery are separate; a user can have zones
-without a registered push device. Coverage alone cannot establish pipeline health,
-delivery success, or a shortage of eligible messages.
+Coverage does not establish recent message eligibility or delivery. `/history`
+shows historic finalized message locations. Check `message-fetcher.ts` and
+`match-processor.ts` for unprocessed status, expired `timespanEnd`, creation after
+the zone was saved, geometry/city-wide matching, category/source preferences and
+experimental-source opt-in. Match creation and successful delivery are separate.

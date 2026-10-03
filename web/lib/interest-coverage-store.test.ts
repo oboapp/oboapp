@@ -24,6 +24,11 @@ describe("static interest report loading", () => {
     mock.download.mockRejectedValue(Object.assign(new Error("not found"), { code: 404 }));
     expect(await loadInterestReport()).toBeNull();
   });
+  it("reads version 2 snapshots without legacy cell geometry", async () => {
+    const imageSnapshot = { version: 2, locality: snapshot.locality, generatedAt: snapshot.generatedAt, status: "unavailable", summary: null, image: null };
+    mock.download.mockResolvedValue([Buffer.from(JSON.stringify(imageSnapshot))]);
+    expect(await loadInterestReport()).toEqual(imageSnapshot);
+  });
   it("rejects report payloads containing raw interest fields", async () => {
     mock.download.mockResolvedValue([Buffer.from(JSON.stringify({ ...snapshot, interests: [{ userId: "secret" }] }))]);
     await expect(loadInterestReport()).rejects.toThrow();

@@ -1,3 +1,11 @@
+data "google_secret_manager_secret" "interest_coverage_jitter" {
+  count     = var.gcs_generic_bucket != "" ? 1 : 0
+  secret_id = var.interest_coverage_jitter_secret_id
+  project   = var.project_id
+
+  depends_on = [google_project_service.secretmanager]
+}
+
 resource "google_cloud_run_v2_job" "interest_coverage_report" {
   count    = var.gcs_generic_bucket != "" ? 1 : 0
   name     = "interest-coverage-report"
@@ -45,6 +53,18 @@ resource "google_cloud_run_v2_job" "interest_coverage_report" {
         }
 
         env {
+          name = "INTEREST_COVERAGE_JITTER_SECRET"
+          value_source {
+            secret_key_ref {
+              secret = data.google_secret_manager_secret.interest_coverage_jitter[0].secret_id
+              # Pin the version: routine secret changes must not move circles
+              # between snapshots and make independent offsets averageable.
+              version = var.interest_coverage_jitter_secret_version
+            }
+          }
+        }
+
+        env {
           name  = "GCS_GENERIC_BUCKET"
           value = var.gcs_generic_bucket
         }
@@ -81,7 +101,7 @@ resource "google_cloud_run_v2_job" "interest_coverage_report" {
 resource "google_cloud_scheduler_job" "interest_coverage_report_schedule" {
   count            = var.gcs_generic_bucket != "" ? 1 : 0
   name             = "interest-coverage-report-schedule"
-  description      = "Generate anonymized interest coverage weekly"
+  description      = "Generate aggregate interest heatmap weekly"
   schedule         = var.schedules.interest_coverage_report
   time_zone        = var.schedule_timezone
   attempt_deadline = "620s"

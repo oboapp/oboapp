@@ -111,6 +111,23 @@ variable "sentry_dsn_secret_id" {
   default     = ""
 }
 
+variable "interest_coverage_jitter_secret_id" {
+  description = "Existing Secret Manager secret containing a stable random key (at least 32 bytes) for interest-map offsets. Required when the generic bucket is enabled."
+  type        = string
+  default     = "interest-coverage-jitter-key"
+}
+
+variable "interest_coverage_jitter_secret_version" {
+  description = "Pinned numeric key version. Do not rotate routinely: repeated independent offsets weaken spatial masking."
+  type        = string
+  default     = "1"
+
+  validation {
+    condition     = can(regex("^[1-9][0-9]*$", var.interest_coverage_jitter_secret_version))
+    error_message = "Pin a numeric secret version rather than latest."
+  }
+}
+
 variable "gcs_generic_bucket" {
   description = "GCS bucket name for general-purpose file storage (air quality readings, geocode cache reports, etc.)"
   type        = string
