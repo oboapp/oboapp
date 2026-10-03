@@ -8,6 +8,7 @@ export * from "./event-message.schema";
 export * from "./extracted-data.schema";
 export * from "./geojson.schema";
 export * from "./ingest-error.schema";
+export * from "./interest-coverage.schema";
 export * from "./message.schema";
 export * from "./message-snapshot.schema";
 export * from "./notification-history.schema";

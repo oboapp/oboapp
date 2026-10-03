@@ -29,6 +29,7 @@ export default function Footer({
     ? [
         ...DATA_AND_REPORTS_LINKS.slice(0, 2),
         { href: "/history", label: "Исторически данни" },
+        { href: "/interest-coverage", label: "Покритие на зоните" },
         ...DATA_AND_REPORTS_LINKS.slice(2),
       ]
     : DATA_AND_REPORTS_LINKS;

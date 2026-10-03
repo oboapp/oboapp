@@ -59,22 +59,24 @@ variable "schedule_timezone" {
 variable "schedules" {
   description = "Cron schedules for each job (in cron format: minute hour day month weekday)"
   type = object({
-    pipeline_emergent               = string
-    pipeline_all                    = string
-    gtfs_sync                       = string
-    educational_facilities_sync     = optional(string, "0 4 1 * *")
-    geocode_cache_report            = optional(string, "0 5 * * 1")
-    heatmap_report                  = optional(string, "0 4 * * 1")
-    heartbeat_check                 = optional(string, "30 17 * * *")
+    pipeline_emergent           = string
+    pipeline_all                = string
+    gtfs_sync                   = string
+    educational_facilities_sync = optional(string, "0 4 1 * *")
+    geocode_cache_report        = optional(string, "0 5 * * 1")
+    heatmap_report              = optional(string, "0 4 * * 1")
+    interest_coverage_report    = optional(string, "0 6 * * 1")
+    heartbeat_check             = optional(string, "30 17 * * *")
   })
   default = {
-    pipeline_emergent               = "*/30 7-22 * * *"    # Every 30 minutes, 7:00AM–10:30PM (hours 7-22)
-    pipeline_all                    = "0 10,14,16 * * *"   # 3x daily: 10:00, 14:00, 16:00
-    gtfs_sync                       = "0 3 * * 1"          # Weekly on Monday at 3:00 AM
-    educational_facilities_sync     = "0 4 1 * *"          # Monthly on the 1st at 4:00 AM
-    geocode_cache_report            = "0 5 * * 1"          # Weekly on Monday at 5:00 AM
-    heatmap_report                  = "0 4 * * 1"          # Weekly on Monday at 4:00 AM
-    heartbeat_check                 = "30 17 * * *"        # Daily at 17:30, after the last pipeline-all run (16:00)
+    pipeline_emergent           = "*/30 7-22 * * *"  # Every 30 minutes, 7:00AM–10:30PM (hours 7-22)
+    pipeline_all                = "0 10,14,16 * * *" # 3x daily: 10:00, 14:00, 16:00
+    gtfs_sync                   = "0 3 * * 1"        # Weekly on Monday at 3:00 AM
+    educational_facilities_sync = "0 4 1 * *"        # Monthly on the 1st at 4:00 AM
+    geocode_cache_report        = "0 5 * * 1"        # Weekly on Monday at 5:00 AM
+    heatmap_report              = "0 4 * * 1"        # Weekly on Monday at 4:00 AM
+    interest_coverage_report    = "0 6 * * 1"        # Weekly on Monday at 6:00 AM
+    heartbeat_check             = "30 17 * * *"      # Daily at 17:30, after the last pipeline-all run (16:00)
   }
 }
 
