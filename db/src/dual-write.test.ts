@@ -6,6 +6,7 @@ function createMockClient(name: string): DbClient {
   return {
     findOne: vi.fn().mockResolvedValue({ _id: `${name}-doc` }),
     findMany: vi.fn().mockResolvedValue([{ _id: `${name}-doc` }]),
+    findPage: vi.fn().mockResolvedValue({ documents: [], nextCursor: null }),
     insertOne: vi.fn().mockResolvedValue(`${name}-id`),
     createOne: vi.fn().mockResolvedValue(`${name}-id`),
     updateOne: vi.fn().mockResolvedValue(undefined),
@@ -43,6 +44,16 @@ describe("DualWriteAdapter", () => {
       expect(result).toEqual({ _id: "mongo-doc" });
       expect(mongo.findOne).toHaveBeenCalledWith("messages", "id-1");
       expect(firestore.findOne).not.toHaveBeenCalled();
+    });
+
+    it("findPage preserves the primary backend cursor", async () => {
+      const adapter = new DualWriteAdapter("mongodb", firestore, mongo);
+      const after = { backend: "mongodb" as const, value: { nativeId: true } };
+      const result = { documents: [{ _id: "normalized" }], nextCursor: after };
+      vi.mocked(mongo.findPage).mockResolvedValue(result);
+      expect(await adapter.findPage("messages", { limit: 500, after })).toBe(result);
+      expect(mongo.findPage).toHaveBeenCalledWith("messages", { limit: 500, after });
+      expect(firestore.findPage).not.toHaveBeenCalled();
     });
 
     it("findMany reads from primary only", async () => {

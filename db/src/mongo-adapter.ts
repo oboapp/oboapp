@@ -16,6 +16,9 @@ import {
 import type {
   DbClient,
   FindManyOptions,
+  FindPageOptions,
+  DbPage,
+  DbPageCursor,
   WhereClause,
   BatchOperation,
   UpdateOperators,
@@ -167,7 +170,50 @@ export class MongoAdapter implements DbClient {
     collection: string,
     options?: FindManyOptions,
   ): Promise<Record<string, unknown>[]> {
-    const filter = buildFilter(options?.where);
+    const docs = await this.findDocuments(collection, options);
+    return docs.map((doc) => ({ ...doc, _id: String(doc._id) }));
+  }
+
+  async findPage(
+    collection: string,
+    options: FindPageOptions,
+  ): Promise<DbPage> {
+    if (options.after && options.after.backend !== "mongodb") {
+      throw new Error("MongoDB pagination requires a MongoDB cursor");
+    }
+    const docs = await this.findDocuments(
+      collection,
+      {
+        where: options.where,
+        select: options.select,
+        limit: options.limit,
+        orderBy: [{ field: "_id", direction: "asc" }],
+      },
+      options.after,
+    );
+    const last = docs.at(-1);
+    return {
+      documents: docs.map((doc) => ({ ...doc, _id: String(doc._id) })),
+      nextCursor: last ? { backend: "mongodb", value: last._id } : null,
+    };
+  }
+
+  private async findDocuments(
+    collection: string,
+    options?: FindManyOptions,
+    after?: DbPageCursor,
+  ): Promise<Document[]> {
+    const baseFilter = buildFilter(options?.where);
+    // Expression comparison follows BSON sort order across string/ObjectId IDs.
+    // Query-predicate $gt would exclude IDs of a different BSON type.
+    const filter = after
+      ? {
+          $and: [
+            baseFilter,
+            { $expr: { $gt: ["$_id", { $literal: after.value }] } },
+          ],
+        }
+      : baseFilter;
     const sort = buildSort(options?.orderBy);
 
     let cursor = this.db.collection(collection).find(filter);
@@ -192,8 +238,7 @@ export class MongoAdapter implements DbClient {
       cursor = cursor.project(projection);
     }
 
-    const docs = await cursor.toArray();
-    return docs.map((doc) => ({ ...doc, _id: String(doc._id) }));
+    return cursor.toArray();
   }
 
   async insertOne(

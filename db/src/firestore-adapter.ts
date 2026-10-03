@@ -8,6 +8,8 @@
 import type {
   DbClient,
   FindManyOptions,
+  FindPageOptions,
+  DbPage,
   WhereClause,
   BatchOperation,
   UpdateOperators,
@@ -73,6 +75,36 @@ function assignIncrementUpdates(
 }
 
 export class FirestoreAdapter implements DbClient {
+  async findPage(
+    collection: string,
+    options: FindPageOptions,
+  ): Promise<DbPage> {
+    const after = options.after;
+    if (
+      after &&
+      (after.backend !== "firestore" || typeof after.value !== "string")
+    ) {
+      throw new Error(
+        "Firestore pagination requires a Firestore string cursor",
+      );
+    }
+    const documents = await this.findMany(collection, {
+      where: [
+        ...(options.where ?? []),
+        ...(after
+          ? [{ field: "_id", op: ">" as const, value: after.value }]
+          : []),
+      ],
+      select: options.select,
+      limit: options.limit,
+      orderBy: [{ field: "_id", direction: "asc" }],
+    });
+    const last = documents.at(-1);
+    return {
+      documents,
+      nextCursor: last ? { backend: "firestore", value: last._id } : null,
+    };
+  }
   constructor(private readonly db: Firestore) {}
 
   async findOne(
@@ -113,7 +145,12 @@ export class FirestoreAdapter implements DbClient {
 
     if (options?.orderBy) {
       for (const order of options.orderBy) {
-        query = query.orderBy(order.field, order.direction);
+        if (order.field === "_id") {
+          const { FieldPath } = await import("firebase-admin/firestore");
+          query = query.orderBy(FieldPath.documentId(), order.direction);
+        } else {
+          query = query.orderBy(order.field, order.direction);
+        }
       }
     }
 

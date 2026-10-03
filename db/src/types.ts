@@ -52,6 +52,24 @@ export interface FindManyOptions {
   select?: string[];
 }
 
+/** Opaque, in-memory cursor retaining the backend's native document ID. */
+export interface DbPageCursor {
+  backend: DbBackend;
+  value: unknown;
+}
+
+export interface FindPageOptions {
+  where?: WhereClause[];
+  select?: string[];
+  limit: number;
+  after?: DbPageCursor;
+}
+
+export interface DbPage {
+  documents: Record<string, unknown>[];
+  nextCursor: DbPageCursor | null;
+}
+
 /** Batch write operation */
 export interface BatchOperation {
   type: "set" | "update" | "delete";
@@ -81,6 +99,8 @@ export interface UpdateOperators {
  * The adapters (Firestore, MongoDB, dual-write) implement this interface.
  */
 export interface DbClient {
+  /** Read a bounded page ordered by native document ID ascending. */
+  findPage(collection: string, options: FindPageOptions): Promise<DbPage>;
   /**
    * Get a single document by ID.
    * Returns null if not found.

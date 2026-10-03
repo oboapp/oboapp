@@ -36,6 +36,7 @@
     "geocode-cache:geocode": "tsx scripts/geocode-cache-geocode.ts",
     "geocode-cache:synonym": "tsx scripts/geocode-cache-synonym.ts",
     "heatmap-report": "tsx scripts/heatmap-report.ts",
+    "notifications-report": "tsx scripts/notifications-report.ts",
     "interest-coverage-report": "tsx scripts/interest-coverage-report.ts",
     "billing-cost:export": "tsx scripts/billing-cost-export.ts",
     "promptfoo": "cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/filter-split.yaml && cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/categorize.yaml && cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/extract-locations.yaml && cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/summarize.yaml && cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/verify-event-match.yaml",
@@ -58,6 +59,7 @@
     "prebuilt:air-quality-fetch": "node dist/air-quality-fetch.js",
     "prebuilt:geocode-cache-report": "node dist/scripts/geocode-frequency-report.js",
     "prebuilt:heatmap-report": "node dist/scripts/heatmap-report.js",
+    "prebuilt:notifications-report": "node dist/scripts/notifications-report.js",
     "prebuilt:interest-coverage-report": "node dist/scripts/interest-coverage-report.js",
     "prebuilt:billing-cost-export": "node dist/scripts/billing-cost-export.js"
   },

@@ -13,6 +13,7 @@ export * from "./message.schema";
 export * from "./message-snapshot.schema";
 export * from "./notification-history.schema";
 export * from "./notification-subscription.schema";
+export * from "./notifications-report.schema";
 export * from "./pin.schema";
 export * from "./source.schema";
 export * from "./street-section.schema";

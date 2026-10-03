@@ -115,6 +115,13 @@ Stores matches between messages and user interests.
 }
 ```
 
+## Notifications report
+
+The public notifications report summarizes successful FCM sends, push clicks,
+and opens from notification history using a weekly GCS snapshot. Failed sends,
+missing subscriptions, and unknown legacy outcomes are counted separately.
+See [metric definitions and deployment](../../docs/features/notifications-report.md).
+
 ## Running the Notification Script
 
 The notification script should be run after message ingestion:

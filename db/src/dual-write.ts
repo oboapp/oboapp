@@ -10,6 +10,8 @@ import type {
   DbClient,
   DbBackend,
   FindManyOptions,
+  FindPageOptions,
+  DbPage,
   WhereClause,
   BatchOperation,
   UpdateOperators,
@@ -43,6 +45,12 @@ async function tryIncrementFieldAndGet(
 }
 
 export class DualWriteAdapter implements DbClient {
+  async findPage(
+    collection: string,
+    options: FindPageOptions,
+  ): Promise<DbPage> {
+    return this.primary.findPage(collection, options);
+  }
   private readonly primary: DbClient;
   private readonly secondary: DbClient;
 

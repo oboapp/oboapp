@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MongoAdapter } from "./mongo-adapter";
+import { ObjectId, type MongoClient } from "mongodb";
 
 type CursorMock = {
   sort: ReturnType<typeof vi.fn>;
@@ -49,6 +50,51 @@ describe("MongoAdapter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     dbMock.collection.mockReturnValue(collectionMock);
+  });
+
+  it("preserves ObjectId cursors across more than 500 documents", async () => {
+    const ids = Array.from({ length: 501 }, () => new ObjectId());
+    const adapter = new MongoAdapter(
+      clientMock as unknown as MongoClient,
+      "oboapp",
+    );
+    findMock.mockReturnValueOnce(
+      createCursorMock(ids.slice(0, 500).map((_id) => ({ _id }))),
+    );
+    const first = await adapter.findPage("notificationMatches", { limit: 500 });
+    expect(first.documents).toHaveLength(500);
+    expect(first.documents[499]._id).toBe(ids[499].toHexString());
+    expect(first.nextCursor?.value).toBe(ids[499]);
+    findMock.mockReturnValueOnce(createCursorMock([{ _id: ids[500] }]));
+    const second = await adapter.findPage("notificationMatches", {
+      limit: 500,
+      after: first.nextCursor!,
+    });
+    expect(second.documents[0]._id).toBe(ids[500].toHexString());
+    expect(findMock).toHaveBeenLastCalledWith({
+      $and: [{}, { $expr: { $gt: ["$_id", { $literal: ids[499] }] } }],
+    });
+  });
+
+  it("uses BSON expression ordering to cross from string IDs to ObjectIds", async () => {
+    const id = new ObjectId();
+    findMock.mockReturnValue(createCursorMock([{ _id: id }]));
+    const adapter = new MongoAdapter(
+      clientMock as unknown as MongoClient,
+      "oboapp",
+    );
+    const page = await adapter.findPage("notificationMatches", {
+      limit: 500,
+      where: [{ field: "notified", op: "==", value: true }],
+      after: { backend: "mongodb", value: "$last-string-id" },
+    });
+    expect(page.nextCursor?.value).toBe(id);
+    expect(findMock).toHaveBeenCalledWith({
+      $and: [
+        { notified: true },
+        { $expr: { $gt: ["$_id", { $literal: "$last-string-id" }] } },
+      ],
+    });
   });
 
   it("builds an $and filter when multiple where clauses target the same field", async () => {

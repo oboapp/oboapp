@@ -65,6 +65,7 @@ variable "schedules" {
     educational_facilities_sync = optional(string, "0 4 1 * *")
     geocode_cache_report        = optional(string, "0 5 * * 1")
     heatmap_report              = optional(string, "0 4 * * 1")
+    notifications_report        = optional(string, "0 3 * * 1")
     interest_coverage_report    = optional(string, "0 6 * * 1")
     heartbeat_check             = optional(string, "30 17 * * *")
   })
@@ -75,6 +76,7 @@ variable "schedules" {
     educational_facilities_sync = "0 4 1 * *"        # Monthly on the 1st at 4:00 AM
     geocode_cache_report        = "0 5 * * 1"        # Weekly on Monday at 5:00 AM
     heatmap_report              = "0 4 * * 1"        # Weekly on Monday at 4:00 AM
+    notifications_report        = "0 3 * * 1"        # Weekly on Monday at 3:00 AM
     interest_coverage_report    = "0 6 * * 1"        # Weekly on Monday at 6:00 AM
     heartbeat_check             = "30 17 * * *"      # Daily at 17:30, after the last pipeline-all run (16:00)
   }

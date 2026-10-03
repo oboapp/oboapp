@@ -2,7 +2,13 @@
  * Notification matches collection repository.
  */
 
-import type { DbClient, FindManyOptions, WhereClause } from "../types";
+import type {
+  DbClient,
+  FindManyOptions,
+  WhereClause,
+  DbPageCursor,
+  DbPage,
+} from "../types";
 
 /** Collection name constant */
 export const NOTIFICATION_MATCHES_COLLECTION = "notificationMatches";
@@ -22,6 +28,25 @@ export class NotificationMatchesRepository {
 
   async insertOne(data: Record<string, unknown>): Promise<string> {
     return this.db.insertOne(NOTIFICATION_MATCHES_COLLECTION, data);
+  }
+
+  /** Stable keyset pagination for reports; avoids retaining all historical matches. */
+  async findNotifiedPage(limit: number, after?: DbPageCursor): Promise<DbPage> {
+    const where: WhereClause[] = [{ field: "notified", op: "==", value: true }];
+    return this.db.findPage(NOTIFICATION_MATCHES_COLLECTION, {
+      where,
+      after,
+      limit,
+      select: [
+        "userId",
+        "messageId",
+        "notifiedAt",
+        "deviceNotifications",
+        "clickedAt",
+        "openedAt",
+        "messageSnapshot",
+      ],
+    });
   }
 
   async updateOne(id: string, data: Record<string, unknown>): Promise<void> {

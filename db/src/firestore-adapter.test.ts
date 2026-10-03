@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FirestoreAdapter } from "./firestore-adapter";
 
-const arrayUnionMock = vi.fn((...values: unknown[]) => ({ __op: "union", values }));
-const arrayRemoveMock = vi.fn((...values: unknown[]) => ({ __op: "remove", values }));
+const arrayUnionMock = vi.fn((...values: unknown[]) => ({
+  __op: "union",
+  values,
+}));
+const arrayRemoveMock = vi.fn((...values: unknown[]) => ({
+  __op: "remove",
+  values,
+}));
 const incrementMock = vi.fn((value: number) => ({ __op: "inc", value }));
 
 vi.mock("firebase-admin/firestore", () => ({
+  FieldPath: { documentId: () => "__name__" },
   FieldValue: {
     arrayUnion: arrayUnionMock,
     arrayRemove: arrayRemoveMock,
@@ -23,6 +30,24 @@ describe("FirestoreAdapter", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("uses the document ID for both keyset filtering and ordering", async () => {
+    const query = {
+      where: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      get: vi.fn().mockResolvedValue({ docs: [] }),
+    };
+    const adapter = new FirestoreAdapter({ collection: () => query } as any);
+    const page = await adapter.findPage("notificationMatches", {
+      after: { backend: "firestore", value: "match-1" },
+      limit: 500,
+    });
+    expect(query.where).toHaveBeenCalledWith("__name__", ">", "match-1");
+    expect(query.orderBy).toHaveBeenCalledWith("__name__", "asc");
+    expect(query.limit).toHaveBeenCalledWith(500);
+    expect(page).toEqual({ documents: [], nextCursor: null });
   });
 
   it("uses FieldValue operators for update operator payloads", async () => {
