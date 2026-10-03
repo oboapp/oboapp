@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { colors } from "@/lib/colors";
+import { getBasemapConfig } from "@/lib/basemap";
 
 export interface AirQualityCell {
   id: string;
@@ -62,12 +63,11 @@ export default function AirQualityMap({ cells, locality: _locality }: AirQuality
         });
         mapInstanceRef.current = map;
 
+        const basemap = getBasemapConfig();
         L.tileLayer(
-          "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+          basemap.url,
           {
-            attribution:
-              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: "abcd",
+            ...basemap.options,
             maxZoom: 19,
           },
         ).addTo(map);

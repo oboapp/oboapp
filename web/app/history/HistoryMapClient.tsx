@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { colors } from "@/lib/colors";
+import { getBasemapConfig } from "@/lib/basemap";
 import { getLocalityCenter } from "@/lib/bounds-utils";
 
 type HeatmapPoint = [number, number];
@@ -111,15 +112,13 @@ export default function HistoryMapClient({
         });
         mapInstanceRef.current = map;
 
-        // CartoDB Positron: a clean, desaturated base map (no API key required)
+        const basemap = getBasemapConfig();
         L.tileLayer(
-          "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+          basemap.url,
           {
-            attribution:
-              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            ...basemap.options,
             minZoom: 10,
             maxZoom: 15,
-            subdomains: "abcd",
           },
         ).addTo(map);
 

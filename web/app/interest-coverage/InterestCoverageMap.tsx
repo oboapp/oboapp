@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { getBoundsForLocality } from "@oboapp/shared";
 import type { InterestCoverageReport } from "@oboapp/shared";
 import { colors } from "@/lib/colors";
+import { getBasemapConfig } from "@/lib/basemap";
 
 function bandColor(min: number) {
   if (min >= 50) return colors.primary.red;
@@ -24,9 +25,10 @@ export default function InterestCoverageMap({ report }: { readonly report: Inter
       const bounds = getBoundsForLocality(report.locality);
       map = L.map(container.current, { minZoom: 10, maxZoom: 12, scrollWheelZoom: false });
       map.fitBounds([[bounds.south, bounds.west], [bounds.north, bounds.east]]);
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        maxZoom: 12, subdomains: "abcd",
+      const basemap = getBasemapConfig();
+      L.tileLayer(basemap.url, {
+        ...basemap.options,
+        maxZoom: 12,
       }).addTo(map);
       for (const cell of report.cells) {
         L.rectangle([[cell.south, cell.west], [cell.north, cell.east]], {

@@ -23,6 +23,18 @@ Next.js uses `transpilePackages: ['@oboapp/shared']` to automatically transpile 
 
 The web app is a standard Next.js application and can be hosted on any platform that supports Node.js or a Next.js build output. Hosting configuration is a downstream/fork concern; the upstream repository is platform-neutral.
 
+## Report basemaps
+
+The coverage, history and air-quality maps use CARTO Positron when
+`NEXT_PUBLIC_CARTO_BASEMAP_API_KEY` is set. Request a basemaps key at
+https://www.carto.com/basemaps/apikey/ and set it in the web host's build environment
+(and `web/.env.local` for local development). Rebuild and redeploy after changing
+it: Next.js embeds `NEXT_PUBLIC_` values into the browser bundle at build time.
+The key is visible in browser requests; configure allowed website restrictions
+in CARTO's dashboard for your production domain and any development/preview hosts.
+Without a configured key, these maps use standard OpenStreetMap tiles.
+Report JSON does not need to be regenerated when changing the basemap.
+
 ## Styling
 
 The application uses a centralized Tailwind CSS theme system:
