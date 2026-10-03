@@ -1,19 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { colors } from "@/lib/colors";
+import { HEATMAP_GRADIENT } from "@/lib/heatmap";
 import { getBasemapConfig } from "@/lib/basemap";
 import { getLocalityCenter } from "@/lib/bounds-utils";
 
 type HeatmapPoint = [number, number];
-
-// Augment leaflet module with the heatLayer function from leaflet.heat plugin
-declare module "leaflet" {
-  export function heatLayer(
-    points: HeatmapPoint[],
-    options: Record<string, unknown>,
-  ): import("leaflet").Layer;
-}
 
 interface HeatmapResponse {
   points: HeatmapPoint[];
@@ -34,13 +26,6 @@ export interface HistoryMapClientProps {
 
 const DEFAULT_ZOOM = 13;
 const MAP_CENTER = getLocalityCenter();
-
-// Heatmap gradient using theme colors: cool → warm → hot
-const HEATMAP_GRADIENT = {
-  0.4: colors.zones.blue,
-  0.65: colors.semantic.warning,
-  1: colors.semantic.error,
-};
 
 async function fetchHeatmapData(
   categories?: Set<string>,
@@ -177,7 +162,7 @@ export default function HistoryMapClient({
         ) {
           const L = leafletRef.current;
           const layer = L
-            .heatLayer(data.points, {
+            .heatLayer(data.points.map(([lat, lng]) => L.latLng(lat, lng)), {
               radius: 20,
               blur: 25,
               maxZoom: 17,

@@ -51,11 +51,10 @@ export default function InterestCoverageContent() {
           <div><dt className="text-sm text-neutral">Запазени зони</dt><dd className="text-xl font-bold">{report.summary.interests.min}–{report.summary.interests.max}</dd></div>
           <div><dt className="text-sm text-neutral">Различни потребители</dt><dd className="text-xl font-bold">{report.summary.users.min}–{report.summary.users.max}</dd></div>
         </dl>
-        <p className="text-sm text-neutral">Броят е показан в диапазони. Цветните клетки включват само покритие с безопасно обобщаване. Някои зони са скрити за защита на личните данни.</p>
+        <p className="text-sm text-neutral">Броят е показан в диапазони. Топлинната карта включва само покритие с безопасно обобщаване. Някои зони са скрити за защита на личните данни.</p>
         <p className="text-sm text-neutral">Неоцветените райони нямат публикувано покритие: то може да липсва или да е скрито. Това не означава със сигурност, че там няма зони.</p>
         <div className="isolate"><CoverageMap report={report} /></div>
       </>}
     </section>
   );
 }
-

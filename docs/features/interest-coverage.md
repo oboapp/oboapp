@@ -23,6 +23,15 @@ report; there are no revision markers or additional web write permissions.
 
 ## Coverage and privacy
 
+The map uses the same Leaflet heat renderer and blue-to-yellow-to-red gradient
+as `/history`, with pan and zoom available. Published cells are sampled uniformly
+for rendering and weighted by their user-band lower bound, relative to the
+densest published cell. These samples are not zone centers or new location data.
+Smoothing stays at a fixed geographic scale across zoom levels and may extend
+color beyond a published cell; colors are relative density, not exact counts or
+coverage boundaries. The existing version-1 JSON remains compatible; deploying
+this display change does not require regenerating reports.
+
 Active means valid zones saved when the report is generated, with circle coverage intersecting the
 configured locality's shared rectangular bounds. It does not imply a registered
 push device. Malformed IDs/coordinates and radii outside 100–1000 meters are
@@ -50,7 +59,7 @@ covered. The map intentionally sacrifices precision and completeness.
 5. The report/API contain no raw centers, radii, labels, IDs or individual records.
    The server validates the schema, fixed-grid coordinates and minimum band sizes.
    There are no geographic/category/source filters or alternate grid resolutions;
-   zooming displays the same coarse cells.
+   zooming displays the same coarse aggregates through a smoothed heatmap.
 
 This is conservative spatial suppression, not a claim of differential privacy or
 protection against every auxiliary-data attack. Public snapshots can be copied
