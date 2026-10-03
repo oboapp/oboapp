@@ -67,6 +67,7 @@ variable "schedules" {
     heatmap_report              = optional(string, "0 4 * * 1")
     notifications_report        = optional(string, "0 3 * * 1")
     interest_coverage_report    = optional(string, "0 6 * * 1")
+    billing_cost_export         = optional(string, "0 5 3 * *")
     heartbeat_check             = optional(string, "30 17 * * *")
   })
   default = {
@@ -78,6 +79,7 @@ variable "schedules" {
     heatmap_report              = "0 4 * * 1"        # Weekly on Monday at 4:00 AM
     notifications_report        = "0 3 * * 1"        # Weekly on Monday at 3:00 AM
     interest_coverage_report    = "0 6 * * 1"        # Weekly on Monday at 6:00 AM
+    billing_cost_export         = "0 5 3 * *"        # Monthly on the 3rd at 5:00 AM, allowing billing export delays
     heartbeat_check             = "30 17 * * *"      # Daily at 17:30, after the last pipeline-all run (16:00)
   }
 }
@@ -119,6 +121,27 @@ variable "gcs_generic_bucket" {
     error_message = "gcs_generic_bucket must be empty (disabled) or a valid GCS bucket name (>3 chars)."
   }
 }
+variable "billing_export" {
+  description = "BigQuery billing export source. Null disables the monthly billing job; a generic bucket is also required."
+  type = object({
+    project  = string
+    dataset  = string
+    table    = string
+    location = optional(string, "US")
+  })
+  default = null
+
+  validation {
+    condition = var.billing_export == null ? true : (
+      can(regex("^[a-z][a-z0-9-]+[a-z0-9]$", var.billing_export.project)) &&
+      can(regex("^[A-Za-z0-9_]+$", var.billing_export.dataset)) &&
+      can(regex("^[A-Za-z0-9_]+$", var.billing_export.table)) &&
+      length(trimspace(var.billing_export.location)) > 0
+    )
+    error_message = "Billing export requires a valid project, dataset, table and nonempty location."
+  }
+}
+
 variable "app_url" {
   description = "Public URL of the web app, used in notification links (e.g. https://oboapp.online)"
   type        = string

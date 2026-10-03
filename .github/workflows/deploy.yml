@@ -12,6 +12,10 @@ env:
   LOCALITY: ${{ vars.LOCALITY || 'bg.sofia' }}
   LOCALITIES: ${{ vars.LOCALITIES || '["bg.sofia"]' }}
   GCS_GENERIC_BUCKET: ${{ vars.GCS_GENERIC_BUCKET || '' }}
+  BILLING_BIGQUERY_PROJECT: ${{ vars.BILLING_BIGQUERY_PROJECT || '' }}
+  BILLING_BIGQUERY_DATASET: ${{ vars.BILLING_BIGQUERY_DATASET || '' }}
+  BILLING_BIGQUERY_TABLE: ${{ vars.BILLING_BIGQUERY_TABLE || '' }}
+  BILLING_BIGQUERY_LOCATION: ${{ vars.BILLING_BIGQUERY_LOCATION || 'US' }}
   APP_URL: ${{ vars.APP_URL }}
   SENTRY_DSN_SECRET_ID: ${{ vars.SENTRY_DSN_SECRET_ID || 'sentry-dsn' }}
   REGION: europe-west1
@@ -129,6 +133,15 @@ jobs:
           # Write LOCALITIES (a JSON array string) to a tfvars.json file using jq.
           # Avoids shell-quoting issues with list variables passed via -var.
           jq -n --argjson localities "$LOCALITIES" '{localities: $localities}' > localities.auto.tfvars.json
+
+          # Keep billing opt-in; partial configuration is rejected by Terraform validation.
+          jq -n \
+            --arg project "$BILLING_BIGQUERY_PROJECT" \
+            --arg dataset "$BILLING_BIGQUERY_DATASET" \
+            --arg table "$BILLING_BIGQUERY_TABLE" \
+            --arg location "$BILLING_BIGQUERY_LOCATION" \
+            '{billing_export: (if ($project == "" and $dataset == "" and $table == "") then null else {project: $project, dataset: $dataset, table: $table, location: $location} end)}' \
+            > billing.auto.tfvars.json
 
           terraform plan \
             -lock-timeout=60s \

@@ -6,7 +6,7 @@ oboapp.online runs on Google Cloud Platform. This feature provides a public, ope
 
 ## How It Works
 
-The maintainer runs a CLI script at the beginning of each month. It queries the GCP billing export dataset in BigQuery, builds a cumulative JSON snapshot covering up to the last 12 months (where data is available), and uploads it to the same GCS bucket used by other operational reports. The website reads this snapshot to display cost history.
+When configured, Cloud Scheduler runs the `billing-cost-export` Cloud Run job on the 3rd of each month at 05:00 in `schedule_timezone` (Europe/Sofia by default). The delay allows time for billing export data to arrive. It queries the GCP billing export dataset in BigQuery, builds a cumulative JSON snapshot covering up to the last 12 full months (where data is available), and uploads it to the same GCS bucket used by other operational reports. The website reads this snapshot to display cost history. The CLI can also be run manually.
 
 ```mermaid
 flowchart LR
@@ -46,6 +46,57 @@ pnpm billing-cost:export --dry-run
 The script fails fast if required env vars are missing and warns (but does not fail) if the GCS bucket is not configured.
 
 ## Setup
+
+### Scheduled production export
+
+Set `billing_export` in Terraform and configure `gcs_generic_bucket`:
+
+```hcl
+billing_export = {
+  project  = "your-billing-project"
+  dataset  = "billing_export"
+  table    = "gcp_billing_export_v1_YOUR_ACCOUNT"
+  location = "EU" # Must match the dataset location
+}
+```
+
+For GitHub deployment, set repository variables `BILLING_BIGQUERY_PROJECT`,
+`BILLING_BIGQUERY_DATASET`, `BILLING_BIGQUERY_TABLE`, and
+`BILLING_BIGQUERY_LOCATION` (defaults to `US`). The workflow passes these to
+Terraform. Leaving the first three unset disables the billing job; partial
+configuration fails validation. `GCS_GENERIC_BUCKET` must also be set.
+
+Terraform enables the BigQuery API and grants the ingest runner
+`roles/bigquery.jobUser` on the configured billing project and
+`roles/bigquery.dataViewer` on the existing export dataset. The deployment
+identity needs permission to enable that API and manage those IAM bindings,
+including in the billing project if it differs from the ingest project.
+Dataset IAM resources must not be mixed with separately managed authorized-view
+access entries on the same dataset.
+
+Override `schedules.billing_cost_export` to change the cadence. The job uses
+Application Default Credentials from its execution service account, the current
+ingest image, a 600-second timeout and one retry. A log-based alert reports errors.
+After deployment, generate the initial snapshot without waiting for next month:
+
+```sh
+gcloud run jobs execute billing-cost-export --project=YOUR_PROJECT --region=europe-west1 --wait
+```
+
+Verify `/api/billing/report` and `/author` afterward. Deployment alone does not
+generate the file. Missing snapshots return 404; missing web bucket configuration
+returns 503. Successful API responses are cached for one hour.
+
+### Retention
+
+The generic bucket's ten-day deletion rule applies only to `air-quality/`,
+`geocode-cache/`, `heatmap/`, `interests/`, and `notifications/`. It excludes
+`billing/`, so the latest billing snapshot remains until overwritten, even if a
+monthly export fails. There is no separate billing history archive: each snapshot
+contains the cumulative monthly data. GCS lifecycle changes can take up to 24 hours
+to take effect; applying this change does not restore an already deleted report.
+
+### Manual export
 
 Add the following to `.env.local` (maintainer machine only — never committed):
 

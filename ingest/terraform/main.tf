@@ -1084,9 +1084,8 @@ resource "google_cloud_scheduler_job" "educational_facilities_sync_schedule" {
 
 # ── Air Quality Fetch Job ─────────────────────────────────────────────────────
 
-# Holds ephemeral artifacts (weekly heatmap snapshots, air-quality fetch output) with a
-# short TTL. Versioning is intentionally disabled — objects are reproducible from source
-# data and the 10-day lifecycle delete would defeat object versioning anyway.
+# Temporary artifacts expire after ten days. The monthly billing snapshot is retained
+# until replaced so a failed or delayed export does not remove the public cost history.
 resource "google_storage_bucket" "generic" {
   count         = var.gcs_generic_bucket != "" ? 1 : 0
   name          = var.gcs_generic_bucket
@@ -1098,7 +1097,8 @@ resource "google_storage_bucket" "generic" {
 
   lifecycle_rule {
     condition {
-      age = 10  # Weekly heatmap snapshot needs >7 days retention; 10 days gives buffer
+      age            = 10 # Weekly snapshots need >7 days retention.
+      matches_prefix = ["air-quality/", "geocode-cache/", "heatmap/", "interests/", "notifications/"]
     }
     action {
       type = "Delete"

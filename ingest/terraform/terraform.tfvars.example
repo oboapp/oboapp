@@ -13,6 +13,15 @@ app_url            = "https://your-domain.com"
 # GCS bucket for general-purpose file storage (leave empty to disable)
 # gcs_generic_bucket = "your-project-gcs-bucket"
 
+# Enable the monthly billing export (also requires gcs_generic_bucket).
+# The runner receives BigQuery job creation in this project and read access to this dataset.
+# billing_export = {
+#   project  = "your-billing-project"
+#   dataset  = "billing_export"
+#   table    = "gcp_billing_export_v1_YOUR_ACCOUNT"
+#   location = "EU"
+# }
+
 # Sentry DSN secret name in Secret Manager (leave empty to disable Sentry)
 # First create the secret: gcloud secrets create sentry-dsn --replication-policy=automatic
 # Then add the value:      gcloud secrets versions add sentry-dsn --data-file=<(echo -n "https://...@sentry.io/...")
@@ -35,5 +44,6 @@ app_url            = "https://your-domain.com"
 #   heatmap_report              = "0 4 * * 1"
 #   notifications_report        = "0 3 * * 1"
 #   interest_coverage_report    = "0 6 * * 1"
+#   billing_cost_export        = "0 5 3 * *"
 #   heartbeat_check             = "30 17 * * *"
 # }
