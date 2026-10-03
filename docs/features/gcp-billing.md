@@ -71,6 +71,27 @@ Terraform enables the BigQuery API and grants the ingest runner
 `roles/bigquery.dataViewer` on the existing export dataset. The deployment
 identity needs permission to enable that API and manage those IAM bindings,
 including in the billing project if it differs from the ingest project.
+If Terraform fails with `bigquery.datasets.update denied`, an administrator must
+bootstrap the deployment identity's dataset access-management permissions before
+retrying. A custom role avoids granting CI access to table data:
+
+```sh
+gcloud iam roles create billingDatasetIamManager --project=BILLING_PROJECT \
+  --title="Billing Dataset IAM Manager" \
+  --permissions=bigquery.datasets.get,bigquery.datasets.update,bigquery.datasets.getIamPolicy,bigquery.datasets.setIamPolicy \
+  --stage=GA
+
+gcloud projects add-iam-policy-binding BILLING_PROJECT \
+  --member="serviceAccount:CI_SERVICE_ACCOUNT" \
+  --role="projects/BILLING_PROJECT/roles/billingDatasetIamManager" \
+  --condition="expression=resource.name == 'projects/BILLING_PROJECT/datasets/BILLING_DATASET',title=billing_export_dataset_only"
+```
+
+Replace the placeholders with the billing project, dataset and deployment service
+account. The conditional project binding restricts these permissions to that one
+dataset. This is a one-time administrator setup, separate from the report runner's
+read-only dataset access managed by Terraform.
+
 Dataset IAM resources must not be mixed with separately managed authorized-view
 access entries on the same dataset.
 
