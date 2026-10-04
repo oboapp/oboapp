@@ -5,4 +5,5 @@ sourceWrapperContract(
   "https://krasnapolyana.bg/home/latest-news",
   "webpage",
   () => import("./index"),
+  () => import("./extractors"),
 );

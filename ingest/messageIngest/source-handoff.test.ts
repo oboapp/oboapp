@@ -28,6 +28,31 @@ vi.mock("./index", () => ({ messageIngest: vi.fn() }));
 let store: ReturnType<typeof createSourceStore>;
 let browser: ReturnType<typeof createBrowserMock>;
 const result = { messages: [], totalCategorized: 0, totalRelevant: 0, totalIrrelevant: 0 };
+// Independent persisted contracts: missing crawler assignments must fail even
+// when the consumer faithfully forwards the incomplete raw document.
+const expectedContent: Record<string, Record<string, unknown>> = {
+  "nadezhda-org": {
+    title: "Repair", message: "Water repair", datePublished: "2026-10-04T00:00:00.000Z",
+  },
+  "triaditsa-org": {
+    title: "Repair", message: "Water repair", datePublished: "2026-10-04T08:00:00.000Z",
+  },
+  "toplo-bg": {
+    title: "Ремонт", message: expect.stringContaining("Ремонт"), markdownText: expect.stringContaining("ул. Тест"),
+    datePublished: "2026-10-04T08:00:00.000Z", deepLinkUrl: "", geoJson: JSON.stringify(pointGeometry),
+    categories: ["heating"], isRelevant: true,
+    timespanStart: new Date("2026-10-04T08:00:00.000Z"), timespanEnd: new Date("2026-10-04T08:00:00.000Z"),
+  },
+  "nimh-severe-weather": {
+    title: "Предупреждение за опасно време - 4 октомври 2026",
+    message: "Жълт код за опасно време за 04.10.2026 (неделя)\n\nСилен вятър\n\nСилен вятър",
+    markdownText: "**Жълт код за опасно време за 04.10.2026 (неделя)**\n\nСилен вятър\n\n**Жълт код за вятър**\n- Силен вятър",
+    datePublished: "2026-10-04T08:00:00.000Z", geoJson: '{"type":"FeatureCollection","features":[]}',
+    categories: ["weather"], isRelevant: true, cityWide: true,
+    // Current builder uses a fixed +02:00 offset; changing timezone semantics is separate work.
+    timespanStart: new Date("2026-10-03T22:00:00.000Z"), timespanEnd: new Date("2026-10-04T21:59:59.000Z"),
+  },
+};
 beforeEach(() => {
   vi.clearAllMocks(); vi.useFakeTimers(); vi.setSystemTime(contractDate);
   store = createSourceStore(); browser = createBrowserMock();
@@ -47,18 +72,19 @@ describe("crawler raw document to ingest contract", () => {
   ])("passes the persisted $name document through the actual ingest entrypoint", async ({ crawl, url, sourceType }) => {
     await crawl();
     const raw = store.records.get(encodeDocumentId(url));
+    const expected = expectedContent[sourceType];
     expect(raw).toBeDefined();
-    expect(raw).toMatchObject({ url, sourceType, locality: "bg.sofia", processed: false, crawledAt: contractDate });
+    expect(raw).toMatchObject({ ...expected, url, sourceType, locality: "bg.sofia", processed: false, crawledAt: contractDate });
     const summary = await ingest({ sourceType, limit: 10 });
     expect(summary).toMatchObject({ total: 1, ingested: 1, failed: 0 });
     expect(store.sources.findMany).toHaveBeenCalledWith({ where: [{ field: "processed", op: "==", value: false }, { field: "sourceType", op: "==", value: sourceType }], limit: 10 });
-    expect(messageIngest).toHaveBeenCalledExactlyOnceWith(raw?.message, sourceType, {
-      precomputedGeoJson: raw?.geoJson ? JSON.parse(String(raw.geoJson)) : null,
-      sourceUrl: raw?.deepLinkUrl === "" ? undefined : url,
+    expect(messageIngest).toHaveBeenCalledExactlyOnceWith(expected.message, sourceType, {
+      precomputedGeoJson: expected.geoJson ? JSON.parse(String(expected.geoJson)) : null,
+      sourceUrl: expected.deepLinkUrl === "" ? undefined : url,
       sourceDocumentId: encodeDocumentId(url), boundaryFilter: undefined,
-      crawledAt: contractDate, datePublished: raw?.datePublished, markdownText: raw?.markdownText,
-      categories: raw?.categories, isRelevant: raw?.isRelevant, timespanStart: raw?.timespanStart,
-      timespanEnd: raw?.timespanEnd, cityWide: raw?.cityWide, locality: "bg.sofia",
+      crawledAt: contractDate, datePublished: expected.datePublished, markdownText: expected.markdownText,
+      categories: expected.categories, isRelevant: expected.isRelevant, timespanStart: expected.timespanStart,
+      timespanEnd: expected.timespanEnd, cityWide: expected.cityWide, locality: "bg.sofia",
     });
     if (sourceType === "triaditsa-org") expect(launchBrowser).not.toHaveBeenCalled();
     // Seed the downstream-owned completion state; this suite stops at messageIngest.
@@ -100,10 +126,4 @@ describe("crawler raw document to ingest contract", () => {
     expect(messageIngest).not.toHaveBeenCalled(); expect(store.sources.updateOne).not.toHaveBeenCalled();
   });
 
-  it("marks an empty text-only source done without sending it to AI", async () => {
-    await saveSourceDocument(rawSource({ message: "  " }), store.db);
-    await ingest();
-    expect(messageIngest).not.toHaveBeenCalled();
-    expect(store.sources.updateOne).toHaveBeenCalledWith(encodeDocumentId("https://example.com/item"), { processed: true });
-  });
 });

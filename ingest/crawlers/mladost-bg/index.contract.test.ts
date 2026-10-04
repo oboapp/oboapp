@@ -5,4 +5,5 @@ sourceWrapperContract(
   "https://mladost.bg/gradska-i-okolna-sreda/planovi-remonti",
   "webpage",
   () => import("./index"),
+  () => import("./extractors"),
 );

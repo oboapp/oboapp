@@ -41,6 +41,8 @@ During #586, keep historical lookup/no-overwrite tests in Obo and reuse identifi
 
 Known boundaries: this baseline does not assert universal failure behavior. Some sources abort on a lookup/provider failure, while shared RSS skips unreadable items. It does not certify browser cleanup on every pre-existing exceptional path (for example Toplo navigation fails before its normal close). Such behavior changes should be reviewed separately, rather than silently encoded as desired compatibility.
 
+Upstream-specific gaps to resolve before migrating Sofia: its current RSS crawler catches individual URL lookup failures and still attempts detail persistence, which can overwrite an existing record; it also compares historical titles exactly. This suite protects successful URL deduplication, exact legacy-title fallback, feed/query failure propagation, and detail-failure continuation, but does not endorse the unsafe lookup-error fallback. Upstream also has no empty-message completion guard in `from-sources`; that fork-only behavior is intentionally not imported by this baseline. Address these defects separately before claiming failure-safe deduplication for every source.
+
 ## Screenshot Baselines (Required)
 
 Every crawler directory should include baseline screenshots for easier maintenance when source site design changes.
