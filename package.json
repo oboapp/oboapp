@@ -16,7 +16,7 @@
     "apm:install": "apm install --force --verbose"
   },
   "devDependencies": {
-    "@commitlint/cli": "^19.8.1",
+    "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^19.8.1",
     "@sentry/cli": "^3.3.5",
     "@types/node": "^20",
