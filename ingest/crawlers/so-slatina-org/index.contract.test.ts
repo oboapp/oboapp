@@ -5,4 +5,5 @@ sourceWrapperContract(
   "https://so-slatina.org/feed/",
   "hybrid",
   () => import("./index"),
+  () => import("./extractors"),
 );

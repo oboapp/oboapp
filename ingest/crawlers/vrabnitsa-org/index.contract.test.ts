@@ -5,4 +5,5 @@ sourceWrapperContract(
   "https://vrabnitsa.sofia.bg/aktualno/news",
   "webpage",
   () => import("./index"),
+  () => import("./extractors"),
 );

@@ -5,4 +5,5 @@ sourceWrapperContract(
   "https://rayon-oborishte.bg/feed/",
   "hybrid",
   () => import("./index"),
+  () => import("./extractors"),
 );

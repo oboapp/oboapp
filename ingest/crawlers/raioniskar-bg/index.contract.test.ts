@@ -5,4 +5,5 @@ sourceWrapperContract(
   "https://raioniskar.bg/?c=pages/static&template=home&lang=bg",
   "webpage",
   () => import("./index"),
+  () => import("./extractors"),
 );
