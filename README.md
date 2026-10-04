@@ -162,6 +162,7 @@ Additional implementation standards live in [AGENTS.md](AGENTS.md).
 
 ### Operations
 
+- [Dependency Updates](docs/setup/dependency-updates.md) - Dependabot coverage, schedule, security settings, and post-merge verification
 - [Notifications](ingest/notifications/README.md) - Push notification matching and delivery
 - [Terraform](ingest/terraform/README.md) - Cloud Run deployment and infrastructure
 - [Web App](web/README.md) - PWA installation and browser support

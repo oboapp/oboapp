@@ -1,0 +1,43 @@
+version: 2
+updates:
+  # pnpm-workspace.yaml discovers all packages; one job owns the shared lockfile.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/Sofia
+    open-pull-requests-limit: 5
+    groups:
+      runtime-minor-patch:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      tooling-minor-patch:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: "chore(repo)"
+
+  # GitHub Actions uses / to discover .github/workflows and root action manifests.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/Sofia
+    open-pull-requests-limit: 3
+    groups:
+      actions-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: "ci(repo)"
