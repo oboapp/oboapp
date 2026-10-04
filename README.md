@@ -162,7 +162,8 @@ Additional implementation standards live in [AGENTS.md](AGENTS.md).
 
 ### Operations
 
-- [Dependency Updates](docs/setup/dependency-updates.md) - Dependabot coverage, schedule, security settings, and post-merge verification
+[Dependabot supports pnpm workspaces](https://github.blog/changelog/2025-02-04-dependabot-now-supports-pnpm-workspace-catalogs-ga/). Our [configuration](.github/dependabot.yml) checks the workspace and GitHub Actions every Monday at 09:00 Europe/Sofia, groups minor/patch updates, and leaves major upgrades as individual PRs. No dependencies are excluded.
+
 - [Notifications](ingest/notifications/README.md) - Push notification matching and delivery
 - [Terraform](ingest/terraform/README.md) - Cloud Run deployment and infrastructure
 - [Web App](web/README.md) - PWA installation and browser support
