@@ -39,6 +39,27 @@ describe("Sofia crawl deduplication", () => {
     expect(processWordpressPost).not.toHaveBeenCalled();
   });
 
+  it("stops before discovery if reading historical identities fails", async () => {
+    mocks.findMany.mockRejectedValueOnce(new Error("history unavailable"));
+    await expect(crawl()).rejects.toThrow("history unavailable");
+    expect(discoverPosts).not.toHaveBeenCalled();
+    expect(processWordpressPost).not.toHaveBeenCalled();
+  });
+
+  it("preserves source and locality when handing a discovered article to detail processing", async () => {
+    await crawl();
+    const args = vi.mocked(processWordpressPost).mock.calls[0];
+    expect(args[1]).toEqual(post);
+    expect(args.slice(3, 6)).toEqual(["sofia-bg", "bg.sofia", 2000]);
+  });
+
+  it("returns without a browser for an empty discovery result", async () => {
+    vi.mocked(discoverPosts).mockResolvedValue({ posts: [], errors: [] });
+    await crawl();
+    expect(mocks.launch).not.toHaveBeenCalled();
+    expect(processWordpressPost).not.toHaveBeenCalled();
+  });
+
   it("does not write duplicates discovered under different URL schemes in the same run", async () => {
     vi.mocked(discoverPosts).mockResolvedValue({ posts: [post, { ...post, url: "https://www.sofia.bg/news/content/id/123" }], errors: [] });
     await crawl();
