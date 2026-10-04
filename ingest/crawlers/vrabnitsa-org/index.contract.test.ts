@@ -1,9 +1,20 @@
-import { sourceWrapperContract } from "@/__tests__/source-wrapper-contract";
+import { describe, it } from "vitest";
+import { sourceWrapperContract } from "@/__mocks__/source-wrapper-contract";
 
-sourceWrapperContract(
-  "vrabnitsa-org",
-  "https://vrabnitsa.sofia.bg/aktualno/news",
-  "webpage",
-  () => import("./index"),
-  () => import("./extractors"),
-);
+describe("vrabnitsa-org crawl contract", () => {
+  const contract = sourceWrapperContract(
+    "vrabnitsa-org",
+    "https://vrabnitsa.sofia.bg/aktualno/news",
+    "webpage",
+    () => import("./index"),
+    () => import("./extractors"),
+  );
+
+  it("wires discovery, source identity, locality and detail processing", async () => {
+    await contract.assertWiring();
+  });
+
+  it("propagates orchestration failures to the runner", async () => {
+    await contract.assertFailurePropagation();
+  });
+});

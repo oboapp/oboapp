@@ -43,6 +43,8 @@ Known boundaries: this baseline does not assert universal failure behavior. Some
 
 Upstream-specific gaps to resolve before migrating Sofia: its current RSS crawler catches individual URL lookup failures and still attempts detail persistence, which can overwrite an existing record; it also compares historical titles exactly. This suite protects successful URL deduplication, exact legacy-title fallback, feed/query failure propagation, and detail-failure continuation, but does not endorse the unsafe lookup-error fallback. Upstream also has no empty-message completion guard in `from-sources`; that fork-only behavior is intentionally not imported by this baseline. Address these defects separately before claiming failure-safe deduplication for every source.
 
+Before considering a PR ready, check every upstream CI job, including the sponsored SonarCloud analysis, and inspect its new-code findings as well as its quality gate. A green gate does not necessarily mean there are no new issues. Keep test declarations explicit in each `.test.ts` file so static analysis can recognize them; shared mock/assertion support belongs under `__mocks__`.
+
 ## Screenshot Baselines (Required)
 
 Every crawler directory should include baseline screenshots for easier maintenance when source site design changes.
