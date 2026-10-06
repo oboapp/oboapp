@@ -8,6 +8,7 @@ import { Message, NotificationMatch, type Interest } from "@/lib/types";
 import {
   getString,
   getOptionalBoolean,
+  getOptionalString,
   isFeatureCollection,
 } from "@/lib/record-fields";
 import {
@@ -154,6 +155,7 @@ function buildNotificationMessage(
       getString(messageData.text),
     aiProcessed: getOptionalBoolean(messageData.aiProcessed) === true,
     locality: getString(messageData.locality),
+    source: getOptionalString(messageData.source),
     geoJson: isFeatureCollection(messageData.geoJson)
       ? messageData.geoJson
       : undefined,
