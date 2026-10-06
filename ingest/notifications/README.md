@@ -1,29 +1,23 @@
 # Notifications System
 
-This directory contains the notification matching and delivery system for OboApp.
+This directory matches infrastructure messages to users' areas of interest and
+sends push notifications through Firebase Cloud Messaging (FCM).
 
-## Overview
+## User Flow
 
-The notification system automatically notifies users when new messages are posted that match their areas of interest. It consists of:
+1. The user signs in and defines interest circles.
+2. The user enables notifications for the current device through the subscription
+   prompt or settings. Browser permission is required.
+3. The web client obtains an FCM token and saves the device subscription through
+   the authenticated subscription API.
+4. Scheduled notification processing sends matching messages to subscribed devices,
+   respecting source/category preferences and experimental-source opt-in.
 
-1. **Client-side permission management** - Requests notification permissions and manages FCM subscriptions
-2. **Server-side matching** - Matches messages with user interests based on geographic proximity
-3. **Push notification delivery** - Sends notifications via Firebase Cloud Messaging
-
-## How It Works
-
-### User Flow
-
-1. User logs in and adds their first interest circle, OR user logs in from a new device
-2. System automatically requests notification permission
-3. If granted, FCM token is generated and stored in Firebase
-4. User receives notifications when new messages match their interests
-
-### Notification Trigger Flow
+## Notification Trigger Flow
 
 ```mermaid
 flowchart TD
-    A[New Message Ingested] --> B[Run npx tsx notify]
+    A[New Message Ingested] --> B[Run pnpm notify in ingest]
     B --> C[Fetch up to 25 unprocessed messages]
     C --> D[Match against user interests]
     D --> E[Store matches and mark messages processed]
@@ -33,175 +27,117 @@ flowchart TD
     I --> J[Mark as Notified]
 ```
 
-## Components
-
-### Client-Side
-
-**`lib/notification-service.ts`**
-
-- Requests notification permissions
-- Manages FCM subscriptions
-- Handles foreground messages
-- Stores tokens in Firebase
-
-**`lib/hooks/useInterests.ts`**
-
-- Triggers notification permission request when circles are shown
-- Checks if subscription is valid on login
-
-**`public/firebase-messaging-sw.js`**
-
-- Service worker for background push notifications
-- Handles notification clicks
-
-### Server-Side
-
-**`lib/notifications/match-and-notify.ts`**
-
-- Main script that runs after ingestion
-- Identifies unprocessed messages
-- Matches messages with user interests using geographic intersection
-- Deduplicates matches (one notification per user per message)
-- Sends push notifications via FCM
-- Marks matches as processed
-
 Each run reads only the fields needed for matching. Expired messages in the
 oldest batch are marked processed so later runs can advance. Pending matches
 are sent in bounded batches even when there are no new messages. A backlog
 therefore drains over successive scheduled runs.
 
-**`app/api/notifications/subscription/route.ts`**
+## Components
 
-- API endpoint for managing notification subscriptions
-- GET - Check if user has subscription
-- POST - Create/update subscription
-- DELETE - Remove subscription
+Paths below are relative to the repository root.
+
+- `web/lib/notification-service.ts`: browser permission, FCM token registration,
+  subscription management, and sign-out cleanup.
+- `web/lib/hooks/useSubscribeCurrentDevice.ts`: subscription actions and status
+  refresh for the notification UI.
+- `web/scripts/firebase-messaging-sw.template.js`: background notification display
+  and click handling; generates `web/public/firebase-messaging-sw.js`.
+- `ingest/notifications/match-and-notify.ts`: orchestrates matching and delivery.
+- `ingest/notifications/notification-sender.ts`: builds payloads, sends to devices,
+  records delivery results, and removes stale subscriptions.
+- `web/app/api/notifications/subscription/route.ts`: authenticated GET, POST, and
+  DELETE operations for device subscriptions.
+
+### Source Logos
+
+The normal delivery flow preserves the stored message's `source`. The sender
+uses `${APP_URL}/sources/{source-id}.png` as `data.senderIcon`; missing, empty,
+or non-string sources fall back to `${APP_URL}/icon-192x192.png`. Source assets
+live in `web/public/sources/`.
+
+The service worker prioritizes `senderIcon` for the notification's main icon.
+The payload keeps the OboApp app icon and badge separately. This fallback handles
+missing source identifiers; it does not check whether an image URL loads.
 
 ## Database Collections
 
-### `notificationSubscriptions`
+All database access goes through `@oboapp/db`.
 
-Stores FCM tokens for push notifications.
-
-```typescript
-{
-  id: string;
-  userId: string;
-  token: string; // FCM token
-  endpoint: string;
-  createdAt: Date;
-  updatedAt: Date;
-  deviceInfo?: {
-    userAgent?: string;
-  };
-}
-```
-
-### `notificationMatches`
-
-Stores matches between messages and user interests.
-
-```typescript
-{
-  id: string;
-  userId: string;
-  messageId: string;
-  interestId: string;
-  matchedAt: Date;
-  notified: boolean;
-  notifiedAt?: Date;
-  notificationError?: string;
-  distance?: number; // meters from interest center
-}
-```
+- `notificationSubscriptions`: user/device FCM tokens, endpoint, timestamps, and
+  optional device information. See
+  [the subscription schema](../../shared/src/schema/notification-subscription.schema.ts).
+- `notificationMatches`: message/user/interest matches, notification status,
+  per-device delivery results, and message snapshots used by notification history.
+  See [notification types](../lib/types.ts) and
+  [the collection adapter](../../db/src/collections/notification-matches.ts).
 
 ## Running the Notification Script
 
-The notification script should be run after message ingestion:
+Run from `ingest/`, after ingestion:
 
 ```bash
-# Run ingestion first
 pnpm ingest
-
-# Then run notifications
 pnpm notify
-```
-
-For automated workflows, combine them:
-
-```bash
-pnpm ingest && pnpm notify
 ```
 
 ## Setup Requirements
 
-### Environment Variables
+Configure the web client's `NEXT_PUBLIC_FIREBASE_*` values, including
+`NEXT_PUBLIC_FIREBASE_VAPID_KEY`, in `web/.env.local` for local development or in
+its deployment environment. Obtain the VAPID key from Firebase Console under
+Project Settings → Cloud Messaging → Web Push certificates.
 
-Add these to your `.env.local`:
+Configure database access and Firebase Admin credentials for the ingest process.
+Set `APP_URL` to the public web origin in `ingest/.env.local` or the ingest
+runtime environment. It is required when `NODE_ENV=production`; outside production,
+the sender falls back to `http://localhost:3000`.
+
+### Service Worker Generation
+
+Edit `web/scripts/firebase-messaging-sw.template.js` for behavior changes.
+Do not edit the generated `web/public/firebase-messaging-sw.js` directly.
+
+The `predev`, `prebuild`, and `prestart` scripts run
+`web/scripts/generate-firebase-messaging-sw.mjs`, which reads the web environment
+and injects Firebase configuration. To regenerate manually from `web/`:
 
 ```bash
-# Firebase Cloud Messaging
-NEXT_PUBLIC_FIREBASE_VAPID_KEY=your_vapid_key_here
-
-# Optional: Custom app URL for notification links
-APP_URL=https://your-domain.com
+node scripts/generate-firebase-messaging-sw.mjs
 ```
 
-### Firebase Console Setup
-
-1. Go to Firebase Console → Project Settings → Cloud Messaging
-2. Generate a Web Push certificate (VAPID key)
-3. Add the VAPID key to your environment variables
-4. Enable Cloud Messaging API in Google Cloud Console
-
-### Service Worker Configuration
-
-Update `public/firebase-messaging-sw.js` with your Firebase config:
-
-```javascript
-firebase.initializeApp({
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
-});
-```
+The generator requires `NEXT_PUBLIC_FIREBASE_API_KEY`,
+`NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`,
+`NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`,
+and `NEXT_PUBLIC_FIREBASE_APP_ID`. Missing configuration produces a worker with
+background messaging disabled and a warning.
 
 ## Notification Permission States
 
-- **default** - User hasn't been asked yet → Request permission
-- **granted** - User has granted permission → Ensure subscription is valid
-- **denied** - User has denied permission → Don't ask again
+- **default**: permission has not been granted or denied; enabling notifications
+  requests browser permission.
+- **granted**: the device can register an FCM subscription.
+- **denied**: the user must change browser settings before subscribing.
 
-## Matching Algorithm
+## Matching and Deduplication
 
-Messages are matched to user interests based on geographic intersection:
+Messages are matched to interest circles using geographic intersection, with
+special handling for city-wide messages and locality boundaries. Source/category
+filters and experimental-source opt-in are applied before delivery.
 
-1. Create a circle around each user interest (using specified radius)
-2. Check if message GeoJSON features intersect with the circle
-3. Calculate distance from interest center to closest point
-4. Store match with distance for potential future filtering
-
-## Deduplication
-
-The system ensures users only receive one notification per message:
-
-- Multiple interests belonging to the same user can match the same message
-- Only the closest match (smallest distance) is kept
-- Notification is sent once per user per message
+Multiple interests can match one message. Within each pending batch, delivery
+is deduplicated by user/message, selecting the closest match. Each subscribed
+device is then sent the notification once. Related matches are marked notified.
 
 ## Error Handling
 
-- Failed notifications are logged with error message
-- Matches are still marked as "notified" to prevent retry loops
-- Expired or invalid FCM tokens should be cleaned up manually
+- Failed sends are logged and recorded in per-device delivery results.
+- FCM `messaging/registration-token-not-registered` and
+  `messaging/invalid-registration-token` errors automatically remove the stale
+  subscription.
+- Processed pending matches are marked notified even when delivery fails, avoiding
+  repeated delivery attempts. FCM acceptance does not prove display on a device.
 
 ## Future Enhancements
 
-- [ ] Auto-cleanup of expired subscriptions
-- [ ] User preferences for notification frequency
-- [ ] Digest notifications (batch multiple messages)
-- [ ] Distance-based filtering (only notify if very close)
-- [ ] Notification history UI
+- User preferences for notification frequency.
+- Digest notifications combining multiple messages.
