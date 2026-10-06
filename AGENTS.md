@@ -43,6 +43,19 @@ rather than silently ignoring them. Review available lint and Sonar findings for
 changed files, and state when Sonar results could not be accessed. A successful
 Sonar scan alone does not establish that its quality gate passed.
 
+### Commit Discipline
+
+Commit each independently deliverable change separately to maintain a clean,
+linear Git history. Separate refactoring, bug fixes, test coverage, documentation
+cleanup, and instruction changes into focused commits when each can stand on
+its own. Each commit must leave the repository coherent and pass applicable
+checks. Write regression tests before fixing bugs when useful, but stage the
+final changes so the committed history stays passing. Avoid bundling unrelated
+changes or leaving fixup commits in the final history.
+
+For example, use separate commits for "refactor function for complexity",
+"fix bug #123", and "cover function with tests" rather than one combined commit.
+
 ### Firebase Admin & Environment Variables
 
 **CRITICAL:** `dotenv` must load _before_ Firebase Admin initializes. Always use **dynamic imports** for `@/lib/firebase-admin` inside your main function:
