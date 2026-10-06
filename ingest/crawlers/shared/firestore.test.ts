@@ -3,12 +3,11 @@ import { encodeDocumentId } from "./firestore";
 
 describe("firestore utilities", () => {
   describe("encodeDocumentId", () => {
-    it("should encode URL to base64 and replace unsafe characters", () => {
+    it("should encode URL as an MD5 document ID", () => {
       const url = "https://example.com/test";
       const encoded = encodeDocumentId(url);
 
-      // Should be base64 encoded
-      expect(encoded).toBeTruthy();
+      expect(encoded).toMatch(/^[a-f0-9]{32}$/);
 
       // Should not contain unsafe characters
       expect(encoded).not.toMatch(/[/+=]/);

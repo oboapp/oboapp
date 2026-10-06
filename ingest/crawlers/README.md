@@ -11,6 +11,40 @@ Each crawler:
 3. Stores documents in Firestore with `sourceType` identifier
 4. Tracks processed URLs to avoid duplicates
 
+## Pre-refactor contract tests
+
+The baseline for [#579](https://github.com/oboapp/oboapp/issues/579) protects current behavior before the independently packaged sources migration in [#586](https://github.com/oboapp/oboapp/issues/586). Run from the repository root:
+
+```sh
+pnpm --dir shared build
+pnpm --dir db build
+pnpm --dir ingest test:run crawlers
+pnpm --dir ingest test:run messageIngest/source-handoff.test.ts
+```
+
+All source directories, including currently unselected sources, have crawl-entrypoint coverage. `shared/source-inventory.test.ts` checks the explicit inventory against the implementation directories. Add a real crawl contract suite and update that inventory when adding a source; parser tests alone are insufficient.
+
+| Suite | Contract protected |
+| --- | --- |
+| Each source's `index.contract.test.ts` (Sofia uses `index.test.ts`) | Identity/locality wiring, output or shared-helper delegation, and source-specific failure behavior |
+| `shared/persistence-contract.test.ts` | Legacy base64 and MD5 lookups, sequential idempotency, no overwrites, validation, categories, processing state |
+| `shared/orchestration-contract.test.ts` | Website/full-feed/hybrid deduplication, persistence, failure continuation and browser ownership |
+| `messageIngest/source-handoff.test.ts` | Actual website, full-feed, Toplo and NIMH crawler output through persistence and `from-sources.ingest()` |
+
+Tests use frozen time, local fixtures and mocked browser/network/storage boundaries. `__mocks__/source-contract.ts` provides a small stateful mock of the `@oboapp/db` sources repository; it is not a database emulator. Shared helper tests execute actual persistence code. Wrapper suites invoke the exported crawler and its detail callback; custom suites retain real builders/transforms. AQI calculations and parsers retain their own unit suites. No credentials, browser downloads, provider access, or emulator are needed.
+
+The handoff smoke suite stops at `messageIngest`, explicitly seeding downstream completion state for repeat-crawl checks. Actual message creation and processed-state updates are covered by `messageIngest/db/store-incoming-message.test.ts`; precomputed-geometry processing is covered by `messageIngest/index.test.ts`. The smoke suite does not claim to exercise AI or event matching.
+
+Preserve literal identifiers byte-for-byte. Do not derive expected identifiers using the production builder. Freeze only shared contract fields, not entire HTML responses or log output. Existing records remain known even when `processed=false`, provider content changes, or a package is upgraded. NIMH's structured-warning hash remains part of its identifier, so a changed warning can still produce a different identifier.
+
+During #586, keep historical lookup/no-overwrite tests in Obo and reuse identifier/content fixtures for `discoverItems`/`fetchItem`. Replace obsolete wrapper call assertions as entrypoints change. Durable queues, atomic registration, pending-reference isolation, payload limits, package releases, and registry/deployment consistency require new tests in that work. The current check-then-write helper only guarantees sequential idempotency.
+
+Known boundaries: this baseline does not assert universal failure behavior. Some sources abort on a lookup/provider failure, while shared RSS skips unreadable items. It does not certify browser cleanup on every pre-existing exceptional path (for example Toplo navigation fails before its normal close). Such behavior changes should be reviewed separately, rather than silently encoded as desired compatibility.
+
+Upstream-specific gaps to resolve before migrating Sofia: its current RSS crawler catches individual URL lookup failures and still attempts detail persistence, which can overwrite an existing record; it also compares historical titles exactly. This suite protects successful URL deduplication, exact legacy-title fallback, feed/query failure propagation, and detail-failure continuation, but does not endorse the unsafe lookup-error fallback. Upstream also has no empty-message completion guard in `from-sources`; that fork-only behavior is intentionally not imported by this baseline. Address these defects separately before claiming failure-safe deduplication for every source.
+
+Before considering a PR ready, check every upstream CI job, including the sponsored SonarCloud analysis, and inspect its new-code findings as well as its quality gate. A green gate does not necessarily mean there are no new issues. Keep test declarations explicit in each `.test.ts` file so static analysis can recognize them; shared mock/assertion support belongs under `__mocks__`.
+
 ## Screenshot Baselines (Required)
 
 Every crawler directory should include baseline screenshots for easier maintenance when source site design changes.
