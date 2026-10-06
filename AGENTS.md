@@ -33,6 +33,16 @@ pnpm test:run           # all tests must pass
 
 ## 2. Technical Standards
 
+### Clean as You Code
+
+In every session, review files you modify for existing issues and correct those
+you encounter, including stale documentation, misleading comments, dead code,
+and maintainability problems. Validate behavioral changes with appropriate tests.
+Keep cleanup reviewable; explicitly report issues requiring broader changes
+rather than silently ignoring them. Review available lint and Sonar findings for
+changed files, and state when Sonar results could not be accessed. A successful
+Sonar scan alone does not establish that its quality gate passed.
+
 ### Firebase Admin & Environment Variables
 
 **CRITICAL:** `dotenv` must load _before_ Firebase Admin initializes. Always use **dynamic imports** for `@/lib/firebase-admin` inside your main function:
