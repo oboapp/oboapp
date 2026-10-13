@@ -71,7 +71,7 @@ async function fetchSources(
   const filters: string[] = [];
 
   // Only fetch sources that have not been processed yet. Processed sources
-  // already have corresponding messages and must never be re-ingested. This
+  // have already been ingested or intentionally skipped and must not be retried. This
   // filter is what keeps per-run Firestore reads bounded — without it every run
   // re-scans the entire sources history.
   where.push({ field: "processed", op: "==", value: false });
@@ -124,7 +124,7 @@ async function fetchSources(
 
 async function ingestSource(
   source: SourceDocument,
-  _db: OboDb,
+  db: OboDb,
   dryRun: boolean,
   boundaries: GeoJSONFeatureCollection | null,
   sourceDocumentId: string,
@@ -132,6 +132,18 @@ async function ingestSource(
   if (dryRun) {
     logger.info("[dry-run] Would ingest source", { title: source.title });
     return true;
+  }
+
+  // Empty sources cannot enter the AI pipeline. Complete them so scheduled
+  // ingestion does not repeatedly select the same unusable input.
+  // Precomputed geometry sources can legitimately omit plain text.
+  if (!source.geoJson && !source.message.trim()) {
+    logger.warn("Skipping source with empty message — marking as processed", {
+      url: source.url,
+      sourceType: source.sourceType,
+    });
+    await db.sources.updateOne(sourceDocumentId, { processed: true });
+    return false;
   }
 
   const logMeta: Record<string, unknown> = {
