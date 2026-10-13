@@ -254,3 +254,34 @@ describe("DualWriteAdapter", () => {
     });
   });
 });
+
+describe("atomic increment binding", () => {
+  it.each(["firestore", "mongodb"] as const)("preserves both adapters when %s is primary", async (readSource) => {
+    function counter(name: string) {
+      return {
+        ...createMockClient(name),
+        value: 1,
+        async incrementFieldAndGet(
+          collection: string,
+          id: string,
+          field: string,
+          amount: number,
+          setFields?: Record<string, unknown>,
+        ) {
+          expect(collection).toBe("apiRateLimitsMinute");
+          expect(id).toBe("bucket");
+          expect(field).toBe("requestCount");
+          expect(setFields).toEqual({ updatedAt: "now" });
+          this.value += amount;
+          return this.value;
+        },
+      };
+    }
+    const firestore = counter("firestore");
+    const mongo = counter("mongo");
+    const adapter = new DualWriteAdapter(readSource, firestore, mongo);
+    await expect(adapter.incrementFieldAndGet("apiRateLimitsMinute", "bucket", "requestCount", 1, { updatedAt: "now" })).resolves.toBe(2);
+    expect(firestore.value).toBe(2);
+    expect(mongo.value).toBe(2);
+  });
+});
