@@ -3,6 +3,7 @@
 import dotenv from "dotenv";
 import { resolve } from "node:path";
 import type { Browser, Page } from "playwright";
+import type { OboDb } from "@oboapp/db";
 import type { PostLink } from "./types";
 import { articleTitleKey, articleUrlKey, extractPostDetails, mergePostDetails } from "./extractors";
 import { discoverPosts, discoverListingPosts, NEWS_LISTING_URL } from "./discovery";
@@ -17,6 +18,71 @@ dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 const SOURCE_TYPE = "sofia-bg";
 const LOCALITY = "bg.sofia";
 const DELAY_BETWEEN_REQUESTS = 2000; // 2 seconds
+
+async function findNewPosts(
+  posts: PostLink[],
+  db: OboDb,
+  isKnown: (post: PostLink) => boolean,
+  errors: unknown[],
+): Promise<PostLink[]> {
+  const newPosts: PostLink[] = [];
+  for (const post of posts) {
+    try {
+      if (!isKnown(post) && !(await isUrlProcessed(post.url, db))) {
+        newPosts.push(post);
+      }
+    } catch (error) {
+      logger.error("Dedup check failed, skipping post", {
+        sourceType: SOURCE_TYPE,
+        url: post.url,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      errors.push(error);
+    }
+  }
+  return newPosts;
+}
+
+async function saveNewPosts(
+  browser: Browser,
+  posts: PostLink[],
+  db: OboDb,
+  isKnown: (post: PostLink) => boolean,
+  markKnown: (post: PostLink) => void,
+): Promise<{ saved: number; skipped: number; failed: number }> {
+  const counts = { saved: 0, skipped: 0, failed: 0 };
+  for (const post of posts) {
+    if (isKnown(post)) {
+      counts.skipped++;
+      continue;
+    }
+    try {
+      const extractDetailsWithDate = async (page: Page) =>
+        mergePostDetails(await extractPostDetails(page), post);
+      await processWordpressPost(
+        browser,
+        post,
+        db,
+        SOURCE_TYPE,
+        LOCALITY,
+        DELAY_BETWEEN_REQUESTS,
+        extractDetailsWithDate,
+        (date) => date, // Listing and RSS dates are already ISO 8601.
+        "domcontentloaded", // Liferay's continuous activity prevents networkidle.
+      );
+      counts.saved++;
+      markKnown(post);
+    } catch (error) {
+      counts.failed++;
+      logger.warn("Failed to process post", {
+        sourceType: SOURCE_TYPE,
+        url: post.url,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  return counts;
+}
 
 /**
  * Main crawler function
@@ -69,25 +135,8 @@ export async function crawl(): Promise<void> {
     });
 
     // URL and title checks cover RSS /content/id/... and legacy /w/... documents.
-    const newPostLinks: PostLink[] = [];
-    for (const p of postLinks) {
-      let processed = false;
-      try {
-        processed =
-          isKnown(p) || (await isUrlProcessed(p.url, db));
-      } catch (err) {
-        logger.error("Dedup check failed, skipping post", {
-          sourceType: SOURCE_TYPE,
-          url: p.url,
-          error: err instanceof Error ? err.message : String(err),
-        });
-        errors.push(err);
-        continue;
-      }
-      if (!processed) newPostLinks.push(p);
-    }
-
-    let skipped = postLinks.length - newPostLinks.length;
+    const newPostLinks = await findNewPosts(postLinks, db, isKnown, errors);
+    const skipped = postLinks.length - newPostLinks.length;
 
     if (newPostLinks.length === 0) {
       logger.info("Crawl complete", {
@@ -102,49 +151,17 @@ export async function crawl(): Promise<void> {
     }
 
     browser ??= await launchBrowser();
-    let saved = 0,
-      failed = 0;
-
-    for (const postLink of newPostLinks) {
-      if (isKnown(postLink)) {
-        skipped++;
-        continue;
-      }
-      try {
-        // Use discovery metadata when the article has no date or title widget.
-        const extractDetailsWithDate = async (page: Page) =>
-          mergePostDetails(await extractPostDetails(page), postLink);
-
-        await processWordpressPost(
-          browser,
-          postLink,
-          db,
-          SOURCE_TYPE,
-          LOCALITY,
-          DELAY_BETWEEN_REQUESTS,
-          extractDetailsWithDate,
-          (d) => d, // listing and RSS dates are normalized to ISO 8601
-          "domcontentloaded", // Liferay pages have continuous network activity; networkidle never settles
-        );
-        saved++;
-        existingTitles.add(articleTitleKey(postLink.title));
-        existingUrls.add(articleUrlKey(postLink.url));
-      } catch (err) {
-        failed++;
-        logger.warn("Failed to process post", {
-          sourceType: SOURCE_TYPE,
-          url: postLink.url,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
+    const counts = await saveNewPosts(browser, newPostLinks, db, isKnown, (post) => {
+      existingTitles.add(articleTitleKey(post.title));
+      existingUrls.add(articleUrlKey(post.url));
+    });
 
     logger.info("Crawl complete", {
       sourceType: SOURCE_TYPE,
       total: postLinks.length,
-      saved,
-      skipped,
-      failed,
+      saved: counts.saved,
+      skipped: skipped + counts.skipped,
+      failed: counts.failed,
     });
     if (errors.length) throw new AggregateError(errors, "Sofia discovery or deduplication failed");
   } finally {
