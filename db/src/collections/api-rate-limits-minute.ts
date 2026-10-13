@@ -23,7 +23,13 @@ function getIncrementFieldAndGet(
   }
 
   return async (collection, id, field, amount, setFields) => {
-    const result = await candidate(collection, id, field, amount, setFields);
+    const result = await Reflect.apply(candidate, db, [
+      collection,
+      id,
+      field,
+      amount,
+      setFields,
+    ]);
     if (typeof result !== "number") {
       throw new TypeError("incrementFieldAndGet must return a number");
     }
