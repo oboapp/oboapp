@@ -17,6 +17,62 @@ function createMockClient(name: string): DbClient {
   };
 }
 
+describe("DualWriteAdapter conditional writes", () => {
+  it.each(["firestore", "mongodb"] as const)("uses %s as the only claim authority", async (readSource) => {
+    const firestore = createMockClient("firestore");
+    const mongo = createMockClient("mongo");
+    const primary = readSource === "firestore" ? firestore : mongo;
+    const secondary = readSource === "firestore" ? mongo : firestore;
+    primary.compareAndUpdate = vi.fn(async function (this: DbClient) {
+      expect(this).toBe(primary);
+      return true;
+    });
+    const data = { leaseToken: "new" };
+    expect(await new DualWriteAdapter(readSource, firestore, mongo).compareAndUpdate("pending", "id", "leaseToken", "old", data)).toBe(true);
+    expect(primary.compareAndUpdate).toHaveBeenCalledWith("pending", "id", "leaseToken", "old", data);
+    expect(secondary.updateOne).toHaveBeenCalledWith("pending", "id", data);
+  });
+
+  it("does not replicate a rejected claim", async () => {
+    const primary = createMockClient("primary");
+    const secondary = createMockClient("secondary");
+    primary.compareAndUpdate = vi.fn().mockResolvedValue(false);
+    expect(await new DualWriteAdapter("firestore", primary, secondary).compareAndUpdate("pending", "id", "leaseToken", "old", { leaseToken: "new" })).toBe(false);
+    expect(secondary.updateOne).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the primary cannot perform atomic conditional writes", async () => {
+    const primary = createMockClient("primary");
+    const secondary = createMockClient("secondary");
+    await expect(new DualWriteAdapter("firestore", primary, secondary).compareAndUpdate("pending", "id", "leaseToken", "old", { leaseToken: "new" })).rejects.toThrow("does not support");
+    expect(primary.findOne).not.toHaveBeenCalled();
+    expect(primary.updateOne).not.toHaveBeenCalled();
+    expect(secondary.updateOne).not.toHaveBeenCalled();
+  });
+
+  it("propagates primary errors without touching the secondary", async () => {
+    const primary = createMockClient("primary");
+    const secondary = createMockClient("secondary");
+    primary.compareAndUpdate = vi.fn().mockRejectedValue(new Error("primary offline"));
+    await expect(new DualWriteAdapter("firestore", primary, secondary).compareAndUpdate("pending", "id", "leaseToken", "old", { leaseToken: "new" })).rejects.toThrow("primary offline");
+    expect(secondary.updateOne).not.toHaveBeenCalled();
+  });
+
+  it("preserves the primary result if best-effort replication fails", async () => {
+    const primary = createMockClient("primary");
+    const secondary = createMockClient("secondary");
+    primary.compareAndUpdate = vi.fn().mockResolvedValue(true);
+    vi.mocked(secondary.updateOne).mockRejectedValue(new Error("secondary offline"));
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(await new DualWriteAdapter("firestore", primary, secondary).compareAndUpdate("pending", "id", "leaseToken", "old", { leaseToken: "new" })).toBe(true);
+      expect(log).toHaveBeenCalledWith(expect.stringContaining("Secondary compareAndUpdate failed"), "secondary offline");
+    } finally {
+      log.mockRestore();
+    }
+  });
+});
+
 describe("DualWriteAdapter", () => {
   let firestore: DbClient;
   let mongo: DbClient;

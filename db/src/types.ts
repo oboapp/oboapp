@@ -132,6 +132,20 @@ export interface DbClient {
   ): Promise<void>;
 
   /**
+   * Atomically compare a top-level string token and merge plain fields on a match.
+   * Missing documents/fields and stale tokens return false without writing.
+   * Storage errors propagate. Callers must fail closed if this capability is absent;
+   * never emulate it with a read followed by updateOne. Rotate the token on each claim.
+   */
+  compareAndUpdate?(
+    collection: string,
+    id: string,
+    tokenField: string,
+    expectedToken: string,
+    data: Record<string, unknown>,
+  ): Promise<boolean>;
+
+  /**
    * Delete a document by ID.
    */
   deleteOne(collection: string, id: string): Promise<void>;

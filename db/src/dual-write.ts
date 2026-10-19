@@ -14,6 +14,7 @@ import type {
   BatchOperation,
   UpdateOperators,
 } from "./types";
+import { validateConditionalUpdate } from "./conditional-update";
 
 async function tryIncrementFieldAndGet(
   client: DbClient,
@@ -131,6 +132,32 @@ export class DualWriteAdapter implements DbClient {
         err instanceof Error ? err.message : err,
       );
     }
+  }
+
+  async compareAndUpdate(
+    collection: string,
+    id: string,
+    tokenField: string,
+    expectedToken: string,
+    data: Record<string, unknown>,
+  ): Promise<boolean> {
+    validateConditionalUpdate(tokenField, expectedToken, data);
+    if (!this.primary.compareAndUpdate) {
+      throw new Error("Primary adapter does not support atomic conditional updates");
+    }
+    const matched = await this.primary.compareAndUpdate(
+      collection, id, tokenField, expectedToken, data,
+    );
+    if (!matched) return false;
+    try {
+      await this.secondary.updateOne(collection, id, data);
+    } catch (err) {
+      console.error(
+        `[dual-write] Secondary compareAndUpdate failed for ${collection}/${id}:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+    return true;
   }
 
   async incrementFieldAndGet(

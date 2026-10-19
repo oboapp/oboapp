@@ -16,6 +16,7 @@ import {
   transformForFirestoreWrite,
   transformFromFirestoreRead,
 } from "./firestore-transforms";
+import { validateConditionalUpdate } from "./conditional-update";
 
 type Firestore = FirebaseFirestore.Firestore;
 type Query = FirebaseFirestore.Query;
@@ -190,6 +191,26 @@ export class FirestoreAdapter implements DbClient {
       const transformed = transformForFirestoreWrite(collection, data);
       await docRef.update(transformed);
     }
+  }
+
+  async compareAndUpdate(
+    collection: string,
+    id: string,
+    tokenField: string,
+    expectedToken: string,
+    data: Record<string, unknown>,
+  ): Promise<boolean> {
+    validateConditionalUpdate(tokenField, expectedToken, data);
+    const docRef = this.db.collection(collection).doc(id);
+    const transformed = transformForFirestoreWrite(collection, data);
+    return this.db.runTransaction(async (tx) => {
+      const snapshot = await tx.get(docRef);
+      if (!snapshot.exists || snapshot.data()?.[tokenField] !== expectedToken) {
+        return false;
+      }
+      tx.update(docRef, transformed);
+      return true;
+    });
   }
 
   async incrementFieldAndGet(
