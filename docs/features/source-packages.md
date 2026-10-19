@@ -2,6 +2,20 @@
 
 Tracking: [#586](https://github.com/oboapp/oboapp/issues/586). The independently versioned SDK lives in [oboapp/sources](https://github.com/oboapp/sources). Existing crawlers remain active while additive prerequisites land; package versions do not trigger refetching historical identifiers.
 
+## Durable discovery registration
+
+`openDiscoveryCheckpoint` and `registerDiscoveryPage` in `ingest/sources/register-discovery.ts` prepare the platform side of the SDK contract. Callers supply the selected package's metadata, a supported locality, and the database obtained through `getDb()` after environment loading. No existing scheduler calls these helpers yet.
+
+Checkpoints are scoped by source ID and locality and stored in `sourceDiscovery`. Pending references live in `sourceWork`, without a `processed` field. Registration never writes incomplete documents to the raw `sources` collection, so existing ingestion cannot mistake pending work for raw content.
+
+The complete page is validated before any item is registered. Limits are 500 items and 1 MiB of prepared JSON per page, 256 KiB per discovery payload, 8 KiB per identifier, and 4 KiB per cursor/revision. Source IDs are limited to 128 UTF-8 bytes. These are rejection boundaries: identifiers and payloads are never silently truncated or normalized. Sources must return smaller pages when necessary.
+
+Each identifier is checked against both historical base64 and MD5 raw-document IDs, regardless of processing state. New references are atomically created under the existing MD5 identifier convention. Rediscovery retains original pending context; provider revisions and package changes do not overwrite it. Once all items are registered or known, a conditional update rotates the checkpoint token and advances its cursor. An omitted next cursor completes the scan and stores `null`; an empty string remains a valid opaque cursor.
+
+If a page fails partway through, its checkpoint remains unchanged. Replaying it safely skips already registered items. Concurrent callers can register the same references, but only one can advance a given checkpoint token. A caller that loses the token must reload before continuing.
+
+This slice does not fetch or activate sources. Sofia's additional legacy-title lookup must be integrated before its migration, and cutover must avoid running old/new implementations for the same source simultaneously. Database-backed concurrency checks remain required before the first pilot becomes active.
+
 ## Atomic worker claims
 
 `DbClient.compareAndUpdate(collection, id, tokenField, expectedToken, data)` atomically compares a top-level string field and merges a plain update only when it matches. It returns `false` for a missing document, absent/non-string field, or stale token. Database errors propagate. Token comparisons are case-sensitive, including on MongoDB collections with a different default collation. Updates cannot contain operators, dotted fields, `_id`, or top-level undefined values.

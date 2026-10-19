@@ -1,5 +1,7 @@
 export { MessagesRepository, MESSAGES_COLLECTION } from "./messages";
 export { SourcesRepository, SOURCES_COLLECTION } from "./sources";
+export { SourceDiscoveryRepository, SOURCE_DISCOVERY_COLLECTION, SOURCE_WORK_COLLECTION } from "./source-discovery";
+export type { DiscoveryCheckpoint, PendingSourceItem } from "./source-discovery";
 export { ApiClientsRepository, API_CLIENTS_COLLECTION } from "./api-clients";
 export {
   ApiRateLimitsMinuteRepository,
