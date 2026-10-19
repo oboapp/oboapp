@@ -60,6 +60,7 @@
     "@google/genai": "^1.33.0",
     "@oboapp/db": "workspace:*",
     "@oboapp/shared": "workspace:*",
+    "@oboapp/source-sdk": "0.1.1",
     "@react-google-maps/api": "^2.20.7",
     "@sentry/node": "^10.48.0",
     "@turf/turf": "^7.3.1",

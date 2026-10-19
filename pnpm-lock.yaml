@@ -160,6 +160,9 @@ importers:
       '@oboapp/shared':
         specifier: workspace:*
         version: link:../shared
+      '@oboapp/source-sdk':
+        specifier: 0.1.1
+        version: 0.1.1
       '@react-google-maps/api':
         specifier: ^2.20.7
         version: 2.20.8(react-dom@19.2.1(react@19.2.4))(react@19.2.4)
@@ -2378,6 +2381,10 @@ packages:
   '@npmcli/promise-spawn@3.0.0':
     resolution: {integrity: sha512-s9SgS+p3a9Eohe68cSI3fi+hpcZUmXq5P7w0kMlAsWVtR7XbK3ptkZqKT2cK1zLDObJ3sR+8P59sJE0w/KTL1g==}
     engines: {node: ^12.13.0 || ^14.15.0 || >=16.0.0}
+
+  '@oboapp/source-sdk@0.1.1':
+    resolution: {integrity: sha512-kCSJ04z+/yDvD2CikBLTGNjLAIdg/d91CuCMMHIzzwkffhXDqnPii1eM+SdlRmel54x7Eux1TTVqApVwGwWlVQ==}
+    engines: {node: '>=20'}
 
   '@open-draft/deferred-promise@2.2.0':
     resolution: {integrity: sha512-CecwLWx3rhxVQF6V4bAgPS5t+So2sTbPgAzafKkVizyi7tlwpcFpdFqq+wqF2OwNBmqFuu6tOyouTuxgpMfzmA==}
@@ -13052,6 +13059,8 @@ snapshots:
   '@npmcli/promise-spawn@3.0.0':
     dependencies:
       infer-owner: 1.0.4
+
+  '@oboapp/source-sdk@0.1.1': {}
 
   '@open-draft/deferred-promise@2.2.0': {}
 
