@@ -20,6 +20,7 @@ import type {
   BatchOperation,
   UpdateOperators,
 } from "./types";
+import { validateConditionalUpdate } from "./conditional-update";
 
 /** Error code for duplicate key in MongoDB */
 const DUPLICATE_KEY_ERROR = 11000;
@@ -239,6 +240,27 @@ export class MongoAdapter implements DbClient {
       ? buildUpdateOperatorsDocument(data)
       : { $set: data };
     await this.db.collection(collection).updateOne(filter, update);
+  }
+
+  async compareAndUpdate(
+    collection: string,
+    id: string,
+    tokenField: string,
+    expectedToken: string,
+    data: Record<string, unknown>,
+  ): Promise<boolean> {
+    validateConditionalUpdate(tokenField, expectedToken, data);
+    // Expression equality does not match an array containing the token. $literal
+    // prevents a token beginning with "$" from being interpreted as a field path.
+    const result = await this.db.collection(collection).updateOne(
+      {
+        ...idFilter(id),
+        $expr: { $eq: [`$${tokenField}`, { $literal: expectedToken }] },
+      },
+      { $set: data },
+      { collation: { locale: "simple" } },
+    );
+    return result.matchedCount === 1;
   }
 
   async incrementFieldAndGet(
