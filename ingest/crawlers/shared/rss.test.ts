@@ -105,6 +105,18 @@ describe("shared/rss", () => {
     );
   });
 
+  it("preserves the HTTP status so pagination can distinguish end-of-feed from server errors", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, { status: 404 }),
+    );
+    await expect(
+      fetchFeedXml("https://example.com/feed?paged=2"),
+    ).rejects.toMatchObject({
+      name: "RssFeedHttpError",
+      status: 404,
+    });
+  });
+
   describe("mergePostDetails", () => {
     it("overrides dateText with RSS ISO date", () => {
       const result = mergePostDetails(
