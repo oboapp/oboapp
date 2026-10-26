@@ -202,14 +202,13 @@ Before finalizing, verify:
 
 ## Phase 5: Documentation
 
-Create `README.md` in the crawler directory following the pattern from existing crawlers. Keep it concise and target QA/admin audience (not developers).
+Keep crawler documentation close to its maintained source:
 
-Include:
+- Put feed URLs, pagination rules, and non-obvious provider behavior in code comments alongside the implementation.
+- Record investigation findings, validation results, and deployment or backfill follow-up in the PR or issue.
+- Update shared documentation such as `ingest/crawlers/README.md` when shared behavior or usage changes.
 
-- Source description
-- URL pattern
-- Data structure overview
-- Any quirks or special handling
+Do not create per-crawler README files under `ingest/crawlers/{source-name}/`. These duplicate implementation details and become stale. Documentation for npm-based source packages is a separate migration concern.
 
 ## Phase 6: Front-End Integration
 

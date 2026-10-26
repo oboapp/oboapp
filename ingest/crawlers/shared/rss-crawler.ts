@@ -18,6 +18,7 @@ export interface CrawlHybridRssOptions {
   feedUrl: string;
   sourceType: string;
   extractItems: (xml: string) => RssFeedItem[];
+  discoverItems?: () => Promise<RssFeedItem[]>;
   processPost: (
     browser: Browser,
     item: RssFeedItem,
@@ -60,7 +61,7 @@ export async function crawlFullRss({
 
   const uniqueItems = deduplicate(feedItems);
 
-  logger.debug("Fetched RSS feed", {
+  logger.debug("Fetched RSS feed", {
     sourceType,
     feedUrl,
     count: uniqueItems.length,
@@ -125,6 +126,7 @@ export async function crawlHybridRss({
   feedUrl,
   sourceType,
   extractItems,
+  discoverItems,
   processPost,
 }: CrawlHybridRssOptions): Promise<void> {
   const { getDb } = await import("@/lib/db");
@@ -134,8 +136,9 @@ export async function crawlHybridRss({
 
   let feedItems: RssFeedItem[];
   try {
-    const xml = await fetchFeedXml(feedUrl);
-    feedItems = extractItems(xml);
+    feedItems = discoverItems
+      ? await discoverItems()
+      : extractItems(await fetchFeedXml(feedUrl));
   } catch (error) {
     logger.error("Failed to fetch or parse RSS feed", {
       sourceType,
@@ -206,7 +209,9 @@ export async function crawlHybridRss({
 function deduplicate(items: RssFeedItem[]): RssFeedItem[] {
   const seen = new Set<string>();
   return items.filter((item) => {
-    if (seen.has(item.url)) return false;
+    if (seen.has(item.url)) {
+      return false;
+    }
     seen.add(item.url);
     return true;
   });
@@ -239,7 +244,9 @@ export async function filterUnprocessed(
       );
       wasProcessed = true;
     }
-    if (!wasProcessed) newItems.push(item);
+    if (!wasProcessed) {
+      newItems.push(item);
+    }
   }
   return newItems;
 }
