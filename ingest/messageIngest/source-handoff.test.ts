@@ -64,6 +64,48 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe("crawler raw document to ingest contract", () => {
+  it("passes News and announcements through ingestion once per URL", async () => {
+    const newsUrl = "https://triaditza.org/repair/";
+    const announcementUrl = "https://triaditza.org/announcements/consultation/";
+    const newsItem = `<item><title>Repair</title><link>${newsUrl}</link><pubDate>Sun, 04 Oct 2026 08:00:00 GMT</pubDate><content:encoded><![CDATA[<p>Water repair</p>]]></content:encoded></item>`;
+    const announcementItem = `<item><title>Consultation</title><link>${announcementUrl}</link><pubDate>Sun, 04 Oct 2026 09:00:00 GMT</pubDate><content:encoded><![CDATA[<p>Street consultation <a href="https://triaditza.org/plan.pdf">Plan</a></p>]]></content:encoded></item>`;
+    const fetchMock = vi.fn(async (url: string) => {
+      const items = url.includes("post_type=announcements")
+        ? newsItem + announcementItem
+        : newsItem;
+      return new Response(`<rss><channel>${items}</channel></rss>`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await crawlFeed();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://triaditza.org/feed/?post_type=announcements",
+      expect.any(Object),
+    );
+    expect(store.records.size).toBe(2);
+    expect(store.records.get(encodeDocumentId(announcementUrl))).toMatchObject({
+      sourceType: "triaditsa-org",
+      datePublished: "2026-10-04T09:00:00.000Z",
+      message: "Street consultation [Plan](https://triaditza.org/plan.pdf)",
+    });
+    expect(await ingest({ sourceType: "triaditsa-org" })).toMatchObject({
+      total: 2,
+      ingested: 2,
+      failed: 0,
+    });
+    expect(messageIngest).toHaveBeenCalledWith(
+      "Street consultation [Plan](https://triaditza.org/plan.pdf)",
+      "triaditsa-org",
+      expect.objectContaining({ sourceUrl: announcementUrl }),
+    );
+    for (const url of [newsUrl, announcementUrl]) {
+      await store.sources.updateOne(encodeDocumentId(url), { processed: true });
+    }
+    await crawlFeed();
+    expect(store.client.createOne).toHaveBeenCalledTimes(2);
+    expect((await ingest()).total).toBe(0);
+  });
+
   it.each([
     { name: "website", crawl: crawlWebsite, url: "https://nadezhda.sofia.bg/news/repair", sourceType: "nadezhda-org" },
     { name: "full feed", crawl: crawlFeed, url: "https://triaditza.org/repair/", sourceType: "triaditsa-org" },
