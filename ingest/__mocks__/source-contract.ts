@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { OboDb } from "@oboapp/db";
+import type { DbClient, OboDb } from "@oboapp/db";
 import type { Browser, Page } from "playwright";
 
 /** Small stateful fake; unsupported query operators fail explicitly. */
@@ -23,7 +23,15 @@ export function createSourceStore() {
       return result.map((record) => ({ ...record }));
     }),
   };
-  return { records, sources, db: { sources } as unknown as OboDb };
+  const client = {
+    createOne: vi.fn<DbClient["createOne"]>(async (collection, data, id) => {
+      if (collection !== "sources") throw new Error(`Unsupported collection: ${collection}`);
+      if (records.has(id)) throw Object.assign(new Error("Already exists"), { code: 6 });
+      records.set(id, { ...data });
+      return id;
+    }),
+  };
+  return { records, sources, client, db: { sources, client } as unknown as OboDb };
 }
 
 export function createBrowserMock() {
