@@ -3,7 +3,6 @@ import { createBrowserMock, createSourceStore, contractDate, rawSource } from "@
 import { toploHtml, weatherWarning, pointGeometry } from "@/__mocks__/source-contract-fixtures";
 import { getDb } from "@/lib/db";
 import { launchBrowser } from "@/crawlers/shared/browser";
-import { fetchFeedXml } from "@/crawlers/shared/rss";
 import { encodeDocumentId, saveSourceDocument } from "@/crawlers/shared/firestore";
 import { crawl as crawlToplo } from "@/crawlers/toplo-bg/index";
 import { crawl as crawlNimh } from "@/crawlers/nimh-severe-weather/index";
@@ -14,7 +13,6 @@ import { ingest } from "./from-sources";
 
 vi.mock("@/lib/db", () => ({ getDb: vi.fn() }));
 vi.mock("@/crawlers/shared/browser", () => ({ launchBrowser: vi.fn() }));
-vi.mock("@/crawlers/shared/rss", async (original) => ({ ...await original<typeof import("@/crawlers/shared/rss")>(), fetchFeedXml: vi.fn() }));
 vi.mock("@/crawlers/nimh-severe-weather/parser", async (original) => ({ ...await original<typeof import("@/crawlers/nimh-severe-weather/parser")>(), parseWeatherPage: () => weatherWarning }));
 vi.mock("@/crawlers/nadezhda-org/extractors", () => ({
   extractPostLinks: async () => [{ url: "https://nadezhda.sofia.bg/news/repair", title: "Repair", date: "04.10.2026" }],
@@ -59,9 +57,11 @@ beforeEach(() => {
   browser.page.content.mockResolvedValue(toploHtml());
   vi.mocked(getDb).mockResolvedValue(store.db); vi.mocked(launchBrowser).mockResolvedValue(browser.instance);
   vi.mocked(messageIngest).mockReset().mockResolvedValue(result);
-  vi.mocked(fetchFeedXml).mockResolvedValue(`<?xml version="1.0"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><item><title>Repair</title><link>https://triaditza.org/repair/</link><pubDate>Sun, 04 Oct 2026 08:00:00 GMT</pubDate><content:encoded><![CDATA[<p>Water repair</p>]]></content:encoded></item></channel></rss>`);
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true,
+    text: async () => `<?xml version="1.0"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><item><title>Repair</title><link>https://triaditza.org/repair/</link><pubDate>Sun, 04 Oct 2026 08:00:00 GMT</pubDate><content:encoded><![CDATA[<p>Water repair</p>]]></content:encoded></item></channel></rss>`,
+  }));
 });
-afterEach(() => { vi.useRealTimers(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe("crawler raw document to ingest contract", () => {
   it.each([
@@ -91,7 +91,8 @@ describe("crawler raw document to ingest contract", () => {
     await store.sources.updateOne(encodeDocumentId(url), { processed: true });
     vi.mocked(messageIngest).mockClear();
     await crawl();
-    expect(store.sources.setOne).toHaveBeenCalledTimes(1);
+    const write = sourceType === "triaditsa-org" ? store.client.createOne : store.sources.setOne;
+    expect(write).toHaveBeenCalledTimes(1);
     expect((await ingest()).total).toBe(0);
     expect(messageIngest).not.toHaveBeenCalled();
   });

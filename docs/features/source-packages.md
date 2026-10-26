@@ -14,7 +14,13 @@ An individual lookup, fetch, validation, or save failure is logged and counted w
 
 There is no pending-work collection, persisted cursor, lease, or separate fetch service. `discoverItems` is simply the package operation that lists candidates. `fetchItem` can transform listing payload directly for full-content feeds or synthetic identifiers; it need not make another request.
 
-Existing crawlers remain active until their individual pilot cutovers. Preserve each source's output, schedule, and special legacy deduplication, including Sofia's title fallback, before switching it. Do not run legacy and packaged implementations for the same source during cutover. Package upgrades never trigger refetching old identifiers.
+Triaditsa is the first package pilot. Its existing `triaditsa-org` entrypoint delegates to `@oboapp/source-triaditsa-org` through the runner. The Cloud Run job, schedule, catalog entry, and source identity stay unchanged. Other crawlers retain their existing implementation until their individual cutovers. Preserve each source's special legacy deduplication, including Sofia's title fallback, before switching it. Package upgrades never trigger refetching old identifiers.
+
+## Trying the Triaditsa pilot
+
+With the normal ingest environment configured (`LOCALITY=bg.sofia` and database credentials), run `pnpm --dir ingest crawl --source triaditsa-org`. This is a normal ingestion-source scan: it writes new raw records and logs saved/skipped/failed totals. Existing records should be skipped on a second run. Do not run a second legacy Triaditsa job alongside it.
+
+The source package uses the same RSS Accept header as this deployment fork. Its own tests compare output against a fixture captured from the legacy parser and Markdown conversion. To roll back, revert the pilot switch commit and redeploy the previous entrypoint; no database migration or record deletion is needed.
 
 ## Existing atomic database primitive
 

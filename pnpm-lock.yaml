@@ -163,6 +163,9 @@ importers:
       '@oboapp/source-sdk':
         specifier: 0.1.1
         version: 0.1.1
+      '@oboapp/source-triaditsa-org':
+        specifier: 0.1.1
+        version: 0.1.1
       '@react-google-maps/api':
         specifier: ^2.20.7
         version: 2.20.8(react-dom@19.2.1(react@19.2.4))(react@19.2.4)
@@ -2384,6 +2387,10 @@ packages:
 
   '@oboapp/source-sdk@0.1.1':
     resolution: {integrity: sha512-kCSJ04z+/yDvD2CikBLTGNjLAIdg/d91CuCMMHIzzwkffhXDqnPii1eM+SdlRmel54x7Eux1TTVqApVwGwWlVQ==}
+    engines: {node: '>=20'}
+
+  '@oboapp/source-triaditsa-org@0.1.1':
+    resolution: {integrity: sha512-mZq+I0Xa4+Bqu1k2LrPNRUsSpbeaIkO2kRYIYm52HtL2U5vrFBR9t9i0ENRuMxSCMkRjJOst4+0vaeMuxOrtPw==}
     engines: {node: '>=20'}
 
   '@open-draft/deferred-promise@2.2.0':
@@ -13061,6 +13068,12 @@ snapshots:
       infer-owner: 1.0.4
 
   '@oboapp/source-sdk@0.1.1': {}
+
+  '@oboapp/source-triaditsa-org@0.1.1':
+    dependencies:
+      '@oboapp/source-sdk': 0.1.1
+      html-entities: 2.6.0
+      turndown: 7.2.2
 
   '@open-draft/deferred-promise@2.2.0': {}
 
