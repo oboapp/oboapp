@@ -12,8 +12,13 @@ The shared package (@oboapp/shared) is built automatically during workspace inst
 
 ```mermaid
 graph LR
-    A[Public Sources] --> B[crawl.ts]
-    B --> C[(Firestore: sources)]
+    B[crawl.ts: existing source entrypoints] --> L[Legacy crawler implementations]
+    B --> T[Triaditsa package adapter]
+    T --> R[Simple source runner]
+    R --> P[npm source: list and fetch]
+    P --> R
+    L --> C[(Raw sources via @oboapp/db)]
+    R --> C
     C --> D[ingest.ts]
     D --> E[(Firestore: messages)]
     E --> F[notify.ts]
@@ -24,9 +29,12 @@ graph LR
     style F fill:#e1f5ff
 ```
 
+During the [source-package transition](../docs/features/source-packages.md), the existing command and Cloud Run jobs run either a local crawler or a source package. Triaditsa is the first packaged source in this fork. Other sources keep their code in `crawlers/`. Both paths feed the same processing pipeline. The package supplies data. Obo's runner handles deduplication, validation, and persistence: it skips known items, checks new content, and saves valid records.
+
 ## Components
 
 - **[crawlers/](crawlers/README.md)** - Automated scrapers that fetch raw data from external sources
+- **[sources/](sources/run-source.ts)** - Simple scheduled runner for packaged sources; currently used by the Triaditsa entrypoint
 - **[messageIngest/](messageIngest/README.md)** - Processing pipeline: AI extraction → geocoding → GeoJSON conversion
 - **[geocoding/](geocoding/README.md)** - Geocoding services (Google, Overpass, Cadastre, GTFS) with persistent cache
 - **[notifications/](notifications/README.md)** - Geographic matching and push notification delivery
@@ -89,11 +97,7 @@ Dockerized for Google Cloud Run Jobs. See `Dockerfile` and `terraform/` director
 
 ## Testing Toolchain Note
 
-`ingest/` currently pins `vitest@3.2.4` (with `vite@6`) while `web/` uses Vitest 4.
-
-Reason: in this workspace/runtime, `ingest` hit an `ERR_REQUIRE_ESM` startup failure with Vitest 4 + Vite 7 when loading `vitest.config.ts`. Pinning `ingest` to the Vitest 3 toolchain restores stable test execution (`pnpm test:run`) for crawler and pipeline tests.
-
-This is a temporary compatibility pin. We should align versions again once the workspace/runtime is upgraded or the upstream compatibility issue is resolved.
+Both ingest and web use Vitest 4. Ingest runs with the ESM configuration in `vitest.config.mts`; `vitest.config.ts` re-exports it for compatibility. Use `pnpm --dir ingest test:run` for the normal crawler and pipeline suite.
 
 ## AI Prompt Evaluation
 
