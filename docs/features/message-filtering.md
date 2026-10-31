@@ -39,7 +39,12 @@ Utility companies and service providers that publish data with geographic coordi
 
 **Processing**: Source Data → Boundary Check → Store GeoJSON → Finalize
 
-**City-wide messages** (with `cityWide: true` field): Always stored with a non-null empty FeatureCollection (`{ type: "FeatureCollection", features: [] }`) so they pass geoJson null-checks in API routes. Bypass viewport filtering (always visible), use sofia.geojson boundary for notification matching.
+**City-wide messages** (`cityWide: true`): Precomputed sources such as NIMH use an
+empty FeatureCollection (`{ type: "FeatureCollection", features: [] }`). The text
+ingestion path can also finalize city-wide messages without `geoJson`. Both forms
+are included by the messages API and can appear as finalized event cards.
+City-wide messages bypass viewport geometry filtering. My zones and notification
+matching use the boundary of the message's locality to determine relevance.
 
 ### Slow Path (Text-based Sources)
 

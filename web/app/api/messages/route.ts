@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { getDb } from "@/lib/db";
 import type { InternalMessage } from "@/lib/types";
 import {
@@ -311,7 +312,9 @@ function filterMessagesByGeoAndViewport(
   viewportBounds: ViewportBounds | null,
 ): InternalMessage[] {
   let filtered = messages.filter(
-    (message) => message.geoJson !== null && message.geoJson !== undefined,
+    (message) =>
+      message.cityWide ||
+      (message.geoJson !== null && message.geoJson !== undefined),
   );
 
   if (!viewportBounds) {
@@ -319,8 +322,12 @@ function filterMessagesByGeoAndViewport(
   }
 
   filtered = filtered.filter((message) => {
-    if (message.cityWide) return true;
-    if (!message.geoJson?.features) return false;
+    if (message.cityWide) {
+      return true;
+    }
+    if (!message.geoJson?.features) {
+      return false;
+    }
 
     return message.geoJson.features.some((feature) =>
       featureIntersectsBounds(feature, viewportBounds),
@@ -339,7 +346,9 @@ function simplifyMessagesForClusterZoom(
   }
 
   return messages.map((message) => {
-    if (!message.geoJson?.features) return message;
+    if (!message.geoJson?.features) {
+      return message;
+    }
 
     const simplifiedFeatures = message.geoJson.features.map((feature) => {
       if (
@@ -347,7 +356,9 @@ function simplifyMessagesForClusterZoom(
         feature.geometry.type === "Polygon"
       ) {
         const centroid = getCentroid(feature.geometry);
-        if (!centroid) return feature;
+        if (!centroid) {
+          return feature;
+        }
 
         const simplifiedFeature: typeof feature = {
           ...feature,
@@ -412,7 +423,7 @@ export async function GET(request: Request) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid query parameters", details: parsed.error.flatten() },
+        { error: "Invalid query parameters", details: z.flattenError(parsed.error) },
         { status: 400 },
       );
     }
@@ -432,7 +443,7 @@ export async function GET(request: Request) {
     const cutoffDate = getCutoffDate(timespanEndGte);
 
     // If categories param was provided but resulted in empty array, return empty result
-    if (selectedCategories && selectedCategories.length === 0) {
+    if (selectedCategories?.length === 0) {
       return NextResponse.json({ messages: [] });
     }
 

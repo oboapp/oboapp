@@ -12,7 +12,8 @@ This document outlines the quality assurance strategy across the oboapp monorepo
 | Integration tests | Vitest (real APIs) | Manual, before merging pipeline changes |
 | Component tests | Testing Library + MSW | CI on every PR |
 | LLM prompt evaluation | promptfoo | Manual, before merging prompt changes |
-| E2E specifications | Gherkin (`.feature` files) | Reference — not yet run in CI |
+| Browser checks | Playwright with Node's test runner | Local MSW checks before UI changes are merged |
+| E2E specifications | Gherkin (`.feature` files) | Reference; not yet run in CI |
 
 ## Static Analysis
 
@@ -37,13 +38,14 @@ Circular dependency detection uses `dpdm` and runs in CI on every pull request t
 
 ## Unit Tests
 
-Unit tests live alongside source files and use Vitest. Tests are spread across the four packages (`db`, `shared`, `ingest`, `web`).
+Unit tests live alongside source files and use Vitest across the five packages (`api`, `db`, `shared`, `ingest`, `web`).
 
 ```bash
 cd web    && pnpm test:run
 cd ingest && pnpm test:run
 cd db     && pnpm test:run
 cd shared && pnpm test
+cd api    && pnpm test:run
 ```
 
 ## Integration Tests
@@ -67,9 +69,28 @@ AI prompts (filter/split, categorize, extract-locations, verify-event-match) are
 
 Run before merging any changes to prompt files or AI service schemas. See [Prompt Evaluation](prompt-evaluation.md) for details.
 
+## Browser Checks
+
+The My zones browser check uses a local app running with
+[MSW mock data](../setup/quick-start-frontend-msw.md) and a working Google Maps key.
+It checks visible event cards below saved zones, opening event details, zone
+filtering, map interaction, existing filters, and zone deletion through the user
+interface. It also checks the phone and tablet layouts, where zone badges center
+the map and the event list follows the current map area.
+
+With the local server running, execute from the repository root:
+
+```bash
+pnpm --filter oboapp-web exec node --test e2e/my-zones.e2e.mjs
+```
+
+Install Chromium with `pnpm --filter oboapp-web exec playwright install chromium`,
+or set `PLAYWRIGHT_CHANNEL=msedge` to use an installed Microsoft Edge browser.
+The test verifies mock data before changing zones and accepts only a local URL.
+
 ## E2E Specifications
 
-Gherkin feature files in `e2e/` describe expected end-to-end behavior for key API endpoints and UI flows. These are specification documents — there is no automated runner configured yet. Executing E2E tests in CI is a future goal (see [Future Plans](#future-plans)).
+Gherkin feature files in `e2e/` describe expected end-to-end behavior for key API endpoints and UI flows. They serve as specifications; their step definitions are not automated yet. Running browser tests in CI is a future goal (see [Future Plans](#future-plans)).
 
 ## CI/CD Pipeline
 

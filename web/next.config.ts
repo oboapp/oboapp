@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { join } from "node:path";
 import createMDX from "@next/mdx";
 import { withSentryConfig } from "@sentry/nextjs";
 
@@ -23,6 +24,10 @@ const nextConfig: NextConfig = {
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   transpilePackages: ["@oboapp/shared"],
   serverExternalPackages: ["lightningcss"],
+  outputFileTracingRoot: join(__dirname, ".."),
+  outputFileTracingIncludes: {
+    "/api/localities/*/boundary": ["../ingest/localities/*.geojson"],
+  },
   experimental: {
     externalDir: true,
   },

@@ -24,6 +24,7 @@ import SegmentedControl from "@/components/SegmentedControl";
 import ZoneBadges from "@/components/ZoneBadges";
 import ZoneList from "@/components/ZoneList";
 import { useInterests } from "@/lib/hooks/useInterests";
+import { useLocalityBoundaries } from "@/lib/hooks/useLocalityBoundaries";
 import { useAuth } from "@/lib/auth-context";
 import { useMessages } from "@/lib/hooks/useMessages";
 import { useMapNavigation } from "@/lib/hooks/useMapNavigation";
@@ -32,6 +33,7 @@ import { useCategoryFilter } from "@/lib/hooks/useCategoryFilter";
 import { useSourceFilter } from "@/lib/hooks/useSourceFilter";
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
 import { classifyMessage } from "@/lib/message-classification";
+import { filterEventsByZones } from "@/lib/zone-event-filter";
 import { createMessageUrl } from "@/lib/url-utils";
 import { getFeaturesBounds, getFeaturesCentroid } from "@/lib/geometry-utils";
 import { zIndex } from "@/lib/colors";
@@ -92,6 +94,9 @@ function HomeContentInner() {
   } = useInterests();
   const { user, signInWithGoogle } = useAuth();
   const isWideDesktopLayout = useMediaQuery(WIDE_DESKTOP_MEDIA_QUERY);
+  const [viewMode, setViewMode] = useState<ViewMode>("events");
+  // The view switch is available in the wide desktop layout.
+  const effectiveViewMode = user && isWideDesktopLayout ? viewMode : "events";
 
   // Message fetching and viewport management
   const {
@@ -105,28 +110,69 @@ function HomeContentInner() {
     setSelectedSources,
   } = useMessages();
 
+  const zoneLocalities = useMemo(() => {
+    if (
+      effectiveViewMode !== "zones" ||
+      !interestsLoaded ||
+      interests.length === 0
+    ) {
+      return [];
+    }
+
+    return [
+      ...new Set(
+        messages
+          .filter((message) => message.cityWide)
+          .map((message) => message.locality),
+      ),
+    ];
+  }, [effectiveViewMode, interestsLoaded, interests.length, messages]);
+  const {
+    boundaries: localityBoundaries,
+    isLoading: boundariesLoading,
+    error: boundariesError,
+  } = useLocalityBoundaries(zoneLocalities);
+
+  const scopedMessages = useMemo(() => {
+    if (effectiveViewMode !== "zones") {
+      return messages;
+    }
+
+    if (!interestsLoaded) {
+      return [];
+    }
+
+    return filterEventsByZones(messages, interests, localityBoundaries);
+  }, [effectiveViewMode, messages, interestsLoaded, interests, localityBoundaries]);
+  const isViewLoading =
+    isLoading ||
+    (effectiveViewMode === "zones" && (!interestsLoaded || boundariesLoading));
+  const viewError =
+    error ?? (effectiveViewMode === "zones" ? boundariesError : null);
+
   // Category filtering hook (manages UI state and category selection)
   const categoryFilter = useCategoryFilter(
     availableCategories,
-    messages, // Pass all messages initially - we'll filter within the hook
+    scopedMessages,
     setSelectedCategories,
   );
 
   // Source filtering hook (manages UI state and source selection)
   const sourceFilter = useSourceFilter(
-    messages,
+    scopedMessages,
     categoryFilter.showArchived,
     setSelectedSources,
   );
 
-  // Filter archived messages based on toggle state
   const filteredMessages = useMemo(() => {
     if (categoryFilter.showArchived) {
-      return messages; // Show all messages
+      return scopedMessages;
     }
-    // Filter out archived messages
-    return messages.filter((message) => classifyMessage(message) === "active");
-  }, [messages, categoryFilter.showArchived]);
+
+    return scopedMessages.filter(
+      (message) => classifyMessage(message) === "active",
+    );
+  }, [scopedMessages, categoryFilter.showArchived]);
 
   // Map navigation and centering
   const {
@@ -146,9 +192,6 @@ function HomeContentInner() {
 
   // Message hover state for map highlight
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
-  // View mode for the sidebar: "zones" (my zones) or "events" (all)
-  const [viewMode, setViewMode] = useState<ViewMode>("events");
-  const effectiveViewMode = user ? viewMode : "events";
   // Onboarding state (lifted from MapContainer for proper DOM ordering)
   const [onboardingState, setOnboardingState] =
     React.useState<OnboardingState | null>(null);
@@ -211,7 +254,7 @@ function HomeContentInner() {
 
     let canceled = false;
 
-    (async () => {
+    void (async () => {
       let shouldClearPendingKeysOnError = true;
 
       try {
@@ -477,7 +520,9 @@ function HomeContentInner() {
     }
 
     // Skip if we've already centered on this message
-    if (lastCenteredMessageIdRef.current === selectedMessage.id) return;
+    if (lastCenteredMessageIdRef.current === selectedMessage.id) {
+      return;
+    }
 
     const bounds = getFeaturesBounds(selectedMessage.geoJson);
     if (bounds) {
@@ -517,13 +562,13 @@ function HomeContentInner() {
       {/* Map and Messages Container - becomes flex-row on wide desktop */}
       <div className="flex-1 flex flex-col [@media(min-width:1280px)_and_(min-aspect-ratio:4/3)]:flex-row">
         {/* Error messages */}
-        {error && (
+        {viewError && (
           <div
             className={`bg-white border-b shadow-sm ${zIndex.fixed} [@media(min-width:1280px)_and_(min-aspect-ratio:4/3)]:absolute [@media(min-width:1280px)_and_(min-aspect-ratio:4/3)]:top-0 [@media(min-width:1280px)_and_(min-aspect-ratio:4/3)]:left-0 [@media(min-width:1280px)_and_(min-aspect-ratio:4/3)]:right-0`}
           >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
               <div className="p-4 bg-error-light text-error rounded-md">
-                {error}
+                {viewError}
               </div>
             </div>
           </div>
@@ -585,7 +630,7 @@ function HomeContentInner() {
             onGeolocationPromptChange={setGeolocationPrompt}
             onOnboardingStateChange={handleOnboardingStateChange}
           />
-          {isLoading && (
+          {isViewLoading && (
             <div
               className={`absolute top-4 left-1/2 transform -translate-x-1/2 bg-white px-4 py-2 rounded-lg shadow-md ${zIndex.nav}`}
             >
@@ -653,24 +698,32 @@ function HomeContentInner() {
               </div>
             )}
 
-            {/* Messages: always visible on mobile, conditional on desktop */}
-            <div
+            {/* Event cards follow the active view, below its zone controls. */}
+            <section
+              aria-label={
+                effectiveViewMode === "zones" ? "Събития в моите зони" : "Събития"
+              }
               className={
-                user && effectiveViewMode === "zones"
-                  ? "[@media(min-width:1280px)_and_(min-aspect-ratio:4/3)]:hidden"
+                effectiveViewMode === "zones"
+                  ? "mt-6 border-t border-neutral-border pt-6"
                   : ""
               }
             >
+              {effectiveViewMode === "zones" && (
+                <h2 className="mb-4 text-base font-semibold text-foreground">
+                  Събития в моите зони
+                </h2>
+              )}
               <MessagesGrid
                 messages={filteredMessages}
-                isLoading={isLoading}
+                isLoading={isViewLoading}
                 onMessageClick={(message) => {
                   router.push(createMessageUrl(message), { scroll: false });
                 }}
                 onMessageHover={setHoveredMessageId}
                 variant="list"
               />
-            </div>
+            </section>
           </div>
         </div>
 
