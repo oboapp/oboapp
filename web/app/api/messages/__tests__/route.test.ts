@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { InternalMessage } from "@/lib/types";
 import { GET } from "../route";
 
 // Mock data store — tests set this before each test
@@ -135,6 +136,149 @@ const createMockGeoJson = () => ({
     },
   ],
 });
+
+function createRecentMessage(
+  id: string,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  const now = new Date();
+  return {
+    _id: id,
+    text: "Current message",
+    locality: "bg.sofia",
+    source: "sofia-bg",
+    categories: ["weather"],
+    cityWide: false,
+    createdAt: now,
+    finalizedAt: now,
+    timespanEnd: now,
+    ...overrides,
+  };
+}
+
+const cityWideGeometryCases: {
+  name: string;
+  geometryFields: Record<string, unknown>;
+}[] = [
+  { name: "missing geometry", geometryFields: {} },
+  { name: "null geometry", geometryFields: { geoJson: null } },
+  {
+    name: "empty geometry",
+    geometryFields: {
+      geoJson: { type: "FeatureCollection", features: [] },
+    },
+  },
+];
+
+describe.each(cityWideGeometryCases)(
+  "GET /api/messages - City-wide messages with $name",
+  ({ geometryFields }) => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      vi.stubEnv("NEXT_PUBLIC_LOCALITY", "bg.sofia");
+      vi.stubEnv("MESSAGE_RELEVANCE_DAYS", "7");
+      mockMessagesData = [];
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("includes current city-wide messages in unfiltered results", async () => {
+      mockMessagesData = [
+        createRecentMessage("city-wide", { cityWide: true, ...geometryFields }),
+        createRecentMessage("mapped", { geoJson: createMockGeoJson() }),
+        createRecentMessage("ordinary-missing-geometry"),
+        createRecentMessage("ordinary-null-geometry", { geoJson: null }),
+        createRecentMessage("expired-city-wide", {
+          cityWide: true,
+          ...geometryFields,
+          timespanEnd: new Date(0),
+        }),
+      ];
+
+      const response = await GET(new Request("http://localhost/api/messages"));
+      const data: { messages: InternalMessage[] } = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.messages.map((message) => message.id).sort()).toEqual([
+        "city-wide",
+        "mapped",
+      ]);
+      expect(
+        data.messages.find((message) => message.id === "city-wide"),
+      ).toMatchObject({ cityWide: true, locality: "bg.sofia" });
+    });
+
+    it("keeps city-wide messages while filtering ordinary geometry by viewport", async () => {
+      const distantGeoJson = createMockGeoJson();
+      distantGeoJson.features[0].geometry.coordinates = [23.5, 42.8];
+      mockMessagesData = [
+        createRecentMessage("city-wide", { cityWide: true, ...geometryFields }),
+        createRecentMessage("city-wide-distant-geometry", {
+          cityWide: true,
+          geoJson: distantGeoJson,
+        }),
+        createRecentMessage("mapped-inside", { geoJson: createMockGeoJson() }),
+        createRecentMessage("mapped-outside", { geoJson: distantGeoJson }),
+        createRecentMessage("ordinary-missing-geometry"),
+      ];
+
+      const response = await GET(
+        new Request(
+          "http://localhost/api/messages?north=42.72&south=42.68&east=23.35&west=23.3&zoom=12",
+        ),
+      );
+      const data: { messages: InternalMessage[] } = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.messages.map((message) => message.id).sort()).toEqual([
+        "city-wide",
+        "city-wide-distant-geometry",
+        "mapped-inside",
+      ]);
+    });
+
+    it.each([
+      { query: "categories=weather", otherMatch: "other-source" },
+      { query: "sources=sofia-bg", otherMatch: "other-category" },
+      { query: "categories=weather&sources=sofia-bg", otherMatch: null },
+    ])(
+      "preserves category and source restrictions for $query",
+      async ({ query, otherMatch }) => {
+        mockMessagesData = [
+          createRecentMessage("city-wide", { cityWide: true, ...geometryFields }),
+          createRecentMessage("other-source", {
+            cityWide: true,
+            ...geometryFields,
+            source: "toplo-bg",
+          }),
+          createRecentMessage("other-category", {
+            cityWide: true,
+            ...geometryFields,
+            categories: ["heating"],
+          }),
+          createRecentMessage("mapped", { geoJson: createMockGeoJson() }),
+          createRecentMessage("ordinary-missing-geometry"),
+        ];
+
+        const response = await GET(
+          new Request(`http://localhost/api/messages?${query}`),
+        );
+        const data: { messages: InternalMessage[] } = await response.json();
+        const expectedIds = ["city-wide", "mapped"];
+        if (otherMatch) {
+          expectedIds.push(otherMatch);
+        }
+
+        expect(response.status).toBe(200);
+        expect(data.messages.map((message) => message.id).sort()).toEqual(
+          expectedIds.sort(),
+        );
+      },
+    );
+  },
+);
 
 describe("GET /api/messages - Query Parameter Validation", () => {
   beforeEach(() => {

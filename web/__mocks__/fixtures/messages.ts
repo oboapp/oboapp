@@ -306,8 +306,8 @@ export const MOCK_MESSAGES: Message[] = [
     source: "nimh-severe-weather",
     sourceUrl: "https://www.nimh.bg",
     responsibleEntity: "НИМХ",
+    // A valid citywide AI record may omit geometry and use its locality boundary.
     cityWide: true,
-    geoJson: featureCollection([]),
   },
   {
     locality: SOFIA_LOCALITY,
