@@ -7,10 +7,6 @@ import { chromium } from "playwright";
 import { expect } from "playwright/test";
 
 const baseUrl = process.env.E2E_BASE_URL || "http://localhost:3000";
-assert.ok(
-  ["localhost", "127.0.0.1", "[::1]"].includes(new URL(baseUrl).hostname),
-  "Run this smoke test against a local MSW development server.",
-);
 const browserChannel = process.env.PLAYWRIGHT_CHANNEL;
 const artifactDirectory = fileURLToPath(
   new URL("../../tmp/my-zones-e2e/", import.meta.url),
@@ -60,6 +56,10 @@ async function deleteMockZone(page, label) {
 test("My zones shows filtered cards below zones and keeps map and responsive behavior consistent", {
   timeout: 240_000,
 }, async (context) => {
+  assert.ok(
+    ["localhost", "127.0.0.1", "[::1]"].includes(new URL(baseUrl).hostname),
+    "Run this smoke test against a local MSW development server.",
+  );
   const browser = await chromium.launch({ channel: browserChannel });
   const page = await browser.newPage({
     viewport: { width: 1600, height: 1000 },
