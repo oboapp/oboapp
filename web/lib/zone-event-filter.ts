@@ -40,8 +40,8 @@ function isValidRing(ring: [number, number][]): boolean {
   }
 
   const first = ring[0];
-  const last = ring[ring.length - 1];
-  return first[0] === last[0] && first[1] === last[1];
+  const last = ring.at(-1);
+  return first[0] === last?.[0] && first[1] === last?.[1];
 }
 
 function isValidGeometry(geometry: GeoJSONGeometry): boolean {

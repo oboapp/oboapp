@@ -68,7 +68,9 @@ function combineBoundaries(
 export function useLocalityBoundaries(
   localities: readonly string[],
 ): LocalityBoundariesState {
-  const requestedLocalities = Array.from(new Set(localities)).sort();
+  const requestedLocalities = Array.from(new Set(localities)).sort((a, b) => {
+    return a.localeCompare(b);
+  });
 
   return useQueries({
     queries: requestedLocalities.map((locality) => ({
