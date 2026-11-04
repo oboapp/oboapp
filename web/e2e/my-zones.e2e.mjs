@@ -114,9 +114,9 @@ test("My zones shows filtered cards below zones and keeps map and responsive beh
     const dismissNotifications = page.getByRole("button", {
       name: "Не сега", exact: true,
     });
-    if (await dismissNotifications.isVisible()) {
-      await dismissNotifications.click();
-    }
+    await page.addLocatorHandler(dismissNotifications, async (button) => {
+      await button.click();
+    });
 
     const zonesMode = page.getByRole("radio", { name: "Моите зони" });
     const eventsMode = page.getByRole("radio", { name: "Събития" });
