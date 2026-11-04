@@ -4,7 +4,7 @@ Tracking: [#586](https://github.com/oboapp/oboapp/issues/586). Packages live in 
 
 ## Current transition state
 
-This describes the `vbuch/oboapp` pilot introduced by [PR #29](https://github.com/vbuch/oboapp/pull/29). Deploying that change switches Triaditsa to its package. Both collection paths remain in use during migration.
+Triaditsa uses its published source package, first piloted in [vbuch/oboapp PR #29](https://github.com/vbuch/oboapp/pull/29). Both collection paths remain in use during migration.
 
 | Responsibility | Legacy sources | Packaged pilot: `triaditsa-org` |
 | --- | --- | --- |
@@ -50,7 +50,7 @@ Triaditsa is the first package pilot. Its existing `triaditsa-org` entrypoint de
 
 With the normal ingest environment configured (`LOCALITY=bg.sofia` and database credentials), run `pnpm --dir ingest crawl --source triaditsa-org`. This scan writes new raw records and logs saved/skipped/failed totals. Existing records should be skipped on a second run. Use the existing Triaditsa job as the single scheduled entrypoint.
 
-The source package uses the same RSS Accept header as this deployment fork. Its own tests compare output against a fixture captured from the legacy parser and Markdown conversion. To roll back, revert the pilot switch commit and redeploy the previous entrypoint. Existing stored records remain valid.
+The source package uses the same RSS Accept header as the shared RSS fetcher. Its own tests compare output against a fixture captured from the legacy parser and Markdown conversion. To roll back, revert the pilot switch commit and redeploy the previous entrypoint. Existing stored records remain valid.
 
 Version `0.2.0` collects the News feed and `https://triaditza.org/feed/?post_type=announcements`. It deduplicates shared URLs, preserves publication dates and document links, and removes embedded styles and scripts from Markdown. Obo's handoff test covers both feeds reaching ingestion and repeat scans skipping stored items.
 
