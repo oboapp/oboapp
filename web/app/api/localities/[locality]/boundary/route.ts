@@ -5,14 +5,14 @@ import { BOUNDS } from "@oboapp/shared";
 import { z } from "zod";
 
 const positionSchema = z.tuple([
-  z.number().finite().min(-180).max(180),
-  z.number().finite().min(-90).max(90),
+  z.number().min(-180).max(180),
+  z.number().min(-90).max(90),
 ]);
 const ringSchema = z.array(positionSchema).min(4).refine((ring) => {
   const first = ring[0];
   const last = ring.at(-1);
-  return first !== undefined && last !== undefined &&
-    first[0] === last[0] && first[1] === last[1];
+  return first !== undefined &&
+    first[0] === last?.[0] && first[1] === last?.[1];
 });
 const polygonSchema = z.array(ringSchema).min(1);
 const boundarySchema = z.object({
