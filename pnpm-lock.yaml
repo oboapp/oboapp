@@ -160,6 +160,12 @@ importers:
       '@oboapp/shared':
         specifier: workspace:*
         version: link:../shared
+      '@oboapp/source-rayon-oborishte-bg':
+        specifier: 0.1.0
+        version: 0.1.0
+      '@oboapp/source-so-slatina-org':
+        specifier: 0.1.0
+        version: 0.1.0
       '@oboapp/source-sdk':
         specifier: 0.1.1
         version: 0.1.1
@@ -2384,6 +2390,14 @@ packages:
   '@npmcli/promise-spawn@3.0.0':
     resolution: {integrity: sha512-s9SgS+p3a9Eohe68cSI3fi+hpcZUmXq5P7w0kMlAsWVtR7XbK3ptkZqKT2cK1zLDObJ3sR+8P59sJE0w/KTL1g==}
     engines: {node: ^12.13.0 || ^14.15.0 || >=16.0.0}
+
+  '@oboapp/source-rayon-oborishte-bg@0.1.0':
+    resolution: {integrity: sha512-lRzFHzpD6eWU7TfPfp+6BfKU+oOn0sUESxaUSDHY+aTScgrHKA1A0kbUfBcRYD8qJXM9ricMLqfxDGHdnXs99A==}
+    engines: {node: '>=20'}
+
+  '@oboapp/source-so-slatina-org@0.1.0':
+    resolution: {integrity: sha512-b8EyGZ1LeuHNbPPwa5O+vleojMWwL7qkro+ak1XVEsiBn9nw09YsNF2QnWpRKqXAQh4MlJcHWyYSBM5RhN/duw==}
+    engines: {node: '>=20'}
 
   '@oboapp/source-sdk@0.1.1':
     resolution: {integrity: sha512-kCSJ04z+/yDvD2CikBLTGNjLAIdg/d91CuCMMHIzzwkffhXDqnPii1eM+SdlRmel54x7Eux1TTVqApVwGwWlVQ==}
@@ -13066,6 +13080,20 @@ snapshots:
   '@npmcli/promise-spawn@3.0.0':
     dependencies:
       infer-owner: 1.0.4
+
+  '@oboapp/source-rayon-oborishte-bg@0.1.0':
+    dependencies:
+      '@oboapp/source-sdk': 0.1.1
+      html-entities: 2.6.0
+      playwright: 1.61.1
+      turndown: 7.2.2
+
+  '@oboapp/source-so-slatina-org@0.1.0':
+    dependencies:
+      '@oboapp/source-sdk': 0.1.1
+      html-entities: 2.6.0
+      playwright: 1.61.1
+      turndown: 7.2.2
 
   '@oboapp/source-sdk@0.1.1': {}
 

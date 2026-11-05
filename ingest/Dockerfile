@@ -103,4 +103,7 @@ WORKDIR /app/ingest
 
 USER node
 
+# Verify each package can launch the Chromium revision installed in this image.
+RUN node dist/scripts/check-source-browsers.js
+
 CMD ["pnpm", "run", "prebuilt:crawl", "--", "--help"]

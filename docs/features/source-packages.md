@@ -4,13 +4,13 @@ Tracking: [#586](https://github.com/oboapp/oboapp/issues/586). Packages live in 
 
 ## Current transition state
 
-Triaditsa uses its published source package, first piloted in [vbuch/oboapp PR #29](https://github.com/vbuch/oboapp/pull/29). Both collection paths remain in use during migration.
+Triaditsa, Oborishte and Slatina use published source packages. Triaditsa was first piloted in [vbuch/oboapp PR #29](https://github.com/vbuch/oboapp/pull/29). Both collection paths remain in use during migration.
 
-| Responsibility | Legacy sources | Packaged pilot: `triaditsa-org` |
+| Responsibility | Legacy sources | Packaged sources |
 | --- | --- | --- |
-| Provider parsing and content conversion | `ingest/crawlers/{id}/` and local helpers | `@oboapp/source-triaditsa-org@0.2.0` in the sources repository |
+| Provider parsing and content conversion | `ingest/crawlers/{id}/` and local helpers | `@oboapp/source-triaditsa-org@0.2.0`, `@oboapp/source-rayon-oborishte-bg@0.1.0` and `@oboapp/source-so-slatina-org@0.1.0` in the sources repository |
 | Database lookup and raw persistence | Legacy crawler helpers in Obo | `ingest/sources/run-source.ts` in Obo |
-| Scheduled entrypoint | Existing `crawl --source {id}` job | Same job and command, which calls the package from `crawlers/triaditsa-org/index.ts` |
+| Scheduled entrypoint | Existing `crawl --source {id}` job | Same job and command, with an adapter in `crawlers/{id}/index.ts` |
 | Web catalog and deployment selection | Instance source assembly (`shared/src/sources.ts`) and Terraform | The same instance assembly and Terraform configuration |
 | Processing after collection | Existing raw-source ingestion, event matching, notifications | The same processing pipeline |
 
@@ -18,7 +18,7 @@ Triaditsa uses its published source package, first piloted in [vbuch/oboapp PR #
 flowchart TD
     job[Existing scheduled source job] --> entry[crawl --source ID]
     entry -->|Other sources| legacy[Legacy crawler and local helpers]
-    entry -->|Triaditsa only| adapter[Package adapter]
+    entry -->|Packaged sources| adapter[Package adapter]
     adapter --> runner[Simple Obo runner]
     runner -->|List and fetch| package[npm source package]
     package -->|Identifiers and content| runner
@@ -44,7 +44,9 @@ An individual lookup, fetch, validation, or save failure is logged and counted w
 
 `discoverItems` lists candidates. `fetchItem` returns their content; full-content feeds and synthetic-identifier sources can supply it directly from the listing payload. The runner handles both operations within the scheduled scan.
 
-Triaditsa is the first package pilot. Its existing `triaditsa-org` entrypoint delegates to `@oboapp/source-triaditsa-org` through the runner. The Cloud Run job, schedule, catalog entry, and source identity stay unchanged. Other crawlers retain their existing implementation until their individual cutovers. Preserve each source's special legacy deduplication, including Sofia's title fallback, before switching it. Package upgrades never trigger refetching old identifiers.
+Triaditsa, Oborishte and Slatina delegate from their existing entrypoints to their respective packages through the runner. Their Cloud Run jobs, schedules, catalog entries, and source identities stay unchanged. Other crawlers retain their existing implementation until their individual cutovers. Preserve each source's special legacy deduplication, including Sofia's title fallback, before switching it. Package upgrades never trigger refetching old identifiers.
+
+Oborishte and Slatina use RSS for discovery and a reused Chromium browser for article details. Their package versions use Playwright 1.61.1. The ingest image must include the matching browser revision. Their handoff tests cover historical base64 and MD5 identifiers, repeat scans and retry after a page failure.
 
 ## Trying the Triaditsa pilot
 

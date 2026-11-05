@@ -2,47 +2,23 @@
 
 import dotenv from "dotenv";
 import { resolve } from "node:path";
-import type { Browser } from "playwright";
-import type { OboDb } from "@oboapp/db";
-import type { RssFeedItem } from "../shared/rss";
-import { mergePostDetails } from "../shared/rss";
-import { crawlHybridRss } from "../shared/rss-crawler";
-import { extractFeedItems, extractPostDetails } from "./extractors";
-import { processWordpressPost } from "../shared/webpage-crawlers";
+import { createSource } from "@oboapp/source-so-slatina-org";
+import { metadata } from "@oboapp/source-so-slatina-org/metadata";
+import { runSource } from "@/sources/run-source";
 import { logger } from "@/lib/logger";
 
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 
-const FEED_URL = "https://so-slatina.org/feed/";
-const SOURCE_TYPE = "so-slatina-org";
-const LOCALITY = "bg.sofia";
-const DELAY_BETWEEN_REQUESTS = 2000;
-
-const processPost = (browser: Browser, item: RssFeedItem, db: OboDb) =>
-  processWordpressPost(
-    browser,
-    item,
-    db,
-    SOURCE_TYPE,
-    LOCALITY,
-    DELAY_BETWEEN_REQUESTS,
-    async (page) => mergePostDetails(await extractPostDetails(page), item),
-    (d) => d,
-  );
-
 export async function crawl(): Promise<void> {
-  return crawlHybridRss({
-    feedUrl: FEED_URL,
-    sourceType: SOURCE_TYPE,
-    extractItems: extractFeedItems,
-    processPost,
-  });
+  const { getDb } = await import("@/lib/db");
+  const summary = await runSource(await getDb(), metadata, createSource);
+  logger.info("Crawl complete", { sourceType: metadata.id, ...summary });
 }
 
 if (require.main === module) {
   crawl().catch((error) => {
     logger.error("Fatal error", {
-      sourceType: SOURCE_TYPE,
+      sourceType: metadata.id,
       error: error instanceof Error ? error.message : String(error),
     });
     process.exit(1);
