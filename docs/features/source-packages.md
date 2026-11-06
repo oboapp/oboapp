@@ -4,11 +4,11 @@ Tracking: [#586](https://github.com/oboapp/oboapp/issues/586). Packages live in 
 
 ## Current transition state
 
-Triaditsa, Oborishte and Slatina use published source packages. Triaditsa was first piloted in [vbuch/oboapp PR #29](https://github.com/vbuch/oboapp/pull/29). Both collection paths remain in use during migration.
+Triaditsa, Oborishte, Slatina and Toplo use published source packages. Triaditsa was first piloted in [vbuch/oboapp PR #29](https://github.com/vbuch/oboapp/pull/29). Both collection paths remain in use during migration.
 
 | Responsibility | Legacy sources | Packaged sources |
 | --- | --- | --- |
-| Provider parsing and content conversion | `ingest/crawlers/{id}/` and local helpers | `@oboapp/source-triaditsa-org@0.2.0`, `@oboapp/source-rayon-oborishte-bg@0.1.0` and `@oboapp/source-so-slatina-org@0.1.0` in the sources repository |
+| Provider parsing and content conversion | `ingest/crawlers/{id}/` and local helpers | Versioned source packages in the sources repository |
 | Database lookup and raw persistence | Legacy crawler helpers in Obo | `ingest/sources/run-source.ts` in Obo |
 | Scheduled entrypoint | Existing `crawl --source {id}` job | Same job and command, with an adapter in `crawlers/{id}/index.ts` |
 | Web catalog and deployment selection | Instance source assembly (`shared/src/sources.ts`) and Terraform | The same instance assembly and Terraform configuration |
@@ -42,11 +42,22 @@ Historical base64 and MD5 lookups remain supported. Identifiers are preserved by
 
 An individual lookup, fetch, validation, or save failure is logged and counted while other items continue. The caller receives saved/skipped/failed totals. Listing failures and repeated pagination cursors fail the run. A later scheduled scan starts listing again, skips successful items, and retries missing items that are still available. An item can be missed if it disappears before a successful fetch; this is an accepted limitation of the initial migration.
 
-`discoverItems` lists candidates. `fetchItem` returns their content; full-content feeds and synthetic-identifier sources can supply it directly from the listing payload. The runner handles both operations within the scheduled scan.
+`discoverItems` lists candidates. `fetchItem` returns their content; full-content feeds and synthetic-identifier sources can supply it directly from listing context cached in the source instance. The runner handles both operations within the scheduled scan.
 
-Triaditsa, Oborishte and Slatina delegate from their existing entrypoints to their respective packages through the runner. Their Cloud Run jobs, schedules, catalog entries, and source identities stay unchanged. Other crawlers retain their existing implementation until their individual cutovers. Preserve each source's special legacy deduplication, including Sofia's title fallback, before switching it. Package upgrades never trigger refetching old identifiers.
+Triaditsa, Oborishte, Slatina and Toplo delegate from their existing entrypoints to their respective packages through the runner. Their Cloud Run jobs, schedules, catalog entries, and source identities stay unchanged. Other crawlers retain their existing implementation until their individual cutovers. Preserve each source's special legacy deduplication, including Sofia's title fallback, before switching it. Package upgrades never trigger refetching old identifiers.
 
 Oborishte and Slatina use RSS for discovery and a reused Chromium browser for article details. Their package versions use Playwright 1.61.1. The ingest image must include the matching browser revision. Their handoff tests cover historical base64 and MD5 identifiers, repeat scans and retry after a page failure.
+## Toplo synthetic-identifier pilot
+
+Toplo uses `@oboapp/source-toplo-bg@0.1.0` through its existing `toplo-bg` entrypoint. The package reads the incident JSON embedded in the public HTML listing over HTTP and caches it in one source instance. Synthetic URLs such as `https://toplo.bg/incidents/item-1` remain raw-record identifiers; the empty `deepLinkUrl` keeps them out of public detail links. Large geometry stays in the instance cache, outside the SDK discovery payload limit.
+
+The adapter selects the runner's `legacy-toplo` validation profile to preserve the provider's title and publication-date strings, including empty titles and malformed dates. This profile is restricted to `toplo-bg`. Message, timespan, geometry and platform-field validation still apply. Invalid starts fall back to the scan time for timespans; invalid or missing ends fall back to the validated start.
+
+The exported `crawl(true)` preview validates and counts listing items without initializing the database or checking historical records. Its `saved` count means items that would be saved. Normal scans skip historical base64 and MD5 records, use create-only writes, continue after individual failures and retry missing records on a later scan. An empty listing or a scan where every item fails makes the entrypoint fail.
+
+Run `pnpm --dir ingest crawl --source toplo-bg` with the normal ingest environment. The existing `toplo` Cloud Run job, `bg.sofia` locality and emergent schedule remain in place. Roll back by reverting the Toplo integration commit and redeploying the previous image. Existing stored identifiers remain compatible.
+
+`messageIngest/packaged-toplo-handoff.test.ts` exercises the published package through raw persistence and ingestion using frozen provider fixtures. Provider parser and builder tests live in [oboapp/sources](https://github.com/oboapp/sources/tree/main/packages/source-toplo-bg). Source-package Sonar analysis and coverage are tracked in [#663](https://github.com/oboapp/oboapp/issues/663).
 
 ## Trying the Triaditsa pilot
 

@@ -169,6 +169,9 @@ importers:
       '@oboapp/source-sdk':
         specifier: 0.1.1
         version: 0.1.1
+      '@oboapp/source-toplo-bg':
+        specifier: 0.1.0
+        version: 0.1.0
       '@oboapp/source-triaditsa-org':
         specifier: 0.2.0
         version: 0.2.0
@@ -2402,6 +2405,10 @@ packages:
   '@oboapp/source-sdk@0.1.1':
     resolution: {integrity: sha512-kCSJ04z+/yDvD2CikBLTGNjLAIdg/d91CuCMMHIzzwkffhXDqnPii1eM+SdlRmel54x7Eux1TTVqApVwGwWlVQ==}
     engines: {node: '>=20'}
+
+  '@oboapp/source-toplo-bg@0.1.0':
+    resolution: {integrity: sha512-7VM6bF+uwwuntusS7Tc7f0AUIa+M/woPP5s2LW12GDgJiEpUVS6WnwXj/UNuLw8ynhLcIahxKKJjght4cXk+2A==}
+    engines: {node: '>=20.3.0'}
 
   '@oboapp/source-triaditsa-org@0.2.0':
     resolution: {integrity: sha512-QJvcIXepFx7NSgtBso+y0qcMNKSWgQmONa1hPwfi342zTRNvDrMHf9D36gtJ7sqy7h21PzkqeZOy7uqXNZddSg==}
@@ -13096,6 +13103,10 @@ snapshots:
       turndown: 7.2.2
 
   '@oboapp/source-sdk@0.1.1': {}
+
+  '@oboapp/source-toplo-bg@0.1.0':
+    dependencies:
+      '@oboapp/source-sdk': 0.1.1
 
   '@oboapp/source-triaditsa-org@0.2.0':
     dependencies:
