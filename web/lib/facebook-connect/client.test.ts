@@ -132,7 +132,7 @@ describe("Facebook connection provider", () => {
     const paging = { next: "present", cursors: { after: cursor } };
     respond(permissions, { id: "555" }, { data: [page], paging }, { data: [page], paging });
     await expect(getFacebookAuthorization(config, userToken)).rejects.toMatchObject({ code: "provider" });
-    expect(fetchMock.mock.calls.length).toBe(cursor === undefined ? 3 : 4);
+    expect(fetchMock.mock.calls).toHaveLength(cursor === undefined ? 3 : 4);
   });
 
   it("fails instead of silently truncating more than five hundred authorized Pages", async () => {

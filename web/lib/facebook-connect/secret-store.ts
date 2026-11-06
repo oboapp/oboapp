@@ -51,7 +51,7 @@ export function createFacebookSecretStore(config: Pick<FacebookConnectConfig, "s
       throw new FacebookSecretStoreError("invalid_version");
     }
     const parts = /^projects\/([A-Za-z0-9-]+)\/secrets\/([A-Za-z0-9_-]+)\/versions\/([1-9]\d*)$/.exec(value);
-    if (!parts || parts[2] !== secretId) {
+    if (parts?.[2] !== secretId) {
       throw new FacebookSecretStoreError("invalid_version");
     }
     const secret = value.slice(0, value.lastIndexOf("/versions/"));

@@ -129,29 +129,26 @@ function readPage(value: unknown): FacebookPage {
   return { id: value.id, name: value.name, tasks };
 }
 
-export async function getFacebookAuthorization(
-  config: FacebookConnectConfig,
-  userToken: string,
-): Promise<{ userId: string; pages: FacebookPage[] }> {
-  if (!token(userToken)) {
+function nextPageCursor(paging: unknown, userToken: string, cursors: Set<string>): string | undefined {
+  if (paging === undefined) {
+    return undefined;
+  }
+  if (!record(paging)) {
     throw new FacebookAuthorizationError("provider");
   }
-  const permissions = await request(graphUrl(config, "me/permissions"), userToken);
-  if (!Array.isArray(permissions.data)) {
+  if (paging.next === undefined || paging.next === "") {
+    return undefined;
+  }
+  const after = record(paging.cursors) ? paging.cursors.after : undefined;
+  if (typeof paging.next !== "string" || typeof after !== "string" || !after ||
+      after.length > 8192 || after.includes(userToken) || cursors.has(after)) {
     throw new FacebookAuthorizationError("provider");
   }
-  const granted = new Set(permissions.data.filter(record).filter((entry) => {
-    return entry.status === "granted";
-  }).map((entry) => entry.permission));
-  if (!granted.has("pages_show_list") || !granted.has("pages_read_engagement")) {
-    throw new FacebookAuthorizationError("permissions");
-  }
-  const identityUrl = graphUrl(config, "me");
-  identityUrl.searchParams.set("fields", "id");
-  const identity = await request(identityUrl, userToken);
-  if (!identifier(identity.id)) {
-    throw new FacebookAuthorizationError("provider");
-  }
+  cursors.add(after);
+  return after;
+}
+
+async function listAuthorizedPages(config: FacebookConnectConfig, userToken: string): Promise<FacebookPage[]> {
   const pages = new Map<string, FacebookPage>();
   const cursors = new Set<string>();
   let cursor: string | undefined;
@@ -175,24 +172,38 @@ export async function getFacebookAuthorization(
       const page = readPage(candidate);
       pages.set(page.id, page);
     }
-    if (result.paging === undefined) {
-      return { userId: identity.id, pages: [...pages.values()] };
+    cursor = nextPageCursor(result.paging, userToken, cursors);
+    if (cursor === undefined) {
+      return [...pages.values()];
     }
-    if (!record(result.paging)) {
-      throw new FacebookAuthorizationError("provider");
-    }
-    if (result.paging.next === undefined || result.paging.next === "") {
-      return { userId: identity.id, pages: [...pages.values()] };
-    }
-    const after = record(result.paging.cursors) ? result.paging.cursors.after : undefined;
-    if (typeof result.paging.next !== "string" || typeof after !== "string" || !after ||
-        after.length > 8192 || after.includes(userToken) || cursors.has(after)) {
-      throw new FacebookAuthorizationError("provider");
-    }
-    cursors.add(after);
-    cursor = after;
   }
   throw new FacebookAuthorizationError("too_many_pages");
+}
+
+export async function getFacebookAuthorization(
+  config: FacebookConnectConfig,
+  userToken: string,
+): Promise<{ userId: string; pages: FacebookPage[] }> {
+  if (!token(userToken)) {
+    throw new FacebookAuthorizationError("provider");
+  }
+  const permissions = await request(graphUrl(config, "me/permissions"), userToken);
+  if (!Array.isArray(permissions.data)) {
+    throw new FacebookAuthorizationError("provider");
+  }
+  const granted = new Set(permissions.data.filter(record).filter((entry) => {
+    return entry.status === "granted";
+  }).map((entry) => entry.permission));
+  if (!granted.has("pages_show_list") || !granted.has("pages_read_engagement")) {
+    throw new FacebookAuthorizationError("permissions");
+  }
+  const identityUrl = graphUrl(config, "me");
+  identityUrl.searchParams.set("fields", "id");
+  const identity = await request(identityUrl, userToken);
+  if (!identifier(identity.id)) {
+    throw new FacebookAuthorizationError("provider");
+  }
+  return { userId: identity.id, pages: await listAuthorizedPages(config, userToken) };
 }
 
 export async function getFacebookPageAccess(

@@ -93,6 +93,14 @@ async function operation<T>(perform: () => Promise<T>): Promise<T> {
   }
 }
 
+function readStartLimit(data: Record<string, unknown>, key: string, window: number) {
+  const record = parse(startLimitSchema, storedData(data));
+  if (record.key !== key || record.window !== window || record.revision !== String(record.count)) {
+    throw new FacebookConnectStoreError("invalid_record");
+  }
+  return record;
+}
+
 /** Persist connection metadata through Obo's configured database adapters. */
 export function createFacebookConnectStore(client: DbClient) {
   return {
@@ -181,10 +189,7 @@ export function createFacebookConnectStore(client: DbClient) {
               continue;
             }
           }
-          const record = parse(startLimitSchema, storedData(data));
-          if (record.key !== key || record.window !== window || record.revision !== String(record.count)) {
-            throw new FacebookConnectStoreError("invalid_record");
-          }
+          const record = readStartLimit(data, key, window);
           if (record.count >= 5) {
             return false;
           }
