@@ -320,7 +320,7 @@ test("My zones shows filtered cards below zones and keeps map and responsive beh
     await expect(page.getByRole("button", { name: "Добави зона", exact: true })).toBeEnabled();
     await expect.poll(() => mapFeatureCount(page)).toBe(0);
     await eventsMode.click();
-    await expect(waterCard).toBeVisible();
+    await expect(allEvents).toBeVisible();
     await expect(cityWideCard).toBeVisible();
     await expect.poll(() => mapFeatureCount(page)).toBeGreaterThan(0);
     assert.deepEqual(pageErrors, []);

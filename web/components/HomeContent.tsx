@@ -28,6 +28,7 @@ import { useLocalityBoundaries } from "@/lib/hooks/useLocalityBoundaries";
 import { useAuth } from "@/lib/auth-context";
 import { useMessages } from "@/lib/hooks/useMessages";
 import { useMapNavigation } from "@/lib/hooks/useMapNavigation";
+import { useZoneMapFit } from "@/lib/hooks/useZoneMapFit";
 import { useInterestManagement } from "@/lib/hooks/useInterestManagement";
 import { useCategoryFilter } from "@/lib/hooks/useCategoryFilter";
 import { useSourceFilter } from "@/lib/hooks/useSourceFilter";
@@ -447,6 +448,16 @@ function HomeContentInner() {
   // Note: We search in unfiltered 'messages' to preserve selection even when filtered out
   const messageId = searchParams.get("messageId");
 
+  useZoneMapFit({
+    active: effectiveViewMode === "zones",
+    interests,
+    interestsLoaded,
+    map: mapInstance,
+    suspended: Boolean(messageId || targetMode.active),
+    onBeforeFit: closeFilterPanelSilently,
+    userId: user?.uid,
+  });
+
   const viewportMatch = useMemo(
     () => messages.find((m) => m.id === messageId) ?? null,
     [messageId, messages],
@@ -615,6 +626,10 @@ function HomeContentInner() {
             user={user}
             targetMode={targetMode}
             initialMapCenter={initialMapCenter}
+            automaticCenterEnabled={effectiveViewMode !== "zones" && !messageId}
+            unrestrictedCamera={
+              effectiveViewMode === "zones" && interests.length > 0
+            }
             hoveredMessageId={hoveredMessageId}
             selectedMessageId={selectedMessage?.id}
             onFeatureClick={handleFeatureClick}

@@ -23,6 +23,8 @@ interface MapContainerProps {
     pendingColor?: string;
   };
   readonly initialMapCenter?: { lat: number; lng: number } | null;
+  readonly automaticCenterEnabled?: boolean;
+  readonly unrestrictedCamera?: boolean;
   readonly hoveredMessageId?: string | null;
   readonly selectedMessageId?: string | null;
   readonly onFeatureClick: (messageId: string) => void;
@@ -74,6 +76,8 @@ export default function MapContainer({
   user,
   targetMode,
   initialMapCenter,
+  automaticCenterEnabled = true,
+  unrestrictedCamera = false,
   hoveredMessageId,
   selectedMessageId,
   onFeatureClick,
@@ -142,7 +146,7 @@ export default function MapContainer({
       }
     };
 
-    checkSubscriptions();
+    void checkSubscriptions();
   }, [authUser, authLoading, interestsLoaded]);
 
   // Onboarding state machine
@@ -160,6 +164,7 @@ export default function MapContainer({
   });
 
   const [isTrackingLocation, setIsTrackingLocation] = useState(false);
+  const allowAutomaticCenter = automaticCenterEnabled && !initialMapCenter;
 
   const {
     showPrompt,
@@ -168,7 +173,7 @@ export default function MapContainer({
     requestGeolocation,
     autoCenter,
     isLocating,
-  } = useGeolocationPrompt();
+  } = useGeolocationPrompt({ automaticCenterEnabled: allowAutomaticCenter });
 
   // Handle add interest button click in idle state
   // If logged in, go directly to creation mode (skip showing AddInterestsPrompt again)
@@ -223,9 +228,8 @@ export default function MapContainer({
     setCenterMap(() => centerMapFn);
     onMapReady(centerMapFn, mapInstance);
 
-    // Auto-center on user location if permission was previously granted
-    // Only do this if there's no URL-based initial center (URL params take precedence)
-    if (!initialMapCenter) {
+    // Explicit navigation and the active view take priority over automatic location.
+    if (allowAutomaticCenter) {
       autoCenter(centerMapFn)
         .then((success) => {
           if (success) {
@@ -253,14 +257,6 @@ export default function MapContainer({
     }
   };
 
-  // Cleanup: disable location tracking when component unmounts
-  useEffect(
-    () => () => {
-      setIsTrackingLocation(false);
-    },
-    [],
-  );
-
   return (
     <div className="absolute inset-0">
       <MapComponent
@@ -272,6 +268,7 @@ export default function MapContainer({
         onInterestClick={onInterestClick}
         interestsInteractive={interestsInteractive}
         initialCenter={initialMapCenter || undefined}
+        unrestrictedCamera={unrestrictedCamera}
         shouldTrackLocation={isTrackingLocation}
         hoveredMessageId={hoveredMessageId}
         selectedMessageId={selectedMessageId}

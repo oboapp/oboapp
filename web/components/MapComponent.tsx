@@ -47,6 +47,7 @@ interface MapComponentProps {
     onCancel: () => void;
   };
   readonly initialCenter?: { lat: number; lng: number };
+  readonly unrestrictedCamera?: boolean;
   readonly shouldTrackLocation?: boolean;
   readonly hoveredMessageId?: string | null;
   readonly selectedMessageId?: string | null;
@@ -108,6 +109,7 @@ function MapLoaded({
   interestsInteractive = true,
   targetMode,
   initialCenter,
+  unrestrictedCamera = false,
   shouldTrackLocation = false,
   hoveredMessageId,
   selectedMessageId,
@@ -138,14 +140,17 @@ function MapLoaded({
       fullscreenControl: false,
       styles: mapStyles,
       clickableIcons: false, // Disable clicking on POIs (shops, hospitals, etc.)
-      restriction: {
-        latLngBounds: localityBounds,
-        strictBounds: true,
-      },
-      minZoom: 12,
+      // Saved circles may need a wider view than the usual locality camera.
+      restriction: unrestrictedCamera
+        ? null
+        : {
+            latLngBounds: localityBounds,
+            strictBounds: true,
+          },
+      minZoom: unrestrictedCamera ? 0 : 12,
       maxZoom: 18,
     }),
-    [initialCenter, localityBounds, localityCenter],
+    [initialCenter, localityBounds, localityCenter, unrestrictedCamera],
   );
 
   const centerMap = useCallback(
@@ -193,8 +198,9 @@ function MapLoaded({
         "greedy" satisfies google.maps.MapOptions["gestureHandling"],
     } as const;
 
-    // Only include the initial center until the map loads.
-    const { center, ...optionsWithoutCamera } = baseOptions;
+    // Apply the initial camera only until the map loads. Later options changes
+    // must preserve the user's center and zoom.
+    const { center, zoom, ...optionsWithoutCamera } = baseOptions;
     const optionsWithConditionalCamera = mapInstance
       ? optionsWithoutCamera
       : baseOptions;

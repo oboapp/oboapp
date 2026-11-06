@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
+import { act, render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import HomeContent from "@/components/HomeContent";
 import {
   PENDING_GUEST_UPGRADE_UID_KEY,
@@ -9,6 +9,15 @@ import type { Interest, InternalMessage, Message } from "@/lib/types";
 import type { LocalityBoundaries } from "@/lib/zone-event-filter";
 
 let isWideDesktopLayout = false;
+let mockMapInstance: google.maps.Map | null = null;
+let mockInterestsLoaded = true;
+let mockSearchParams = new URLSearchParams();
+let mockFeatureBounds: {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+} | null = null;
 let capturedMapContainerProps: Record<string, unknown> | null = null;
 let capturedZoneListProps: Record<string, unknown> | null = null;
 let capturedMessagesGridProps: Record<string, unknown> | null = null;
@@ -21,6 +30,8 @@ let mockSelectedCategories = new Set<string>();
 let mockSelectedSources = new Set<string>();
 let mockLocalityBoundaries: LocalityBoundaries = {};
 const mockHandleBoundsChanged = vi.fn();
+const mockSuppressNextViewportFetch = vi.fn();
+const mockCloseFilterPanelSilently = vi.fn();
 const mockSetSelectedCategories = vi.fn();
 const mockSetSelectedSources = vi.fn();
 let authUser: {
@@ -100,7 +111,7 @@ const selectedInterestState = {
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParams,
 }));
 
 vi.mock("@/components/MapContainer", () => ({
@@ -178,7 +189,7 @@ vi.mock("@/components/ZoneList", () => ({
 vi.mock("@/lib/hooks/useInterests", () => ({
   useInterests: () => ({
     interests: mockInterests,
-    hasInitialized: true,
+    hasInitialized: mockInterestsLoaded,
     addInterest: vi.fn(),
     updateInterest: vi.fn(),
     deleteInterest: vi.fn(),
@@ -196,7 +207,7 @@ vi.mock("@/lib/hooks/useMessages", () => ({
     isLoading: false,
     error: null,
     handleBoundsChanged: mockHandleBoundsChanged,
-    suppressNextViewportFetch: vi.fn(),
+    suppressNextViewportFetch: mockSuppressNextViewportFetch,
     setSelectedCategories: mockSetSelectedCategories,
     setSelectedSources: mockSetSelectedSources,
   }),
@@ -214,7 +225,7 @@ vi.mock("@/lib/hooks/useMapNavigation", () => ({
   useMapNavigation: () => ({
     initialMapCenter: null,
     centerMapFn: vi.fn(),
-    mapInstance: null,
+    mapInstance: mockMapInstance,
     handleMapReady: vi.fn(),
     handleAddressClick: vi.fn(),
   }),
@@ -236,6 +247,7 @@ vi.mock("@/lib/hooks/useCategoryFilter", () => ({
       isLoadingCounts: false,
       showArchived: mockShowArchived,
       togglePanel: vi.fn(),
+      closePanelSilently: mockCloseFilterPanelSilently,
       toggleCategory: vi.fn(),
       toggleShowArchived: vi.fn(),
       clearAllCategories: vi.fn(),
@@ -272,7 +284,7 @@ vi.mock("@/lib/url-utils", () => ({
 }));
 
 vi.mock("@/lib/geometry-utils", () => ({
-  getFeaturesBounds: () => null,
+  getFeaturesBounds: () => mockFeatureBounds,
   getFeaturesCentroid: () => null,
 }));
 
@@ -303,6 +315,10 @@ describe("HomeContent pivot behavior", () => {
     mockSelectedSources = new Set<string>();
     mockLocalityBoundaries = {};
     isWideDesktopLayout = false;
+    mockMapInstance = null;
+    mockInterestsLoaded = true;
+    mockSearchParams = new URLSearchParams();
+    mockFeatureBounds = null;
     authUser = null;
     vi.clearAllMocks();
     vi.unstubAllGlobals();
@@ -333,6 +349,95 @@ describe("HomeContent pivot behavior", () => {
       expect.any(Function),
     );
     expect(screen.getByTestId("interest-context-menu")).toBeInTheDocument();
+  });
+
+  it("fits after delayed zone loading and keeps normal viewport fetching", () => {
+    isWideDesktopLayout = true;
+    authUser = { uid: "user-1" };
+    mockInterestsLoaded = false;
+    const fitBounds = vi.fn();
+    mockMapInstance = { fitBounds } as unknown as google.maps.Map;
+    const { rerender } = render(<HomeContent />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Моите зони" }));
+    expect(fitBounds).not.toHaveBeenCalled();
+    expect(capturedMapContainerProps?.automaticCenterEnabled).toBe(false);
+    expect(capturedMapContainerProps?.unrestrictedCamera).toBe(true);
+
+    mockInterestsLoaded = true;
+    rerender(<HomeContent />);
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+    expect(mockCloseFilterPanelSilently).toHaveBeenCalledTimes(1);
+    expect(mockCloseFilterPanelSilently.mock.invocationCallOrder[0]).toBeLessThan(
+      fitBounds.mock.invocationCallOrder[0],
+    );
+    act(() => {
+      const onBoundsChanged = capturedMapContainerProps?.onBoundsChanged as (
+        bounds: { north: number; south: number; east: number; west: number; zoom: number },
+      ) => void;
+      onBoundsChanged({ north: 43, south: 42, east: 24, west: 23, zoom: 12 });
+    });
+    expect(mockHandleBoundsChanged).toHaveBeenCalledTimes(1);
+    expect(mockSuppressNextViewportFetch).not.toHaveBeenCalled();
+
+    mockMessages = [createMapMessage("refresh", [23.3219, 42.6977])];
+    rerender(<HomeContent />);
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Събития" }));
+    expect(capturedMapContainerProps?.automaticCenterEnabled).toBe(true);
+    expect(capturedMapContainerProps?.unrestrictedCamera).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Моите зони" }));
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+  });
+
+  it("leaves the camera usable without zones and refits after desktop re-entry", () => {
+    isWideDesktopLayout = true;
+    authUser = { uid: "user-1" };
+    mockInterests = [];
+    const fitBounds = vi.fn();
+    mockMapInstance = { fitBounds } as unknown as google.maps.Map;
+    const { rerender } = render(<HomeContent />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Моите зони" }));
+    expect(fitBounds).not.toHaveBeenCalled();
+    expect(capturedMapContainerProps?.unrestrictedCamera).toBe(false);
+
+    isWideDesktopLayout = false;
+    rerender(<HomeContent />);
+    mockInterests = initialInterests;
+    isWideDesktopLayout = true;
+    rerender(<HomeContent />);
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves explicit event navigation when entering My zones", () => {
+    isWideDesktopLayout = true;
+    authUser = { uid: "user-1" };
+    mockSearchParams = new URLSearchParams("messageId=selected");
+    mockMessages = [createMapMessage("selected", [23.3219, 42.6977])];
+    mockFeatureBounds = { north: 42.71, south: 42.69, east: 23.34, west: 23.31 };
+    const createdBounds = { event: "bounds" };
+    vi.stubGlobal("google", {
+      maps: {
+        LatLngBounds: class {
+          constructor() {
+            return createdBounds;
+          }
+        },
+      },
+    });
+    const fitBounds = vi.fn();
+    mockMapInstance = { fitBounds } as unknown as google.maps.Map;
+
+    render(<HomeContent />);
+    expect(fitBounds).toHaveBeenCalledExactlyOnceWith(createdBounds, 56);
+    expect(mockSuppressNextViewportFetch).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Моите зони" }));
+
+    expect(fitBounds).toHaveBeenCalledTimes(1);
+    expect(capturedMapContainerProps?.automaticCenterEnabled).toBe(false);
+    expect(capturedMapContainerProps?.selectedMessageId).toBe("selected");
   });
 
   it("wires move/delete callbacks into ZoneList on authenticated desktop zones view", async () => {
