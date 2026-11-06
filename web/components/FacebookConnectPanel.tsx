@@ -66,13 +66,15 @@ function ConnectionState({ view }: Readonly<{ view: FacebookConnectionView }>) {
     return (
       <div className="space-y-6">
         <CheckCircle2 className="text-success" size={36} aria-hidden="true" />
-        <div role="status" className="space-y-3">
+        <div className="space-y-3">
           <h2 className="text-2xl font-semibold">Страницата е свързана</h2>
-          <p className="break-words text-lg font-medium">{view.pageName}</p>
-          <p className="leading-7 text-neutral">
-            Следва потвърждение на пилота с екипа на Обо. Събирането на
-            публикации остава изключено.
-          </p>
+          <output className="block space-y-3">
+            <span className="block break-words text-lg font-medium">{view.pageName}</span>
+            <span className="block leading-7 text-neutral">
+              Следва потвърждение на пилота с екипа на Обо. Събирането на
+              публикации остава изключено.
+            </span>
+          </output>
         </div>
         <p className="text-sm leading-6">
           Уточни следващите стъпки с човека, който ти изпрати линка.
@@ -177,10 +179,10 @@ function ConnectionState({ view }: Readonly<{ view: FacebookConnectionView }>) {
         </p>
       </div>
       {!view.ready && (
-        <p role="status" className="flex items-center gap-2 rounded-lg bg-neutral-light p-3 text-sm text-foreground">
+        <output className="flex items-center gap-2 rounded-lg bg-neutral-light p-3 text-sm text-foreground">
           <Clock3 size={18} aria-hidden="true" />
           Очаква се готовност за свързване
-        </p>
+        </output>
       )}
       <ConnectionStartForm ready={view.ready} />
     </div>

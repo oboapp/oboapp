@@ -86,7 +86,7 @@ describe("FacebookConnectPanel", () => {
   it("confirms the Page and explains that collection awaits pilot confirmation", () => {
     render(<FacebookConnectPanel view={{ status: "connected", pageName: "Район Оборище" }} />);
 
-    expect(screen.getByRole("status")).toHaveTextContent("Страницата е свързана");
+    expect(screen.getByRole("heading", { name: "Страницата е свързана" })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Район Оборище");
     expect(screen.getByRole("status")).toHaveTextContent("Събирането на публикации остава изключено.");
     expect(screen.getByRole("link", { name: "Управлявай достъпа във Facebook" })).toHaveAttribute("href", "https://www.facebook.com/settings?tab=business_tools");
