@@ -52,8 +52,6 @@ interface MapComponentProps {
   readonly selectedMessageId?: string | null;
 }
 
-// Bounds to restrict map panning (imported from @/lib/bounds-utils)
-
 const mapContainerStyle = {
   width: "100%",
   height: "100%",
@@ -124,7 +122,6 @@ function MapLoaded({
   });
 
   const mapRef = useRef<google.maps.Map | null>(null);
-  const latestCenterRef = useRef(localityCenter);
   const [currentZoom, setCurrentZoom] = useState<number>(14);
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
   const [userLocation, setUserLocation] = useState<{
@@ -162,8 +159,6 @@ function MapLoaded({
         return;
       }
 
-      const nextCenter = { lat, lng };
-      latestCenterRef.current = nextCenter;
       const gmapsCenter = new google.maps.LatLng(lat, lng);
 
       if (options?.animate === false) {
@@ -198,40 +193,33 @@ function MapLoaded({
         "greedy" satisfies google.maps.MapOptions["gestureHandling"],
     } as const;
 
-    // Only include center if map hasn't loaded yet (mapInstance is null)
-    // This prevents re-centering when target mode changes
-    const { center, ...optionsWithoutCenter } = baseOptions;
-    const optionsWithConditionalCenter = mapInstance
-      ? optionsWithoutCenter
+    // Only include the initial center until the map loads.
+    const { center, ...optionsWithoutCamera } = baseOptions;
+    const optionsWithConditionalCamera = mapInstance
+      ? optionsWithoutCamera
       : baseOptions;
 
     if (targetMode?.active) {
       return {
-        ...optionsWithConditionalCenter,
+        ...optionsWithConditionalCamera,
         scrollwheel: true,
         disableDoubleClickZoom: false,
       };
     }
 
-    return optionsWithConditionalCenter;
+    return optionsWithConditionalCamera;
   }, [targetMode?.active, mapOptions, mapInstance]);
 
-  const handleCenterChanged = useCallback(() => {
-    if (!mapRef.current) return;
-    const center = mapRef.current.getCenter();
-    if (!center) return;
-    latestCenterRef.current = {
-      lat: roundCoordinate(center.lat()),
-      lng: roundCoordinate(center.lng()),
-    };
-  }, []);
-
   const handleBoundsChangedInternal = useCallback(() => {
-    if (!mapRef.current || !onBoundsChanged) return;
+    if (!mapRef.current || !onBoundsChanged) {
+      return;
+    }
 
     const bounds = mapRef.current.getBounds();
     const zoom = mapRef.current.getZoom();
-    if (!bounds || zoom === undefined) return;
+    if (!bounds || zoom === undefined) {
+      return;
+    }
 
     setCurrentZoom(zoom);
 
@@ -279,124 +267,128 @@ function MapLoaded({
     };
   }, [shouldTrackLocation]);
 
+  if (loadError) {
+    return (
+      <output
+        className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-light gap-3"
+      >
+        <span className="text-neutral">Картата не е достъпна</span>
+        <button
+          type="button"
+          onClick={() => {
+            globalThis.location.reload();
+          }}
+          className={getButtonClasses("ghost", "md")}
+        >
+          Опитай отново
+        </button>
+      </output>
+    );
+  }
+
+  if (!isLoaded) {
+    return <div className="absolute inset-0 bg-neutral-border animate-pulse" />;
+  }
+
   return (
     <div className="absolute inset-0">
-      {loadError ? (
-        <div
-          role="status"
-          className="w-full h-full flex flex-col items-center justify-center bg-neutral-light gap-3"
-        >
-          <p className="text-neutral">Картата не е достъпна</p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className={getButtonClasses("ghost", "md")}
-          >
-            Опитай отново
-          </button>
-        </div>
-      ) : !isLoaded ? (
-        <div className="w-full h-full bg-neutral-border animate-pulse" />
-      ) : (
-        <GoogleMap
-          mapContainerStyle={mapContainerStyle}
-          options={dynamicMapOptions}
-          onLoad={onMapLoad}
-          onCenterChanged={handleCenterChanged}
-          onBoundsChanged={handleBoundsChangedInternal}
-        >
-          {!targetMode?.active && (
-            <GeoJSONLayer
-              messages={messages}
-              onFeatureClick={onFeatureClick}
-              map={mapInstance}
-              currentZoom={currentZoom}
-              hoveredMessageId={hoveredMessageId}
-              selectedMessageId={selectedMessageId}
-            />
-          )}
+      <GoogleMap
+        mapContainerStyle={mapContainerStyle}
+        options={dynamicMapOptions}
+        onLoad={onMapLoad}
+        onBoundsChanged={handleBoundsChangedInternal}
+      >
+        {!targetMode?.active && (
+          <GeoJSONLayer
+            messages={messages}
+            onFeatureClick={onFeatureClick}
+            map={mapInstance}
+            currentZoom={currentZoom}
+            hoveredMessageId={hoveredMessageId}
+            selectedMessageId={selectedMessageId}
+          />
+        )}
 
-          {/* Render interest circles */}
-          {interests && interests.length > 0 && (
-            <InterestCircles
-              map={mapInstance}
-              interests={interests}
-              onInterestClick={onInterestClick}
-              interactive={interestsInteractive}
-              editingInterestId={targetMode?.editingInterestId}
-              hideAll={targetMode?.active ?? false}
-            />
-          )}
+        {/* Render interest circles */}
+        {interests && interests.length > 0 && (
+          <InterestCircles
+            map={mapInstance}
+            interests={interests}
+            onInterestClick={onInterestClick}
+            interactive={interestsInteractive}
+            editingInterestId={targetMode?.editingInterestId}
+            hideAll={targetMode?.active ?? false}
+          />
+        )}
 
-          {/* Render target mode overlay when active */}
-          {targetMode?.active && (
-            <InterestTargetMode
-              map={mapInstance}
-              initialRadius={targetMode.initialRadius}
-              pendingColor={targetMode.pendingColor}
-              isEditing={!!targetMode.editingInterestId}
-              onSave={targetMode.onSave}
-              onCancel={targetMode.onCancel}
-            />
-          )}
+        {/* Render target mode overlay when active */}
+        {targetMode?.active && (
+          <InterestTargetMode
+            map={mapInstance}
+            initialRadius={targetMode.initialRadius}
+            pendingColor={targetMode.pendingColor}
+            isEditing={!!targetMode.editingInterestId}
+            onSave={targetMode.onSave}
+            onCancel={targetMode.onCancel}
+          />
+        )}
 
-          {/* User location blue dot */}
-          {userLocation &&
-            !targetMode?.active &&
-            (() => {
-              // Scale radius based on zoom level to remain visible at all zooms
-              // At zoom 18 (max): 8m, at zoom 12 (min): 50m - linear scale
-              const minZoom = 12;
-              const maxZoom = 18;
-              const minRadius = 50;
-              const maxRadius = 8;
-              const zoomRange = maxZoom - minZoom;
-              const radiusRange = minRadius - maxRadius;
-              // Clamp currentZoom to minZoom-maxZoom range to ensure radius stays within bounds
-              const clampedZoom = Math.max(
-                minZoom,
-                Math.min(maxZoom, currentZoom),
-              );
-              const baseRadius =
-                minRadius - ((clampedZoom - minZoom) / zoomRange) * radiusRange;
-              const outerRadius = baseRadius * 2;
-              const innerRadius = baseRadius * 0.4;
+        {/* User location blue dot */}
+        {userLocation &&
+          !targetMode?.active &&
+          (() => {
+            // Scale radius based on zoom level to remain visible at all zooms
+            // At zoom 18 (max): 8m, at zoom 12 (min): 50m - linear scale
+            const minZoom = 12;
+            const maxZoom = 18;
+            const minRadius = 50;
+            const maxRadius = 8;
+            const zoomRange = maxZoom - minZoom;
+            const radiusRange = minRadius - maxRadius;
+            // Clamp currentZoom to minZoom-maxZoom range to ensure radius stays within bounds
+            const clampedZoom = Math.max(
+              minZoom,
+              Math.min(maxZoom, currentZoom),
+            );
+            const baseRadius =
+              minRadius - ((clampedZoom - minZoom) / zoomRange) * radiusRange;
+            const outerRadius = baseRadius * 2;
+            const innerRadius = baseRadius * 0.4;
 
-              return (
-                <>
-                  {/* Outer pulse circle */}
-                  <Circle
-                    center={userLocation}
-                    radius={outerRadius}
-                    options={{
-                      fillColor: "#4285F4",
-                      fillOpacity: 0.2,
-                      strokeColor: "#4285F4",
-                      strokeOpacity: 0.4,
-                      strokeWeight: 1,
-                      clickable: false,
-                      zIndex: 1000,
-                    }}
-                  />
-                  {/* Inner solid circle */}
-                  <Circle
-                    center={userLocation}
-                    radius={innerRadius}
-                    options={{
-                      fillColor: "#4285F4",
-                      fillOpacity: 1,
-                      strokeColor: "#FFFFFF",
-                      strokeOpacity: 1,
-                      strokeWeight: 2,
-                      clickable: false,
-                      zIndex: 1001,
-                    }}
-                  />
-                </>
-              );
-            })()}
-        </GoogleMap>
-      )}
+            return (
+              <>
+                {/* Outer pulse circle */}
+                <Circle
+                  center={userLocation}
+                  radius={outerRadius}
+                  options={{
+                    fillColor: "#4285F4",
+                    fillOpacity: 0.2,
+                    strokeColor: "#4285F4",
+                    strokeOpacity: 0.4,
+                    strokeWeight: 1,
+                    clickable: false,
+                    zIndex: 1000,
+                  }}
+                />
+                {/* Inner solid circle */}
+                <Circle
+                  center={userLocation}
+                  radius={innerRadius}
+                  options={{
+                    fillColor: "#4285F4",
+                    fillOpacity: 1,
+                    strokeColor: "#FFFFFF",
+                    strokeOpacity: 1,
+                    strokeWeight: 2,
+                    clickable: false,
+                    zIndex: 1001,
+                  }}
+                />
+              </>
+            );
+          })()}
+      </GoogleMap>
     </div>
   );
 }
