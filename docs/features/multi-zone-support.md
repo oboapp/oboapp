@@ -30,6 +30,16 @@ zone updates the matches. Zones remain visible when there are no matching events
 users with no saved zones see the add-zone prompt. If locality boundaries cannot
 load, a message explains that some events may be missing.
 
+Entering **Моите зони** fits the map to every saved zone's full circle, including
+its radius, with a margin inside the map area. The fit waits until the map and
+zones are ready and works even when no events match. It closes the filter panel
+to keep the circles visible. The selected filters continue to apply. This view
+allows a wider camera range so distant zones can fit together. Panning, zooming, zone edits,
+and background refreshes then preserve the camera. Re-entering the tab fits
+the current zones again. With no zones, the camera stays where it is. Explicit
+event links and zone placement keep their own camera behavior, and late automatic
+geolocation results do not replace the zone view.
+
 Switching to **Събития** restores the usual event view. Mobile and narrower
 layouts use the Events view, including when resizing from the wide desktop layout.
 They show zone badges above the event cards. Tapping a badge centers the map on
