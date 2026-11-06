@@ -1,40 +1,79 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Interest } from "@/lib/types";
+import { useState, useEffect, useCallback, useRef } from "react";
+import type { Interest } from "@/lib/types";
 import { useAuth } from "@/lib/auth-context";
 import { trackEvent } from "@/lib/analytics";
 import { fetchWithAuth } from "@/lib/auth-fetch";
 
 const OFFLINE_ERROR = "Няма интернет връзка. Свържи се с интернет и опитай отново.";
+const EMPTY_INTERESTS: Interest[] = [];
+
+interface InterestsState {
+  userId: string | null | undefined;
+  interests: Interest[];
+  isLoading: boolean;
+  hasInitialized: boolean;
+  error: string | null;
+}
+
+function getInterestLoadError(error: unknown): string {
+  if (!navigator.onLine) {
+    return OFFLINE_ERROR;
+  }
+
+  return error instanceof Error ? error.message : "Failed to load interests";
+}
 
 export function useInterests() {
   const { user, loading: authLoading } = useAuth();
-  const [interests, setInterests] = useState<Interest[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasInitialized, setHasInitialized] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const userId = user?.uid ?? null;
+  const [state, setState] = useState<InterestsState>({
+    userId: undefined,
+    interests: [],
+    isLoading: false,
+    hasInitialized: false,
+    error: null,
+  });
+  const latestRequest = useRef(0);
 
   // Fetch interests for the current user
   // Wait for auth to settle before initializing to avoid flash
   const fetchInterests = useCallback(async () => {
+    const request = ++latestRequest.current;
+
     // Don't initialize until auth state is determined
     if (authLoading) {
       return;
     }
 
     if (!user) {
-      setInterests([]);
-      setIsLoading(false);
-      setHasInitialized(true);
+      setState({
+        userId: null,
+        interests: [],
+        isLoading: false,
+        hasInitialized: true,
+        error: null,
+      });
       return;
     }
 
     try {
-      setIsLoading(true);
-      setError(null);
+      setState((previous) => {
+        const sameUser = previous.userId === user.uid;
+        return {
+          userId: user.uid,
+          interests: sameUser ? previous.interests : [],
+          hasInitialized: sameUser && previous.hasInitialized,
+          isLoading: true,
+          error: null,
+        };
+      });
 
       const response = await fetchWithAuth(user, "/api/interests");
+      if (request !== latestRequest.current) {
+        return;
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -47,7 +86,13 @@ export function useInterests() {
       }
 
       const data = await response.json();
-      const fetchedInterests = data.interests || [];
+      if (request !== latestRequest.current) {
+        return;
+      }
+
+      const fetchedInterests: Interest[] = Array.isArray(data.interests)
+        ? data.interests
+        : [];
 
       // Check for duplicates from API
       const ids = fetchedInterests.map((i: Interest) => i.id);
@@ -73,20 +118,24 @@ export function useInterests() {
         );
       }
 
-      setInterests(deduped);
+      setState((previous) => {
+        return { ...previous, interests: deduped };
+      });
     } catch (err) {
-      console.error("Error fetching interests:", err);
-      // Check if offline
-      if (!navigator.onLine) {
-        setError(OFFLINE_ERROR);
-      } else {
-        setError(
-          err instanceof Error ? err.message : "Failed to load interests",
-        );
+      if (request !== latestRequest.current) {
+        return;
       }
+
+      console.error("Error fetching interests:", err);
+      setState((previous) => {
+        return { ...previous, error: getInterestLoadError(err) };
+      });
     } finally {
-      setIsLoading(false);
-      setHasInitialized(true);
+      if (request === latestRequest.current) {
+        setState((previous) => {
+          return { ...previous, isLoading: false, hasInitialized: true };
+        });
+      }
     }
   }, [user, authLoading]);
 
@@ -123,12 +172,19 @@ export function useInterests() {
         const data = await response.json();
 
         // Check if this interest already exists in the array (prevent duplicates)
-        setInterests((prev) => {
-          const exists = prev.some((i) => i.id === data.interest.id);
-          if (exists) {
-            return prev;
+        setState((previous) => {
+          if (previous.userId !== user.uid) {
+            return previous;
           }
-          return [data.interest, ...prev];
+
+          const exists = previous.interests.some((interest) => {
+            return interest.id === data.interest.id;
+          });
+          if (exists) {
+            return previous;
+          }
+
+          return { ...previous, interests: [data.interest, ...previous.interests] };
         });
 
         if (user.isAnonymous) {
@@ -177,11 +233,18 @@ export function useInterests() {
         }
 
         const data = await response.json();
-        setInterests((prev) =>
-          prev.map((interest) =>
-            interest.id === id ? data.interest : interest,
-          ),
-        );
+        setState((previous) => {
+          if (previous.userId !== user.uid) {
+            return previous;
+          }
+
+          return {
+            ...previous,
+            interests: previous.interests.map((interest) => {
+              return interest.id === id ? data.interest : interest;
+            }),
+          };
+        });
         return data.interest;
       } catch (err) {
         console.error("Error updating interest:", err);
@@ -217,7 +280,18 @@ export function useInterests() {
           );
         }
 
-        setInterests((prev) => prev.filter((interest) => interest.id !== id));
+        setState((previous) => {
+          if (previous.userId !== user.uid) {
+            return previous;
+          }
+
+          return {
+            ...previous,
+            interests: previous.interests.filter((interest) => {
+              return interest.id !== id;
+            }),
+          };
+        });
       } catch (err) {
         console.error("Error deleting interest:", err);
         // Provide helpful error message for offline state
@@ -232,14 +306,19 @@ export function useInterests() {
 
   // Fetch interests when user logs in
   useEffect(() => {
-    fetchInterests();
+    void fetchInterests();
+    return () => {
+      latestRequest.current += 1;
+    };
   }, [fetchInterests]);
 
+  const isCurrentUser = !authLoading && state.userId === userId;
+
   return {
-    interests,
-    isLoading,
-    hasInitialized,
-    error,
+    interests: isCurrentUser ? state.interests : EMPTY_INTERESTS,
+    isLoading: authLoading || !isCurrentUser || state.isLoading,
+    hasInitialized: isCurrentUser && state.hasInitialized,
+    error: isCurrentUser ? state.error : null,
     addInterest,
     updateInterest,
     deleteInterest,
