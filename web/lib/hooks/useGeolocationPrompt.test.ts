@@ -42,6 +42,7 @@ Object.defineProperty(window, "localStorage", {
 describe("useGeolocationPrompt", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetCurrentPosition.mockReset();
     localStorageMock.getItem.mockReturnValue(null);
   });
 
@@ -169,6 +170,180 @@ describe("useGeolocationPrompt", () => {
 
     expect(mockCenterMap).not.toHaveBeenCalled();
     expect(result.current.showPrompt).toBe(false);
+  });
+
+  it("does not request automatic location when automatic centering is disabled", async () => {
+    localStorageMock.getItem.mockReturnValue("true");
+    const { result } = renderHook(() =>
+      useGeolocationPrompt({ automaticCenterEnabled: false }),
+    );
+    const centerMap = vi.fn();
+
+    await act(async () => {
+      expect(await result.current.autoCenter(centerMap)).toBe(false);
+    });
+
+    expect(mockGetCurrentPosition).not.toHaveBeenCalled();
+    expect(centerMap).not.toHaveBeenCalled();
+    expect(result.current.isLocating).toBe(false);
+  });
+
+  it("ignores an automatic location result after centering is disabled and reenabled", async () => {
+    localStorageMock.getItem.mockReturnValue("true");
+    let resolvePosition: PositionCallback | undefined;
+    mockGetCurrentPosition.mockImplementation((success: PositionCallback) => {
+      resolvePosition = success;
+    });
+    const { result, rerender } = renderHook(
+      ({ enabled }) =>
+        useGeolocationPrompt({ automaticCenterEnabled: enabled }),
+      { initialProps: { enabled: true } },
+    );
+    const centerMap = vi.fn();
+    let pendingCenter: Promise<boolean> | undefined;
+
+    act(() => {
+      pendingCenter = result.current.autoCenter(centerMap);
+    });
+    expect(result.current.isLocating).toBe(true);
+
+    rerender({ enabled: false });
+    rerender({ enabled: true });
+
+    await act(async () => {
+      resolvePosition?.({
+        coords: { latitude: 42.6977, longitude: 23.3219 },
+      } as GeolocationPosition);
+      expect(await pendingCenter).toBe(false);
+    });
+
+    expect(centerMap).not.toHaveBeenCalled();
+    expect(result.current.isLocating).toBe(false);
+  });
+
+  it("allows explicit location while automatic centering is disabled", async () => {
+    localStorageMock.getItem.mockReturnValue("true");
+    mockGetCurrentPosition.mockImplementation((success: PositionCallback) => {
+      success({
+        coords: { latitude: 42.6977, longitude: 23.3219 },
+      } as GeolocationPosition);
+    });
+    const { result } = renderHook(() =>
+      useGeolocationPrompt({ automaticCenterEnabled: false }),
+    );
+    const centerMap = vi.fn();
+
+    await act(async () => {
+      await result.current.requestGeolocation(centerMap);
+    });
+
+    expect(centerMap).toHaveBeenCalledWith(42.6977, 23.3219, 17, {
+      animate: true,
+    });
+  });
+
+  it.each([true, false])(
+    "ignores a late explicit location after changing views with cached permission %s",
+    async (hasCachedPermission) => {
+      localStorageMock.getItem.mockReturnValue(
+        hasCachedPermission ? "true" : "false",
+      );
+      let resolvePosition: PositionCallback | undefined;
+      mockGetCurrentPosition.mockImplementation((success: PositionCallback) => {
+        resolvePosition = success;
+      });
+      const { result, rerender } = renderHook(
+        ({ enabled }) =>
+          useGeolocationPrompt({ automaticCenterEnabled: enabled }),
+        { initialProps: { enabled: true } },
+      );
+      const centerMap = vi.fn();
+      let pendingLocation: Promise<void> | undefined;
+
+      act(() => {
+        pendingLocation = result.current.requestGeolocation(centerMap);
+      });
+      if (!hasCachedPermission) {
+        act(() => {
+          result.current.onAccept();
+        });
+      }
+      rerender({ enabled: false });
+
+      await act(async () => {
+        resolvePosition?.({
+          coords: { latitude: 42.6977, longitude: 23.3219 },
+        } as GeolocationPosition);
+        await pendingLocation;
+      });
+
+      expect(centerMap).not.toHaveBeenCalled();
+      expect(result.current.isLocating).toBe(false);
+    },
+  );
+
+  it("gives an explicit location request priority over an older automatic request", async () => {
+    localStorageMock.getItem.mockReturnValue("true");
+    const positionCallbacks: PositionCallback[] = [];
+    mockGetCurrentPosition.mockImplementation((success: PositionCallback) => {
+      positionCallbacks.push(success);
+    });
+    const { result } = renderHook(() => useGeolocationPrompt());
+    const centerMap = vi.fn();
+    let automaticRequest: Promise<boolean> | undefined;
+    let explicitRequest: Promise<void> | undefined;
+
+    act(() => {
+      automaticRequest = result.current.autoCenter(centerMap);
+      explicitRequest = result.current.requestGeolocation(centerMap);
+    });
+
+    await act(async () => {
+      positionCallbacks[0]({
+        coords: { latitude: 42.6977, longitude: 23.3219 },
+      } as GeolocationPosition);
+      expect(await automaticRequest).toBe(false);
+    });
+
+    expect(result.current.isLocating).toBe(true);
+    expect(centerMap).not.toHaveBeenCalled();
+
+    await act(async () => {
+      positionCallbacks[1]({
+        coords: { latitude: 42.7, longitude: 23.4 },
+      } as GeolocationPosition);
+      await explicitRequest;
+    });
+
+    expect(centerMap).toHaveBeenCalledExactlyOnceWith(42.7, 23.4, 17, {
+      animate: true,
+    });
+    expect(result.current.isLocating).toBe(false);
+  });
+
+  it("ignores an automatic location result after unmount", async () => {
+    localStorageMock.getItem.mockReturnValue("true");
+    let resolvePosition: PositionCallback | undefined;
+    mockGetCurrentPosition.mockImplementation((success: PositionCallback) => {
+      resolvePosition = success;
+    });
+    const { result, unmount } = renderHook(() => useGeolocationPrompt());
+    const centerMap = vi.fn();
+    let pendingCenter: Promise<boolean> | undefined;
+
+    act(() => {
+      pendingCenter = result.current.autoCenter(centerMap);
+    });
+    unmount();
+
+    await act(async () => {
+      resolvePosition?.({
+        coords: { latitude: 42.6977, longitude: 23.3219 },
+      } as GeolocationPosition);
+      expect(await pendingCenter).toBe(false);
+    });
+
+    expect(centerMap).not.toHaveBeenCalled();
   });
 
   it("should handle auto-center geolocation errors silently", async () => {

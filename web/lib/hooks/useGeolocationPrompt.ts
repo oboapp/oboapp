@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useLayoutEffect, useRef } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { toast } from "sonner";
 
@@ -12,11 +12,25 @@ interface GeolocationPromptState {
 
 const GEOLOCATION_PERMISSION_KEY = "geolocationPermissionGranted";
 
-export function useGeolocationPrompt() {
+interface GeolocationPromptOptions {
+  readonly automaticCenterEnabled?: boolean;
+}
+
+export function useGeolocationPrompt({
+  automaticCenterEnabled = true,
+}: GeolocationPromptOptions = {}) {
   const [promptState, setPromptState] = useState<GeolocationPromptState | null>(
     null,
   );
   const [isLocating, setIsLocating] = useState(false);
+  const cameraGeneration = useRef(0);
+  const latestLocationRequest = useRef(0);
+
+  useLayoutEffect(() => {
+    return () => {
+      cameraGeneration.current += 1;
+    };
+  }, [automaticCenterEnabled]);
 
   const getStoredPermissionState = useCallback(() => {
     try {
@@ -36,6 +50,9 @@ export function useGeolocationPrompt() {
   }, []);
 
   const getCurrentPosition = useCallback(() => {
+    const request = ++latestLocationRequest.current;
+    setIsLocating(true);
+
     return new Promise<{ lat: number; lng: number }>((resolve, reject) => {
       if (!("geolocation" in navigator)) {
         reject(new Error("Geolocation is not supported"));
@@ -73,6 +90,10 @@ export function useGeolocationPrompt() {
           maximumAge: 300000, // 5 minutes cache
         },
       );
+    }).finally(() => {
+      if (request === latestLocationRequest.current) {
+        setIsLocating(false);
+      }
     });
   }, []);
 
@@ -85,21 +106,25 @@ export function useGeolocationPrompt() {
         options?: { animate?: boolean },
       ) => void,
     ): Promise<void> => {
+      // An explicit location request takes priority over automatic centering.
+      const generation = ++cameraGeneration.current;
       const hasPermission = getStoredPermissionState();
 
       if (hasPermission) {
         // Permission already granted, directly get location
-        setIsLocating(true);
         try {
           const position = await getCurrentPosition();
+          if (generation !== cameraGeneration.current) {
+            return;
+          }
+
           centerMap(position.lat, position.lng, 17, { animate: true });
 
           trackEvent({
             name: "geolocation_location_centered",
             params: { had_cached_permission: true },
           });
-          // Successfully obtained location
-          return; // Return early after successful location
+          return;
         } catch (error) {
           console.error("Geolocation error:", error);
           toast.error(
@@ -116,8 +141,6 @@ export function useGeolocationPrompt() {
             },
           });
           throw error;
-        } finally {
-          setIsLocating(false);
         }
       }
 
@@ -125,17 +148,22 @@ export function useGeolocationPrompt() {
       return new Promise<void>((resolve, reject) => {
         const handleAccept = async () => {
           setPromptState(null);
-          setIsLocating(true);
 
           try {
             const position = await getCurrentPosition();
             setStoredPermissionState(true);
-            centerMap(position.lat, position.lng, 17, { animate: true });
 
             trackEvent({
               name: "geolocation_permission_granted",
               params: {},
             });
+
+            if (generation !== cameraGeneration.current) {
+              resolve();
+              return;
+            }
+
+            centerMap(position.lat, position.lng, 17, { animate: true });
 
             trackEvent({
               name: "geolocation_location_centered",
@@ -155,8 +183,6 @@ export function useGeolocationPrompt() {
               params: {},
             });
             reject(error);
-          } finally {
-            setIsLocating(false);
           }
         };
 
@@ -198,6 +224,10 @@ export function useGeolocationPrompt() {
         options?: { animate?: boolean },
       ) => void,
     ): Promise<boolean> => {
+      if (!automaticCenterEnabled) {
+        return false;
+      }
+
       const hasPermission = getStoredPermissionState();
 
       if (!hasPermission) {
@@ -206,9 +236,13 @@ export function useGeolocationPrompt() {
       }
 
       // Permission already granted, directly get location
-      setIsLocating(true);
+      const generation = ++cameraGeneration.current;
       try {
         const position = await getCurrentPosition();
+        if (generation !== cameraGeneration.current) {
+          return false;
+        }
+
         centerMap(position.lat, position.lng, 17, { animate: false });
 
         trackEvent({
@@ -228,11 +262,9 @@ export function useGeolocationPrompt() {
           },
         });
         return false;
-      } finally {
-        setIsLocating(false);
       }
     },
-    [getCurrentPosition, getStoredPermissionState],
+    [automaticCenterEnabled, getCurrentPosition, getStoredPermissionState],
   );
 
   return {

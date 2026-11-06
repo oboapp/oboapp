@@ -38,6 +38,19 @@ function eventCard(page, text) {
   return page.locator("button").filter({ hasText: text });
 }
 
+async function expectNoMessageRefresh(requests, previousCount) {
+  assert.ok(previousCount > 0, "Initial message requests must be observable.");
+  let stableChecks = 0;
+  await expect.poll(() => {
+    if (requests.length !== previousCount) {
+      return false;
+    }
+
+    stableChecks += 1;
+    return stableChecks >= 6;
+  }, { intervals: [100] }).toBe(true);
+}
+
 async function deleteMockZone(page, label) {
   await page.getByRole("button", { name: `Действия за ${label}` }).click();
   await page.getByRole("menuitem", { name: "Изтрий", exact: true }).click();
@@ -66,6 +79,12 @@ test("My zones shows filtered cards below zones and keeps map and responsive beh
   });
   page.setDefaultTimeout(30_000);
   const pageErrors = [];
+  const messageRequests = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/api/messages") {
+      messageRequests.push(request.url());
+    }
+  });
   page.on("pageerror", (error) => {
     pageErrors.push(error.message);
   });
@@ -235,24 +254,26 @@ test("My zones shows filtered cards below zones and keeps map and responsive beh
     await page.getByRole("button", { name: "Затвори филтрите", exact: true }).click();
     await zonesMode.click();
     await expect(roadBlockCard).toHaveCount(0);
+    await expect(waterCard).toBeVisible();
+    const requestsBeforePan = messageRequests.length;
+    const zoneTextBeforePan = await zoneEvents.innerText();
 
     const mapBox = await page.locator(".gm-style").boundingBox();
     assert.ok(mapBox);
-    const panResponse = page.waitForResponse((response) => {
-      return isApiResponse(response, "/api/messages");
-    });
     const dragX = mapBox.x + mapBox.width * 0.7;
     const dragY = mapBox.y + mapBox.height * 0.3;
     await page.mouse.move(dragX, dragY);
     await page.mouse.down();
     await page.mouse.move(dragX + 100, dragY, { steps: 12 });
     await page.mouse.up();
-    assert.equal((await panResponse).fromServiceWorker(), true);
+    await expectNoMessageRefresh(messageRequests, requestsBeforePan);
+    assert.equal(await zoneEvents.innerText(), zoneTextBeforePan);
+    await expect(page.getByText("Зареждане...", { exact: true })).toHaveCount(0);
     await expect(roadBlockCard).toHaveCount(0);
     await expect(waterCard).toBeVisible();
     await expect(cityWideCard).toBeVisible();
     await page.screenshot({ path: path.join(artifactDirectory, "my-zones.png") });
-    context.diagnostic("Category/source choices and the zone restriction survived a viewport refetch.");
+    context.diagnostic("Panning preserves My zones cards and filters without refetching messages.");
 
     await page.setViewportSize({ width: 1000, height: 900 });
     await expect(zonesMode).toHaveCount(0);
@@ -320,7 +341,7 @@ test("My zones shows filtered cards below zones and keeps map and responsive beh
     await expect(page.getByRole("button", { name: "Добави зона", exact: true })).toBeEnabled();
     await expect.poll(() => mapFeatureCount(page)).toBe(0);
     await eventsMode.click();
-    await expect(waterCard).toBeVisible();
+    await expect(allEvents).toBeVisible();
     await expect(cityWideCard).toBeVisible();
     await expect.poll(() => mapFeatureCount(page)).toBeGreaterThan(0);
     assert.deepEqual(pageErrors, []);
