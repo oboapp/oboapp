@@ -28,6 +28,7 @@ import { useLocalityBoundaries } from "@/lib/hooks/useLocalityBoundaries";
 import { useAuth } from "@/lib/auth-context";
 import { useMessages } from "@/lib/hooks/useMessages";
 import { useMapNavigation } from "@/lib/hooks/useMapNavigation";
+import { useZoneMapFit } from "@/lib/hooks/useZoneMapFit";
 import { useInterestManagement } from "@/lib/hooks/useInterestManagement";
 import { useCategoryFilter } from "@/lib/hooks/useCategoryFilter";
 import { useSourceFilter } from "@/lib/hooks/useSourceFilter";
@@ -67,17 +68,9 @@ const VIEW_MODE_OPTIONS_NO_USER = [
 ] as const;
 
 /**
- * HomeContent - Main application component managing map, messages, and user interactions
- *
- * Loading and Initialization Flow:
- * 1. Component mounts with isLoading=false, map renders immediately
- * 2. Map loads and triggers onBoundsChanged when ready
- * 3. handleBoundsChanged sets viewportBounds after 300ms debounce
- * 4. Effect detects viewportBounds change and calls fetchMessages(viewportBounds)
- * 5. fetchMessages sets isLoading=true, shows loading indicator
- * 6. When fetch completes, isLoading=false, loading indicator disappears
- *
- * This ensures the map is visible immediately while messages load based on viewport.
+ * Coordinate the map, messages, filters, and saved zones.
+ * Events follows the viewport. My zones matches the full recent message batch
+ * against saved circles. The map stays visible while the active batch loads.
  */
 function HomeContentInner() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -98,7 +91,7 @@ function HomeContentInner() {
   // The view switch is available in the wide desktop layout.
   const effectiveViewMode = user && isWideDesktopLayout ? viewMode : "events";
 
-  // Message fetching and viewport management
+  // My zones matches against the full recent batch, independently of the camera.
   const {
     messages,
     availableCategories,
@@ -108,7 +101,12 @@ function HomeContentInner() {
     suppressNextViewportFetch,
     setSelectedCategories,
     setSelectedSources,
-  } = useMessages();
+  } = useMessages({
+    scope: effectiveViewMode === "zones" ? "all" : "viewport",
+    enabled:
+      effectiveViewMode !== "zones" ||
+      (interestsLoaded && interests.length > 0),
+  });
 
   const zoneLocalities = useMemo(() => {
     if (
@@ -447,6 +445,16 @@ function HomeContentInner() {
   // Note: We search in unfiltered 'messages' to preserve selection even when filtered out
   const messageId = searchParams.get("messageId");
 
+  useZoneMapFit({
+    active: effectiveViewMode === "zones",
+    interests,
+    interestsLoaded,
+    map: mapInstance,
+    suspended: Boolean(messageId || targetMode.active),
+    onBeforeFit: closeFilterPanelSilently,
+    userId: user?.uid,
+  });
+
   const viewportMatch = useMemo(
     () => messages.find((m) => m.id === messageId) ?? null,
     [messageId, messages],
@@ -615,6 +623,7 @@ function HomeContentInner() {
             user={user}
             targetMode={targetMode}
             initialMapCenter={initialMapCenter}
+            automaticCenterEnabled={effectiveViewMode !== "zones" && !messageId}
             hoveredMessageId={hoveredMessageId}
             selectedMessageId={selectedMessage?.id}
             onFeatureClick={handleFeatureClick}

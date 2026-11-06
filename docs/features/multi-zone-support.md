@@ -22,13 +22,28 @@ locality. Events that match several zones appear once. Category, source, and
 archive filters continue to apply, and filter counts use the matching events.
 City-wide events can appear as cards even when they have no event geometry.
 
-The results remain a preview of the current map area. The existing card limit
-applies: more than ten results show six cards and a count of the remaining events.
+My zones matches saved circles against the full recent message batch, independent
+of the map viewport. Panning and zooming keep the event list in place without
+refetching messages. Changing the source or category filters reloads the batch;
+zone edits update its matches. Events continues to load messages for the map area.
+The existing card limit applies: more than ten results show six cards and a count
+of the remaining events.
 
 Panning and zooming keep this restriction active. Moving, adding, or deleting a
 zone updates the matches. Zones remain visible when there are no matching events;
 users with no saved zones see the add-zone prompt. If locality boundaries cannot
 load, a message explains that some events may be missing.
+
+Entering **Моите зони** centers and zooms the map around the saved circles,
+including their radii, with a margin inside the map area. The fit waits until
+the map and zones are ready and works even when no events match. It closes the filter panel
+to keep the circles visible. The selected filters continue to apply. Both views
+keep the configured locality boundary and zoom limits. When the full spread of
+zones exceeds those limits, the fit uses the closest allowed view. Panning,
+zooming, zone edits, and background refreshes then preserve the camera. Re-entering
+the tab fits the current zones again. With no zones, the camera stays where it is.
+Explicit event links and zone placement keep their own camera behavior, and late automatic
+geolocation results do not replace the zone view.
 
 Switching to **Събития** restores the usual event view. Mobile and narrower
 layouts use the Events view, including when resizing from the wide desktop layout.
