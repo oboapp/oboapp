@@ -5,9 +5,22 @@ import type { DataSource, SourceMetadata } from "@oboapp/source-sdk";
 import { encodeDocumentId, encodeDocumentIdForLookup } from "@/crawlers/shared/firestore";
 import { runSource } from "./run-source";
 
-vi.mock("@/lib/logger", () => ({ logger: { warn: vi.fn() } }));
-const metadata: SourceMetadata = { id: "example", name: "Example", url: "https://example.com", localities: ["bg.sofia"] };
-const content = { title: "Notice", message: "Work", datePublished: "2026-10-19" };
+vi.mock("@/lib/logger", () => ({
+  logger: {
+    warn: vi.fn(),
+  },
+}));
+const metadata: SourceMetadata = {
+  id: "example",
+  name: "Example",
+  url: "https://example.com",
+  localities: ["bg.sofia"],
+};
+const content = {
+  title: "Notice",
+  message: "Work",
+  datePublished: "2026-10-19",
+};
 const identifier = "https://example.com/A%2fb?x=1&y=2";
 
 function setup() {
@@ -32,8 +45,13 @@ function setup() {
   return { records, client, db, source, create };
 }
 
-beforeEach(() => vi.stubEnv("LOCALITY", "bg.sofia"));
-afterEach(() => vi.unstubAllEnvs());
+beforeEach(() => {
+  vi.stubEnv("LOCALITY", "bg.sofia");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("scheduled source runner", () => {
   it("preserves identifiers and owns all workflow fields", async () => {
@@ -124,5 +142,115 @@ describe("scheduled source runner", () => {
     const { db, create } = setup();
     await expect(runSource(db, { ...metadata, localities: [] }, create)).rejects.toThrow("locality");
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, false])("requires a database before opening a source when dryRun=%s", async (dryRun) => {
+    const { create } = setup();
+    await expect(runSource(null, metadata, create, { dryRun })).rejects.toThrow(/database|db/i);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("restricts Toplo compatibility to Toplo before opening a source (dryRun=%s)", async (dryRun) => {
+    const { db, create } = setup();
+    await expect(runSource(dryRun ? null : db, metadata, create, {
+      dryRun,
+      contentValidation: "legacy-toplo",
+    })).rejects.toThrow(/toplo/i);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, "strict"] as const)("keeps validation strict for Toplo without explicit compatibility (%s)", async (contentValidation) => {
+    const { db, source, create, records, client } = setup();
+    source.fetchItem.mockResolvedValue({ ...content, title: "", datePublished: "invalid" });
+    expect(await runSource(db, { ...metadata, id: "toplo-bg" }, create, {
+      contentValidation,
+    })).toEqual({ saved: 0, skipped: 0, failed: 1 });
+    expect(client.createOne).not.toHaveBeenCalled();
+    expect(records.size).toBe(0);
+    expect(source.close).toHaveBeenCalledOnce();
+  });
+
+  it("preserves Toplo's legacy fields while retaining platform ownership", async () => {
+    const { db, source, create, records } = setup();
+    source.fetchItem.mockResolvedValue({
+      ...content,
+      title: "",
+      datePublished: "invalid",
+      url: "https://wrong.example/identity",
+      sourceType: "wrong-source",
+      locality: "wrong-locality",
+      crawledAt: "2020-01-01T00:00:00Z",
+      processed: true,
+    } as typeof content);
+    expect(await runSource(db, { ...metadata, id: "toplo-bg" }, create, {
+      contentValidation: "legacy-toplo",
+    })).toEqual({ saved: 1, skipped: 0, failed: 0 });
+    expect(records.get(encodeDocumentId(identifier))).toEqual({
+      title: "",
+      message: "Work",
+      datePublished: "invalid",
+      url: identifier,
+      sourceType: "toplo-bg",
+      locality: "bg.sofia",
+      crawledAt: expect.any(Date),
+      processed: false,
+    });
+    expect(source.close).toHaveBeenCalledOnce();
+  });
+
+  it.each([false, true])("dry run fetches known items without database access (database supplied: %s)", async (includeDatabase) => {
+    const { db, source, create, records, client } = setup();
+    const historical = { ...content, processed: true };
+    records.set(encodeDocumentId(identifier), historical);
+    expect(await runSource(includeDatabase ? db : null, metadata, create, {
+      dryRun: true,
+    })).toEqual({ saved: 1, skipped: 0, failed: 0 });
+    expect(client.findOne).not.toHaveBeenCalled();
+    expect(client.createOne).not.toHaveBeenCalled();
+    expect(source.fetchItem).toHaveBeenCalledExactlyOnceWith({ identifier });
+    expect(records.get(encodeDocumentId(identifier))).toBe(historical);
+    expect(records.size).toBe(1);
+    expect(source.close).toHaveBeenCalledOnce();
+  });
+
+  it("dry run validates each item and continues after invalid content", async () => {
+    const { source, create, records, client } = setup();
+    source.discoverItems.mockResolvedValue({
+      items: [{ identifier }, { identifier: "synthetic:2" }],
+    });
+    source.fetchItem.mockResolvedValueOnce({ ...content, datePublished: "invalid" })
+      .mockResolvedValueOnce(content);
+    expect(await runSource(null, metadata, create, {
+      dryRun: true,
+    })).toEqual({ saved: 1, skipped: 0, failed: 1 });
+    expect(source.fetchItem).toHaveBeenCalledTimes(2);
+    expect(client.findOne).not.toHaveBeenCalled();
+    expect(client.createOne).not.toHaveBeenCalled();
+    expect(records.size).toBe(0);
+    expect(source.close).toHaveBeenCalledOnce();
+  });
+
+  it("dry run applies Toplo compatibility without creating a raw record", async () => {
+    const { source, create, records, client } = setup();
+    source.fetchItem.mockResolvedValue({ ...content, title: "", datePublished: "invalid" });
+    expect(await runSource(null, { ...metadata, id: "toplo-bg" }, create, {
+      dryRun: true,
+      contentValidation: "legacy-toplo",
+    })).toEqual({ saved: 1, skipped: 0, failed: 0 });
+    expect(client.findOne).not.toHaveBeenCalled();
+    expect(client.createOne).not.toHaveBeenCalled();
+    expect(records.size).toBe(0);
+    expect(source.close).toHaveBeenCalledOnce();
+  });
+
+  it("closes the source when dry-run discovery fails", async () => {
+    const { source, create, records } = setup();
+    source.discoverItems.mockRejectedValue(new Error("listing failed"));
+    await expect(runSource(null, metadata, create, {
+      dryRun: true,
+    })).rejects.toThrow("listing failed");
+    expect(source.fetchItem).not.toHaveBeenCalled();
+    expect(records.size).toBe(0);
+    expect(source.close).toHaveBeenCalledOnce();
   });
 });
