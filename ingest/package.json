@@ -63,6 +63,7 @@
     "@oboapp/source-rayon-oborishte-bg": "0.1.0",
     "@oboapp/source-sdk": "0.1.1",
     "@oboapp/source-so-slatina-org": "0.1.0",
+    "@oboapp/source-toplo-bg": "0.1.0",
     "@oboapp/source-triaditsa-org": "0.2.0",
     "@react-google-maps/api": "^2.20.7",
     "@sentry/node": "^10.48.0",

@@ -1,10 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createBrowserMock, createSourceStore, contractDate, rawSource } from "@/__mocks__/source-contract";
-import { toploHtml, weatherWarning, pointGeometry } from "@/__mocks__/source-contract-fixtures";
+import { weatherWarning, pointGeometry } from "@/__mocks__/source-contract-fixtures";
 import { getDb } from "@/lib/db";
 import { launchBrowser } from "@/crawlers/shared/browser";
 import { encodeDocumentId, saveSourceDocument } from "@/crawlers/shared/firestore";
-import { crawl as crawlToplo } from "@/crawlers/toplo-bg/index";
 import { crawl as crawlNimh } from "@/crawlers/nimh-severe-weather/index";
 import { crawl as crawlFeed } from "@/crawlers/triaditsa-org/index";
 import { crawl as crawlWebsite } from "@/crawlers/nadezhda-org/index";
@@ -35,12 +34,6 @@ const expectedContent: Record<string, Record<string, unknown>> = {
   "triaditsa-org": {
     title: "Repair", message: "Water repair", datePublished: "2026-10-04T08:00:00.000Z",
   },
-  "toplo-bg": {
-    title: "Ремонт", message: expect.stringContaining("Ремонт"), markdownText: expect.stringContaining("ул. Тест"),
-    datePublished: "2026-10-04T08:00:00.000Z", deepLinkUrl: "", geoJson: JSON.stringify(pointGeometry),
-    categories: ["heating"], isRelevant: true,
-    timespanStart: new Date("2026-10-04T08:00:00.000Z"), timespanEnd: new Date("2026-10-04T08:00:00.000Z"),
-  },
   "nimh-severe-weather": {
     title: "Предупреждение за опасно време - 4 октомври 2026",
     message: "Жълт код за опасно време за 04.10.2026 (неделя)\n\nСилен вятър\n\nСилен вятър",
@@ -52,16 +45,22 @@ const expectedContent: Record<string, Record<string, unknown>> = {
   },
 };
 beforeEach(() => {
-  vi.clearAllMocks(); vi.useFakeTimers(); vi.setSystemTime(contractDate);
-  store = createSourceStore(); browser = createBrowserMock();
-  browser.page.content.mockResolvedValue(toploHtml());
-  vi.mocked(getDb).mockResolvedValue(store.db); vi.mocked(launchBrowser).mockResolvedValue(browser.instance);
+  vi.clearAllMocks();
+  vi.useFakeTimers();
+  vi.setSystemTime(contractDate);
+  store = createSourceStore();
+  browser = createBrowserMock();
+  vi.mocked(getDb).mockResolvedValue(store.db);
+  vi.mocked(launchBrowser).mockResolvedValue(browser.instance);
   vi.mocked(messageIngest).mockReset().mockResolvedValue(result);
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true,
     text: async () => `<?xml version="1.0"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><item><title>Repair</title><link>https://triaditza.org/repair/</link><pubDate>Sun, 04 Oct 2026 08:00:00 GMT</pubDate><content:encoded><![CDATA[<p>Water repair</p>]]></content:encoded></item></channel></rss>`,
   }));
 });
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe("crawler raw document to ingest contract", () => {
   it("passes News and announcements through ingestion once per URL", async () => {
@@ -109,7 +108,6 @@ describe("crawler raw document to ingest contract", () => {
   it.each([
     { name: "website", crawl: crawlWebsite, url: "https://nadezhda.sofia.bg/news/repair", sourceType: "nadezhda-org" },
     { name: "full feed", crawl: crawlFeed, url: "https://triaditza.org/repair/", sourceType: "triaditsa-org" },
-    { name: "synthetic listing", crawl: crawlToplo, url: "https://toplo.bg/incidents/item-1", sourceType: "toplo-bg" },
     { name: "city-wide listing", crawl: crawlNimh, url: "https://weather.bg/obshtini/index.php?z=u&o=SOF&date=2026-10-04&h=c9d1456eab46", sourceType: "nimh-severe-weather" },
   ])("passes the persisted $name document through the actual ingest entrypoint", async ({ crawl, url, sourceType }) => {
     await crawl();
@@ -128,7 +126,9 @@ describe("crawler raw document to ingest contract", () => {
       categories: expected.categories, isRelevant: expected.isRelevant, timespanStart: expected.timespanStart,
       timespanEnd: expected.timespanEnd, cityWide: expected.cityWide, locality: "bg.sofia",
     });
-    if (sourceType === "triaditsa-org") expect(launchBrowser).not.toHaveBeenCalled();
+    if (sourceType === "triaditsa-org") {
+      expect(launchBrowser).not.toHaveBeenCalled();
+    }
     // Seed the downstream-owned completion state; this suite stops at messageIngest.
     await store.sources.updateOne(encodeDocumentId(url), { processed: true });
     vi.mocked(messageIngest).mockClear();
@@ -166,7 +166,8 @@ describe("crawler raw document to ingest contract", () => {
   ])("reports malformed persisted $field without marking it done", async ({ field, value }) => {
     store.records.set(encodeDocumentId("https://example.com/item"), { ...rawSource(), processed: false, [field]: value });
     expect(await ingest()).toMatchObject({ failed: 1, ingested: 0 });
-    expect(messageIngest).not.toHaveBeenCalled(); expect(store.sources.updateOne).not.toHaveBeenCalled();
+    expect(messageIngest).not.toHaveBeenCalled();
+    expect(store.sources.updateOne).not.toHaveBeenCalled();
   });
 
 });
