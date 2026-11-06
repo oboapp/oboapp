@@ -170,11 +170,11 @@ function ConnectionState({ view }: Readonly<{ view: FacebookConnectionView }>) {
     <div className="space-y-6">
       <div className="space-y-3">
         <h2 className="text-2xl font-semibold">
-          {view.ready ? "Продължи през Facebook" : "Подготвяме свързването"}
+          {view.ready ? "За администратора на страницата" : "Подготвяме свързването"}
         </h2>
         <p className="leading-7 text-neutral">
           {view.ready
-            ? "Ще потвърдиш достъпа във Facebook и ще избереш една страница за Обо."
+            ? "Продължи през Facebook, за да разрешиш достъп за четене и да избереш страницата на района."
             : "Свързването ще бъде достъпно скоро. Човекът, който ти изпрати линка, ще потвърди кога можеш да продължиш."}
         </p>
       </div>
@@ -192,41 +192,50 @@ function ConnectionState({ view }: Readonly<{ view: FacebookConnectionView }>) {
 export function FacebookConnectPanel({ view }: Readonly<{ view: FacebookConnectionView }>) {
   return (
     <section aria-labelledby="facebook-connect-title" className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-16">
-      <div className="mb-8 max-w-2xl space-y-4">
-        <p className="text-sm font-semibold uppercase tracking-widest text-neutral">Обо · Пилот с общински страници</p>
+      <div className="mb-8 max-w-3xl space-y-4">
+        <p className="text-sm font-semibold uppercase tracking-widest text-neutral">Обо · Пилот с Facebook страниците на районите</p>
         <h1 id="facebook-connect-title" className="text-3xl font-bold tracking-tight sm:text-4xl">
-          Свържи Facebook страница с Обо
+          Важните съобщения на района и извън Facebook
         </h1>
         <p className="text-lg leading-8 text-neutral">
-          Подготвяме пилот за публичните съобщения на районите.
-          Свържи страницата, която управляваш, за да уточним участието ѝ.
+          Обо показва публични съобщения за ремонти, аварии и промени в града
+          на карта и изпраща известия за избрани места. С този пилот искаме
+          да проверим дали публикациите във Facebook страницата на района
+          могат да бъдат още един източник за Обо.
         </p>
+        <p className="border-l-4 border-primary pl-4 font-medium leading-7">
+          За начало препрати този линк на колегата, който управлява
+          Facebook страницата на района.
+        </p>
+        <Link href="/connect/facebook/about" className="inline-block font-medium text-primary underline underline-offset-4">
+          За пилота и защо е нужно Facebook приложение
+        </Link>
       </div>
       <div className="grid overflow-hidden rounded-2xl border border-neutral-border bg-background md:grid-cols-5">
         <aside aria-labelledby="facebook-access-title" className="space-y-7 bg-neutral-light p-6 sm:p-8 md:col-span-2">
           <div className="flex size-12 items-center justify-center rounded-xl border border-neutral-border bg-background text-primary">
             <ShieldCheck size={25} aria-hidden="true" />
           </div>
-          <h2 id="facebook-access-title" className="text-xl font-semibold">Достъп с твой контрол</h2>
+          <h2 id="facebook-access-title" className="text-xl font-semibold">Какво е нужно от района</h2>
           <ul className="space-y-6 text-sm leading-6">
             <li>
-              <p className="font-semibold">Преглед на публични публикации</p>
-              <p className="mt-1 text-foreground">Разрешението е за достъп за четене до избраната страница.</p>
+              <p className="font-semibold">Достъп за четене</p>
+              <p className="mt-1 text-foreground">Администраторът разрешава четене на публичните публикации в избраната страница.</p>
             </li>
             <li>
-              <p className="font-semibold">Една избрана страница</p>
-              <p className="mt-1 text-foreground">Изборът се потвърждава, преди връзката да бъде запазена.</p>
+              <p className="font-semibold">Публикуване както досега</p>
+              <p className="mt-1 text-foreground">В пилота ще използваме съществуващите публикации на страницата.</p>
             </li>
             <li>
-              <p className="font-semibold">Оттегляне по всяко време</p>
-              <p className="mt-1 text-foreground">Управляваш достъпа от настройките за бизнес интеграции във Facebook.</p>
+              <p className="font-semibold">Начало след уговорка</p>
+              <p className="mt-1 text-foreground">След свързването уточняваме с екипа на района обхвата и началото на пилота.</p>
             </li>
           </ul>
           <Link href="/connect/facebook/privacy" className="inline-block text-sm font-medium text-primary underline underline-offset-4">
             Как се използват данните
           </Link>
         </aside>
-        <div className="p-6 sm:p-8 md:col-span-3 md:p-10">
+        <div id="facebook-connection" className="scroll-mt-6 p-6 sm:p-8 md:col-span-3 md:p-10">
           <ConnectionState view={view} />
         </div>
       </div>

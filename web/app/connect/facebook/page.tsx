@@ -7,8 +7,17 @@ import { getFacebookConnectionView } from "@/lib/facebook-connect/service";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Свързване на Facebook страница | Обо",
-  description: "Свързване на общинска Facebook страница за подготовка на пилот с Обо.",
+  title: "Пилот с Facebook страницата на района | Обо",
+  description: "Да проверим как публичните Facebook съобщения на района могат да допълнят картата и известията на Обо.",
+  openGraph: {
+    title: "Важните съобщения на района и извън Facebook",
+    description: "Пилот за използване на Facebook страницата на района като източник за картата и известията на Обо.",
+    url: "/connect/facebook",
+  },
+  twitter: {
+    title: "Пилот с Facebook страницата на района | Обо",
+    description: "Пилот за използване на публичните публикации на района като още един източник за Обо.",
+  },
   robots: { index: false, follow: false },
 };
 
