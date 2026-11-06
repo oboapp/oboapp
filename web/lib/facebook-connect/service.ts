@@ -103,6 +103,22 @@ async function clearTemporaryCredentials(context: FacebookConnectionContext, ses
   }
 }
 
+async function settleSelection(
+  context: FacebookConnectionContext,
+  sessionId: string,
+  cleanupPending: boolean,
+): Promise<boolean> {
+  const settled = await attemptTwice(async () => {
+    await context.store.setSessionCleanupIntent(sessionId, cleanupPending);
+  });
+  try {
+    await clearTemporaryCredentials(context, sessionId);
+  } catch {
+    return false;
+  }
+  return settled;
+}
+
 async function failSession(context: FacebookConnectionContext, sessionId: string, keepCleanupIntent = false): Promise<void> {
   await attemptTwice(async () => {
     const session = await context.store.getSession(sessionId);
@@ -246,6 +262,7 @@ export async function selectFacebookPage(
 
   let connection: FacebookConnectionRecord | undefined;
   let cleanupPending = false;
+  let failure: { error: unknown } | undefined;
   try {
     const userToken = openFacebookUserToken(context.config, session.id, session.userTokenCipher);
     await context.store.setSessionCleanupIntent(session.id, true);
@@ -286,23 +303,27 @@ export async function selectFacebookPage(
     }
     cleanupPending = false;
   } catch (error) {
+    failure = { error };
     try {
       if (connection) {
         await retireConnection(context, connection);
         cleanupPending = false;
       }
-    } finally {
+    } catch {
+      cleanupPending = true;
+    }
+    try {
       await failSession(context, session.id, cleanupPending);
+    } catch {
+      cleanupPending = true;
     }
-    throw error;
-  } finally {
-    const settled = await attemptTwice(async () => {
-      await context.store.setSessionCleanupIntent(session.id, cleanupPending);
-    });
-    if (!settled) {
-      throw new FacebookConnectionFlowError("storage");
-    }
-    await clearTemporaryCredentials(context, session.id);
+  }
+  const settled = await settleSelection(context, session.id, cleanupPending);
+  if (failure) {
+    throw failure.error;
+  }
+  if (!settled) {
+    throw new FacebookConnectionFlowError("storage");
   }
 }
 

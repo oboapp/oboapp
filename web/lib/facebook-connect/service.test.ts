@@ -10,6 +10,7 @@ import {
 } from "./crypto";
 import {
   deleteFacebookUserConnections,
+  FacebookConnectionFlowError,
   finishFacebookAuthorization,
   selectFacebookPage,
   startFacebookConnection,
@@ -225,7 +226,7 @@ describe("Facebook connection lifecycle", () => {
     await authorize();
     vi.spyOn(context.store, "createConnection").mockRejectedValue(new Error("initial metadata failure"));
     vi.mocked(context.secrets.destroy).mockRejectedValue(new Error("cloud unavailable"));
-    await expect(selectFacebookPage(context, session.cookieValue, selection())).rejects.toMatchObject({ code: "storage" });
+    await expect(selectFacebookPage(context, session.cookieValue, selection())).rejects.toThrow("initial metadata failure");
     expect(context.secrets.destroy).toHaveBeenCalledTimes(2);
     expect(context.secrets.disable).toHaveBeenCalledWith(`${config.secretName}/versions/1`);
     expect(await context.store.getConnectionsForUser(facebookUserHash(config, "987"))).toMatchObject([
@@ -261,5 +262,37 @@ describe("Facebook connection lifecycle", () => {
     const receipt = vi.spyOn(context.store, "createDeletionReceipt");
     await expect(deleteFacebookUserConnections(context, "987")).rejects.toMatchObject({ code: "storage" });
     expect(receipt).not.toHaveBeenCalled();
+  });
+
+  it("preserves the primary cancellation when final cleanup also fails", async () => {
+    await authorize();
+    const primary = new FacebookConnectionFlowError("cancelled");
+    vi.mocked(getFacebookPageAccess).mockRejectedValueOnce(primary);
+    const setIntent = context.store.setSessionCleanupIntent.bind(context.store);
+    const cleanup = vi.spyOn(context.store, "setSessionCleanupIntent").mockImplementation(async (id, keep) => {
+      if (!keep) {
+        throw new Error("expiry cleanup unavailable");
+      }
+      await setIntent(id, keep);
+    });
+    await expect(selectFacebookPage(context, session.cookieValue, selection())).rejects.toBe(primary);
+    expect(cleanup).toHaveBeenCalledTimes(3);
+    expect(await context.store.getSession(session.sessionId)).toMatchObject({ phase: "failed", userTokenCipher: null });
+  });
+
+  it("reports cleanup failure after an otherwise successful save without dropping its credential record", async () => {
+    await authorize();
+    const setIntent = context.store.setSessionCleanupIntent.bind(context.store);
+    vi.spyOn(context.store, "setSessionCleanupIntent").mockImplementation(async (id, keep) => {
+      if (!keep) {
+        throw new Error("expiry cleanup unavailable");
+      }
+      await setIntent(id, keep);
+    });
+    await expect(selectFacebookPage(context, session.cookieValue, selection())).rejects.toMatchObject({ code: "storage" });
+    expect(await context.store.getConnectionsForUser(facebookUserHash(config, "987"))).toMatchObject([
+      { id: session.sessionId, status: "pending_review", collectionEnabled: false },
+    ]);
+    expect(await context.store.getSession(session.sessionId)).toMatchObject({ phase: "complete", userTokenCipher: null });
   });
 });
