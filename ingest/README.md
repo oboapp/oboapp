@@ -13,7 +13,7 @@ The shared package (@oboapp/shared) is built automatically during workspace inst
 ```mermaid
 graph LR
     B[crawl.ts: existing source entrypoints] --> L[Legacy crawler implementations]
-    B --> T[Triaditsa package adapter]
+    B --> T[Source package adapters]
     T --> R[Simple source runner]
     R --> P[npm source: list and fetch]
     P --> R
@@ -29,12 +29,12 @@ graph LR
     style F fill:#e1f5ff
 ```
 
-During the [source-package transition](../docs/features/source-packages.md), the existing command and Cloud Run jobs run either a local crawler or a source package. Triaditsa is the first packaged source in this fork. Other sources keep their code in `crawlers/`. Both paths feed the same processing pipeline. The package supplies data. Obo's runner handles deduplication, validation, and persistence: it skips known items, checks new content, and saves valid records.
+During the [source-package transition](../docs/features/source-packages.md), the existing command and Cloud Run jobs run either a local crawler or a source package. Migrated sources use package adapters; remaining sources keep their code in `crawlers/`. Both paths feed the same processing pipeline. The package supplies data. Obo's runner handles deduplication, validation, and persistence: it skips known items, checks new content, and saves valid records.
 
 ## Components
 
 - **[crawlers/](crawlers/README.md)** - Automated scrapers that fetch raw data from external sources
-- **[sources/](sources/run-source.ts)** - Simple scheduled runner for packaged sources; currently used by the Triaditsa entrypoint
+- **[sources/](sources/run-source.ts)** - Simple scheduled runner for packaged sources
 - **[messageIngest/](messageIngest/README.md)** - Processing pipeline: AI extraction → geocoding → GeoJSON conversion
 - **[geocoding/](geocoding/README.md)** - Geocoding services (Google, Overpass, Cadastre, GTFS) with persistent cache
 - **[notifications/](notifications/README.md)** - Geographic matching and push notification delivery
