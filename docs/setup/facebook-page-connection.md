@@ -8,6 +8,8 @@ The public entrypoint is `/connect/facebook` on your deployed instance. Replace 
 
 Open your app in the [Meta app dashboard](https://developers.facebook.com/apps/) and configure the login flow for the intended deployment origin. Register these URLs with your own origin:
 
+In **App settings → Basic**, add your instance's hostname, such as `example.org`, to **App Domains** and save it. Enter the hostname without a scheme or path. If Meta requires a website platform, set its site URL to your instance's full origin. Configure the OAuth redirect URI separately in the login settings. A missing App Domains entry produces Meta's “Can't load URL” error even when the callback URI is registered.
+
 | Purpose | URL |
 | --- | --- |
 | Connection page | `https://example.org/connect/facebook` |
