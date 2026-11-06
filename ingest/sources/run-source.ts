@@ -7,7 +7,12 @@ import { z } from "zod";
 import { encodeDocumentId, isUrlProcessed } from "@/crawlers/shared/firestore";
 import { logger } from "@/lib/logger";
 import { getLocality } from "@/lib/target-locality";
-import { parseSourceContent } from "./source-content";
+import { parseSourceContent, type SourceContentValidation } from "./source-content";
+
+interface RunSourceOptions {
+  dryRun?: boolean;
+  contentValidation?: SourceContentValidation;
+}
 
 const itemSchema = z.object({
   identifier: z.string().refine((value) => value.trim().length > 0, "Empty identifier"),
@@ -40,14 +45,24 @@ async function saveNewSource(db: OboDb, identifier: string, data: Record<string,
 }
 
 async function processItem(
-  db: OboDb, source: DataSource, sourceType: string, locality: string, candidate: unknown,
+  db: OboDb | null,
+  source: DataSource,
+  sourceType: string,
+  locality: string,
+  candidate: unknown,
+  validation: SourceContentValidation,
 ): Promise<"saved" | "skipped" | "failed"> {
   let identifier: string | undefined;
   try {
     const item = parseItem(candidate);
     identifier = item.identifier;
-    if (await isUrlProcessed(identifier, db)) return "skipped";
-    const content = parseSourceContent(await source.fetchItem(item));
+    if (db && await isUrlProcessed(identifier, db)) {
+      return "skipped";
+    }
+    const content = parseSourceContent(await source.fetchItem(item), validation);
+    if (!db) {
+      return "saved";
+    }
     const saved = await saveNewSource(db, identifier, {
       ...content, url: identifier, sourceType, locality, crawledAt: new Date(), processed: false,
     });
@@ -60,10 +75,19 @@ async function processItem(
 
 /** One scheduled scan. Missing items are retried by listing again on the next run. */
 export async function runSource(
-  db: OboDb,
+  db: OboDb | null,
   metadata: SourceMetadata,
   createSource: CreateSource,
+  options: RunSourceOptions = {},
 ): Promise<{ saved: number; skipped: number; failed: number }> {
+  if (!db && !options.dryRun) {
+    throw new Error("A database is required unless dryRun is enabled");
+  }
+  const validation = options.contentValidation ?? "strict";
+  if (validation === "legacy-toplo" && metadata.id !== "toplo-bg") {
+    throw new Error("Legacy Toplo content validation requires the toplo-bg source");
+  }
+  const persistenceDb = options.dryRun ? null : db;
   const locality = getLocality();
   validateLocality(locality);
   if (!metadata.id.trim() || !metadata.localities.includes(locality)) {
@@ -77,11 +101,16 @@ export async function runSource(
     do {
       const page = pageSchema.parse(await source.discoverItems(cursor));
       for (const candidate of page.items) {
-        summary[await processItem(db, source, metadata.id, locality, candidate)]++;
+        const outcome = await processItem(
+          persistenceDb, source, metadata.id, locality, candidate, validation,
+        );
+        summary[outcome]++;
       }
       cursor = page.nextCursor;
       if (cursor !== undefined) {
-        if (cursors.has(cursor)) throw new Error("Source returned a repeated pagination cursor");
+        if (cursors.has(cursor)) {
+          throw new Error("Source returned a repeated pagination cursor");
+        }
         cursors.add(cursor);
       }
     } while (cursor !== undefined);
