@@ -23,7 +23,7 @@ const errorMessages: Record<
     "Свързването не беше запазено. Опитай отново. Ако проблемът продължи, уведоми човека, който ти изпрати линка.",
   invalid: "Потвърждението е невалидно. Започни свързването отначало.",
   rate_limit:
-    "Facebook временно ограничи заявките. Изчакай няколко минути и опитай отново.",
+    "Твърде много опити за свързване. Изчакай няколко минути и опитай отново.",
   too_many_pages:
     "Избрани са твърде много страници. Започни отново и разреши достъп само до страницата за пилота.",
 };
@@ -97,7 +97,7 @@ function ConnectionState({ view }: Readonly<{ view: FacebookConnectionView }>) {
           <p className="leading-7 text-neutral">{errorMessages[view.code]}</p>
         </div>
         <Link
-          href="/connect/facebook"
+          href="/connect/facebook?restart=1"
           className={getButtonClasses("primary", "md", "md", "inline-flex focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary")}
         >
           Опитай отново
@@ -114,7 +114,7 @@ function ConnectionState({ view }: Readonly<{ view: FacebookConnectionView }>) {
           <p className="leading-7 text-neutral">
             Започни отново и провери за кои страници разрешаваш достъп във Facebook.
           </p>
-          <Link href="/connect/facebook" className={getButtonClasses("link")}>
+          <Link href="/connect/facebook?restart=1" className={getButtonClasses("link")}>
             Обратно към свързването
           </Link>
         </div>

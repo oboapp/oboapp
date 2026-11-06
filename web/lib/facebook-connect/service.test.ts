@@ -19,7 +19,9 @@ import { exchangeFacebookCode, getFacebookAuthorization, getFacebookPageAccess }
 
 vi.mock("./client", () => {
   return {
-    buildFacebookAuthorizationUrl: vi.fn(() => { return "https://www.facebook.com/dialog/oauth"; }),
+    buildFacebookAuthorizationUrl: vi.fn(() => {
+      return "https://www.facebook.com/dialog/oauth";
+    }),
     exchangeFacebookCode: vi.fn(),
     getFacebookAuthorization: vi.fn(),
     getFacebookPageAccess: vi.fn(),
@@ -104,7 +106,9 @@ describe("Facebook connection lifecycle", () => {
         disable: vi.fn().mockResolvedValue(undefined),
         destroy: vi.fn().mockResolvedValue(undefined),
       },
-      now: () => { return 100000; },
+      now: () => {
+        return 100000;
+      },
     };
     session = makeFacebookSession();
     await context.store.createSession(session.sessionId, {

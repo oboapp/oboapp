@@ -15,13 +15,13 @@ export const metadata: Metadata = {
 export default async function FacebookConnectionPage({
   searchParams,
 }: Readonly<{
-  searchParams: Promise<{ error?: string | string[] }>;
+  searchParams: Promise<{ error?: string | string[]; restart?: string | string[] }>;
 }>) {
   const cookieStore = await cookies();
   const query = await searchParams;
   const errorCode = typeof query.error === "string" ? query.error : undefined;
   const view = await getFacebookConnectionView(
-    cookieStore.get(FACEBOOK_SESSION_COOKIE)?.value,
+    query.restart === "1" ? undefined : cookieStore.get(FACEBOOK_SESSION_COOKIE)?.value,
     errorCode,
   );
 

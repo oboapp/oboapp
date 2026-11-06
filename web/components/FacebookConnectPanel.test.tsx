@@ -80,7 +80,7 @@ describe("FacebookConnectPanel", () => {
 
     expect(screen.getByRole("heading", { name: "Няма налични страници" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Свържи избраната страница" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Обратно към свързването" })).toHaveAttribute("href", "/connect/facebook");
+    expect(screen.getByRole("link", { name: "Обратно към свързването" })).toHaveAttribute("href", "/connect/facebook?restart=1");
   });
 
   it("confirms the Page and explains that collection awaits pilot confirmation", () => {
@@ -99,14 +99,14 @@ describe("FacebookConnectPanel", () => {
     { code: "provider", message: "Facebook временно не отговори." },
     { code: "storage", message: "Свързването не беше запазено." },
     { code: "invalid", message: "Потвърждението е невалидно." },
-    { code: "rate_limit", message: "Facebook временно ограничи заявките." },
+    { code: "rate_limit", message: "Твърде много опити за свързване." },
     { code: "too_many_pages", message: "Избрани са твърде много страници." },
   ])("shows a useful retry path for $code", ({ code, message }) => {
     render(<FacebookConnectPanel view={{ status: "error", code }} />);
 
     expect(screen.getByRole("alert")).toHaveTextContent("Свързването не завърши");
     expect(screen.getByRole("alert")).toHaveTextContent(message);
-    expect(screen.getByRole("link", { name: "Опитай отново" })).toHaveAttribute("href", "/connect/facebook");
+    expect(screen.getByRole("link", { name: "Опитай отново" })).toHaveAttribute("href", "/connect/facebook?restart=1");
     expect(screen.queryByRole("button", { name: "Продължи с Facebook" })).not.toBeInTheDocument();
   });
 });
