@@ -1,25 +1,59 @@
-import { describe, expect, it, vi } from "vitest";
-import { sourceWrapperContract } from "@/__mocks__/source-wrapper-contract";
-import { crawlHybridRss } from "../shared/rss-crawler";
-import { discoverItems } from "./discovery";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import sourceDefinition from "../../../shared/src/sources/sredec-sofia-org";
+import { createSource } from "@oboapp/source-sredec-sofia-org";
+import { metadata } from "@oboapp/source-sredec-sofia-org/metadata";
+import { crawl } from "./index";
 
-describe("sredec-sofia-org crawl contract", () => {
-  const contract = sourceWrapperContract(
-    "sredec-sofia-org",
-    "https://sredec-sofia.org/category/публикации/полезна-информация/feed/",
-    "hybrid",
-    () => import("./index"),
-    () => import("./extractors"),
-  );
+const mocks = vi.hoisted(() => {
+  return {
+    db: {},
+    getDb: vi.fn(),
+    runSource: vi.fn(),
+    info: vi.fn(),
+  };
+});
 
-  it("wires discovery, source identity, locality and detail processing", async () => {
-    await contract.assertWiring();
-    expect(vi.mocked(crawlHybridRss).mock.calls[0][0].discoverItems).toBe(
-      discoverItems,
-    );
+vi.mock("@/lib/db", () => ({
+  getDb: mocks.getDb,
+}));
+vi.mock("@/sources/run-source", () => ({
+  runSource: mocks.runSource,
+}));
+vi.mock("@/lib/logger", () => ({
+  logger: { info: mocks.info },
+}));
+vi.mock("dotenv", () => ({
+  default: { config: vi.fn() },
+}));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.getDb.mockResolvedValue(mocks.db);
+  mocks.runSource.mockResolvedValue({ saved: 1, skipped: 2, failed: 0 });
+});
+
+describe("Sredets package entrypoint", () => {
+  it("keeps catalog metadata and runs the published factory with the existing database", async () => {
+    await crawl();
+
+    expect(metadata.id).toBe("sredec-sofia-org");
+    expect(metadata.localities).toEqual(["bg.sofia"]);
+    expect(metadata).toEqual(sourceDefinition);
+    expect(mocks.getDb).toHaveBeenCalledOnce();
+    expect(mocks.runSource).toHaveBeenCalledExactlyOnceWith(mocks.db, metadata, createSource);
+    expect(mocks.info).toHaveBeenCalledWith("Crawl complete", {
+      sourceType: "sredec-sofia-org",
+      saved: 1,
+      skipped: 2,
+      failed: 0,
+    });
   });
 
-  it("propagates orchestration failures to the runner", async () => {
-    await contract.assertFailurePropagation();
+  it("propagates a failed scan to the existing scheduler", async () => {
+    mocks.runSource.mockRejectedValueOnce(new Error("Feed unavailable"));
+
+    await expect(crawl()).rejects.toThrow("Feed unavailable");
+
+    expect(mocks.info).not.toHaveBeenCalled();
   });
 });
