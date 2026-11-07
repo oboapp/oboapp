@@ -5,7 +5,7 @@ const browserSources = [
   "@oboapp/source-so-slatina-org",
 ];
 
-async function main(): Promise<void> {
+export async function checkSourceBrowsers(): Promise<void> {
   for (const source of browserSources) {
     try {
       const sourceRequire = createRequire(require.resolve(source));
@@ -38,7 +38,15 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
-  console.error("Source Chromium check failed", error);
-  process.exitCode = 1;
-});
+export async function runSourceBrowserChecks(): Promise<void> {
+  try {
+    await checkSourceBrowsers();
+  } catch (error: unknown) {
+    console.error("Source Chromium check failed", error);
+    process.exitCode = 1;
+  }
+}
+
+if (require.main === module) {
+  void runSourceBrowserChecks();
+}
