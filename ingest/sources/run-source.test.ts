@@ -28,12 +28,20 @@ function setup() {
   const client: DbClient = {
     findOne: vi.fn<DbClient["findOne"]>(async (_, id) => records.get(id) ?? null),
     createOne: vi.fn<DbClient["createOne"]>(async (_, data, id) => {
-      if (records.has(id)) throw Object.assign(new Error("duplicate"), { code: 6 });
+      if (records.has(id)) {
+        throw Object.assign(new Error("duplicate"), { code: 6 });
+      }
       records.set(id, data);
       return id;
     }),
-    findMany: vi.fn(), insertOne: vi.fn(), updateOne: vi.fn(), deleteOne: vi.fn(),
-    deleteMany: vi.fn(), batchWrite: vi.fn(), count: vi.fn(), close: vi.fn(),
+    findMany: vi.fn(),
+    insertOne: vi.fn(),
+    updateOne: vi.fn(),
+    deleteOne: vi.fn(),
+    deleteMany: vi.fn(),
+    batchWrite: vi.fn(),
+    count: vi.fn(),
+    close: vi.fn(),
   };
   const db = { client, sources: new SourcesRepository(client) } as OboDb;
   const source = {
