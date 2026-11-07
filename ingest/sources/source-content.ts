@@ -15,9 +15,22 @@ const contentSchema = z.object({
   deepLinkUrl: z.string().optional(),
 });
 
+// Toplo historically stores these provider strings unchanged, including empty
+// titles and malformed publication dates. Timespans and geometry stay validated.
+const legacyToploContentSchema = contentSchema.extend({
+  title: z.string(),
+  datePublished: z.string(),
+});
+
+export type SourceContentValidation = "strict" | "legacy-toplo";
+
 /** Strip package-supplied platform fields and preserve the existing raw format. */
-export function parseSourceContent(value: unknown): Record<string, unknown> {
-  const { geoJson, ...content } = contentSchema.parse(value);
+export function parseSourceContent(
+  value: unknown,
+  validation: SourceContentValidation = "strict",
+): Record<string, unknown> {
+  const schema = validation === "legacy-toplo" ? legacyToploContentSchema : contentSchema;
+  const { geoJson, ...content } = schema.parse(value);
   const result: Record<string, unknown> = Object.fromEntries(
     Object.entries(content).filter(([, field]) => field !== undefined),
   );
