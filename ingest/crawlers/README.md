@@ -1,6 +1,6 @@
 # Crawlers
 
-This directory contains the crawler entrypoints: the functions called by the collection commands. During the [source-package transition](../../docs/features/source-packages.md), most directories keep their existing crawler code. Packaged sources call their published npm packages through Obo's runner. Both paths save raw records through `@oboapp/db`.
+This directory contains the crawler entrypoints: the functions called by the collection commands. During the [source-package transition](../../docs/features/source-packages.md), most directories keep their existing crawler code. Triaditsa, Oborishte, Slatina, Toplo, Lozenets, Studentski and Sredets call their published npm packages through Obo's runner. Both paths save raw records through `@oboapp/db`.
 
 ## How They Work
 
@@ -24,6 +24,7 @@ pnpm --dir ingest test:run crawlers
 pnpm --dir ingest test:run messageIngest/source-handoff.test.ts
 pnpm --dir ingest test:run messageIngest/packaged-hybrid-handoff.test.ts
 pnpm --dir ingest test:run messageIngest/packaged-toplo-handoff.test.ts
+pnpm --dir ingest test:run messageIngest/packaged-next-districts-handoff.test.ts
 ```
 
 All source directories, including currently unselected sources, have crawl-entrypoint coverage. `shared/source-inventory.test.ts` checks the explicit inventory against the implementation directories. Add a real crawl contract suite and update that inventory when adding a source; parser tests alone are insufficient.
@@ -36,6 +37,7 @@ All source directories, including currently unselected sources, have crawl-entry
 | `messageIngest/source-handoff.test.ts` | Actual website, full-feed and NIMH crawler output through persistence and `from-sources.ingest()` |
 | `messageIngest/packaged-hybrid-handoff.test.ts` | Oborishte and Slatina packages through persistence and ingestion, historical lookups and retry |
 | `messageIngest/packaged-toplo-handoff.test.ts` | Toplo package through persistence and ingestion, literal synthetic identifiers, legacy fields and historical lookups |
+| `messageIngest/packaged-next-districts-handoff.test.ts` | Lozenets, Studentski and Sredets packages through persistence and ingestion, historical lookups, listing failures and retry |
 
 Tests use frozen time, local fixtures and mocked browser/network/storage boundaries. `__mocks__/source-contract.ts` provides a small stateful mock of the `@oboapp/db` sources repository; it is not a database emulator. Shared helper tests execute actual persistence code. Legacy wrapper suites invoke the exported crawler and its detail callback; packaged-source suites exercise the adapter and the package handoff. Custom suites retain real builders and transforms. AQI calculations and parsers retain their own unit suites. No credentials, browser downloads, provider access, or emulator are needed.
 
@@ -47,9 +49,9 @@ During #586, keep historical lookup/no-overwrite tests in Obo and reuse identifi
 
 Known boundaries: this baseline does not assert universal failure behavior. Some legacy sources abort on a lookup/provider failure, while shared RSS skips unreadable items. Legacy browser cleanup is not certified on every exceptional path. Packaged sources close their source instance through the runner's `finally` block; Toplo uses HTTP. Review remaining legacy cleanup changes separately.
 
-Upstream-specific gaps to resolve before migrating Sofia: its current RSS crawler catches individual URL lookup failures and still attempts detail persistence, which can overwrite an existing record; it also compares historical titles exactly. This suite protects successful URL deduplication, exact legacy-title fallback, feed/query failure propagation, and detail-failure continuation, but does not endorse the unsafe lookup-error fallback. Upstream also has no empty-message completion guard in `from-sources`; that fork-only behavior is intentionally not imported by this baseline. Address these defects separately before claiming failure-safe deduplication for every source.
+Before migrating Sofia, preserve its URL aliases, exact historical-title fallback, and lookup-failure handling. A failed URL lookup skips the item. Its contract suite protects these rules, feed/query failure propagation, and detail-failure continuation. The ingestion tests also protect the empty-message completion guard in `from-sources`.
 
-Before considering a PR ready, check every upstream CI job, including the sponsored SonarCloud analysis, and inspect its new-code findings as well as its quality gate. A green gate does not necessarily mean there are no new issues. Keep test declarations explicit in each `.test.ts` file so static analysis can recognize them; shared mock/assertion support belongs under `__mocks__`.
+Before considering a PR ready, check every applicable CI job and available Sonar findings for changed files, including the actual quality gate. State when Sonar results are unavailable. A green gate does not necessarily mean there are no new issues. Keep test declarations explicit in each `.test.ts` file so static analysis can recognize them; shared mock/assertion support belongs under `__mocks__`.
 
 ## Screenshot Baselines (Required)
 

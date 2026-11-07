@@ -4,7 +4,7 @@ Tracking: [#586](https://github.com/oboapp/oboapp/issues/586). Packages live in 
 
 ## Current transition state
 
-Triaditsa, Oborishte, Slatina and Toplo use published source packages. Triaditsa was first piloted in [vbuch/oboapp PR #29](https://github.com/vbuch/oboapp/pull/29). Both collection paths remain in use during migration.
+Triaditsa, Oborishte, Slatina, Toplo, Lozenets, Studentski and Sredets use published source packages. Triaditsa was first piloted in [vbuch/oboapp PR #29](https://github.com/vbuch/oboapp/pull/29). Both collection paths remain in use during migration.
 
 | Responsibility | Legacy sources | Packaged sources |
 | --- | --- | --- |
@@ -13,6 +13,18 @@ Triaditsa, Oborishte, Slatina and Toplo use published source packages. Triaditsa
 | Scheduled entrypoint | Existing `crawl --source {id}` job | Same job and command, with an adapter in `crawlers/{id}/index.ts` |
 | Web catalog and deployment selection | Instance source assembly (`shared/src/sources.ts`) and Terraform | The same instance assembly and Terraform configuration |
 | Processing after collection | Existing raw-source ingestion, event matching, notifications | The same processing pipeline |
+
+The ingest package pins these published versions:
+
+| Source | Package | Version |
+| --- | --- | --- |
+| Triaditsa | `@oboapp/source-triaditsa-org` | `0.2.0` |
+| Oborishte | `@oboapp/source-rayon-oborishte-bg` | `0.1.0` |
+| Slatina | `@oboapp/source-so-slatina-org` | `0.1.0` |
+| Toplo | `@oboapp/source-toplo-bg` | `0.1.0` |
+| Lozenets | `@oboapp/source-lozenets-sofia-bg` | `0.1.0` |
+| Studentski | `@oboapp/source-studentski-bg` | `0.1.0` |
+| Sredets | `@oboapp/source-sredec-sofia-org` | `0.1.0` |
 
 ```mermaid
 flowchart TD
@@ -44,9 +56,20 @@ An individual lookup, fetch, validation, or save failure is logged and counted w
 
 `discoverItems` lists candidates. `fetchItem` returns their content; full-content feeds and synthetic-identifier sources can supply it directly from listing context cached in the source instance. The runner handles both operations within the scheduled scan.
 
-Triaditsa, Oborishte, Slatina and Toplo delegate from their existing entrypoints to their respective packages through the runner. Their Cloud Run jobs, schedules, catalog entries, and source identities stay unchanged. Other crawlers retain their existing implementation until their individual cutovers. Preserve each source's special legacy deduplication, including Sofia's title fallback, before switching it. Package upgrades never trigger refetching old identifiers.
+The migrated sources delegate from their existing entrypoints to their respective packages through the runner. Their Cloud Run jobs, schedules, catalog entries, and source identities stay unchanged. Other crawlers retain their existing implementation until their individual cutovers. Preserve each source's special legacy deduplication, including Sofia's title fallback, before switching it. Package upgrades never trigger refetching old identifiers.
 
 Oborishte and Slatina use RSS for discovery and a reused Chromium browser for article details. Their package versions use Playwright 1.61.1. The ingest image must include the matching browser revision. Their handoff tests cover historical base64 and MD5 identifiers, repeat scans and retry after a page failure.
+
+## Lozenets, Studentski and Sredets
+
+These three sources use their published `0.1.0` packages through the existing scheduled entrypoints. Lozenets and Studentski discover articles from their RSS feeds. Sredets preserves its five category feeds, ordered discovery and 90-day cutoff. Its listing finishes before the runner starts saving articles, so a listing failure leaves no partial scan in storage.
+
+The packages use `@oboapp/source-web-utils@0.1.0` for RSS fetching and Chromium article extraction. This helper owns Playwright 1.61.1. The image's browser check resolves Playwright through each provider's helper dependency and launches the installed Chromium revision as the production user.
+
+`messageIngest/packaged-next-districts-handoff.test.ts` runs the published packages through their actual crawler entrypoints, raw storage and ingestion with simulated HTTP, browser and database boundaries. It covers literal URLs and MD5 identifiers, historical base64 records, repeat scans, listing failures and detail retries. Provider parsers and selectors are maintained in [oboapp/sources](https://github.com/oboapp/sources).
+
+Run `pnpm --dir ingest crawl --source lozenets-sofia-bg`, `--source studentski-bg` or `--source sredec-sofia-org` with the normal ingest environment. Their regular schedules and `bg.sofia` locality remain in place. To roll back, revert this integration and redeploy the previous image. Existing stored identifiers remain compatible.
+
 ## Toplo synthetic-identifier pilot
 
 Toplo uses `@oboapp/source-toplo-bg@0.1.0` through its existing `toplo-bg` entrypoint. The package reads the incident JSON embedded in the public HTML listing over HTTP and caches it in one source instance. Synthetic URLs such as `https://toplo.bg/incidents/item-1` remain raw-record identifiers; the empty `deepLinkUrl` keeps them out of public detail links. Large geometry stays in the instance cache, outside the SDK discovery payload limit.

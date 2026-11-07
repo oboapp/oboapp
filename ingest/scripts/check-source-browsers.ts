@@ -1,15 +1,21 @@
 import { createRequire } from "node:module";
 
 const browserSources = [
-  "@oboapp/source-rayon-oborishte-bg",
-  "@oboapp/source-so-slatina-org",
+  { source: "@oboapp/source-rayon-oborishte-bg" },
+  { source: "@oboapp/source-so-slatina-org" },
+  { source: "@oboapp/source-lozenets-sofia-bg", browserDependency: "@oboapp/source-web-utils" },
+  { source: "@oboapp/source-studentski-bg", browserDependency: "@oboapp/source-web-utils" },
+  { source: "@oboapp/source-sredec-sofia-org", browserDependency: "@oboapp/source-web-utils" },
 ];
 
 export async function checkSourceBrowsers(): Promise<void> {
-  for (const source of browserSources) {
+  for (const { source, browserDependency } of browserSources) {
     try {
       const sourceRequire = createRequire(require.resolve(source));
-      const playwright: typeof import("playwright") = sourceRequire("playwright");
+      const browserRequire = browserDependency
+        ? createRequire(sourceRequire.resolve(browserDependency))
+        : sourceRequire;
+      const playwright: typeof import("playwright") = browserRequire("playwright");
       const browser = await playwright.chromium.launch({
         headless: true,
         args: [

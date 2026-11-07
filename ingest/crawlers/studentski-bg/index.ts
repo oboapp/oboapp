@@ -2,42 +2,19 @@
 
 import dotenv from "dotenv";
 import { resolve } from "node:path";
-import type { Browser } from "playwright";
-import type { OboDb } from "@oboapp/db";
-import type { RssFeedItem } from "../shared/rss";
-import { mergePostDetails } from "../shared/rss";
-import { crawlHybridRss } from "../shared/rss-crawler";
-import { extractFeedItems, extractPostDetails } from "./extractors";
-import { processWordpressPost } from "../shared/webpage-crawlers";
+import { createSource } from "@oboapp/source-studentski-bg";
+import { metadata } from "@oboapp/source-studentski-bg/metadata";
+import { runSource } from "@/sources/run-source";
 import { logger } from "@/lib/logger";
 
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 
-const FEED_URL =
-  "https://studentski.bg/category/%d0%b3%d1%80%d0%b0%d1%84%d0%b8%d1%86%d0%b8/feed/";
-const SOURCE_TYPE = "studentski-bg";
-const LOCALITY = "bg.sofia";
-const DELAY_BETWEEN_REQUESTS = 2000;
-
-const processPost = (browser: Browser, item: RssFeedItem, db: OboDb) =>
-  processWordpressPost(
-    browser,
-    item,
-    db,
-    SOURCE_TYPE,
-    LOCALITY,
-    DELAY_BETWEEN_REQUESTS,
-    async (page) => mergePostDetails(await extractPostDetails(page), item),
-    (d) => d,
-  );
+const SOURCE_TYPE = metadata.id;
 
 export async function crawl(): Promise<void> {
-  return crawlHybridRss({
-    feedUrl: FEED_URL,
-    sourceType: SOURCE_TYPE,
-    extractItems: extractFeedItems,
-    processPost,
-  });
+  const { getDb } = await import("@/lib/db");
+  const summary = await runSource(await getDb(), metadata, createSource);
+  logger.info("Crawl complete", { sourceType: SOURCE_TYPE, ...summary });
 }
 
 if (require.main === module) {

@@ -1,11 +1,14 @@
 // @vitest-environment node
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import ingestPackage from "../package.json";
 import { checkSourceBrowsers, runSourceBrowserChecks } from "./check-source-browsers";
 
 const mocks = vi.hoisted(() => ({
   createRequire: vi.fn(),
   packageRequire: vi.fn(),
+  helperRequire: vi.fn(),
+  resolve: vi.fn(),
   launch: vi.fn(),
   newPage: vi.fn(),
   setContent: vi.fn(),
@@ -17,15 +20,29 @@ vi.mock("node:module", () => ({ createRequire: mocks.createRequire }));
 const packages = [
   "@oboapp/source-rayon-oborishte-bg",
   "@oboapp/source-so-slatina-org",
-];
+  "@oboapp/source-lozenets-sofia-bg",
+  "@oboapp/source-studentski-bg",
+  "@oboapp/source-sredec-sofia-org",
+  "@oboapp/source-rayon-ilinden-bg",
+  "@oboapp/source-nadezhda-org",
+  "@oboapp/source-raioniskar-bg",
+  "@oboapp/source-mladost-bg",
+  "@oboapp/source-vrabnitsa-org",
+].filter((name) => Object.hasOwn(ingestPackage.dependencies, name));
+const helperPath = "/mock/source-web-utils/index.js";
 let originalExitCode: typeof process.exitCode;
 
 beforeEach(() => {
   originalExitCode = process.exitCode;
   process.exitCode = undefined;
   vi.resetAllMocks();
-  mocks.createRequire.mockReturnValue(mocks.packageRequire);
+  Object.assign(mocks.packageRequire, { resolve: mocks.resolve });
+  mocks.resolve.mockReturnValue(helperPath);
+  mocks.createRequire.mockImplementation((path: string) => {
+    return path === helperPath ? mocks.helperRequire : mocks.packageRequire;
+  });
   mocks.packageRequire.mockReturnValue({ chromium: { launch: mocks.launch } });
+  mocks.helperRequire.mockReturnValue({ chromium: { launch: mocks.launch } });
   mocks.launch.mockResolvedValue({ newPage: mocks.newPage, close: mocks.close });
   mocks.newPage.mockResolvedValue({
     setContent: mocks.setContent,
@@ -46,10 +63,22 @@ describe("source browser checks", () => {
   it("loads each package's own Playwright and closes each browser before moving on", async () => {
     await checkSourceBrowsers();
 
-    expect(mocks.createRequire.mock.calls).toEqual(packages.map((source) => [require.resolve(source)]));
+    const requirePaths: string[][] = [];
+    for (const [index, source] of packages.entries()) {
+      requirePaths.push([require.resolve(source)]);
+      if (index >= 2) {
+        requirePaths.push([helperPath]);
+      }
+    }
+    expect(mocks.createRequire.mock.calls).toEqual(requirePaths);
     expect(mocks.packageRequire).toHaveBeenNthCalledWith(1, "playwright");
     expect(mocks.packageRequire).toHaveBeenNthCalledWith(2, "playwright");
-    expect(mocks.launch).toHaveBeenCalledTimes(2);
+    expect(mocks.packageRequire).toHaveBeenCalledTimes(2);
+    expect(mocks.resolve).toHaveBeenCalledTimes(packages.length - 2);
+    expect(mocks.resolve).toHaveBeenCalledWith("@oboapp/source-web-utils");
+    expect(mocks.helperRequire).toHaveBeenCalledTimes(packages.length - 2);
+    expect(mocks.helperRequire).toHaveBeenCalledWith("playwright");
+    expect(mocks.launch).toHaveBeenCalledTimes(packages.length);
     expect(mocks.launch).toHaveBeenCalledWith({
       headless: true,
       args: [
@@ -61,12 +90,30 @@ describe("source browser checks", () => {
     });
     expect(mocks.setContent).toHaveBeenCalledWith("<p>Browser check</p>");
     expect(mocks.textContent).toHaveBeenCalledWith("p");
-    expect(mocks.close).toHaveBeenCalledTimes(2);
+    expect(mocks.close).toHaveBeenCalledTimes(packages.length);
     expect(mocks.close.mock.invocationCallOrder[0]).toBeLessThan(mocks.launch.mock.invocationCallOrder[1]);
     for (const source of packages) {
       expect(console.log).toHaveBeenCalledWith(`Chromium check passed for ${source}`);
     }
   });
+
+  it.each(["resolve", "helperRequire"] as const)(
+    "identifies a source whose nested browser dependency fails at %s",
+    async (operation) => {
+      const cause = new Error("Nested browser dependency unavailable");
+      mocks[operation].mockImplementationOnce(() => {
+        throw cause;
+      });
+
+      await expect(checkSourceBrowsers()).rejects.toMatchObject({
+        message: `Chromium check failed for ${packages[2]}`,
+        cause,
+      });
+      expect(mocks.close).toHaveBeenCalledTimes(2);
+      expect(mocks.launch).toHaveBeenCalledTimes(2);
+      expect(console.log).not.toHaveBeenCalledWith(`Chromium check passed for ${packages[2]}`);
+    },
+  );
 
   it.each(["createRequire", "packageRequire", "launch"] as const)(
     "identifies the failing package when %s fails before opening a browser",
@@ -136,7 +183,7 @@ describe("source browser checks", () => {
 
     expect(process.exitCode).toBeUndefined();
     expect(console.error).not.toHaveBeenCalled();
-    expect(mocks.close).toHaveBeenCalledTimes(2);
+    expect(mocks.close).toHaveBeenCalledTimes(packages.length);
   });
 
   it("fails the CLI with the source-specific cause when a browser check fails", async () => {
