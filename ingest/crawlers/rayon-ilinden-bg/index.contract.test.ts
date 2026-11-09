@@ -1,20 +1,59 @@
-import { describe, it } from "vitest";
-import { sourceWrapperContract } from "@/__mocks__/source-wrapper-contract";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import sourceDefinition from "../../../shared/src/sources/rayon-ilinden-bg";
+import { createSource } from "@oboapp/source-rayon-ilinden-bg";
+import { metadata } from "@oboapp/source-rayon-ilinden-bg/metadata";
+import { crawl } from "./index";
 
-describe("rayon-ilinden-bg crawl contract", () => {
-  const contract = sourceWrapperContract(
-    "rayon-ilinden-bg",
-    "https://ilinden.sofia.bg/category/%d0%be%d0%b1%d1%89%d0%b8%d0%bd%d0%b0/",
-    "webpage",
-    () => import("./index"),
-    () => import("./extractors"),
-  );
+const mocks = vi.hoisted(() => {
+  return {
+    db: {},
+    getDb: vi.fn(),
+    runSource: vi.fn(),
+    info: vi.fn(),
+  };
+});
 
-  it("wires discovery, source identity, locality and detail processing", async () => {
-    await contract.assertWiring();
+vi.mock("@/lib/db", () => ({
+  getDb: mocks.getDb,
+}));
+vi.mock("@/sources/run-source", () => ({
+  runSource: mocks.runSource,
+}));
+vi.mock("@/lib/logger", () => ({
+  logger: { info: mocks.info },
+}));
+vi.mock("dotenv", () => ({
+  default: { config: vi.fn() },
+}));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.getDb.mockResolvedValue(mocks.db);
+  mocks.runSource.mockResolvedValue({ saved: 1, skipped: 2, failed: 0 });
+});
+
+describe("rayon-ilinden-bg package entrypoint", () => {
+  it("keeps catalog metadata and runs the package factory with the existing database", async () => {
+    await crawl();
+
+    expect(metadata.id).toBe("rayon-ilinden-bg");
+    expect(metadata.localities).toEqual(["bg.sofia"]);
+    expect(metadata).toEqual(sourceDefinition);
+    expect(mocks.getDb).toHaveBeenCalledOnce();
+    expect(mocks.runSource).toHaveBeenCalledExactlyOnceWith(mocks.db, metadata, createSource);
+    expect(mocks.info).toHaveBeenCalledWith("Crawl complete", {
+      sourceType: "rayon-ilinden-bg",
+      saved: 1,
+      skipped: 2,
+      failed: 0,
+    });
   });
 
-  it("propagates orchestration failures to the runner", async () => {
-    await contract.assertFailurePropagation();
+  it("propagates a failed scan to the existing scheduler", async () => {
+    mocks.runSource.mockRejectedValueOnce(new Error("Listing unavailable"));
+
+    await expect(crawl()).rejects.toThrow("Listing unavailable");
+
+    expect(mocks.info).not.toHaveBeenCalled();
   });
 });

@@ -4,7 +4,7 @@ Tracking: [#586](https://github.com/oboapp/oboapp/issues/586). Packages live in 
 
 ## Current transition state
 
-Triaditsa, Oborishte, Slatina, Toplo, Lozenets, Studentski and Sredets use published source packages. Triaditsa was first piloted in [vbuch/oboapp PR #29](https://github.com/vbuch/oboapp/pull/29). Both collection paths remain in use during migration.
+Triaditsa, Oborishte, Slatina, Toplo, Lozenets, Studentski, Sredets, Ilinden, Nadezhda and Iskar use published source packages. Triaditsa was first piloted in [vbuch/oboapp PR #29](https://github.com/vbuch/oboapp/pull/29). Both collection paths remain in use during migration.
 
 | Responsibility | Legacy sources | Packaged sources |
 | --- | --- | --- |
@@ -25,6 +25,9 @@ The ingest package pins these published versions:
 | Lozenets | `@oboapp/source-lozenets-sofia-bg` | `0.1.0` |
 | Studentski | `@oboapp/source-studentski-bg` | `0.1.0` |
 | Sredets | `@oboapp/source-sredec-sofia-org` | `0.1.0` |
+| Ilinden | `@oboapp/source-rayon-ilinden-bg` | `0.1.0` |
+| Nadezhda | `@oboapp/source-nadezhda-org` | `0.1.0` |
+| Iskar | `@oboapp/source-raioniskar-bg` | `0.1.0` |
 
 ```mermaid
 flowchart TD
@@ -69,6 +72,18 @@ The packages use `@oboapp/source-web-utils@0.1.0` for RSS fetching and Chromium 
 `messageIngest/packaged-next-districts-handoff.test.ts` runs the published packages through their actual crawler entrypoints, raw storage and ingestion with simulated HTTP, browser and database boundaries. It covers literal URLs and MD5 identifiers, historical base64 records, repeat scans, listing failures and detail retries. Provider parsers and selectors are maintained in [oboapp/sources](https://github.com/oboapp/sources).
 
 Run `pnpm --dir ingest crawl --source lozenets-sofia-bg`, `--source studentski-bg` or `--source sredec-sofia-org` with the normal ingest environment. Their regular schedules and `bg.sofia` locality remain in place. To roll back, revert this integration and redeploy the previous image. Existing stored identifiers remain compatible.
+
+## Ilinden, Nadezhda and Iskar
+
+These three sources use their published `0.1.0` packages through the existing scheduled entrypoints. Their `@oboapp/source-web-utils@0.2.0` dependency provides browser listing and detail collection. The integration pins the published source versions and their registry integrity values in the lockfile.
+
+These sources preserve their browser listing selectors, literal anchor URLs and existing URL filters. Nadezhda deduplicates its listing. Titles, dates and content come from detail pages. Missing detail titles or content fail the item. Numeric Bulgarian dates retain the legacy parser, including current-time fallback for unparseable dates. Iskar's ISO-style provider dates currently use that fallback.
+
+One browser is reused across the listing and article details. Each page closes after its attempt, and attempts are spaced by two seconds, including failures. The existing source IDs, `bg.sofia` locality, Cloud Run jobs and schedules remain in place. The image checks resolve Chromium through the new packages' helper dependency.
+
+`messageIngest/packaged-browser-districts-handoff.test.ts` exercises the published packages through their actual entrypoints, raw storage and ingestion. It covers literal identifiers, historical base64 and MD5 records, repeat scans, listing failures, detail retries and per-item continuation. Captured provider parser contracts live in the sources repository.
+
+Run `pnpm --dir ingest crawl --source rayon-ilinden-bg`, `--source nadezhda-org` or `--source raioniskar-bg` with the normal ingest environment. Each source keeps its existing command and scheduled job. To roll back, revert the integration and redeploy the previous image. Existing stored identifiers remain compatible.
 
 ## Toplo synthetic-identifier pilot
 

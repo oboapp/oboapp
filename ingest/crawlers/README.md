@@ -1,6 +1,6 @@
 # Crawlers
 
-This directory contains the crawler entrypoints: the functions called by the collection commands. During the [source-package transition](../../docs/features/source-packages.md), most directories keep their existing crawler code. Triaditsa, Oborishte, Slatina, Toplo, Lozenets, Studentski and Sredets call their published npm packages through Obo's runner. Both paths save raw records through `@oboapp/db`.
+This directory contains the crawler entrypoints: the functions called by the collection commands. During the [source-package transition](../../docs/features/source-packages.md), most directories keep their existing crawler code. Triaditsa, Oborishte, Slatina, Toplo, Lozenets, Studentski, Sredets, Ilinden, Nadezhda and Iskar call their published npm packages through Obo's runner. Both paths save raw records through `@oboapp/db`.
 
 ## How They Work
 
@@ -25,6 +25,7 @@ pnpm --dir ingest test:run messageIngest/source-handoff.test.ts
 pnpm --dir ingest test:run messageIngest/packaged-hybrid-handoff.test.ts
 pnpm --dir ingest test:run messageIngest/packaged-toplo-handoff.test.ts
 pnpm --dir ingest test:run messageIngest/packaged-next-districts-handoff.test.ts
+pnpm --dir ingest test:run messageIngest/packaged-browser-districts-handoff.test.ts
 ```
 
 All source directories, including currently unselected sources, have crawl-entrypoint coverage. `shared/source-inventory.test.ts` checks the explicit inventory against the implementation directories. Add a real crawl contract suite and update that inventory when adding a source; parser tests alone are insufficient.
@@ -34,10 +35,11 @@ All source directories, including currently unselected sources, have crawl-entry
 | Each source's `index.contract.test.ts` (Sofia uses `index.test.ts`) | Identity/locality wiring, output or shared-helper delegation, and source-specific failure behavior |
 | `shared/persistence-contract.test.ts` | Legacy base64 and MD5 lookups, sequential idempotency, no overwrites, validation, categories, processing state |
 | `shared/orchestration-contract.test.ts` | Website/full-feed/hybrid deduplication, persistence, failure continuation and browser ownership |
-| `messageIngest/source-handoff.test.ts` | Actual website, full-feed and NIMH crawler output through persistence and `from-sources.ingest()` |
+| `messageIngest/source-handoff.test.ts` | Actual full-feed and NIMH crawler output through persistence and `from-sources.ingest()` |
 | `messageIngest/packaged-hybrid-handoff.test.ts` | Oborishte and Slatina packages through persistence and ingestion, historical lookups and retry |
 | `messageIngest/packaged-toplo-handoff.test.ts` | Toplo package through persistence and ingestion, literal synthetic identifiers, legacy fields and historical lookups |
 | `messageIngest/packaged-next-districts-handoff.test.ts` | Lozenets, Studentski and Sredets packages through persistence and ingestion, historical lookups, listing failures and retry |
+| `messageIngest/packaged-browser-districts-handoff.test.ts` | Ilinden, Nadezhda and Iskar published packages through persistence and ingestion, detail metadata, historical lookups, listing failures and retry |
 
 Tests use frozen time, local fixtures and mocked browser/network/storage boundaries. `__mocks__/source-contract.ts` provides a small stateful mock of the `@oboapp/db` sources repository; it is not a database emulator. Shared helper tests execute actual persistence code. Legacy wrapper suites invoke the exported crawler and its detail callback; packaged-source suites exercise the adapter and the package handoff. Custom suites retain real builders and transforms. AQI calculations and parsers retain their own unit suites. No credentials, browser downloads, provider access, or emulator are needed.
 
@@ -66,7 +68,7 @@ Tip: full-page capture tools such as GoFullPage can speed up baseline creation.
 
 ### Crawler Architecture
 
-Most district municipality crawlers share a WordPress-based architecture using a common set of shared WordPress crawler utilities. These utilities manage browser lifecycle, extract post links from index pages, handle deduplication, and process individual posts (fetching details, converting HTML to Markdown, parsing dates).
+Legacy district crawlers use the shared WordPress helpers in `ingest/crawlers/shared/` for browser sessions, listing and detail extraction, duplicate checks and raw persistence. Packaged district sources use helpers in the sources repository for provider collection, while Obo's runner owns duplicate checks and persistence.
 
 Crawlers that fetch from APIs (utility companies, weather services) have custom implementations tailored to each data source.
 
@@ -88,12 +90,14 @@ Crawlers handle message formatting differently based on whether they provide pre
 
 ## Running Crawlers
 
+Run the following commands from `ingest/`.
+
 ```bash
 # Run a specific crawler
-npx tsx crawl --source <source-name>
+pnpm crawl --source <source-name>
 
 # List available sources
-npx tsx crawl --help
+pnpm crawl --help
 ```
 
 ### Development: Cleaning Test Data
@@ -115,10 +119,10 @@ pnpm sources:clean --retain lozenets-sofia-bg --dry-run
 ```mermaid
 flowchart LR
     A[External Sources] --> B[Crawlers]
-    B --> C[Firestore Sources Documents]
+    B --> C[Raw source documents via @oboapp/db]
     C --> D[Ingest Script]
     D --> E[messageIngest]
-    E --> F[Firestore Messages Documents]
+    E --> F[Message documents via @oboapp/db]
     F --> G[GeoJSON on Map]
 ```
 
@@ -126,13 +130,13 @@ After crawlers store raw documents in the `sources` collection, use the ingest s
 
 ```bash
 # Process all sources within Oborishte boundaries
-npx tsx ingest --boundaries messageIngest/boundaries/oborishte.geojson
+pnpm ingest --boundaries localities/bg.sofia.oborishte.geojson
 
 # Process sources from a specific crawler
-npx tsx ingest --source-name sofiyska-voda
+pnpm ingest --source-name sofiyska-voda
 
 # Dry run to preview
-npx tsx ingest --dry-run --source-name rayon-oborishte-bg
+pnpm ingest --dry-run --source-name rayon-oborishte-bg
 ```
 
 The ingest script runs each source through the [messageIngest](../messageIngest) pipeline to extract addresses, geocode locations, and generate map-ready GeoJSON features.

@@ -6,17 +6,12 @@ import { launchBrowser } from "@/crawlers/shared/browser";
 import { encodeDocumentId, saveSourceDocument } from "@/crawlers/shared/firestore";
 import { crawl as crawlNimh } from "@/crawlers/nimh-severe-weather/index";
 import { crawl as crawlFeed } from "@/crawlers/triaditsa-org/index";
-import { crawl as crawlWebsite } from "@/crawlers/nadezhda-org/index";
 import { messageIngest } from "./index";
 import { ingest } from "./from-sources";
 
 vi.mock("@/lib/db", () => ({ getDb: vi.fn() }));
 vi.mock("@/crawlers/shared/browser", () => ({ launchBrowser: vi.fn() }));
 vi.mock("@/crawlers/nimh-severe-weather/parser", async (original) => ({ ...await original<typeof import("@/crawlers/nimh-severe-weather/parser")>(), parseWeatherPage: () => weatherWarning }));
-vi.mock("@/crawlers/nadezhda-org/extractors", () => ({
-  extractPostLinks: async () => [{ url: "https://nadezhda.sofia.bg/news/repair", title: "Repair", date: "04.10.2026" }],
-  extractPostDetails: async () => ({ title: "Repair", dateText: "04.10.2026", contentHtml: "<p>Water repair</p>" }),
-}));
 vi.mock("@/geocoding/shared/boundary-utils", () => ({ loadBoundaries: () => null, isWithinBoundaries: () => true }));
 vi.mock("@/lib/delay", () => ({ delay: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("dotenv", () => ({ default: { config: vi.fn() } }));
@@ -28,9 +23,6 @@ const result = { messages: [], totalCategorized: 0, totalRelevant: 0, totalIrrel
 // Independent persisted contracts: missing crawler assignments must fail even
 // when the consumer faithfully forwards the incomplete raw document.
 const expectedContent: Record<string, Record<string, unknown>> = {
-  "nadezhda-org": {
-    title: "Repair", message: "Water repair", datePublished: "2026-10-04T00:00:00.000Z",
-  },
   "triaditsa-org": {
     title: "Repair", message: "Water repair", datePublished: "2026-10-04T08:00:00.000Z",
   },
@@ -106,7 +98,6 @@ describe("crawler raw document to ingest contract", () => {
   });
 
   it.each([
-    { name: "website", crawl: crawlWebsite, url: "https://nadezhda.sofia.bg/news/repair", sourceType: "nadezhda-org" },
     { name: "full feed", crawl: crawlFeed, url: "https://triaditza.org/repair/", sourceType: "triaditsa-org" },
     { name: "city-wide listing", crawl: crawlNimh, url: "https://weather.bg/obshtini/index.php?z=u&o=SOF&date=2026-10-04&h=c9d1456eab46", sourceType: "nimh-severe-weather" },
   ])("passes the persisted $name document through the actual ingest entrypoint", async ({ crawl, url, sourceType }) => {
