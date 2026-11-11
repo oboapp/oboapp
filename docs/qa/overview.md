@@ -71,22 +71,29 @@ Run before merging any changes to prompt files or AI service schemas. See [Promp
 
 ## Browser Checks
 
-The My zones browser check uses a local app running with
+The My zones browser checks use a local app running with
 [MSW mock data](../setup/quick-start-frontend-msw.md) and a working Google Maps key.
-It checks visible event cards below saved zones, opening event details, zone
+They check visible event cards below saved zones, opening event details, zone
 filtering, map interaction, existing filters, and zone deletion through the user
-interface. It also checks the phone and tablet layouts, where zone badges center
-the map and the event list follows the current map area.
+interface. They verify that filtering and the camera survive phone and tablet
+resizing, and that All and Nearby preserve viewport behavior after entry. The
+landing check covers all three tabs, the active tab's filled or outlined house,
+Settings choices, returning visits, delayed zone loading, temporary tab switches,
+direct event links, and the empty-zone state. Location checks cover inline
+permission and retry, stale results, and leaving Nearby without changing home.
 
 With the local server running, execute from the repository root:
 
 ```bash
 pnpm --filter oboapp-web exec node --test e2e/my-zones.e2e.mjs
+pnpm --filter oboapp-web exec node --test e2e/my-zones-camera.e2e.mjs
+pnpm --filter oboapp-web exec node --test e2e/preferred-landing.e2e.mjs
 ```
 
 Install Chromium with `pnpm --filter oboapp-web exec playwright install chromium`,
 or set `PLAYWRIGHT_CHANNEL=msedge` to use an installed Microsoft Edge browser.
-The test verifies mock data before changing zones and accepts only a local URL.
+The tests verify mock data before changing zones and accept only a local URL.
+Set `E2E_BASE_URL` when the local server uses a port other than 3000.
 
 ## E2E Specifications
 

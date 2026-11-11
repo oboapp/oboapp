@@ -1,15 +1,30 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import MapComponent from "@/components/MapComponent";
-import GeolocationButton from "@/components/GeolocationButton";
 import NotificationButton from "@/components/onboarding/NotificationButton";
 import LoadingButton from "@/components/onboarding/LoadingButton";
-import { useGeolocationPrompt } from "@/lib/hooks/useGeolocationPrompt";
+import { useGeolocation } from "@/lib/hooks/useGeolocation";
 import { useOnboardingFlow } from "@/lib/hooks/useOnboardingFlow";
 import { useAuth } from "@/lib/auth-context";
 import { Message, Interest } from "@/lib/types";
 import type { User } from "firebase/auth";
+import {
+  getLocality,
+  getLocalityBounds,
+  getLocalityCenter,
+  getMapViewportBounds,
+} from "@/lib/bounds-utils";
+import type { LandingView } from "@/lib/hooks/useLandingPreference";
+import { isWithinBounds } from "@oboapp/shared";
+
+export interface NearbyLocationState {
+  readonly status: "idle" | "loading" | "ready" | "permission-required" | "error";
+  readonly message: string | null;
+  readonly retry: () => void;
+}
+
+type LocationStatus = Omit<NearbyLocationState, "retry">;
 
 interface MapContainerProps {
   readonly messages: Message[];
@@ -23,7 +38,12 @@ interface MapContainerProps {
     pendingColor?: string;
   };
   readonly initialMapCenter?: { lat: number; lng: number } | null;
-  readonly automaticCenterEnabled?: boolean;
+  readonly initialNavigationReady?: boolean;
+  readonly navigationMode?: LandingView;
+  readonly navigationSource?: "initial" | "manual";
+  readonly navigationRequestId?: number;
+  readonly navigationSuspended?: boolean;
+  readonly onLocationStateChange?: (state: NearbyLocationState) => void;
   readonly hoveredMessageId?: string | null;
   readonly selectedMessageId?: string | null;
   readonly onFeatureClick: (messageId: string) => void;
@@ -51,13 +71,6 @@ interface MapContainerProps {
   ) => void;
   readonly onCancelTargetMode: () => void;
   readonly onStartAddInterest: () => void;
-  readonly onGeolocationPromptChange: (
-    prompt: {
-      show: boolean;
-      onAccept: () => void;
-      onDecline: () => void;
-    } | null,
-  ) => void;
   readonly onOnboardingStateChange: (
     state: import("@/lib/hooks/useOnboardingFlow").OnboardingState,
     callbacks: {
@@ -75,7 +88,12 @@ export default function MapContainer({
   user,
   targetMode,
   initialMapCenter,
-  automaticCenterEnabled = true,
+  initialNavigationReady = true,
+  navigationMode = "all",
+  navigationSource = "initial",
+  navigationRequestId = 0,
+  navigationSuspended = false,
+  onLocationStateChange,
   hoveredMessageId,
   selectedMessageId,
   onFeatureClick,
@@ -86,7 +104,6 @@ export default function MapContainer({
   onSaveInterest,
   onCancelTargetMode,
   onStartAddInterest,
-  onGeolocationPromptChange,
   onOnboardingStateChange,
 }: MapContainerProps) {
   const [centerMap, setCenterMap] = useState<
@@ -98,6 +115,7 @@ export default function MapContainer({
       ) => void)
     | null
   >(null);
+  const [map, setMap] = useState<google.maps.Map | null>(null);
 
   // Subscription check state
   const [subscriptionsLoaded, setSubscriptionsLoaded] = useState(false);
@@ -161,17 +179,158 @@ export default function MapContainer({
     guestAvailable: !guestAuthUnavailable,
   });
 
-  const [isTrackingLocation, setIsTrackingLocation] = useState(false);
-  const allowAutomaticCenter = automaticCenterEnabled && !initialMapCenter;
+  const [locationStatus, setLocationStatus] = useState<
+    LocationStatus & { requestKey: string | null }
+  >({
+    requestKey: null,
+    status: "idle",
+    message: null,
+  });
+  const handledNavigation = useRef<string | null>(null);
+  const locationRequest = useRef(0);
+  const navigationBlocked =
+    navigationSuspended ||
+    targetMode.active ||
+    (navigationSource === "initial" && Boolean(initialMapCenter));
+  const nearbyEnabled =
+    initialNavigationReady && navigationMode === "nearby" && !navigationBlocked;
+  const navigationKey = `${navigationMode}:${navigationRequestId}`;
+  if (
+    initialNavigationReady &&
+    navigationMode === "nearby" &&
+    navigationBlocked &&
+    (locationStatus.requestKey !== navigationKey || locationStatus.status === "loading")
+  ) {
+    setLocationStatus({
+      requestKey: navigationKey,
+      status: "permission-required",
+      message: "Определянето на местоположението беше прекъснато. Опитай отново, когато приключиш с текущото действие.",
+    });
+  }
 
-  const {
-    showPrompt,
-    onAccept,
-    onDecline,
-    requestGeolocation,
-    autoCenter,
-    isLocating,
-  } = useGeolocationPrompt({ automaticCenterEnabled: allowAutomaticCenter });
+  const currentLocationStatus = React.useMemo<LocationStatus>(() => {
+    if (!initialNavigationReady || navigationMode !== "nearby") {
+      return { status: "idle", message: null };
+    }
+
+    if (locationStatus.requestKey !== navigationKey) {
+      return { status: "loading", message: null };
+    }
+
+    return { status: locationStatus.status, message: locationStatus.message };
+  }, [initialNavigationReady, navigationMode, locationStatus, navigationKey]);
+  const { locate, cancel } = useGeolocation({ enabled: nearbyEnabled });
+
+  const showCity = useCallback(() => {
+    if (!centerMap) {
+      return;
+    }
+
+    if (map) {
+      map.fitBounds(getLocalityBounds(), 32);
+      return;
+    }
+
+    const center = getLocalityCenter();
+    centerMap(center.lat, center.lng, 12, { animate: false });
+  }, [centerMap, map]);
+
+  const requestLocation = useCallback(
+    async (automatic: boolean) => {
+      if (!centerMap || !nearbyEnabled) {
+        return;
+      }
+
+      const request = ++locationRequest.current;
+      setLocationStatus({
+        requestKey: navigationKey,
+        status: "loading",
+        message: null,
+      });
+      const result = await locate(
+        (position) => {
+          if (!isWithinBounds(getLocality(), position.lat, position.lng)) {
+            throw new Error("Местоположението ти е извън поддържаната карта.");
+          }
+
+          centerMap(position.lat, position.lng, 17, { animate: false });
+          const viewportBounds = getMapViewportBounds(map);
+          if (viewportBounds) {
+            onBoundsChanged(viewportBounds);
+          }
+        },
+        { automatic },
+      );
+
+      if (request !== locationRequest.current || result.status === "canceled") {
+        return;
+      }
+
+      if (result.status !== "ready") {
+        showCity();
+      }
+
+      setLocationStatus({
+        requestKey: navigationKey,
+        status: result.status,
+        message: result.message,
+      });
+    },
+    [centerMap, nearbyEnabled, locate, showCity, navigationKey, map, onBoundsChanged],
+  );
+
+  const retryLocation = useCallback(() => {
+    void requestLocation(false);
+  }, [requestLocation]);
+  const { status: nearbyStatus, message: nearbyMessage } = currentLocationStatus;
+
+  useEffect(() => {
+    onLocationStateChange?.({
+      status: nearbyStatus,
+      message: nearbyMessage,
+      retry: retryLocation,
+    });
+  }, [onLocationStateChange, nearbyStatus, nearbyMessage, retryLocation]);
+
+  useEffect(() => {
+    if (!centerMap || !initialNavigationReady) {
+      return;
+    }
+
+    if (handledNavigation.current === navigationKey) {
+      return;
+    }
+
+    handledNavigation.current = navigationKey;
+    if (navigationBlocked) {
+      return;
+    }
+
+    if (navigationMode === "all") {
+      showCity();
+    }
+
+    if (navigationMode === "nearby") {
+      void requestLocation(navigationSource === "initial");
+    }
+  }, [
+    centerMap,
+    initialNavigationReady,
+    navigationMode,
+    navigationRequestId,
+    navigationKey,
+    navigationBlocked,
+    navigationSource,
+    requestLocation,
+    showCity,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      locationRequest.current += 1;
+      cancel();
+    };
+  }, [navigationMode, navigationRequestId, navigationBlocked, cancel]);
 
   // Handle add interest button click in idle state
   // If logged in, go directly to creation mode (skip showing AddInterestsPrompt again)
@@ -189,15 +348,6 @@ export default function MapContainer({
       onStartAddInterest();
     }
   }, [onboardingState, authUser, handleRestart, onStartAddInterest]);
-
-  // Sync geolocation prompt state to parent for proper DOM ordering
-  React.useEffect(() => {
-    if (showPrompt) {
-      onGeolocationPromptChange({ show: true, onAccept, onDecline });
-    } else {
-      onGeolocationPromptChange(null);
-    }
-  }, [showPrompt, onAccept, onDecline, onGeolocationPromptChange]);
 
   // Memoize onboarding callbacks to prevent useEffect loop
   const onboardingCallbacks = React.useMemo(
@@ -224,35 +374,8 @@ export default function MapContainer({
     mapInstance: google.maps.Map | null,
   ) => {
     setCenterMap(() => centerMapFn);
+    setMap(mapInstance);
     onMapReady(centerMapFn, mapInstance);
-
-    // Explicit navigation and the active view take priority over automatic location.
-    if (allowAutomaticCenter) {
-      autoCenter(centerMapFn)
-        .then((success) => {
-          if (success) {
-            // Enable location tracking to show the blue dot
-            setIsTrackingLocation(true);
-          }
-        })
-        .catch(() => {
-          // Silently handle errors - autoCenter already logs them
-        });
-    }
-  };
-
-  const handleGeolocationClick = () => {
-    if (centerMap) {
-      requestGeolocation(centerMap)
-        .then(() => {
-          // Enable location tracking after successful permission grant
-          setIsTrackingLocation(true);
-        })
-        .catch(() => {
-          // User declined or error occurred - don't enable tracking
-          // Error handling is already done in the hook
-        });
-    }
   };
 
   return (
@@ -266,7 +389,7 @@ export default function MapContainer({
         onInterestClick={onInterestClick}
         interestsInteractive={interestsInteractive}
         initialCenter={initialMapCenter || undefined}
-        shouldTrackLocation={isTrackingLocation}
+        shouldTrackLocation={nearbyEnabled && currentLocationStatus.status === "ready"}
         hoveredMessageId={hoveredMessageId}
         selectedMessageId={selectedMessageId}
         targetMode={
@@ -296,12 +419,6 @@ export default function MapContainer({
         </>
       )}
 
-      {/* Geolocation button - always visible */}
-      <GeolocationButton
-        onClick={handleGeolocationClick}
-        isLocating={isLocating}
-        visible={true}
-      />
     </div>
   );
 }

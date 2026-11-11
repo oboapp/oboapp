@@ -9,8 +9,11 @@ import React, {
 } from "react";
 import { GoogleMap, Circle, useJsApiLoader } from "@react-google-maps/api";
 import { Message, Interest } from "@/lib/types";
-import { getLocalityBounds, getLocalityCenter } from "@/lib/bounds-utils";
-import { roundCoordinate } from "@oboapp/shared";
+import {
+  getLocalityBounds,
+  getLocalityCenter,
+  getMapViewportBounds,
+} from "@/lib/bounds-utils";
 import { getButtonClasses } from "@/lib/theme";
 import GeoJSONLayer from "./GeoJSONLayer";
 import InterestCircles from "./InterestCircles";
@@ -212,31 +215,20 @@ function MapLoaded({
   }, [targetMode?.active, mapOptions, mapInstance]);
 
   const handleBoundsChangedInternal = useCallback(() => {
-    if (!mapRef.current || !onBoundsChanged) {
+    if (!onBoundsChanged) {
       return;
     }
 
-    const bounds = mapRef.current.getBounds();
-    const zoom = mapRef.current.getZoom();
-    if (!bounds || zoom === undefined) {
+    const bounds = getMapViewportBounds(mapRef.current);
+    if (!bounds) {
       return;
     }
 
-    setCurrentZoom(zoom);
-
-    const ne = bounds.getNorthEast();
-    const sw = bounds.getSouthWest();
-
-    onBoundsChanged({
-      north: roundCoordinate(ne.lat()),
-      south: roundCoordinate(sw.lat()),
-      east: roundCoordinate(ne.lng()),
-      west: roundCoordinate(sw.lng()),
-      zoom,
-    });
+    setCurrentZoom(bounds.zoom);
+    onBoundsChanged(bounds);
   }, [onBoundsChanged]);
 
-  // Track user location - only when explicitly enabled (after user clicks locate button)
+  // Track location only while enabled by the current map view.
   useEffect(() => {
     if (!shouldTrackLocation || !navigator.geolocation) {
       return;

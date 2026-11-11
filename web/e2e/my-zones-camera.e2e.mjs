@@ -291,17 +291,20 @@ test("My zones fits saved circles once per entry and preserves later camera chan
       }
     });
     await page.addInitScript(() => {
+      localStorage.setItem("landingViewPreference:v2", "all");
+      localStorage.removeItem("landingViewPreference:v1");
       localStorage.setItem("categoryFilter", JSON.stringify({
         selectedCategories: [],
         hasInteracted: true,
         showArchived: true,
       }));
       localStorage.setItem("geolocationPermissionGranted", "true");
-      globalThis.__cameraGeolocation = { resolve: null };
+      globalThis.__cameraGeolocation = { resolve: null, calls: 0 };
       Object.defineProperty(navigator, "geolocation", {
         configurable: true,
         value: {
           getCurrentPosition(success) {
+            globalThis.__cameraGeolocation.calls += 1;
             globalThis.__cameraGeolocation.resolve = success;
           },
           watchPosition() {
@@ -338,24 +341,32 @@ test("My zones fits saved circles once per entry and preserves later camera chan
       },
     );
     await page.waitForFunction(() => {
-      return typeof globalThis.google?.maps?.Map?.prototype.fitBounds === "function" &&
-        globalThis.__cameraGeolocation.resolve !== null;
+      return typeof globalThis.google?.maps?.Map?.prototype.fitBounds === "function";
     }, undefined, { timeout: 60_000 });
+    assert.equal(await page.evaluate(() => globalThis.__cameraGeolocation.calls), 0,
+      "An explicit All home must suppress the legacy automatic-location flag.");
     await page.evaluate(() => {
       const original = google.maps.Map.prototype.fitBounds;
       globalThis.__zoneCamera = { map: null, fits: [] };
       google.maps.Map.prototype.fitBounds = function (bounds, padding) {
         globalThis.__zoneCamera.map = this;
-        globalThis.__zoneCamera.fits.push({
-          padding,
-          bounds: new google.maps.LatLngBounds(bounds).toJSON(),
-        });
+        // City entry fits use 32px; track the independent saved-circle fits.
+        if (padding === 56) {
+          globalThis.__zoneCamera.fits.push({
+            padding,
+            bounds: new google.maps.LatLngBounds(bounds).toJSON(),
+          });
+        }
         return original.call(this, bounds, padding);
       };
     });
 
     const zonesMode = page.getByRole("radio", { name: "Моите зони" });
-    const eventsMode = page.getByRole("radio", { name: "Събития" });
+    const allMode = page.getByRole("radio", { name: "Всички", exact: true });
+    await page.getByRole("radio", { name: "Около мен", exact: true }).click();
+    await expect.poll(async () => {
+      return page.evaluate(() => globalThis.__cameraGeolocation.calls);
+    }).toBe(1);
     await page.getByRole("button", { name: "Отвори филтрите", exact: true }).click();
     await zonesMode.click();
     await expect(page.getByRole("button", {
@@ -404,7 +415,7 @@ test("My zones fits saved circles once per entry and preserves later camera chan
     await page.getByRole("button", { name: "Затвори филтрите", exact: true }).click();
     context.diagnostic("Map movement keeps My zones records and request count stable; category refresh and late geolocation preserve manual camera.");
 
-    await eventsMode.click();
+    await allMode.click();
     await expectLocalityLimits(page);
     await zonesMode.click();
     await expectZonesFitted(page, zones, manualCamera.fits);
@@ -415,34 +426,51 @@ test("My zones fits saved circles once per entry and preserves later camera chan
       await moveMockZone(page, zones[1], { lat: 42.82, lng: 23.51 }),
     ];
     const beforeWideFit = await cameraSnapshot(page);
-    await eventsMode.click();
+    await allMode.click();
     await zonesMode.click();
     await expectBoundedZoneFit(page, zones, beforeWideFit.fits);
     await expect.poll(async () => (await cameraSnapshot(page)).zoom).toBeLessThan(16);
     await page.screenshot({ path: path.join(artifactDirectory, "distant-zones.png") });
     context.diagnostic("Fitting distant zones at opposite locality edges preserves the normal map limits.");
 
+    // Keep the manual camera away from locality edges so native map restrictions
+    // do not need to adjust its center when the viewport dimensions change.
+    await moveCamera(page, { lat: 42.69, lng: 23.34 }, 15);
+    const beforeResponsiveResize = await cameraSnapshot(page);
+    const requestsBeforeResize = messageRequests.length;
+    const zoneTextBeforeResize = await zoneEvents.innerText();
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(zonesMode).toHaveCount(0);
-    await expect(page.getByRole("region", { name: "Събития", exact: true })).toBeVisible();
-    const beforeResponsiveEntry = await cameraSnapshot(page);
+    await expect(zonesMode).toBeVisible();
+    await expect(zonesMode).toHaveAttribute("aria-checked", "true");
+    await expect(zoneEvents).toBeVisible();
+    await expect(page.getByRole("region", { name: "Събития", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Действия за Вкъщи" })).toBeVisible();
+    await expectCameraUnchanged(page, beforeResponsiveResize);
+    await expectNoMessageRefresh(messageRequests, requestsBeforeResize);
+    assert.equal(await zoneEvents.innerText(), zoneTextBeforeResize);
     await page.setViewportSize({ width: 1280, height: 960 });
     await expect(zonesMode).toHaveAttribute("aria-checked", "true");
-    await expectBoundedZoneFit(page, zones, beforeResponsiveEntry.fits);
+    await expectCameraUnchanged(page, beforeResponsiveResize);
+    await expectNoMessageRefresh(messageRequests, requestsBeforeResize);
+    assert.equal(await zoneEvents.innerText(), zoneTextBeforeResize);
+    await allMode.click();
+    await zonesMode.click();
+    await expectBoundedZoneFit(page, zones, beforeResponsiveResize.fits);
+    context.diagnostic("Responsive resizing preserves My zones and its manual camera without refitting or refetching; switching away and back fits the saved zones again.");
 
     await deleteMockZone(page, zones[1]);
     zones = [zones[0]];
     const beforeSingleFit = await cameraSnapshot(page);
-    await eventsMode.click();
+    await allMode.click();
     await zonesMode.click();
     await expectZonesFitted(page, zones, beforeSingleFit.fits);
     await expectLocalityLimits(page);
-    context.diagnostic("Returning to desktop keeps the locality boundary; one remaining zone fits fully.");
+    context.diagnostic("Responsive layouts keep the locality boundary; one remaining zone fits fully.");
 
     await deleteMockZone(page, zones[0]);
     await expect(page.getByText(/Нямаш добавени зони\. Натисни/)).toBeVisible();
     await expect(page.getByRole("button", { name: "Добави зона", exact: true })).toBeEnabled();
-    await eventsMode.click();
+    await allMode.click();
     const emptyCamera = await cameraSnapshot(page);
     await zonesMode.click();
     await expectCameraUnchanged(page, emptyCamera);
