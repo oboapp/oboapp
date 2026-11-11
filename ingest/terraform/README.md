@@ -111,7 +111,7 @@ gcloud builds submit --tag europe-west1-docker.pkg.dev/my-project/ingest/ingest:
 gcloud run jobs execute pipeline-emergent --region=europe-west1 --wait
 
 # Or test individual crawler
-gcloud run jobs execute crawl-rayon-oborishte --region=europe-west1 --wait
+gcloud run jobs execute crawl-sofia --region=europe-west1 --wait
 
 # View all jobs
 gcloud run jobs list --region=europe-west1
@@ -159,7 +159,7 @@ When you update the application code:
 Alternatively, update jobs directly without Terraform:
 
 ```bash
-gcloud run jobs update crawl-rayon-oborishte \
+gcloud run jobs update crawl-sofia \
   --image=[REGION]-docker.pkg.dev/YOUR_PROJECT_ID/ingest/ingest:v1.0.1 \
   --region=europe-west1
 ```
@@ -232,11 +232,27 @@ terraform plan   # Workflows will be updated
 terraform apply
 ```
 
-**Adding new crawlers**: Add an entry to the relevant locality file (e.g. `crawlers.bg.sofia.tf`):
+**Adding source jobs**: Add an entry to the relevant locality's JSON file, such as `source-jobs.bg.sofia.json`. `crawlers.tf` discovers these files, reads the selected localities with `jsondecode(file(...))`, and supplies the assembled `local.crawlers` map to the jobs and workflows.
 
-1. Add an entry to `crawlers.bg.<locality>.tf` — the workflow templates pick it up automatically via `local.crawlers`.
-2. For emergent crawlers (30-min intervals): set `emergent = true` in the Terraform crawler entry — this controls Cloud Scheduler/Workflows scheduling. Also set `emergent: true` on the matching source definition in `shared/src/sources/{source-id}.ts` — this keeps `EMERGENT_CRAWLERS` (used by `pipeline --emergent`) in sync. The Terraform `source` value must match the source definition `id` (e.g., `toplo-bg`).
-3. The full list of available crawlers is discovered automatically via `local.crawlers` in Terraform.
+The upstream Sofia JSON selects the three demo sources: Sofia BG, Sofiyska Voda and sensor.community. `examples/source-jobs.bg.sofia.json` contains the full 23-source Sofia example and is outside the active file discovery. To configure a full Sofia instance, copy that example into the Terraform directory and keep only jobs selected by your `shared/src/sources.ts` catalog. Existing deployments should preserve their instance JSON on rebase so job keys and resource settings remain stable.
+
+```json
+{
+  "toplo": {
+    "source": "toplo-bg",
+    "memory": "512Mi",
+    "timeout": "1800s",
+    "description": "Crawl Toplo BG",
+    "emergent": true
+  }
+}
+```
+
+The JSON key identifies the Cloud Run job: `toplo` produces `crawl-toplo`. Its `source` must match the instance catalog source ID and runtime entrypoint. Include `memory` and `timeout`; `description` is optional. Set `"emergent": true` for the 30-minute schedule; omitting it uses the regular schedule. Keep the matching source definition's `emergent` flag in sync with this value.
+
+Run `pnpm --dir ingest exec tsx scripts/check-source-config.ts` from the repository root after changing the catalog or job data. During the package migration, upstream explicitly retains inactive integration dependencies in `ingest/source-package-policy.json`. Remove a package from `retainedUnselectedPackages` when selecting its source. A full Sofia deployment that selects all twelve package integrations can delete this policy or empty its list. See [new-locality setup](../../docs/setup/new-locality-instance.md) for rebase and selection guidance.
+
+For a new locality, create `source-jobs.<locality-id>.json` and select that ID in `var.localities`. Job keys must be unique across selected locality files. The current deployment supports one selected locality because all jobs share the same execution context. A non-empty `var.crawlers` remains a full manual override for the assembled map.
 
 **Manual workflow testing**:
 

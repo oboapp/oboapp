@@ -1,6 +1,6 @@
 # Cloud Workflow for All Crawlers Pipeline
-# Generated from Terraform template — do not edit by hand.
-# To add a crawler, add it to local.crawlers in main.tf.
+# Terraform renders this template into the deployed workflow.
+# Add jobs to source-jobs.<locality-id>.json and keep shared/src/sources.ts aligned.
 
 main:
   steps:
@@ -8,11 +8,7 @@ main:
         assign:
           - project: '$${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}'
           - region: '$${sys.get_env("GOOGLE_CLOUD_LOCATION")}'
-          - crawlers:%{ if length(crawler_job_names) == 0 } []%{ else }
-%{ for name in crawler_job_names ~}
-              - "${name}"
-%{ endfor ~}
-%{ endif ~}
+          - crawlers: ${jsonencode(crawler_job_names)}
     - crawlAll:
         parallel:
           concurrency_limit: 10
