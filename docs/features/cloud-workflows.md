@@ -20,18 +20,18 @@ The ingestion pipeline uses **Google Cloud Workflows** to orchestrate crawler ex
 flowchart TD
     schedule[Cloud Scheduler] --> workflow[Cloud Workflows]
     workflow --> legacy[Parallel source jobs: legacy implementations]
-    workflow --> pilot[Existing Triaditsa job: package adapter and runner]
+    workflow --> packaged[Parallel source jobs: package adapters and runner]
     legacy --> raw[(Raw sources)]
-    pilot --> raw
+    packaged --> raw
     legacy --> join[Wait for all source jobs, including failures]
-    pilot --> join
+    packaged --> join
     join --> ingest[Ingest job]
     raw --> ingest
     ingest --> notify[Notify job]
     notify --> fcm[Firebase Cloud Messaging]
 ```
 
-During the [source-package transition](source-packages.md), the existing jobs collect data in two ways. Triaditsa uses the source package and Obo runner. Other jobs use their existing crawlers. Triaditsa keeps its job name and schedule.
+During the [source-package transition](source-packages.md), each existing source job runs either a legacy crawler or an adapter to a published source package through Obo's runner. Both paths keep their job names and schedules. The transition guide tracks the current source inventory.
 
 ### Two Workflow Types
 
@@ -55,7 +55,7 @@ For adapting schedules and locality configuration for a new city instance, see [
 
 ### Step 1: Parallel Crawler Execution
 
-Selected source jobs run at the same time. Each fetches data from an API or website and saves complete raw records through `@oboapp/db`. Legacy jobs use their existing helpers. Triaditsa uses its npm package to list items and convert their content. Obo's runner skips known items and saves new ones. Within a packaged source job, the runner processes one item at a time.
+Selected source jobs run at the same time. Each fetches data from an API or website and saves complete raw records through `@oboapp/db`. Legacy jobs use their existing helpers. Packaged sources use their npm packages to list items and convert provider content. Obo's runner skips known items and saves new ones. Within a packaged source job, the runner processes one item at a time.
 
 **Failure behavior**: Crawlers are wrapped in `try`/`except` blocks. If one fails, it logs an ERROR but doesn't stop other crawlers or the workflow.
 

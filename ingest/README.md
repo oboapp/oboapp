@@ -13,7 +13,7 @@ The shared package (@oboapp/shared) is built automatically during workspace inst
 ```mermaid
 graph LR
     B[crawl.ts: existing source entrypoints] --> L[Legacy crawler implementations]
-    B --> T[Source package adapters]
+    B --> T[Packaged source adapters]
     T --> R[Simple source runner]
     R --> P[npm source: list and fetch]
     P --> R
@@ -29,12 +29,12 @@ graph LR
     style F fill:#e1f5ff
 ```
 
-During the [source-package transition](../docs/features/source-packages.md), the existing command and Cloud Run jobs run either a local crawler or a source package. Migrated sources use package adapters; remaining sources keep their code in `crawlers/`. Both paths feed the same processing pipeline. The package supplies data. Obo's runner handles deduplication, validation, and persistence: it skips known items, checks new content, and saves valid records.
+During the [source-package transition](../docs/features/source-packages.md), the existing command and Cloud Run jobs run either a legacy crawler or an adapter to a published source package. The transition guide describes migration status and deployment steps. Provider collection for packaged sources lives in the sources repository; remaining legacy implementations stay in `crawlers/`. Both paths feed the same processing pipeline. Packages supply data. Obo's runner handles deduplication, validation, and persistence: it skips known items, checks new content, and saves complete records.
 
 ## Components
 
 - **[crawlers/](crawlers/README.md)** - Automated scrapers that fetch raw data from external sources
-- **[sources/](sources/run-source.ts)** - Simple scheduled runner for packaged sources
+- **[sources/](sources/run-source.ts)** - Simple scheduled runner for packaged sources, including Toplo's synthetic-identifier listing
 - **[messageIngest/](messageIngest/README.md)** - Processing pipeline: AI extraction → geocoding → GeoJSON conversion
 - **[geocoding/](geocoding/README.md)** - Geocoding services (Google, Overpass, Cadastre, GTFS) with persistent cache
 - **[notifications/](notifications/README.md)** - Geographic matching and push notification delivery
@@ -65,6 +65,7 @@ pnpm geocode-cache:report
 
 # Pre-cache a geocoded address/street from an existing message
 pnpm geocode-cache:add --message <id> --address "..." --type pin|street
+
 ```
 
 ## Pipeline Schedules
