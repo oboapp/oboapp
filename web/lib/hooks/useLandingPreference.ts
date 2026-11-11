@@ -42,12 +42,12 @@ function subscribe(onChange: () => void): () => void {
     }
   };
 
-  window.addEventListener("storage", handleStorage);
-  window.addEventListener(CHANGE_EVENT, onChange);
+  globalThis.addEventListener("storage", handleStorage);
+  globalThis.addEventListener(CHANGE_EVENT, onChange);
 
   return () => {
-    window.removeEventListener("storage", handleStorage);
-    window.removeEventListener(CHANGE_EVENT, onChange);
+    globalThis.removeEventListener("storage", handleStorage);
+    globalThis.removeEventListener(CHANGE_EVENT, onChange);
   };
 }
 
@@ -66,7 +66,7 @@ export function useLandingPreference() {
   const setPreferredLandingView = useCallback((view: LandingView): boolean => {
     try {
       globalThis.localStorage.setItem(STORAGE_KEY, view);
-      window.dispatchEvent(new Event(CHANGE_EVENT));
+      globalThis.dispatchEvent(new Event(CHANGE_EVENT));
       return true;
     } catch {
       return false;
