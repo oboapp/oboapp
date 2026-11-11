@@ -4,7 +4,7 @@ Tracking: [#586](https://github.com/oboapp/oboapp/issues/586). Packages live in 
 
 ## Current transition state
 
-Triaditsa, Oborishte, Slatina, Toplo, Lozenets, Studentski, Sredets, Ilinden, Nadezhda and Iskar use published source packages. Triaditsa was first piloted in [vbuch/oboapp PR #29](https://github.com/vbuch/oboapp/pull/29). Both collection paths remain in use during migration.
+Triaditsa, Oborishte, Slatina, Toplo, Lozenets, Studentski, Sredets, Ilinden, Nadezhda, Iskar, Mladost and Vrabnitsa use published source packages. Triaditsa was first piloted in [vbuch/oboapp PR #29](https://github.com/vbuch/oboapp/pull/29). Both collection paths remain in use during migration.
 
 | Responsibility | Legacy sources | Packaged sources |
 | --- | --- | --- |
@@ -28,6 +28,8 @@ The ingest package pins these published versions:
 | Ilinden | `@oboapp/source-rayon-ilinden-bg` | `0.1.0` |
 | Nadezhda | `@oboapp/source-nadezhda-org` | `0.1.0` |
 | Iskar | `@oboapp/source-raioniskar-bg` | `0.1.0` |
+| Mladost | `@oboapp/source-mladost-bg` | `0.1.0` |
+| Vrabnitsa | `@oboapp/source-vrabnitsa-org` | `0.1.0` |
 
 ```mermaid
 flowchart TD
@@ -84,6 +86,20 @@ One browser is reused across the listing and article details. Each page closes a
 `messageIngest/packaged-browser-districts-handoff.test.ts` exercises the published packages through their actual entrypoints, raw storage and ingestion. It covers literal identifiers, historical base64 and MD5 records, repeat scans, listing failures, detail retries and per-item continuation. Captured provider parser contracts live in the sources repository.
 
 Run `pnpm --dir ingest crawl --source rayon-ilinden-bg`, `--source nadezhda-org` or `--source raioniskar-bg` with the normal ingest environment. Each source keeps its existing command and scheduled job. To roll back, revert the integration and redeploy the previous image. Existing stored identifiers remain compatible.
+
+## Mladost and Vrabnitsa
+
+These two sources use their published `0.1.0` packages through the existing scheduled entrypoints. The source extractions were reviewed in [Mladost PR #22](https://github.com/oboapp/sources/pull/22) and [Vrabnitsa PR #23](https://github.com/oboapp/sources/pull/23). Their release records are [Mladost 0.1.0](https://github.com/oboapp/sources/releases/tag/source-mladost-bg-v0.1.0) and [Vrabnitsa 0.1.0](https://github.com/oboapp/sources/releases/tag/source-vrabnitsa-org-v0.1.0).
+
+Mladost preserves the repair-listing card selectors, literal article URLs, detail-page title and body, and script/style cleanup. Bulgarian month-name dates use local midnight in the process timezone. When the visible date includes `Публикувано:`, the existing parser falls back to the scan time. The package preserves that behavior; publication-date correction is recorded in [#673](https://github.com/oboapp/oboapp/issues/673).
+
+Vrabnitsa preserves its news-card selectors, literal article URLs, URL filters and duplicate order. Detail dates prefer the `datetime` attribute, then normalized visible text. Parsing strips the publication prefix and tries JavaScript date parsing followed by Bulgarian month names. Unparseable dates retain the current-time fallback. Body cleanup removes scripts, styles, article asides, paging, icons, button groups and navigation.
+
+Both packages use `@oboapp/source-web-utils@0.3.0`, which owns Playwright 1.61.1. One browser serves each scan, pages close after every attempt, and listing and detail attempts wait two seconds, including failures. The production image resolves Chromium through each provider's helper dependency and checks that it can render a page as the production user.
+
+`messageIngest/packaged-joomla-districts-handoff.test.ts` runs the published packages through their actual entrypoints, raw persistence and ingestion with simulated browser and database boundaries. It covers literal identifiers, historical base64 and MD5 records, complete raw content, repeat scans, retries, per-item continuation and provider-specific dates. Parser and captured-page contracts live in the sources repository.
+
+Run `pnpm --dir ingest crawl --source mladost-bg` or `--source vrabnitsa-org` with the normal ingest environment. The existing source IDs, `bg.sofia` locality, catalog metadata, Cloud Run jobs and schedules remain in place. To roll back, revert the integration and redeploy the previous image. Existing stored identifiers remain compatible.
 
 ## Toplo synthetic-identifier pilot
 
