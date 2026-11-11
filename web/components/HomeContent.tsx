@@ -84,6 +84,52 @@ const VIEW_MODE_OPTIONS_NO_USER = [
   { value: "zones" as const, label: "Моите зони", disabled: true },
 ] as const;
 
+interface LandingViewReadiness {
+  readonly viewMode: LandingView | null;
+  readonly hasExplicitNavigation: boolean;
+  readonly preferenceLoading: boolean;
+  readonly preferredLandingView: LandingView | null;
+  readonly authLoading: boolean;
+  readonly hasUser: boolean;
+  readonly interestsLoaded: boolean;
+}
+
+function getLandingViewState({
+  viewMode,
+  hasExplicitNavigation,
+  preferenceLoading,
+  preferredLandingView,
+  authLoading,
+  hasUser,
+  interestsLoaded,
+}: LandingViewReadiness): {
+  readonly isLandingPending: boolean;
+  readonly effectiveViewMode: LandingView;
+} {
+  const isLandingPending =
+    viewMode === null &&
+    !hasExplicitNavigation &&
+    (preferenceLoading ||
+      (preferredLandingView === "zones" &&
+        (authLoading || (hasUser && !interestsLoaded))));
+  const effectiveViewMode =
+    viewMode === "zones" && !hasUser ? "all" : (viewMode ?? "all");
+
+  return { isLandingPending, effectiveViewMode };
+}
+
+function isViewDataLoading(
+  viewMode: LandingView,
+  nearbyStatus: NearbyLocationState["status"],
+  zonesLoading: boolean,
+): boolean {
+  if (viewMode === "nearby") {
+    return nearbyStatus === "idle" || nearbyStatus === "loading";
+  }
+
+  return viewMode === "zones" && zonesLoading;
+}
+
 /**
  * Coordinate the map, messages, filters, and saved zones.
  * Events follows the viewport. My zones matches the full recent message batch
@@ -124,12 +170,15 @@ function HomeContentInner() {
     message: null,
     retry: () => {},
   });
-  const isLandingPending =
-    viewMode === null &&
-    !hasExplicitNavigation &&
-    (preferenceLoading ||
-      (preferredLandingView === "zones" &&
-        (authLoading || Boolean(user && !interestsLoaded))));
+  const { isLandingPending, effectiveViewMode } = getLandingViewState({
+    viewMode,
+    hasExplicitNavigation,
+    preferenceLoading,
+    preferredLandingView,
+    authLoading,
+    hasUser: Boolean(user),
+    interestsLoaded,
+  });
 
   // Capture the initial choice once. Later tab switches belong to this visit.
   if (viewMode === null && !isLandingPending) {
@@ -138,8 +187,6 @@ function HomeContentInner() {
     );
   }
 
-  const effectiveViewMode =
-    viewMode === "zones" && !user ? "all" : (viewMode ?? "all");
   const nearbyReady =
     effectiveViewMode !== "nearby" || nearbyLocation.status === "ready";
 
@@ -261,9 +308,11 @@ function HomeContentInner() {
   const isViewLoading =
     isLandingPending ||
     isLoading ||
-    (effectiveViewMode === "nearby" &&
-      (nearbyLocation.status === "idle" || nearbyLocation.status === "loading")) ||
-    (effectiveViewMode === "zones" && (!interestsLoaded || boundariesLoading));
+    isViewDataLoading(
+      effectiveViewMode,
+      nearbyLocation.status,
+      !interestsLoaded || boundariesLoading,
+    );
   const viewError =
     error ?? (effectiveViewMode === "zones" ? boundariesError : null);
 

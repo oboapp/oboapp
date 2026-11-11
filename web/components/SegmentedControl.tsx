@@ -19,6 +19,60 @@ interface SegmentedControlProps {
   readonly className?: string;
 }
 
+interface SegmentHomeActionProps {
+  readonly option: SegmentOption;
+  readonly active: boolean;
+  readonly homeValue?: string;
+  readonly homeHintId: string;
+  readonly onHomeChange: (value: string) => void;
+}
+
+function SegmentHomeAction({
+  option,
+  active,
+  homeValue,
+  homeHintId,
+  onHomeChange,
+}: SegmentHomeActionProps) {
+  const isHome = homeValue === option.value;
+  const label = isHome
+    ? `Информация за началния изглед „${option.label}“`
+    : `Направи „${option.label}“ начален изглед`;
+  const title = isHome
+    ? `„${option.label}“ е началният ти изглед`
+    : label;
+
+  return (
+    <span
+      data-slot="home-action-slot"
+      aria-hidden={!active}
+      inert={!active}
+      className={styles.homeSlot}
+    >
+      <button
+        type="button"
+        aria-label={label}
+        title={title}
+        aria-describedby={isHome ? homeHintId : undefined}
+        disabled={!active}
+        tabIndex={active ? 0 : -1}
+        onClick={() => {
+          if (active) {
+            onHomeChange(option.value);
+          }
+        }}
+        className={`${styles.homeButton} flex h-11 w-11 shrink-0 items-center justify-center rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
+      >
+        <House
+          className="h-5 w-5"
+          fill={isHome ? "currentColor" : "none"}
+          aria-hidden="true"
+        />
+      </button>
+    </span>
+  );
+}
+
 /**
  * Pill-shaped segmented control for selecting between mutually exclusive options.
  * Renders as a role="radiogroup" with roving tabIndex and arrow-key navigation
@@ -69,7 +123,7 @@ export default function SegmentedControl({
       group.dataset.indicatorReady = "true";
     };
 
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const reducedMotion = globalThis.matchMedia("(prefers-reduced-motion: reduce)");
     const duration = Number.parseFloat(
       getComputedStyle(group).getPropertyValue("--selection-duration"),
     );
@@ -193,14 +247,7 @@ export default function SegmentedControl({
         if (!isDisabled && isActive) {
           tabIndex = 0;
         }
-        const isHome = homeValue === option.value;
         const hasHomeAction = isActive && !isDisabled && Boolean(onHomeChange);
-        const homeLabel = isHome
-          ? `Информация за началния изглед „${option.label}“`
-          : `Направи „${option.label}“ начален изглед`;
-        const homeTitle = isHome
-          ? `„${option.label}“ е началният ти изглед`
-          : homeLabel;
         return (
           <div
             key={option.value}
@@ -231,33 +278,13 @@ export default function SegmentedControl({
               {option.label}
             </button>
             {!isDisabled && onHomeChange && (
-              <span
-                data-slot="home-action-slot"
-                aria-hidden={!isActive}
-                inert={!isActive}
-                className={styles.homeSlot}
-              >
-                <button
-                  type="button"
-                  aria-label={homeLabel}
-                  title={homeTitle}
-                  aria-describedby={isHome ? homeHintId : undefined}
-                  disabled={!isActive}
-                  tabIndex={isActive ? 0 : -1}
-                  onClick={() => {
-                    if (isActive) {
-                      onHomeChange(option.value);
-                    }
-                  }}
-                  className={`${styles.homeButton} flex h-11 w-11 shrink-0 items-center justify-center rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
-                >
-                  <House
-                    className="h-5 w-5"
-                    fill={isHome ? "currentColor" : "none"}
-                    aria-hidden="true"
-                  />
-                </button>
-              </span>
+              <SegmentHomeAction
+                option={option}
+                active={isActive}
+                homeValue={homeValue}
+                homeHintId={homeHintId}
+                onHomeChange={onHomeChange}
+              />
             )}
           </div>
         );
