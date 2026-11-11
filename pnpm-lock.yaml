@@ -164,8 +164,8 @@ importers:
         specifier: 0.1.0
         version: 0.1.0
       '@oboapp/source-mladost-bg':
-        specifier: 0.1.0
-        version: 0.1.0
+        specifier: 0.1.1
+        version: 0.1.1
       '@oboapp/source-nadezhda-org':
         specifier: 0.1.0
         version: 0.1.0
@@ -2422,8 +2422,8 @@ packages:
     resolution: {integrity: sha512-hTTnBAM+iWOAnVp+/yXd0jOEV2Y1+lZVvNWV8gJd55S9sC5bymp6wZAVDSfWHKS+zGius9zPCYaPau0szSgoOQ==}
     engines: {node: '>=20.3'}
 
-  '@oboapp/source-mladost-bg@0.1.0':
-    resolution: {integrity: sha512-69ywdya98jaswCyh9nhCIqpXL5zmBjQPG2zDegUoRUJZ0TAquAstA5o6XDxvLNTlHnpGwFnnz8lXmh1u7FWmYA==}
+  '@oboapp/source-mladost-bg@0.1.1':
+    resolution: {integrity: sha512-ZjHjfAb61822AEBTGuXhOy1HGgYMEdXnX7b0wpSZaUsYkgVku/NpoBe+SxMaHUX7egksCIF4Ssiohy+0TmBZ8w==}
     engines: {node: '>=20.3'}
 
   '@oboapp/source-nadezhda-org@0.1.0':
@@ -2480,6 +2480,10 @@ packages:
 
   '@oboapp/source-web-utils@0.3.0':
     resolution: {integrity: sha512-UgCCDr/xg5Z9qNK0Snh4w9VBEn/PqoO9ai/xJbi++iG4dkGZwdz/LhKUmm3rdOcD4NE0JinNGSaf0wO/FTLQnw==}
+    engines: {node: '>=20.3'}
+
+  '@oboapp/source-web-utils@0.3.1':
+    resolution: {integrity: sha512-JFnAiw2cp+hYbTC0UShe1c2xjctL8nJAO3cSIn40GS3VZppJaWrjwBrnCtwEGaEPDNNi6e2hhllC9l/b3dD6dg==}
     engines: {node: '>=20.3'}
 
   '@open-draft/deferred-promise@2.2.0':
@@ -13161,10 +13165,10 @@ snapshots:
       '@oboapp/source-sdk': 0.1.1
       '@oboapp/source-web-utils': 0.1.0
 
-  '@oboapp/source-mladost-bg@0.1.0':
+  '@oboapp/source-mladost-bg@0.1.1':
     dependencies:
       '@oboapp/source-sdk': 0.1.1
-      '@oboapp/source-web-utils': 0.3.0
+      '@oboapp/source-web-utils': 0.3.1
 
   '@oboapp/source-nadezhda-org@0.1.0':
     dependencies:
@@ -13237,6 +13241,13 @@ snapshots:
       turndown: 7.2.2
 
   '@oboapp/source-web-utils@0.3.0':
+    dependencies:
+      '@oboapp/source-sdk': 0.1.1
+      html-entities: 2.6.0
+      playwright: 1.61.1
+      turndown: 7.2.2
+
+  '@oboapp/source-web-utils@0.3.1':
     dependencies:
       '@oboapp/source-sdk': 0.1.1
       html-entities: 2.6.0

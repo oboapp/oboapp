@@ -8,6 +8,7 @@ import {
 import { crawl as crawlMladost } from "@/crawlers/mladost-bg/index";
 import { crawl as crawlVrabnitsa } from "@/crawlers/vrabnitsa-org/index";
 import { getDb } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { ingest } from "@/messageIngest/from-sources";
 import { messageIngest } from "@/messageIngest/index";
 
@@ -119,6 +120,7 @@ describe.each(cases)("$sourceType published Joomla package handoff", ({
   let detailHtml: string;
   let failedDetail: string | undefined;
   let detailReadAt: string | undefined;
+  let navigationStatuses: Map<string, number>;
 
   function card(url: string): string {
     return listingCard.replace("IDENTIFIER", url.replaceAll("&", "&amp;"));
@@ -129,6 +131,7 @@ describe.each(cases)("$sourceType published Joomla package handoff", ({
     detailHtml = article;
     failedDetail = undefined;
     detailReadAt = undefined;
+    navigationStatuses = new Map();
     browser.page.goto.mockImplementation(async (url: string) => {
       if (url === failedDetail) {
         throw new Error("Detail unavailable");
@@ -139,7 +142,15 @@ describe.each(cases)("$sourceType published Joomla package handoff", ({
         detailReadAt = new Date().toISOString();
         document.body.innerHTML = detailHtml;
       }
-      return null;
+      const httpStatus = navigationStatuses.get(url) ?? 200;
+      return {
+        ok() {
+          return httpStatus >= 200 && httpStatus < 300;
+        },
+        status() {
+          return httpStatus;
+        },
+      };
     });
   });
 
@@ -281,6 +292,91 @@ describe.each(cases)("$sourceType published Joomla package handoff", ({
     expect(browser.browser.close).toHaveBeenCalledOnce();
   });
 
+  if (sourceType === "mladost-bg") {
+    it("rejects an HTTP 403 listing before extraction or raw persistence", async () => {
+      navigationStatuses.set(indexUrl, 403);
+
+      await expect(scan()).rejects.toThrow(`HTTP 403 while loading ${indexUrl}`);
+
+      expect(browser.page.goto).toHaveBeenCalledExactlyOnceWith(indexUrl, {
+        waitUntil: "domcontentloaded",
+      });
+      expect(browser.page.evaluate).not.toHaveBeenCalled();
+      expect(store.records.size).toBe(0);
+      expect(store.client.createOne).not.toHaveBeenCalled();
+      expect(logger.info).not.toHaveBeenCalledWith("Crawl complete", expect.anything());
+      expect(browser.page.close).toHaveBeenCalledOnce();
+      expect(browser.browser.close).toHaveBeenCalledOnce();
+    });
+
+    it("continues after an HTTP 403 detail and retries it while skipping saved content", async () => {
+      const secondIdentifier = `${identifier}&second=1`;
+      listing += card(secondIdentifier);
+      navigationStatuses.set(identifier, 403);
+
+      await scan();
+
+      expect(store.records.has(itemId)).toBe(false);
+      expect([...store.records.values()]).toEqual([{
+        url: secondIdentifier,
+        sourceType,
+        locality: "bg.sofia",
+        title: "Detail title",
+        datePublished: publicationDate(),
+        message: expectedMessage,
+        processed: false,
+        crawledAt: expect.any(Date),
+      }]);
+      expect(store.client.createOne).toHaveBeenCalledOnce();
+      expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
+        "Source item failed; retry on the next scheduled scan",
+        expect.objectContaining({
+          sourceType,
+          identifier,
+          error: expect.objectContaining({ message: `HTTP 403 while loading ${identifier}` }),
+        }),
+      );
+      expect(logger.info).toHaveBeenLastCalledWith("Crawl complete", {
+        sourceType,
+        saved: 1,
+        skipped: 0,
+        failed: 1,
+      });
+      expect(browser.page.evaluate).toHaveBeenCalledTimes(2);
+      expect(browser.page.close).toHaveBeenCalledTimes(3);
+      expect(browser.browser.close).toHaveBeenCalledOnce();
+
+      navigationStatuses.delete(identifier);
+      await scan();
+
+      expect(store.records.size).toBe(2);
+      expect(store.records.get(itemId)).toEqual({
+        url: identifier,
+        sourceType,
+        locality: "bg.sofia",
+        title: "Detail title",
+        datePublished: publicationDate(),
+        message: expectedMessage,
+        processed: false,
+        crawledAt: expect.any(Date),
+      });
+      expect(store.client.createOne).toHaveBeenCalledTimes(2);
+      expect(logger.warn).toHaveBeenCalledOnce();
+      expect(logger.info).toHaveBeenLastCalledWith("Crawl complete", {
+        sourceType,
+        saved: 1,
+        skipped: 1,
+        failed: 0,
+      });
+      expect(browser.page.goto.mock.calls.map(([url]) => {
+        return url;
+      })).toEqual([indexUrl, identifier, secondIdentifier, indexUrl, identifier]);
+      expect(browser.page.evaluate).toHaveBeenCalledTimes(4);
+      expect(browser.page.close).toHaveBeenCalledTimes(5);
+      expect(browser.browser.close).toHaveBeenCalledTimes(2);
+    });
+  }
+
   it("does not persist details with missing title or content", async () => {
     detailHtml = article.replace("Detail title", "");
     await scan();
@@ -325,12 +421,18 @@ describe.each(cases)("$sourceType published Joomla package handoff", ({
     }));
   });
 
-  it("closes an empty listing without raw writes", async () => {
+  it("closes an HTTP 200 empty listing without raw writes", async () => {
     listing = "<main>No current notices</main>";
 
     await scan();
     expect(store.records.size).toBe(0);
     expect(store.client.createOne).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenLastCalledWith("Crawl complete", {
+      sourceType,
+      saved: 0,
+      skipped: 0,
+      failed: 0,
+    });
     expect(browser.page.close).toHaveBeenCalledOnce();
     expect(browser.browser.close).toHaveBeenCalledOnce();
   });
