@@ -1,6 +1,6 @@
 # User Journeys
 
-These journeys describe the three-tab home views in [PR #44](https://github.com/vbuch/oboapp/pull/44).
+These journeys describe browsing the three home views and saving a home preference.
 The [home-view design](home-view-design.md) defines labels, house states, and recovery.
 
 ## Journey Index
@@ -93,7 +93,7 @@ The house stays available as a secondary action while Add zone is primary.
 flowchart TD
     Enter[Select My zones] --> Ready[Wait for saved zones]
     Ready --> HasZones{Any saved zones?}
-    HasZones -->|Yes| View[Fit zones and show matching events]
+    HasZones -->|Yes| View[Show saved zones and matching events]
     HasZones -->|No| Create[Show Add zone as the primary action]
     Create --> Place[Place and save the first zone]
     Place -->|Cancel| Create
