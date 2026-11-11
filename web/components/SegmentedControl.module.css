@@ -1,0 +1,126 @@
+.control {
+  --selection-duration: 200ms;
+  --selection-easing: cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.indicator {
+  display: none;
+  width: var(--selection-width);
+  height: var(--selection-height);
+  transform: translate(var(--selection-x), var(--selection-y));
+}
+
+.control[data-indicator-ready] .indicator {
+  display: block;
+  transition: background-color 150ms ease;
+}
+
+.control[data-indicator-ready] .segment[data-active="true"] {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.segment {
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.label {
+  transition: padding-right var(--selection-duration) var(--selection-easing);
+}
+
+.segment:has(:focus-visible) {
+  z-index: 1;
+}
+
+.segment:has(.label:focus-visible) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.homeSlot {
+  display: flex;
+  flex-shrink: 0;
+  width: 0;
+  transition: width var(--selection-duration) var(--selection-easing);
+}
+
+.homeButton {
+  opacity: 0;
+  transform: scale(0);
+  transform-origin: left center;
+  transition:
+    transform var(--selection-duration) var(--selection-easing),
+    opacity var(--selection-duration) var(--selection-easing),
+    color 150ms ease;
+}
+
+.homeButton > svg {
+  transition: transform 150ms ease;
+}
+
+.segment[data-active="true"] .homeSlot {
+  width: calc(var(--spacing) * 11);
+}
+
+.segment[data-active="true"] .homeButton {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.homeButton:enabled:focus-visible {
+  color: var(--color-info-hover);
+}
+
+@media (hover: hover) {
+  .homeButton:enabled:hover {
+    color: var(--color-info-hover);
+  }
+
+  .homeButton:enabled:hover > svg {
+    transform: scale(1.125);
+  }
+
+  .segment:not([data-disabled]):hover {
+    color: var(--color-primary-hover);
+  }
+
+  .segment[data-active="false"]:not([data-disabled]):hover,
+  .control:not([data-indicator-ready]) .segment[data-active="true"]:not([data-disabled]):hover,
+  .control:has(.segment[data-active="true"]:not([data-disabled]):hover) .indicator {
+    background-color: var(--color-neutral-border);
+  }
+}
+
+.segment[data-active="false"]:not([data-disabled]):has(.label:active),
+.control:has(.segment[data-active="true"] button:enabled:not([aria-disabled="true"]):active) .indicator {
+  background-color: var(--color-neutral-border);
+}
+
+.homeButton:enabled:active {
+  color: var(--color-info-hover);
+}
+
+.homeButton:enabled:active > svg {
+  transform: scale(0.9);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control {
+    --selection-duration: 0ms;
+  }
+
+  .control[data-indicator-ready] .indicator,
+  .segment,
+  .label,
+  .homeSlot,
+  .homeButton,
+  .homeButton > svg {
+    transition: none;
+  }
+
+  .homeButton:enabled:is(:hover, :active) > svg {
+    transform: none;
+  }
+}

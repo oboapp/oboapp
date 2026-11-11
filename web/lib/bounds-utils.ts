@@ -5,9 +5,9 @@
 import * as turf from "@turf/turf";
 import type { GeoJSONFeature } from "@/lib/types";
 import {
-  BOUNDS,
   getBoundsForLocality,
   getCenterForLocality,
+  roundCoordinate,
 } from "@oboapp/shared";
 
 /**
@@ -41,7 +41,7 @@ export function getLocalityCenter() {
 }
 
 // Re-export BOUNDS for tests
-export { BOUNDS };
+export { BOUNDS } from "@oboapp/shared";
 
 export interface ViewportBounds {
   north: number;
@@ -49,6 +49,27 @@ export interface ViewportBounds {
   east: number;
   west: number;
   zoom?: number; // Optional for backward compatibility
+}
+
+/** Read a ready map viewport with the coordinate precision used by event queries. */
+export function getMapViewportBounds(
+  map: Pick<google.maps.Map, "getBounds" | "getZoom"> | null,
+): Required<ViewportBounds> | null {
+  const bounds = map?.getBounds();
+  const zoom = map?.getZoom();
+  if (!bounds || zoom === undefined) {
+    return null;
+  }
+
+  const northEast = bounds.getNorthEast();
+  const southWest = bounds.getSouthWest();
+  return {
+    north: roundCoordinate(northEast.lat()),
+    south: roundCoordinate(southWest.lat()),
+    east: roundCoordinate(northEast.lng()),
+    west: roundCoordinate(southWest.lng()),
+    zoom,
+  };
 }
 
 /**

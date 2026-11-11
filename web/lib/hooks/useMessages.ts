@@ -169,6 +169,16 @@ export function useMessages({
     updateViewportBounds(bounds);
   }, [scope, updateViewportBounds]);
 
+  const resetViewport = useCallback(() => {
+    updateViewportBounds.cancel();
+    suppressBoundsChangeRef.current = false;
+    if (suppressionTimeoutRef.current) {
+      clearTimeout(suppressionTimeoutRef.current);
+      suppressionTimeoutRef.current = null;
+    }
+    setViewportBounds(null);
+  }, [updateViewportBounds]);
+
   useEffect(() => {
     return () => {
       updateViewportBounds.cancel();
@@ -216,6 +226,7 @@ export function useMessages({
     error: requestUrl && isCurrentQuery ? state.error : null,
     handleBoundsChanged,
     suppressNextViewportFetch,
+    resetViewport,
     setSelectedCategories,
     setSelectedSources,
   };

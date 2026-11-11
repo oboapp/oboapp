@@ -42,7 +42,8 @@ vi.mock("@react-google-maps/api", () => ({
   Circle: () => null,
 }));
 
-vi.mock("@/lib/bounds-utils", () => ({
+vi.mock("@/lib/bounds-utils", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/bounds-utils")>()),
   getLocalityBounds: () => localityBounds,
   getLocalityCenter: () => localityCenter,
 }));

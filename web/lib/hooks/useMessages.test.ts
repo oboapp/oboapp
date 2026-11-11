@@ -115,6 +115,42 @@ describe("useMessages scope", () => {
     expect(result.current.isLoading).toBe(false);
   });
 
+  it("waits for fresh camera bounds after resetting the viewport", async () => {
+    const { result } = renderHook(() => useMessages());
+    act(() => {
+      result.current.handleBoundsChanged(firstBounds);
+    });
+    await advanceTime(300);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      result.current.handleBoundsChanged(movedBounds);
+      result.current.resetViewport();
+    });
+    await advanceTime(500);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.current.messages).toEqual([]);
+
+    act(() => {
+      result.current.handleBoundsChanged(movedBounds);
+    });
+    await advanceTime(300);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(requestUrl().searchParams.get("north")).toBe("42.9");
+  });
+
+  it("drops old detail-navigation suppression when a new view owns the camera", async () => {
+    const { result } = renderHook(() => useMessages());
+    act(() => {
+      result.current.suppressNextViewportFetch();
+      result.current.resetViewport();
+      result.current.handleBoundsChanged(movedBounds);
+    });
+    await advanceTime(300);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(requestUrl().searchParams.get("north")).toBe("42.9");
+  });
+
   it("restores the actual latest camera when switching back to Events", async () => {
     const { result, rerender } = renderHook(useMessages, {
       initialProps: { scope: "viewport" as "viewport" | "all" },

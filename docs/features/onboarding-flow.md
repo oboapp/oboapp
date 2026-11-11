@@ -2,6 +2,9 @@
 
 State machine hook for managing the user onboarding and engagement flow.
 
+See [User Journeys](../ux/user-journeys.md) for home-view selection and saving,
+including direct zone creation outside notification enrollment.
+
 ## Overview
 
 This hook centralizes the onboarding UX logic for all users, guiding them through:
