@@ -105,6 +105,26 @@ async function preparePage(page, { legacyLocation = false } = {}) {
       await button.click();
     },
   );
+  await page.addLocatorHandler(
+    page.getByRole("button", { name: "Откажи", exact: true }),
+    async (button) => {
+      await button.click();
+    },
+  );
+}
+
+async function reloadHome(page) {
+  const interestsLoaded = page.waitForResponse((response) => {
+    return isApiResponse(response, "/api/interests");
+  }, { timeout: 90_000 });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const interests = await interestsLoaded;
+  assert.equal(interests.fromServiceWorker(), true);
+  assert.equal(interests.ok(), true);
+  // Returning visits must finish mock authentication before asserting the home.
+  await expect(tab(page, "Моите зони")).not.toHaveAttribute(
+    "aria-disabled", "true", { timeout: 30_000 },
+  );
 }
 
 async function openFixtures(page) {
@@ -286,7 +306,7 @@ test("the active tab's house saves home across visits, mobile layouts, and empty
     await allMode.click();
     await expectHouse(page, "Всички", false);
     assert.equal(await savedPreference(page), "zones");
-    await page.reload({ waitUntil: "domcontentloaded" });
+    await reloadHome(page);
     await expect(zonesMode).toHaveAttribute("aria-checked", "true");
     await expectHouse(page, "Моите зони", true);
     await expect(waterCard).toBeVisible();
@@ -338,7 +358,7 @@ test("the active tab's house saves home across visits, mobile layouts, and empty
     await expectHouse(page, "Всички", true);
     await zonesMode.click();
     await expectHouse(page, "Моите зони", false);
-    await page.reload({ waitUntil: "domcontentloaded" });
+    await reloadHome(page);
     await expect(allMode).toHaveAttribute("aria-checked", "true");
     await expect(roadCard).toBeVisible();
     assert.equal(await savedPreference(page), "all");
