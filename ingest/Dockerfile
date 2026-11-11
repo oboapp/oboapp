@@ -33,6 +33,9 @@ RUN pnpm exec playwright install chromium
 # Build ingest
 RUN pnpm build
 
+# Check installed package metadata, compiled entrypoints and deployment selection.
+RUN node dist/scripts/check-source-config.js
+
 WORKDIR /app
 
 # Production stage

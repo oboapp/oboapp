@@ -6,14 +6,18 @@ oboapp is designed to be deployed for any city. The upstream repository (`oboapp
 
 | Scope | What lives there |
 |---|---|
-| Upstream | Terraform modules, crawler implementations, per-locality crawler definitions, individual source definitions (`shared/src/sources/{id}.ts`) |
-| Instance-only | Deployment workflows, secrets, CI environment variables, `terraform.tfvars`, instance source assembly (`shared/src/sources.ts`) |
+| Upstream | Terraform modules, source integrations, source job examples, individual source definitions (`shared/src/sources/{id}.ts`) |
+| Instance-only | Deployment workflows, secrets, CI environment variables, `terraform.tfvars`, source assembly (`shared/src/sources.ts`), selected source job JSON, source package retention policy |
 
-Never override upstream Terraform logic in instance files — configure via variables instead.
+Configure upstream Terraform logic through variables in instance files.
 
 ## Configuring Sources
 
-**Migration in progress:** each selected source uses either a published package or a remaining legacy crawler. For a packaged source, install its exact published version in `ingest/` and connect its command entrypoint to Obo's runner. Select sources through `shared/src/sources.ts` and the Terraform configuration. Catalog definitions remain in `shared/src/sources/`. A later stage will build the source list from installed packages and include only selected sources in the deployment image. See [the transition guide](../features/source-packages.md) for the current source inventory and integration steps.
+**Migration in progress:** each selected source uses either a published package or a remaining legacy crawler. For a packaged source, install its exact published version in `ingest/` and connect its command entrypoint to Obo's runner. Select sources through `shared/src/sources.ts` and `ingest/terraform/source-jobs.<locality>.json`. Catalog definitions remain in `shared/src/sources/`. CI and the ingest image build validate the selected catalog, package metadata, entrypoints and job data. A later stage will build the catalog from installed packages and include only selected sources in the deployment image. See [the transition guide](../features/source-packages.md) for the current source inventory and integration steps.
+
+The upstream demo selects Sofia BG, Sofiyska Voda and sensor.community. It also keeps the twelve migrated source packages installed so their adapters and integration tests remain buildable during the migration. `ingest/source-package-policy.json` lists these packages under `retainedUnselectedPackages`. The check still validates their isolated metadata, exact dependency versions and unique source IDs. An installed unselected package needs an explicit retention entry. Remove that entry when selecting the source or removing its package. With the policy absent or empty, all installed source packages must be selected.
+
+Forks that retain all source integration code should keep its package dependencies installed. Building an image with only selected implementations remains part of #586. Run `pnpm --dir ingest exec tsx scripts/check-source-config.ts` to check your selection without provider or database access.
 
 Each source has its own definition file at `shared/src/sources/{id}.ts`. These live in the upstream repo and merge cleanly across rebases — adding a new upstream source creates a new file, no conflicts.
 
@@ -38,7 +42,11 @@ The ingest pipeline validates the configuration at startup (fail-fast if invalid
 
 ## Configuring Which Localities to Deploy
 
-Each city's crawlers are defined in a dedicated Terraform file named after its locality ID. The naming pattern is `crawlers.<locality-id>.tf` — for example, locality `bg.sofia` maps to `crawlers.bg.sofia.tf`. The `localities` Terraform variable controls which of these are active for a given deployment.
+Each city's jobs are defined in `ingest/terraform/source-jobs.<locality-id>.json`. For example, locality `bg.sofia` maps to `source-jobs.bg.sofia.json`. Terraform discovers these files automatically. The `localities` variable selects which maps are active for a deployment. Job keys must be unique across locality files.
+
+The upstream `source-jobs.bg.sofia.json` contains only the three demo sources. The full Sofia job example is `ingest/terraform/examples/source-jobs.bg.sofia.json`; files under `examples/` are inactive templates.
+
+For an existing Sofia deployment, keep your instance's source catalog and job selection when rebasing. To translate the previous Terraform source map, copy the full example into `ingest/terraform/source-jobs.bg.sofia.json`, then remove jobs outside your instance catalog. Preserve existing job keys, memory settings, timeouts and emergent flags. The example includes sensor.community, so remove its job if your instance does not select it. Delete the package retention policy, or empty its list, if your catalog selects all twelve installed source packages. Run the source configuration check and review `terraform plan` before deployment.
 
 **In your forked `deploy.yml`**, create a GitHub Actions repository variable named `LOCALITIES` with a JSON string value:
 
@@ -63,7 +71,7 @@ vars.LOCALITY = "bg.sofia"
 To add crawler support for a new city, contribute to the upstream repository:
 
 1. Add the new locality's crawler support in the upstream ingestion code and shared source configuration.
-2. Update the upstream Terraform locality configuration using the existing `crawlers.<locality-id>.tf` naming pattern and the standard supported-localities wiring.
+2. Add `ingest/terraform/source-jobs.<locality-id>.json` with the new locality's jobs. Keep source IDs and emergent flags aligned with the instance catalog, then run the source configuration check.
 3. Follow the [Crawler Development guidelines](../../AGENTS.md#crawler-development) for the full checklist and current file-level requirements.
 
 Once merged upstream, any deployment can activate the new city by adding its locality ID to the deployment locality configuration described above.

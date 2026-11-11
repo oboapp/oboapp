@@ -1,0 +1,16 @@
+{
+  "retainedUnselectedPackages": [
+    "@oboapp/source-lozenets-sofia-bg",
+    "@oboapp/source-mladost-bg",
+    "@oboapp/source-nadezhda-org",
+    "@oboapp/source-raioniskar-bg",
+    "@oboapp/source-rayon-ilinden-bg",
+    "@oboapp/source-rayon-oborishte-bg",
+    "@oboapp/source-so-slatina-org",
+    "@oboapp/source-sredec-sofia-org",
+    "@oboapp/source-studentski-bg",
+    "@oboapp/source-toplo-bg",
+    "@oboapp/source-triaditsa-org",
+    "@oboapp/source-vrabnitsa-org"
+  ]
+}

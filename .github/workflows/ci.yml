@@ -167,9 +167,38 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check selected source configuration
+        working-directory: ./ingest
+        run: pnpm exec tsx scripts/check-source-config.ts
+
       - name: Run unit tests
         working-directory: ./ingest
         run: pnpm test:run
+
+  test-source-deployment:
+    name: Test Source Deployment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.11.4
+
+      - name: Initialize Terraform without a backend
+        working-directory: ./ingest/terraform
+        run: terraform init -backend=false
+
+      - name: Validate Terraform configuration
+        working-directory: ./ingest/terraform
+        run: terraform validate
+
+      - name: Test source jobs and workflows
+        working-directory: ./ingest/terraform
+        run: terraform test
 
   test-web:
     name: Test Web
@@ -246,7 +275,7 @@ jobs:
   sonarcloud:
     name: SonarCloud
     runs-on: ubuntu-latest
-    needs: [dependency-check, test-ingest, test-web, build-web]
+    needs: [dependency-check, test-ingest, test-source-deployment, test-web, build-web]
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)

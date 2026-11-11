@@ -47,7 +47,19 @@ flowchart TD
 
 Each source uses one collection path. Text sources continue through AI extraction and geocoding; sources with precomputed GeoJSON use their existing processing path.
 
-The current deployment image includes legacy crawler code. Developers update the source catalog and Terraform lists by hand. A later stage will build these lists from installed packages and include only selected sources in the image.
+The current deployment image includes legacy crawler code. Developers update the source catalog and deployment job data together. CI and the ingest image build check that these selections agree. A later stage will build the catalog from installed packages and include only selected sources in the image.
+
+## Checking the instance selection
+
+Run `pnpm --dir ingest exec tsx scripts/check-source-config.ts` after changing sources. The check reads the selected catalog from `@oboapp/shared`, source dependencies from `ingest/package.json`, each package's isolated `/metadata` export, and deployment jobs from `ingest/terraform/source-jobs.<locality>.json`. It loads metadata without importing provider runtimes or initializing the database.
+
+The check rejects version ranges, duplicate source IDs, metadata differences, unsupported localities, missing crawler entrypoints, missing or extra deployment jobs, reused job keys and emergent schedule differences. An instance may select fewer localities than a package supports. Unselected legacy source directories can remain during migration. The compiled check also verifies JavaScript entrypoints during the image build.
+
+The upstream demo selects a small source set. Its `ingest/source-package-policy.json` explicitly retains unselected packages while their adapters and integration tests are compiled together. Every retained package still needs valid metadata and an exact version. Unexpected unselected packages and stale policy entries fail validation. Forks that select these packages remove their entries from the policy; removing the policy enables strict selection for all installed source packages.
+
+Terraform reads the same JSON job files and selects their locality maps through `var.localities`. Keep existing job keys when editing these files because they identify deployed resources. The explicit `var.crawlers` override remains available for one-off operations and is outside the checked instance selection.
+
+The default Sofia job file matches the upstream demo. The full Sofia example is under `ingest/terraform/examples/` and is not loaded automatically. Existing full Sofia deployments must copy that example into the Terraform root and retain their full source catalog before applying a deployment. See the [instance setup guide](../setup/new-locality-instance.md).
 
 ## Scheduled source runner
 
@@ -127,7 +139,7 @@ Version `0.2.0` collects the News feed and `https://triaditza.org/feed/?post_typ
 
 1. Add contract tests for the source's existing identifiers, content, locality, schedule, and historical lookup rules. Include provider fixes made in the deployment fork.
 2. Move the code that reads and converts provider data into the package. Provide separate runtime and metadata entrypoints so the web app can load catalog metadata on its own. Keep database access in Obo.
-3. Publish and check the reviewed package. Set its exact version in an Obo integration PR. Replace the existing entrypoint with an adapter that calls the package through the runner. Then remove the old local source code.
+3. Publish and check the reviewed package. Set its exact version in an Obo integration PR. Replace the existing entrypoint with an adapter that calls the package through the runner. Then remove the old local source code. Keep its catalog metadata and `source-jobs.<locality>.json` entry aligned, and run the instance selection check.
 4. Test the full path from the package through raw storage to ingestion. Check that known items are skipped and failures are handled. Keep the existing scheduled job.
 5. Deploy the integration, inspect the source job's saved/skipped/failed totals, and confirm repeat scans skip known records. Record the migrated source in this guide and update diagrams when the architecture changes.
 

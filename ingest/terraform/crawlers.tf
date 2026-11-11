@@ -1,44 +1,41 @@
-# Assembles the final crawler map from per-locality crawler definitions.
-#
-# Naming convention:
-#   Locality ID  (used in var.localities)  : "bg.sofia"
-#   Terraform file                         : crawlers.bg.sofia.tf  (= crawlers.<locality-id>.tf)
-#   Local variable name                    : crawlers_bg_sofia      (dots replaced with underscores)
-#
-# To add a new locality (example: locality ID "bg.burgas", city suffix "burgas"):
-#   1. Create crawlers.bg.burgas.tf defining local.crawlers_bg_burgas
-#   2. Add "bg.burgas" to local._supported_localities below
-#   3. Add a contains(var.localities, "bg.burgas") branch in the merge below
-#   4. Pass ["bg.burgas"] in var.localities at apply time (or in terraform.tfvars)
-#
-# To override all crawlers for a specific deployment without touching this file,
-# set var.crawlers to a non-empty map in terraform.tfvars or via -var.
+# Discovers source-jobs.<locality-id>.json files and assembles the selected jobs.
+# Files under examples/ are templates and are not deployed automatically.
+# Add a locality by creating its JSON file and selecting it in var.localities.
+# Job keys must be globally unique across selected localities.
+# A non-empty var.crawlers fully overrides the JSON assembly.
 
 locals {
-  # Single source of truth for supported locality IDs.
-  # Steps 2–3 above are the only changes needed here when adding a new city.
-  _supported_localities = toset(["bg.sofia"])
-
+  _source_jobs_by_locality = {
+    for filename in fileset(path.module, "source-jobs.*.json") :
+    trimsuffix(trimprefix(filename, "source-jobs."), ".json") => jsondecode(file("${path.module}/${filename}"))
+  }
+  _supported_localities = toset(keys(local._source_jobs_by_locality))
+  _selected_source_jobs = [
+    for locality in var.localities : try(local._source_jobs_by_locality[locality], {})
+  ]
   _assembled_crawlers = merge(
-    contains(var.localities, "bg.sofia") ? local.crawlers_bg_sofia : {},
-    # Add new localities here, e.g.:
-    # contains(var.localities, "bg.burgas") ? local.crawlers_bg_burgas : {},
-    # contains(var.localities, "bg.plovdiv") ? local.crawlers_bg_plovdiv : {},
-    #
-    # IMPORTANT: merge() silently overwrites duplicate keys. Crawler job keys must
-    # be globally unique across all locality maps. Use a locality-prefixed naming
-    # convention if the same logical service might appear in multiple cities.
+    {},
+    local._selected_source_jobs...
   )
 
   # var.crawlers, if non-empty, acts as a full manual override (escape hatch).
   crawlers = length(var.crawlers) > 0 ? var.crawlers : local._assembled_crawlers
 }
 
-# Warn early when var.localities requests a city with no crawler file wired in.
+# Warn early when var.localities requests a city without a source job data file.
 # Skip this check when var.crawlers is non-empty (full manual override active).
 check "localities_supported" {
   assert {
     condition     = length(var.crawlers) > 0 || length(setsubtract(toset(var.localities), local._supported_localities)) == 0
-    error_message = "var.localities contains unsupported ID(s): ${jsonencode(tolist(setsubtract(toset(var.localities), local._supported_localities)))}. To add a locality: create crawlers.bg.<city>.tf, then add the ID to local._supported_localities and a contains() branch in crawlers.tf."
+    error_message = "var.localities contains unsupported ID(s): ${jsonencode(tolist(setsubtract(toset(var.localities), local._supported_localities)))}. Add a source-jobs.<locality-id>.json file for each requested locality."
+  }
+}
+
+check "source_job_names_unique" {
+  assert {
+    condition = length(var.crawlers) > 0 || length(flatten([
+      for jobs in local._selected_source_jobs : keys(jobs)
+    ])) == length(local._assembled_crawlers)
+    error_message = "Source job keys must be unique across the selected locality files. Use locality-prefixed keys for jobs shared by multiple localities."
   }
 }
