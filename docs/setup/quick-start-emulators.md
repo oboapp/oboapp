@@ -1,6 +1,6 @@
 # Quick Start with Firebase Emulators
 
-Run oboapp locally with zero cloud dependencies using Firebase Emulators and mock APIs.
+Run oboapp locally with Firebase Emulators and mock AI and geocoding services.
 
 ## Prerequisites
 
@@ -73,17 +73,20 @@ Make sure to add your Google Maps API key to the `NEXT_PUBLIC_GOOGLE_MAPS_API_KE
 
 - Firestore database with sample messages, sources, interest zones
 - Firebase Authentication (Google Sign-In mocked)
-- Mock external APIs (Gemini, Google Geocoding, Overpass, Cadastre)
+- Mock AI and geocoding APIs (Gemini, Google Geocoding, Overpass, Cadastre)
 - Emulator UI for data inspection
 
 ## Common Operations
 
-**Run crawler (mocked):**
+**Collect source data into the emulator:**
 
 ```bash
 cd ingest
-pnpm crawl --source rayon-oborishte-bg --dry-run
+pnpm exec playwright install chromium
+pnpm crawl --source rayon-oborishte-bg
 ```
+
+Install Chromium once for browser-backed sources. With the emulator configuration from step 1 active, this command reads live Oborishte pages and saves raw source documents in your local Firestore emulator. The `MOCK_*` flags apply to AI and geocoding calls during ingestion.
 
 **Run ingestion pipeline (mocked):**
 
@@ -116,7 +119,7 @@ Run the reseed commands after pulling changes to the seed fixtures so existing l
 
 - Firebase Cloud Messaging has no emulator
 - Firestore indexes are ignored
-- All external API calls are mocked
+- Source collection uses live provider sites
 
 For production setup, see [production-setup.md](production-setup.md).
 
