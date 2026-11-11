@@ -51,7 +51,7 @@ to avoid requesting permission during sign-out.
 
 **Authenticated Users:** Signed-in (non-anonymous) users land in the appropriate state based on their progress
 (`zoneCreation`, `notificationPrompt`, `blocked`, or `complete`). Anonymous users are treated as unauthenticated
-and land in `idle` — the same clean state as first-time visitors.
+and land in the same `idle` state as first-time visitors.
 
 ## State Machine Diagram
 

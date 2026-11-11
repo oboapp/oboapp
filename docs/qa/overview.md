@@ -19,7 +19,7 @@ This document outlines the quality assurance strategy across the oboapp monorepo
 
 A pre-commit hook (Husky + lint-staged) runs ESLint automatically on staged files in `web/`, `ingest/`, and `shared/` before each commit.
 
-**`eslint-disable` comments are generally not permitted** — lint errors must be fixed at the source. Exceptions are allowed only for generated or vendor code that cannot be modified.
+**`eslint-disable` comments are prohibited.** Fix lint errors at the source. The only exception is generated or vendor code that cannot be modified.
 
 Run lint and TypeScript checks manually before opening a PR (from the respective package directory):
 
@@ -103,24 +103,25 @@ Gherkin feature files in `e2e/` describe expected end-to-end behavior for key AP
 
 Every pull request triggers the [CI pipeline](../../.github/workflows/ci.yml):
 
-1. **Dependency check** — `dpdm` circular dependency scan across all packages
-2. **Test ingest** — `pnpm test:run` in `ingest/`
-3. **Test web** — `pnpm test:run` in `web/`
-4. **Build web** — Next.js build check
+1. **Dependency check:** circular dependencies, downstream identifiers, Terraform example schema, and APM resources
+2. **Test ingest:** `pnpm test:run` in `ingest/`
+3. **Test web:** `pnpm test:run` in `web/`
+4. **Build web:** Next.js build check
+5. **SonarCloud:** coverage and analysis after the other jobs pass, on pushes to `main` and pull requests from the same repository
 
 The web build job sets `NEXT_PUBLIC_LOCALITY` explicitly for deterministic behavior in upstream CI. Instance forks can change this value in their own workflow configuration when targeting a different locality.
 
-On push to `main`, a separate [deploy workflow](../../.github/workflows/deploy.yml) handles Docker build, push to GCP, and Terraform apply. This workflow lives only in instance forks, not in the upstream `oboapp/oboapp` repo.
+Instance forks can add `.github/workflows/deploy.yml` to build Docker images, push them to GCP, and apply Terraform after a push to `main`. See [New Locality Instance](../setup/new-locality-instance.md) for deployment configuration.
 
-A [CI failure agent](../../.github/workflows/ci-failure-agent.yml) creates GitHub issues for failed runs and labels them for Copilot triage (`ci-failure`, `copilot`).
+The [CI failure agent source](../../.github/workflows/ci-failure-fix.md) defines issue creation for failed runs on `main`, with the `ci-failure` and `copilot` labels and Copilot assignment. Its [compiled workflow](../../.github/workflows/ci-failure-fix.lock.yml) runs in GitHub Actions.
 
 ## Local Development Environment
 
 For testing locally without cloud dependencies, see:
 
-- [Quick Start with Emulators](../setup/quick-start-emulators.md) — Firebase Emulators + mock external APIs
-- [External API Mocks](../features/external-api-mocks.md) — Mock Gemini, Google Geocoding, Overpass, Cadastre
-- [Quick Start with MSW](../setup/quick-start-frontend-msw.md) — Frontend development without emulators
+- [Quick Start with Emulators](../setup/quick-start-emulators.md): Firebase Emulators and mock external APIs
+- [External API Mocks](../features/external-api-mocks.md): mock Gemini, Google Geocoding, Overpass, and Cadastre
+- [Quick Start with MSW](../setup/quick-start-frontend-msw.md): frontend development without emulators
 
 ## Future Plans
 
