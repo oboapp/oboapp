@@ -2,61 +2,25 @@
 
 import dotenv from "dotenv";
 import { resolve } from "node:path";
-import { Browser } from "playwright";
-import type { OboDb } from "@oboapp/db";
-import { PostLink } from "./types";
-import { extractPostLinks, extractPostDetails } from "./extractors";
-import {
-  crawlWordpressPage,
-  processWordpressPost,
-} from "../shared/webpage-crawlers";
-import { parseBulgarianMonthDate } from "../shared/date-utils";
+import { createSource } from "@oboapp/source-mladost-bg";
+import { metadata } from "@oboapp/source-mladost-bg/metadata";
+import { runSource } from "@/sources/run-source";
 import { logger } from "@/lib/logger";
 
-// Load environment variables from .env.local
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 
-const INDEX_URL = "https://mladost.bg/gradska-i-okolna-sreda/planovi-remonti";
-const SOURCE_TYPE = "mladost-bg";
-const LOCALITY = "bg.sofia";
-const DELAY_BETWEEN_REQUESTS = 2000; // 2 seconds
-
-/**
- * Process a single post with custom Bulgarian month date parser
- */
-const processPost = (
-  browser: Browser,
-  postLink: PostLink,
-  db: OboDb,
-) =>
-  processWordpressPost(
-    browser,
-    postLink,
-    db,
-    SOURCE_TYPE,
-    LOCALITY,
-    DELAY_BETWEEN_REQUESTS,
-    extractPostDetails,
-    parseBulgarianMonthDate, // Custom date parser for "DD Month YYYY" format
-  );
-
-/**
- * Main crawler function
- */
 export async function crawl(): Promise<void> {
-  await crawlWordpressPage({
-    indexUrl: INDEX_URL,
-    sourceType: SOURCE_TYPE,
-    extractPostLinks,
-    processPost,
-    delayBetweenRequests: DELAY_BETWEEN_REQUESTS,
-  });
+  const { getDb } = await import("@/lib/db");
+  const summary = await runSource(await getDb(), metadata, createSource);
+  logger.info("Crawl complete", { sourceType: metadata.id, ...summary });
 }
 
-// Run the crawler if executed directly
 if (require.main === module) {
   crawl().catch((error) => {
-    logger.error("Fatal error", { sourceType: SOURCE_TYPE, error: error instanceof Error ? error.message : String(error) });
+    logger.error("Fatal error", {
+      sourceType: metadata.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
     process.exit(1);
   });
 }

@@ -20,12 +20,11 @@ export interface SourceDocumentWithGeoJson extends BaseSourceDocument {
 }
 
 /**
- * Post link extracted from index/listing pages
- * Used by long-flow webpage crawlers (e.g. sofia-bg, rayon-oborishte-bg, mladost-bg)
+ * Post link extracted from a legacy crawler's index or listing page.
  */
 export interface PostLink {
   url: string;
   title: string;
   date: string;
-  time?: string; // Optional for crawlers that extract time separately (e.g., mladost-bg)
+  time?: string; // Optional provider time supplied separately from the date.
 }

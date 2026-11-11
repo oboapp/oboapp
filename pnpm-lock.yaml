@@ -163,6 +163,9 @@ importers:
       '@oboapp/source-lozenets-sofia-bg':
         specifier: 0.1.0
         version: 0.1.0
+      '@oboapp/source-mladost-bg':
+        specifier: 0.1.0
+        version: 0.1.0
       '@oboapp/source-nadezhda-org':
         specifier: 0.1.0
         version: 0.1.0
@@ -193,6 +196,9 @@ importers:
       '@oboapp/source-triaditsa-org':
         specifier: 0.2.0
         version: 0.2.0
+      '@oboapp/source-vrabnitsa-org':
+        specifier: 0.1.0
+        version: 0.1.0
       '@react-google-maps/api':
         specifier: ^2.20.7
         version: 2.20.8(react-dom@19.2.1(react@19.2.4))(react@19.2.4)
@@ -2416,6 +2422,10 @@ packages:
     resolution: {integrity: sha512-hTTnBAM+iWOAnVp+/yXd0jOEV2Y1+lZVvNWV8gJd55S9sC5bymp6wZAVDSfWHKS+zGius9zPCYaPau0szSgoOQ==}
     engines: {node: '>=20.3'}
 
+  '@oboapp/source-mladost-bg@0.1.0':
+    resolution: {integrity: sha512-69ywdya98jaswCyh9nhCIqpXL5zmBjQPG2zDegUoRUJZ0TAquAstA5o6XDxvLNTlHnpGwFnnz8lXmh1u7FWmYA==}
+    engines: {node: '>=20.3'}
+
   '@oboapp/source-nadezhda-org@0.1.0':
     resolution: {integrity: sha512-RGr63BNSZEtx3c53F+g3kwEwP4XJ8Ze2Y8dDE2xnHepGyoz6/WqJO2Z2famrIcIkDsDx4CVCiHK5Qaez8NykSw==}
     engines: {node: '>=20.3'}
@@ -2456,12 +2466,20 @@ packages:
     resolution: {integrity: sha512-QJvcIXepFx7NSgtBso+y0qcMNKSWgQmONa1hPwfi342zTRNvDrMHf9D36gtJ7sqy7h21PzkqeZOy7uqXNZddSg==}
     engines: {node: '>=20'}
 
+  '@oboapp/source-vrabnitsa-org@0.1.0':
+    resolution: {integrity: sha512-yVfLELhu3QfuHwFXpYJYy0OmOJTPR1HkXv7ZssasNmmaZeKiR8jSn4hNOKh3GAk7RLMuGGy6yhqOyVotM7jtmA==}
+    engines: {node: '>=20.3'}
+
   '@oboapp/source-web-utils@0.1.0':
     resolution: {integrity: sha512-zREnID2f0h5unpIUWsoCKNCKzes5dfLShTWuvt7NkLiGQ/kSHGmZQMcBASue8a9rXALAuMr/Y7wHjmHyMRHQEA==}
     engines: {node: '>=20.3'}
 
   '@oboapp/source-web-utils@0.2.0':
     resolution: {integrity: sha512-LPZmLMZhxR4u2CGlQR/YbKcjWZjsriiSfFfpGv3i52G1fLb8YJ4mwbD1Cxab+/ARyPR5wEg20kbYkLGRZaT2FA==}
+    engines: {node: '>=20.3'}
+
+  '@oboapp/source-web-utils@0.3.0':
+    resolution: {integrity: sha512-UgCCDr/xg5Z9qNK0Snh4w9VBEn/PqoO9ai/xJbi++iG4dkGZwdz/LhKUmm3rdOcD4NE0JinNGSaf0wO/FTLQnw==}
     engines: {node: '>=20.3'}
 
   '@open-draft/deferred-promise@2.2.0':
@@ -13143,6 +13161,11 @@ snapshots:
       '@oboapp/source-sdk': 0.1.1
       '@oboapp/source-web-utils': 0.1.0
 
+  '@oboapp/source-mladost-bg@0.1.0':
+    dependencies:
+      '@oboapp/source-sdk': 0.1.1
+      '@oboapp/source-web-utils': 0.3.0
+
   '@oboapp/source-nadezhda-org@0.1.0':
     dependencies:
       '@oboapp/source-sdk': 0.1.1
@@ -13194,6 +13217,11 @@ snapshots:
       html-entities: 2.6.0
       turndown: 7.2.2
 
+  '@oboapp/source-vrabnitsa-org@0.1.0':
+    dependencies:
+      '@oboapp/source-sdk': 0.1.1
+      '@oboapp/source-web-utils': 0.3.0
+
   '@oboapp/source-web-utils@0.1.0':
     dependencies:
       '@oboapp/source-sdk': 0.1.1
@@ -13202,6 +13230,13 @@ snapshots:
       turndown: 7.2.2
 
   '@oboapp/source-web-utils@0.2.0':
+    dependencies:
+      '@oboapp/source-sdk': 0.1.1
+      html-entities: 2.6.0
+      playwright: 1.61.1
+      turndown: 7.2.2
+
+  '@oboapp/source-web-utils@0.3.0':
     dependencies:
       '@oboapp/source-sdk': 0.1.1
       html-entities: 2.6.0

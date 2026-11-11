@@ -1,6 +1,6 @@
 # Crawlers
 
-This directory contains the crawler entrypoints: the functions called by the collection commands. During the [source-package transition](../../docs/features/source-packages.md), most directories keep their existing crawler code. Triaditsa, Oborishte, Slatina, Toplo, Lozenets, Studentski, Sredets, Ilinden, Nadezhda and Iskar call their published npm packages through Obo's runner. Both paths save raw records through `@oboapp/db`.
+This directory contains the crawler entrypoints: the functions called by the collection commands. During the [source-package transition](../../docs/features/source-packages.md), each directory holds either a legacy crawler or an adapter to a published source package. Triaditsa, Oborishte, Slatina, Toplo, Lozenets, Studentski, Sredets, Ilinden, Nadezhda, Iskar, Mladost and Vrabnitsa call their published npm packages through Obo's runner. Both paths save raw records through `@oboapp/db`.
 
 ## How They Work
 
@@ -26,6 +26,7 @@ pnpm --dir ingest test:run messageIngest/packaged-hybrid-handoff.test.ts
 pnpm --dir ingest test:run messageIngest/packaged-toplo-handoff.test.ts
 pnpm --dir ingest test:run messageIngest/packaged-next-districts-handoff.test.ts
 pnpm --dir ingest test:run messageIngest/packaged-browser-districts-handoff.test.ts
+pnpm --dir ingest test:run messageIngest/packaged-joomla-districts-handoff.test.ts
 ```
 
 All source directories, including currently unselected sources, have crawl-entrypoint coverage. `shared/source-inventory.test.ts` checks the explicit inventory against the implementation directories. Add a real crawl contract suite and update that inventory when adding a source; parser tests alone are insufficient.
@@ -40,6 +41,7 @@ All source directories, including currently unselected sources, have crawl-entry
 | `messageIngest/packaged-toplo-handoff.test.ts` | Toplo package through persistence and ingestion, literal synthetic identifiers, legacy fields and historical lookups |
 | `messageIngest/packaged-next-districts-handoff.test.ts` | Lozenets, Studentski and Sredets packages through persistence and ingestion, historical lookups, listing failures and retry |
 | `messageIngest/packaged-browser-districts-handoff.test.ts` | Ilinden, Nadezhda and Iskar published packages through persistence and ingestion, detail metadata, historical lookups, listing failures and retry |
+| `messageIngest/packaged-joomla-districts-handoff.test.ts` | Mladost and Vrabnitsa published packages through persistence and ingestion, literal identifiers, provider dates, historical lookups, failures and retry |
 
 Tests use frozen time, local fixtures and mocked browser/network/storage boundaries. `__mocks__/source-contract.ts` provides a small stateful mock of the `@oboapp/db` sources repository; it is not a database emulator. Shared helper tests execute actual persistence code. Legacy wrapper suites invoke the exported crawler and its detail callback; packaged-source suites exercise the adapter and the package handoff. Custom suites retain real builders and transforms. AQI calculations and parsers retain their own unit suites. No credentials, browser downloads, provider access, or emulator are needed.
 
