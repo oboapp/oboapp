@@ -4,16 +4,12 @@ import dotenv from "dotenv";
 import { resolve } from "node:path";
 import { createSource } from "@oboapp/source-mladost-bg";
 import { metadata } from "@oboapp/source-mladost-bg/metadata";
-import { runSource } from "@/sources/run-source";
+import { createSourceCrawler } from "@/sources/create-source-crawler";
 import { logger } from "@/lib/logger";
 
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 
-export async function crawl(): Promise<void> {
-  const { getDb } = await import("@/lib/db");
-  const summary = await runSource(await getDb(), metadata, createSource);
-  logger.info("Crawl complete", { sourceType: metadata.id, ...summary });
-}
+export const crawl = createSourceCrawler(metadata, createSource);
 
 if (require.main === module) {
   crawl().catch((error) => {
