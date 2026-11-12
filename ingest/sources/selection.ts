@@ -24,7 +24,7 @@ function validVersionIdentifiers(value: string, allowNumericLeadingZeros: boolea
     if (!/^[0-9A-Za-z-]+$/.test(identifier)) {
       return false;
     }
-    if (allowNumericLeadingZeros || !/^[0-9]+$/.test(identifier)) {
+    if (allowNumericLeadingZeros || !/^\d+$/.test(identifier)) {
       return true;
     }
     return identifier === "0" || !identifier.startsWith("0");
@@ -42,7 +42,7 @@ function isExactVersion(value: string): boolean {
   const prereleaseIndex = version.indexOf("-");
   const core = prereleaseIndex < 0 ? version : version.slice(0, prereleaseIndex);
   const parts = core.split(".");
-  if (parts.length !== 3 || !parts.every((part) => /^(?:0|[1-9][0-9]*)$/.test(part))) {
+  if (parts.length !== 3 || !parts.every((part) => /^(?:0|[1-9]\d*)$/.test(part))) {
     return false;
   }
   return prereleaseIndex < 0 || validVersionIdentifiers(version.slice(prereleaseIndex + 1), false);
