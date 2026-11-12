@@ -1,152 +1,69 @@
 # Source package migration
 
-Tracking: [#586](https://github.com/oboapp/oboapp/issues/586). Packages live in [oboapp/sources](https://github.com/oboapp/sources). Prefer a small, readable integration over infrastructure that has no demonstrated need.
+Tracking: [#586](https://github.com/oboapp/oboapp/issues/586). Published collectors and their provider documentation live in [oboapp/sources](https://github.com/oboapp/sources).
 
-## Current transition state
+## Current transition
 
-Triaditsa, Oborishte, Slatina, Toplo, Lozenets, Studentski, Sredets, Ilinden, Nadezhda, Iskar, Mladost and Vrabnitsa use published source packages. Triaditsa was first piloted in [vbuch/oboapp PR #29](https://github.com/vbuch/oboapp/pull/29). Both collection paths remain in use during migration.
+Each selected source uses either a published package or a remaining legacy crawler. Both collection paths save complete raw records for the same ingestion, event-matching and notification pipeline. Sources that supply GeoJSON keep their existing processing path.
 
 | Responsibility | Legacy sources | Packaged sources |
 | --- | --- | --- |
-| Provider parsing and content conversion | `ingest/crawlers/{id}/` and local helpers | Versioned source packages in the sources repository |
-| Database lookup and raw persistence | Legacy crawler helpers in Obo | `ingest/sources/run-source.ts` in Obo |
-| Scheduled entrypoint | Existing `crawl --source {id}` job | Same job and command, with an adapter in `crawlers/{id}/index.ts` |
-| Web catalog and deployment selection | Instance source assembly (`shared/src/sources.ts`) and Terraform | The same instance assembly and Terraform configuration |
-| Processing after collection | Existing raw-source ingestion, event matching, notifications | The same processing pipeline |
+| Provider requests, parsing and content conversion | Collector code in Obo | Independently versioned source packages |
+| Historical lookup, validation and raw persistence | Obo's collection helpers | Obo's scheduled source runner |
+| Scheduling, catalog selection and downstream processing | Obo | Obo |
 
-The ingest package pins these published versions:
+Installed package versions are pinned in `ingest/package.json` and `pnpm-lock.yaml`. The [remaining migration tracker](https://github.com/oboapp/oboapp/issues/609) records source cutovers. [Selection and deployment work](https://github.com/oboapp/oboapp/issues/610) tracks the final registry and image changes.
 
-| Source | Package | Version |
-| --- | --- | --- |
-| Triaditsa | `@oboapp/source-triaditsa-org` | `0.2.0` |
-| Oborishte | `@oboapp/source-rayon-oborishte-bg` | `0.1.0` |
-| Slatina | `@oboapp/source-so-slatina-org` | `0.1.0` |
-| Toplo | `@oboapp/source-toplo-bg` | `0.1.0` |
-| Lozenets | `@oboapp/source-lozenets-sofia-bg` | `0.1.0` |
-| Studentski | `@oboapp/source-studentski-bg` | `0.1.0` |
-| Sredets | `@oboapp/source-sredec-sofia-org` | `0.1.0` |
-| Ilinden | `@oboapp/source-rayon-ilinden-bg` | `0.1.0` |
-| Nadezhda | `@oboapp/source-nadezhda-org` | `0.1.0` |
-| Iskar | `@oboapp/source-raioniskar-bg` | `0.1.0` |
-| Mladost | `@oboapp/source-mladost-bg` | `0.1.1` |
-| Vrabnitsa | `@oboapp/source-vrabnitsa-org` | `0.1.0` |
+The current build still compiles all source integrations and includes legacy collector code in the image. Building with only selected implementations remains unfinished.
 
-```mermaid
-flowchart TD
-    job[Existing scheduled source job] --> entry[crawl --source ID]
-    entry -->|Other sources| legacy[Legacy crawler and local helpers]
-    entry -->|Packaged sources| adapter[Package adapter]
-    adapter --> runner[Simple Obo runner]
-    runner -->|List and fetch| package[npm source package]
-    package -->|Identifiers and content| runner
-    legacy --> raw[(Complete raw sources via @oboapp/db)]
-    runner --> raw
-    raw --> ingest[Existing ingestion and event matching]
-    ingest --> notify[Existing notifications]
+## Scheduled scan behavior
+
+A scan lists candidates, skips known identifiers, fetches new content, validates it, and saves complete raw records. Pagination stays within that scan. One source instance handles the batch and closes afterward, allowing provider sessions and rate limits to be reused.
+
+Identifiers remain byte-for-byte compatible with historical URLs, including synthetic URLs. Both legacy base64 and MD5 document lookups remain supported. Known identifiers are skipped even when the provider changes an item or a package version changes.
+
+Obo assigns the source ID, locality, identifier, crawl timestamp and initial processing state. Validation runs before persistence. Writes create new records and preserve existing records during overlapping scans.
+
+An individual lookup, fetch, validation or save failure is logged and counted while unrelated items continue. Listing failures and repeated pagination cursors fail the scan. The next scheduled run lists again and retries identifiers that are still missing. A provider can remove an item before a successful retry; this is an accepted recovery limit of the initial migration.
+
+## Collection patterns and compatibility
+
+Website packages can reuse Chromium for listing and detail requests. Full-content feeds and listing/API packages can reuse content already obtained during discovery. Discovery context must stay within the SDK's serializable payload limit; larger content can remain in the source instance until fetched.
+
+Each migration preserves provider-specific URL filtering, date fallback, content conversion and legacy deduplication. Contract fixtures protect these behaviors before the old provider implementation is removed. Sofia's historical title fallback must remain supported when that source migrates.
+
+Toplo illustrates synthetic identifiers: raw-record URLs identify incidents, while empty public detail links prevent navigation to invented detail pages. Its restricted compatibility profile preserves historical empty titles and malformed publication-date strings while validating content and geometry. Its preview validates candidates without database initialization; preview counts describe items that would be saved.
+
+## Instance selection and deployment
+
+Keep the selected catalog in `shared/src/sources.ts` aligned with `ingest/terraform/source-jobs.<locality>.json`. Job keys identify deployed resources, so preserve them when translating existing configuration. Terraform selects locality maps through `var.localities`. A non-empty `var.crawlers` is an explicit manual override outside the checked selection.
+
+The upstream demo selects a small source set. `ingest/source-package-policy.json` explicitly lists unselected packages retained for compilation and integration tests during the transition. Retained packages still require isolated valid metadata, exact versions and unique source IDs. Unexpected unselected dependencies and stale policy entries fail validation. Remove a package's retention entry when selecting its source or removing its dependency. An absent or empty policy enables strict selection for all installed source packages.
+
+The default Sofia job file matches the demo. The full Sofia template under `ingest/terraform/examples/` is inactive. Existing deployments must retain their own catalog and job selection when rebasing. See the [instance setup guide](../setup/new-locality-instance.md) for translating the full template and updating the retention policy before deployment.
+
+Check configuration without provider or database access:
+
+```sh
+pnpm --dir ingest exec tsx scripts/check-source-config.ts
 ```
 
-Each source uses one collection path. Text sources continue through AI extraction and geocoding; sources with precomputed GeoJSON use their existing processing path.
+The check rejects version ranges, duplicate IDs, metadata differences, unsupported localities, missing entrypoints, missing or extra jobs, reused job keys and emergent schedule differences. It loads browser-safe metadata without loading provider runtimes. The image build also checks compiled entrypoints and launches each packaged browser as the production user.
 
-The current deployment image includes legacy crawler code. Developers update the source catalog and deployment job data together. CI and the ingest image build check that these selections agree. A later stage will build the catalog from installed packages and include only selected sources in the image.
+## Moving a source
 
-## Checking the instance selection
+1. Capture contracts for literal identifiers, historical lookups, content, dates, locality and scheduling. Include fixes already deployed by an instance.
+2. Publish and review the independent package. Preserve provider parsing tests and source-mapped coverage in the sources repository.
+3. Install the exact version with `pnpm --dir ingest add --save-exact <package>@<version>`. Connect the existing command entrypoint to Obo's runner, remove the replaced provider code, and update selection or retention configuration.
+4. Test the actual package through raw persistence and ingestion. Cover historical skips, repeated scans, failed-item continuation, later retry and session cleanup. Run the repository's required quality checks and inspect the actual Sonar quality gate.
+5. Deploy using the existing job identity. Inspect saved/skipped/failed totals, verify complete raw records reach ingestion, and confirm a later scan skips known identifiers. Record deployment evidence in the migration issue.
 
-Run `pnpm --dir ingest exec tsx scripts/check-source-config.ts` after changing sources. The check reads the selected catalog from `@oboapp/shared`, source dependencies from `ingest/package.json`, each package's isolated `/metadata` export, and deployment jobs from `ingest/terraform/source-jobs.<locality>.json`. It loads metadata without importing provider runtimes or initializing the database.
+With the normal ingest environment configured, `pnpm --dir ingest crawl --source <source-id>` runs a scan and saves new records. A successful empty listing alone does not establish provider health; compare the result with the provider's current eligible items.
 
-The check rejects version ranges, duplicate source IDs, metadata differences, unsupported localities, missing crawler entrypoints, missing or extra deployment jobs, reused job keys and emergent schedule differences. An instance may select fewer localities than a package supports. Unselected legacy source directories can remain during migration. The compiled check also verifies JavaScript entrypoints during the image build.
+To roll back, revert the source integration and deploy the previous image. Existing raw records remain compatible. Preserve the instance catalog and deployment job selection during rollback.
 
-The upstream demo selects a small source set. Its `ingest/source-package-policy.json` explicitly retains unselected packages while their adapters and integration tests are compiled together. Every retained package still needs valid metadata and an exact version. Unexpected unselected packages and stale policy entries fail validation. Forks that select these packages remove their entries from the policy; removing the policy enables strict selection for all installed source packages.
+## Production follow-ups and quality
 
-Terraform reads the same JSON job files and selects their locality maps through `var.localities`. Keep existing job keys when editing these files because they identify deployed resources. The explicit `var.crawlers` override remains available for one-off operations and is outside the checked instance selection.
+Mladost's package reports unsuccessful HTTP navigation as a failure. Provider access from Cloud Run remains blocked in [#677](https://github.com/oboapp/oboapp/issues/677); its migration still needs a healthy discovery and deduplication scan in [#673](https://github.com/oboapp/oboapp/issues/673). Legacy provider repairs remain part of the remaining migration tracker.
 
-The default Sofia job file matches the upstream demo. The full Sofia example is under `ingest/terraform/examples/` and is not loaded automatically. Existing full Sofia deployments must copy that example into the Terraform root and retain their full source catalog before applying a deployment. See the [instance setup guide](../setup/new-locality-instance.md).
-
-## Scheduled source runner
-
-`runSource` in `ingest/sources/run-source.ts` receives the database from `getDb()`, package metadata, and a `CreateSource` factory. Load environment variables before obtaining the database. The runner validates `LOCALITY` against the package metadata and creates one source instance for the scan.
-
-The flow is: list candidates, skip identifiers already stored, fetch new content, validate it, and save a complete raw document. Pagination stays in memory within the run. Items are processed sequentially so sources can reuse browser sessions and enforce their provider's rate limits. The source is closed in `finally`.
-
-Historical base64 and MD5 lookups remain supported. Identifiers are preserved byte for byte. A create-only write prevents overlapping scans from overwriting an existing raw record or resetting its processing state. Obo owns source ID, locality, URL, crawl timestamp, and `processed=false`; package content cannot override those fields. Dates and GeoJSON are converted to the existing raw-ingest representation. Invalid content never creates a partial raw record.
-
-An individual lookup, fetch, validation, or save failure is logged and counted while other items continue. The caller receives saved/skipped/failed totals. Listing failures and repeated pagination cursors fail the run. A later scheduled scan starts listing again, skips successful items, and retries missing items that are still available. An item can be missed if it disappears before a successful fetch; this is an accepted limitation of the initial migration.
-
-`discoverItems` lists candidates. `fetchItem` returns their content; full-content feeds and synthetic-identifier sources can supply it directly from listing context cached in the source instance. The runner handles both operations within the scheduled scan.
-
-The migrated sources delegate from their existing entrypoints to their respective packages through the runner. Their Cloud Run jobs, schedules, catalog entries, and source identities stay unchanged. Other crawlers retain their existing implementation until their individual cutovers. Preserve each source's special legacy deduplication, including Sofia's title fallback, before switching it. Package upgrades never trigger refetching old identifiers.
-
-Oborishte and Slatina use RSS for discovery and a reused Chromium browser for article details. Their package versions use Playwright 1.61.1. The ingest image must include the matching browser revision. Their handoff tests cover historical base64 and MD5 identifiers, repeat scans and retry after a page failure.
-
-## Lozenets, Studentski and Sredets
-
-These three sources use their published `0.1.0` packages through the existing scheduled entrypoints. Lozenets and Studentski discover articles from their RSS feeds. Sredets preserves its five category feeds, ordered discovery and 90-day cutoff. Its listing finishes before the runner starts saving articles, so a listing failure leaves no partial scan in storage.
-
-The packages use `@oboapp/source-web-utils@0.1.0` for RSS fetching and Chromium article extraction. This helper owns Playwright 1.61.1. The image's browser check resolves Playwright through each provider's helper dependency and launches the installed Chromium revision as the production user.
-
-`messageIngest/packaged-next-districts-handoff.test.ts` runs the published packages through their actual crawler entrypoints, raw storage and ingestion with simulated HTTP, browser and database boundaries. It covers literal URLs and MD5 identifiers, historical base64 records, repeat scans, listing failures and detail retries. Provider parsers and selectors are maintained in [oboapp/sources](https://github.com/oboapp/sources).
-
-Run `pnpm --dir ingest crawl --source lozenets-sofia-bg`, `--source studentski-bg` or `--source sredec-sofia-org` with the normal ingest environment. Their regular schedules and `bg.sofia` locality remain in place. To roll back, revert this integration and redeploy the previous image. Existing stored identifiers remain compatible.
-
-## Ilinden, Nadezhda and Iskar
-
-These three sources use their published `0.1.0` packages through the existing scheduled entrypoints. Their `@oboapp/source-web-utils@0.2.0` dependency provides browser listing and detail collection. The integration pins the published source versions and their registry integrity values in the lockfile.
-
-These sources preserve their browser listing selectors, literal anchor URLs and existing URL filters. Nadezhda deduplicates its listing. Titles, dates and content come from detail pages. Missing detail titles or content fail the item. Numeric Bulgarian dates retain the legacy parser, including current-time fallback for unparseable dates. Iskar's ISO-style provider dates currently use that fallback.
-
-One browser is reused across the listing and article details. Each page closes after its attempt, and attempts are spaced by two seconds, including failures. The existing source IDs, `bg.sofia` locality, Cloud Run jobs and schedules remain in place. The image checks resolve Chromium through the new packages' helper dependency.
-
-`messageIngest/packaged-browser-districts-handoff.test.ts` exercises the published packages through their actual entrypoints, raw storage and ingestion. It covers literal identifiers, historical base64 and MD5 records, repeat scans, listing failures, detail retries and per-item continuation. Captured provider parser contracts live in the sources repository.
-
-Run `pnpm --dir ingest crawl --source rayon-ilinden-bg`, `--source nadezhda-org` or `--source raioniskar-bg` with the normal ingest environment. Each source keeps its existing command and scheduled job. To roll back, revert the integration and redeploy the previous image. Existing stored identifiers remain compatible.
-
-## Mladost and Vrabnitsa
-
-Mladost uses its published `0.1.1` package and Vrabnitsa uses `0.1.0` through the existing scheduled entrypoints. The source extractions were reviewed in [Mladost PR #22](https://github.com/oboapp/sources/pull/22) and [Vrabnitsa PR #23](https://github.com/oboapp/sources/pull/23). Their release records are [Mladost 0.1.1](https://github.com/oboapp/sources/releases/tag/source-mladost-bg-v0.1.1) and [Vrabnitsa 0.1.0](https://github.com/oboapp/sources/releases/tag/source-vrabnitsa-org-v0.1.0).
-
-Mladost preserves the repair-listing card selectors, literal article URLs, detail-page title and body, and script/style cleanup. Bulgarian month-name dates use local midnight in the process timezone. When the visible date includes `Публикувано:`, the existing parser falls back to the scan time. The package preserves that behavior; publication-date correction is recorded in [#673](https://github.com/oboapp/oboapp/issues/673).
-
-Vrabnitsa preserves its news-card selectors, literal article URLs, URL filters and duplicate order. Detail dates prefer the `datetime` attribute, then normalized visible text. Parsing strips the publication prefix and tries JavaScript date parsing followed by Bulgarian month names. Unparseable dates retain the current-time fallback. Body cleanup removes scripts, styles, article asides, paging, icons, button groups and navigation.
-
-Mladost uses `@oboapp/source-web-utils@0.3.1` and Vrabnitsa uses `0.3.0`. Both helper versions own Playwright 1.61.1. One browser serves each scan, pages close after every attempt, and listing and detail attempts wait two seconds, including failures. The production image resolves Chromium through each provider's helper dependency and checks that it can render a page as the production user.
-
-Mladost 0.1.1 rejects unsuccessful HTTP navigation responses before extracting a listing or article. A listing HTTP failure fails the scan. An article HTTP failure is counted while other items continue, and the next scheduled scan retries the missing item. Successful empty listings remain valid. Cloud Run access denials observed on 11 November 2026 are tracked in [#677](https://github.com/oboapp/oboapp/issues/677).
-
-`messageIngest/packaged-joomla-districts-handoff.test.ts` runs the published packages through their actual entrypoints, raw persistence and ingestion with simulated browser and database boundaries. It covers literal identifiers, historical base64 and MD5 records, complete raw content, repeat scans, retries, per-item continuation and provider-specific dates. Mladost's HTTP 403 cases verify scan failure and article failure followed by retry. Parser and captured-page contracts live in the sources repository.
-
-Run `pnpm --dir ingest crawl --source mladost-bg` or `--source vrabnitsa-org` with the normal ingest environment. The existing source IDs, `bg.sofia` locality, catalog metadata, Cloud Run jobs and schedules remain in place. To roll back, revert the integration and redeploy the previous image. Existing stored identifiers remain compatible.
-
-## Toplo synthetic-identifier pilot
-
-Toplo uses `@oboapp/source-toplo-bg@0.1.0` through its existing `toplo-bg` entrypoint. The package reads the incident JSON embedded in the public HTML listing over HTTP and caches it in one source instance. Synthetic URLs such as `https://toplo.bg/incidents/item-1` remain raw-record identifiers; the empty `deepLinkUrl` keeps them out of public detail links. Large geometry stays in the instance cache, outside the SDK discovery payload limit.
-
-The adapter selects the runner's `legacy-toplo` validation profile to preserve the provider's title and publication-date strings, including empty titles and malformed dates. This profile is restricted to `toplo-bg`. Message, timespan, geometry and platform-field validation still apply. Invalid starts fall back to the scan time for timespans; invalid or missing ends fall back to the validated start.
-
-The exported `crawl(true)` preview validates and counts listing items without initializing the database or checking historical records. Its `saved` count means items that would be saved. Normal scans skip historical base64 and MD5 records, use create-only writes, continue after individual failures and retry missing records on a later scan. An empty listing or a scan where every item fails makes the entrypoint fail.
-
-Run `pnpm --dir ingest crawl --source toplo-bg` with the normal ingest environment. The existing `toplo` Cloud Run job, `bg.sofia` locality and emergent schedule remain in place. Roll back by reverting the Toplo integration commit and redeploying the previous image. Existing stored identifiers remain compatible.
-
-`messageIngest/packaged-toplo-handoff.test.ts` exercises the published package through raw persistence and ingestion using frozen provider fixtures. Provider parser and builder tests live in [oboapp/sources](https://github.com/oboapp/sources/tree/main/packages/source-toplo-bg). Source-package Sonar analysis and coverage are tracked in [#663](https://github.com/oboapp/oboapp/issues/663).
-
-## Trying the Triaditsa pilot
-
-With the normal ingest environment configured (`LOCALITY=bg.sofia` and database credentials), run `pnpm --dir ingest crawl --source triaditsa-org`. This scan writes new raw records and logs saved/skipped/failed totals. Existing records should be skipped on a second run. Use the existing Triaditsa job as the single scheduled entrypoint.
-
-The source package uses the same RSS Accept header as the shared RSS fetcher. Its own tests compare output against a fixture captured from the legacy parser and Markdown conversion. To roll back, revert the pilot switch commit and redeploy the previous entrypoint. Existing stored records remain valid.
-
-Version `0.2.0` collects the News feed and `https://triaditza.org/feed/?post_type=announcements`. It deduplicates shared URLs, preserves publication dates and document links, and removes embedded styles and scripts from Markdown. Obo's handoff test covers both feeds reaching ingestion and repeat scans skipping stored items.
-
-## Moving the next source
-
-1. Add contract tests for the source's existing identifiers, content, locality, schedule, and historical lookup rules. Include provider fixes made in the deployment fork.
-2. Move the code that reads and converts provider data into the package. Provide separate runtime and metadata entrypoints so the web app can load catalog metadata on its own. Keep database access in Obo.
-3. Publish and check the reviewed package. Set its exact version in an Obo integration PR. Replace the existing entrypoint with an adapter that calls the package through the runner. Then remove the old local source code. Keep its catalog metadata and `source-jobs.<locality>.json` entry aligned, and run the instance selection check.
-4. Test the full path from the package through raw storage to ingestion. Check that known items are skipped and failures are handled. Keep the existing scheduled job.
-5. Deploy the integration, inspect the source job's saved/skipped/failed totals, and confirm repeat scans skip known records. Record the migrated source in this guide and update diagrams when the architecture changes.
-
-Parser fixes belong in the source package; runner and ingestion fixes belong in Obo. Package publication and Obo deployment are separate steps. Once all sources use packages and share one configuration, update this guide and its diagrams to show the completed migration.
-
-## Existing atomic database primitive
-
-`DbClient.compareAndUpdate(collection, id, tokenField, expectedToken, data)` was added before the runner was simplified. The runner does not use it. It remains available for callers that actually require an atomic string-token comparison.
-
-Firestore compares and writes in a transaction; MongoDB uses a conditional update without upsert. A missing record or stale token returns false. In dual-write mode only the primary decides success, and successful updates replicate best-effort. This is not a distributed transaction. Adapter tests mock the storage boundaries; they are not database-backed concurrency tests.
+Obo tests the package-to-ingestion contract. The sources repository owns provider implementation tests, source-mapped coverage and its own Sonar analysis. [#663](https://github.com/oboapp/oboapp/issues/663) records the verified quality-gate setup for extracted code.
