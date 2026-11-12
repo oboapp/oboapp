@@ -123,10 +123,12 @@ For the full implementation guide, see the `long-flow-crawler-generator` skill. 
 
 - **Workflow Sync (CRITICAL):** When adding/removing crawlers, update ALL:
   1. `ingest/crawlers/{source-name}/` — implementation
-  2. `var.crawlers` in `ingest/terraform/variables.tf` — add entry (set `emergent = true` for 30-min crawlers)
+  2. `ingest/terraform/source-jobs.<locality-id>.json`: add the job entry (set `"emergent": true` for 30-min sources). `var.crawlers` is a manual override.
   3. `shared/src/sources/{source-name}.ts` — create the source definition file
   4. `shared/src/sources.ts` — import the new definition and add it to the `SOURCES` array (this is the instance assembly; see Instance Configuration below)
   5. If emergent (30-min intervals): set `emergent: true` on the source definition — `EMERGENT_CRAWLERS` is derived automatically
+
+  Run `pnpm --dir ingest exec tsx scripts/check-source-config.ts` after changing the selection. For packaged sources, keep exact dependency versions and `ingest/source-package-policy.json` aligned with the selected catalog.
 
 - **Emergent Classification:** Emergent crawlers run every 30 minutes; all others run 3× daily. This affects workflow definitions and Cloud Scheduler.
 
