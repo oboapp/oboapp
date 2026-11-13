@@ -96,6 +96,8 @@ Terraform also schedules the notification heartbeat and configured reports. Repo
 
 Dockerized for Google Cloud Run Jobs. See `Dockerfile` and `terraform/` directory.
 
+The independent `Test Minimal Source Image` CI job builds the ordinary Dockerfile with only Triaditsa, Sofiyska Voda and shared crawler helpers in its context. It checks selected production packages and compiled sources, `USER node`, offline default startup and pinned pnpm availability. Runtime checks load entrypoints without invoking collection or initializing the database. See the [minimal-image instructions](../docs/features/source-packages.md#verifying-a-minimal-image) for local commands. The builder still installs development dependencies, and a minimal cloud deployment remains separate work.
+
 ## Testing Toolchain Note
 
 Both ingest and web use Vitest 4. Ingest runs with the ESM configuration in `vitest.config.mts`; `vitest.config.ts` re-exports it for compatibility. Use `pnpm --dir ingest test:run` for the normal crawler and pipeline suite.
