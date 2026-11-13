@@ -31,7 +31,9 @@ graph LR
 
 During the [source-package transition](../docs/features/source-packages.md), the existing command and Cloud Run jobs run either a legacy crawler or an adapter to a published source package. The transition guide describes migration status and deployment steps. Provider collection for packaged sources lives in the sources repository; remaining legacy implementations stay in `crawlers/`. Both paths feed the same processing pipeline. Packages supply data. Obo's runner handles deduplication, validation, and persistence: it skips known items, checks new content, and saves complete records.
 
-The `crawl` and `pipeline` commands share a [runtime registry](sources/registry.ts) derived from `SOURCES` in `shared/src/sources.ts`. Help lists selected sources, and `crawl --source` rejects unselected IDs even when their implementation directories exist. `pipeline --all` runs all selected sources; `pipeline --emergent` runs selected sources marked `emergent: true`. Unselected implementations remain installed, compiled and included in the image during the transition.
+The `crawl` and `pipeline` commands share a [runtime registry](sources/registry.ts) derived from `SOURCES` in `shared/src/sources.ts`. Help lists selected sources, and `crawl --source` rejects unselected IDs even when their implementation directories exist. `pipeline --all` runs all selected sources; `pipeline --emergent` runs selected sources marked `emergent: true`.
+
+The production build clears `dist` and compiles selected source entrypoints and their imports alongside common application code. The image omits the raw crawler source tree. Source-package browser checks follow selected installed packages and their declared Playwright dependencies. Installation still follows `ingest/package.json`, so retained unselected provider dependencies can remain in the image. See the [selected-build guidance](../docs/features/source-packages.md#building-selected-sources) before removing unused dependencies or source directories.
 
 ## Components
 

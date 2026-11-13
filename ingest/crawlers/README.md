@@ -94,7 +94,9 @@ Crawlers handle message formatting differently based on whether they provide pre
 
 Run the following commands from `ingest/`.
 
-The `crawl` and `pipeline` commands share a [runtime registry](../sources/registry.ts) derived from `SOURCES` in `shared/src/sources.ts`. Only selected IDs appear in help and can run through these commands. An unselected source directory is rejected. `pipeline --all` runs every selected source; `pipeline --emergent` runs selected sources marked `emergent: true`. The build and deployment image still include unselected implementations during the package transition.
+The `crawl` and `pipeline` commands share a [runtime registry](../sources/registry.ts) derived from `SOURCES` in `shared/src/sources.ts`. Only selected IDs appear in help and can run through these commands. An unselected source directory is rejected. `pipeline --all` runs every selected source; `pipeline --emergent` runs selected sources marked `emergent: true`.
+
+The production build starts from selected crawler entrypoints and follows their imports, including shared helpers. It clears previous compiled output, and the image omits the raw crawler source tree. Unselected provider dependencies remain installed when retained in the instance manifest. See the [selected-build guidance](../../docs/features/source-packages.md#building-selected-sources) for removing unused packages and directories while keeping test coverage aligned.
 
 ```bash
 # Run a selected source
