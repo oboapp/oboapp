@@ -42,7 +42,7 @@
     "promptfoo:verify": "cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo eval --env-file .env.local -c prompts/__evals__/verify-event-match.yaml",
     "promptfoo:redteam": "cross-env NODE_OPTIONS=\"--import tsx/esm\" promptfoo redteam eval --env-file .env.local -c prompts/__evals__/redteam.yaml",
     "promptfoo:view": "promptfoo view",
-    "build": "pnpm --dir .. --filter @oboapp/shared build && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
+    "build": "pnpm --dir .. --filter @oboapp/shared build && tsx scripts/build-selected-sources.ts && tsc-alias -p tsconfig.build.json",
     "prebuilt:crawl": "node dist/crawl.js",
     "prebuilt:ingest": "node dist/ingest.js",
     "prebuilt:notify": "node dist/notify.js",
