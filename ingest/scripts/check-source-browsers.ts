@@ -1,25 +1,42 @@
 import { createRequire } from "node:module";
+import { join } from "node:path";
+import {
+  readInstalledPackageManifest,
+  readInstalledSourcePackages,
+  type InstalledSourcePackageDetails,
+} from "@/sources/installed-packages";
+import { getSelectedSourceIds } from "@/sources/registry";
 
-const browserSources = [
-  { source: "@oboapp/source-rayon-oborishte-bg" },
-  { source: "@oboapp/source-so-slatina-org" },
-  { source: "@oboapp/source-lozenets-sofia-bg", browserDependency: "@oboapp/source-web-utils" },
-  { source: "@oboapp/source-studentski-bg", browserDependency: "@oboapp/source-web-utils" },
-  { source: "@oboapp/source-sredec-sofia-org", browserDependency: "@oboapp/source-web-utils" },
-  { source: "@oboapp/source-rayon-ilinden-bg", browserDependency: "@oboapp/source-web-utils" },
-  { source: "@oboapp/source-nadezhda-org", browserDependency: "@oboapp/source-web-utils" },
-  { source: "@oboapp/source-raioniskar-bg", browserDependency: "@oboapp/source-web-utils" },
-  { source: "@oboapp/source-mladost-bg", browserDependency: "@oboapp/source-web-utils" },
-  { source: "@oboapp/source-vrabnitsa-org", browserDependency: "@oboapp/source-web-utils" },
-];
+function getBrowserRequire(source: InstalledSourcePackageDetails): NodeJS.Require | undefined {
+  const sourceRequire = createRequire(join(source.directory, "package.json"));
+  if (Object.hasOwn(source.dependencies, "playwright")) {
+    return sourceRequire;
+  }
+  const helperName = "@oboapp/source-web-utils";
+  if (!Object.hasOwn(source.dependencies, helperName)) {
+    return undefined;
+  }
+  const helper = readInstalledPackageManifest(helperName, sourceRequire.resolve(helperName));
+  if (!Object.hasOwn(helper.dependencies, "playwright")) {
+    return undefined;
+  }
+  return createRequire(join(helper.directory, "package.json"));
+}
 
-export async function checkSourceBrowsers(): Promise<void> {
-  for (const { source, browserDependency } of browserSources) {
+function getIngestDirectory(): string {
+  return readInstalledPackageManifest("oboapp-ingest", __filename).directory;
+}
+
+export async function checkSourceBrowsers(ingestDirectory = getIngestDirectory()): Promise<void> {
+  const selectedIds = new Set(getSelectedSourceIds());
+  const packages = readInstalledSourcePackages(ingestDirectory)
+    .filter((source) => selectedIds.has(source.metadata.id));
+  for (const source of packages) {
     try {
-      const sourceRequire = createRequire(require.resolve(source));
-      const browserRequire = browserDependency
-        ? createRequire(sourceRequire.resolve(browserDependency))
-        : sourceRequire;
+      const browserRequire = getBrowserRequire(source);
+      if (!browserRequire) {
+        continue;
+      }
       const playwright: typeof import("playwright") = browserRequire("playwright");
       const browser = await playwright.chromium.launch({
         headless: true,
@@ -42,16 +59,16 @@ export async function checkSourceBrowsers(): Promise<void> {
         await browser.close();
       }
     } catch (error) {
-      throw new Error(`Chromium check failed for ${source}`, { cause: error });
+      throw new Error(`Chromium check failed for ${source.name}`, { cause: error });
     }
 
-    console.log(`Chromium check passed for ${source}`);
+    console.log(`Chromium check passed for ${source.name}`);
   }
 }
 
-export async function runSourceBrowserChecks(): Promise<void> {
+export async function runSourceBrowserChecks(ingestDirectory = getIngestDirectory()): Promise<void> {
   try {
-    await checkSourceBrowsers();
+    await checkSourceBrowsers(ingestDirectory);
   } catch (error: unknown) {
     console.error("Source Chromium check failed", error);
     process.exitCode = 1;
