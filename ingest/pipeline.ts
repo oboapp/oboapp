@@ -1,37 +1,23 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { resolve, join } from "node:path";
+import { resolve } from "node:path";
 import dotenv from "dotenv";
 import { verifyEnvSet, verifyDbEnv } from "@/lib/verify-env";
-import { readdirSync, statSync } from "node:fs";
 import { logger } from "@/lib/logger";
 import { initSentry, flushSentry } from "@/lib/sentry";
-import { EMERGENT_CRAWLERS } from "@oboapp/shared";
+import {
+  getSelectedSourceIds,
+  getEmergentSourceIds,
+  runSelectedSource,
+} from "@/sources/registry";
 
 const program = new Command();
-
-/**
- * Get available crawler sources by reading the crawlers directory
- */
-function getAvailableSources(): string[] {
-  const crawlersDir = join(__dirname, "crawlers");
-  const entries = readdirSync(crawlersDir);
-
-  return entries.filter((entry) => {
-    const fullPath = join(crawlersDir, entry);
-    const isDirectory = statSync(fullPath).isDirectory();
-    // Exclude 'shared' directory
-    return isDirectory && entry !== "shared";
-  });
-}
 
 async function runCrawler(source: string): Promise<boolean> {
   logger.info(`Running crawler: ${source}`, { step: "crawl", source });
   try {
-    const crawlerPath = `./crawlers/${source}/index.js`;
-    const crawler = await import(crawlerPath);
-    await crawler.crawl();
+    await runSelectedSource(source);
     logger.info(`Crawler ${source} completed`, { step: "crawl", source });
     return true;
   } catch (error) {
@@ -144,30 +130,31 @@ async function runPipeline(crawlers: string[], pipelineName: string) {
 
 program
   .name("pipeline")
-  .description("Run data ingestion pipeline with crawlers, ingest, and notify")
+  .description("Collect selected source data, ingest messages, and send notifications")
   .option(
     "--emergent",
-    "Run only emergent crawlers (ERM, Toplo, Sofiyska Voda)",
+    "Run selected sources on the emergent schedule",
   )
-  .option("--all", "Run all crawlers")
+  .option("--all", "Run all selected sources")
   .addHelpText("after", () => {
-    const longFlowCrawlers = getAvailableSources().filter(
-      (crawler) => !EMERGENT_CRAWLERS.includes(crawler),
+    const emergentSources = getEmergentSourceIds();
+    const longFlowCrawlers = getSelectedSourceIds().filter(
+      (source) => !emergentSources.includes(source),
     );
     return `
-Crawler Groups:
-  Emergent crawlers (short-lived messages, run every 30 minutes):
-    ${EMERGENT_CRAWLERS.map((c) => `- ${c}`).join("\n    ")}
+Selected source groups:
+  Emergent sources (run every 30 minutes):
+    ${emergentSources.map((source) => `- ${source}`).join("\n    ")}
   
-  Long-flow crawlers (WordPress-based, run 3x daily):
-    ${longFlowCrawlers.map((c) => `- ${c}`).join("\n    ")}
+  Other sources (run 3x daily):
+    ${longFlowCrawlers.map((source) => `- ${source}`).join("\n    ")}
 
 Examples:
   $ npx tsx pipeline --emergent
   $ npx tsx pipeline --all
 `;
   })
-  .action(async (options) => {
+  .action(async (options: { emergent?: boolean; all?: boolean }) => {
     // Ensure environment variables are loaded and required keys are present
     dotenv.config({ path: resolve(process.cwd(), ".env.local") });
     initSentry();
@@ -181,7 +168,7 @@ Examples:
     // Validate that exactly one option is provided
     if (options.emergent && options.all) {
       logger.error("Cannot use both --emergent and --all options");
-      process.exit(1);
+      return process.exit(1);
     }
 
     if (!options.emergent && !options.all) {
@@ -190,9 +177,9 @@ Examples:
     }
 
     if (options.emergent) {
-      await runPipeline([...EMERGENT_CRAWLERS], "EMERGENT");
+      await runPipeline(getEmergentSourceIds(), "EMERGENT");
     } else if (options.all) {
-      const allCrawlers = getAvailableSources();
+      const allCrawlers = getSelectedSourceIds();
       await runPipeline(allCrawlers, "FULL");
     }
   });
