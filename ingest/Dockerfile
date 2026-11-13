@@ -44,6 +44,9 @@ WORKDIR /app
 # Production stage
 FROM node:20-slim
 
+# Prepare pnpm where the runtime user can reuse it without a download.
+ENV COREPACK_HOME=/home/node/.cache/node/corepack
+
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
 
