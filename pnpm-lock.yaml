@@ -37,6 +37,9 @@ importers:
       husky:
         specifier: ^9.1.7
         version: 9.1.7
+      js-yaml:
+        specifier: 4.1.1
+        version: 4.1.1
       lint-staged:
         specifier: ^16.2.7
         version: 16.2.7
@@ -178,12 +181,12 @@ importers:
       '@oboapp/source-rayon-oborishte-bg':
         specifier: 0.1.0
         version: 0.1.0
-      '@oboapp/source-so-slatina-org':
-        specifier: 0.1.0
-        version: 0.1.0
       '@oboapp/source-sdk':
         specifier: 0.1.1
         version: 0.1.1
+      '@oboapp/source-so-slatina-org':
+        specifier: 0.1.0
+        version: 0.1.0
       '@oboapp/source-sredec-sofia-org':
         specifier: 0.1.0
         version: 0.1.0
@@ -2442,12 +2445,12 @@ packages:
     resolution: {integrity: sha512-lRzFHzpD6eWU7TfPfp+6BfKU+oOn0sUESxaUSDHY+aTScgrHKA1A0kbUfBcRYD8qJXM9ricMLqfxDGHdnXs99A==}
     engines: {node: '>=20'}
 
-  '@oboapp/source-so-slatina-org@0.1.0':
-    resolution: {integrity: sha512-b8EyGZ1LeuHNbPPwa5O+vleojMWwL7qkro+ak1XVEsiBn9nw09YsNF2QnWpRKqXAQh4MlJcHWyYSBM5RhN/duw==}
-    engines: {node: '>=20'}
-
   '@oboapp/source-sdk@0.1.1':
     resolution: {integrity: sha512-kCSJ04z+/yDvD2CikBLTGNjLAIdg/d91CuCMMHIzzwkffhXDqnPii1eM+SdlRmel54x7Eux1TTVqApVwGwWlVQ==}
+    engines: {node: '>=20'}
+
+  '@oboapp/source-so-slatina-org@0.1.0':
+    resolution: {integrity: sha512-b8EyGZ1LeuHNbPPwa5O+vleojMWwL7qkro+ak1XVEsiBn9nw09YsNF2QnWpRKqXAQh4MlJcHWyYSBM5RhN/duw==}
     engines: {node: '>=20'}
 
   '@oboapp/source-sredec-sofia-org@0.1.0':
@@ -6010,6 +6013,7 @@ packages:
   eslint@9.39.2:
     resolution: {integrity: sha512-LEyamqS7W5HB3ujJyvi0HQK/dtVINZvd5mAAp9eT5S/ujByGjiZLCzPcHVzuXbpJDJF/cxwHlfceVUDZ2lnSTw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -13192,14 +13196,14 @@ snapshots:
       playwright: 1.61.1
       turndown: 7.2.2
 
+  '@oboapp/source-sdk@0.1.1': {}
+
   '@oboapp/source-so-slatina-org@0.1.0':
     dependencies:
       '@oboapp/source-sdk': 0.1.1
       html-entities: 2.6.0
       playwright: 1.61.1
       turndown: 7.2.2
-
-  '@oboapp/source-sdk@0.1.1': {}
 
   '@oboapp/source-sredec-sofia-org@0.1.0':
     dependencies:
