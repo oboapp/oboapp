@@ -215,6 +215,12 @@ jobs:
       - name: Prepare isolated two-source image context
         run: node ingest/dist/scripts/prepare-source-image-fixture.js tmp/source-image
 
+      - name: Build selected-source Linux builder
+        run: docker build --progress=plain --target builder -t oboapp-source-builder:ci -f tmp/source-image/ingest/Dockerfile tmp/source-image
+
+      - name: Verify selected builder dependencies and implementations offline
+        run: node ingest/dist/scripts/check-source-builder-image.js oboapp-source-builder:ci
+
       - name: Build minimal Linux image
         run: docker build --progress=plain -t oboapp-source-image:ci -f tmp/source-image/ingest/Dockerfile tmp/source-image
 
