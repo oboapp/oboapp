@@ -68,7 +68,7 @@ function projectInputs(repository) {
     throw new Error("Build workspace requires pnpm lockfile version 9.0");
   }
   if (!Array.isArray(workspace?.packages)) {
-    throw new Error("Build workspace requires workspace packages");
+    throw new TypeError("Build workspace requires workspace packages");
   }
   const importers = Object.fromEntries(projects.map((project) => {
     const importer = lockfile.importers?.[project];
