@@ -98,4 +98,33 @@ describe("installed source package metadata", () => {
 
     expect(readInstalledSourcePackages(directory)).toEqual([]);
   });
+
+  it("discovers a provider declared only as an optional dependency", () => {
+    writeJson(join(directory, "package.json"), {
+      optionalDependencies: {
+        [packageName]: "1.2.3",
+        "@oboapp/source-sdk": "0.1.1",
+      },
+    });
+
+    expect(readInstalledSourcePackages(directory)).toEqual([{
+      name: packageName,
+      version: "1.2.3",
+      metadata,
+      directory: packageDirectory,
+      dependencies: { "@oboapp/source-web-utils": "0.3.1" },
+    }]);
+  });
+
+  it("uses the optional dependency specifier when it overrides a regular dependency", () => {
+    writeJson(join(directory, "package.json"), {
+      dependencies: { [packageName]: "1.2.2" },
+      optionalDependencies: { [packageName]: "1.2.3" },
+    });
+
+    const installed = readInstalledSourcePackages(directory);
+
+    expect(installed).toHaveLength(1);
+    expect(installed[0]).toMatchObject({ name: packageName, version: "1.2.3", metadata });
+  });
 });
