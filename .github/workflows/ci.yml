@@ -177,6 +177,13 @@ jobs:
           pnpm build
           node dist/scripts/check-source-config.js
 
+      - name: Prepare selected production dependencies
+        run: node ingest/dist/scripts/prepare-production-workspace.js tmp/production-workspace
+
+      - name: Verify frozen production installation
+        working-directory: ./tmp/production-workspace
+        run: pnpm install --frozen-lockfile --prod --ignore-scripts --offline
+
       - name: Run unit tests
         working-directory: ./ingest
         run: pnpm test:run
