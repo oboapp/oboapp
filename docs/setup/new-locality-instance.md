@@ -13,7 +13,7 @@ Configure upstream Terraform logic through variables in instance files.
 
 ## Configuring Sources
 
-**Migration in progress:** each selected source uses either a published package or a remaining legacy crawler. For a packaged source, install its exact published version in `ingest/` and connect its command entrypoint to Obo's runner. Select sources through `shared/src/sources.ts` and `ingest/terraform/source-jobs.<locality>.json`. Catalog definitions remain in `shared/src/sources/`. CI and the ingest image build validate the selected catalog, package metadata, entrypoints and job data. A later stage will build the catalog from installed packages and include only selected sources in the deployment image. See [the transition guide](../features/source-packages.md) for the current source inventory and integration steps.
+**Migration in progress:** each selected source uses either a published package or a remaining legacy crawler. For a packaged source, install its exact published version in `ingest/` and connect its command entrypoint to Obo's runner. Select sources through `shared/src/sources.ts` and `ingest/terraform/source-jobs.<locality>.json`. Catalog definitions remain in `shared/src/sources/`. CI and the ingest image build validate the selected catalog, package metadata, entrypoints and job data. Installation, builds and deployment images still include unselected implementations during this transition. See [the transition guide](../features/source-packages.md) for the current source inventory and integration steps.
 
 The upstream demo selects Sofia BG, Sofiyska Voda and sensor.community. It also keeps the migrated source packages installed so their adapters and integration tests remain buildable during the migration. `ingest/source-package-policy.json` lists these packages under `retainedUnselectedPackages`. The check still validates their isolated metadata, exact dependency versions and unique source IDs. An installed unselected package needs an explicit retention entry. Remove that entry when selecting the source or removing its package. With the policy absent or empty, all installed source packages must be selected.
 
@@ -22,6 +22,8 @@ Forks that retain all source integration code should keep its package dependenci
 Each source has its own definition file at `shared/src/sources/{id}.ts`. These live in the upstream repo and merge cleanly across rebases — adding a new upstream source creates a new file, no conflicts.
 
 `shared/src/sources.ts` is the **instance assembly**: it imports the individual definition files and assembles the `SOURCES` array used by both the web app and ingest pipeline. Fork operators replace this file to configure which sources their instance exposes.
+
+The collection commands use a shared runtime registry derived from this array. `crawl --help` lists selected sources, and `crawl --source <source-id>` rejects an unselected ID even if its implementation directory exists. `pipeline --all` runs all selected sources, while `pipeline --emergent` runs only selected sources marked `emergent: true`.
 
 When rebasing from upstream, `shared/src/sources/{id}.ts` files merge cleanly. `shared/src/sources.ts` is the intentional conflict zone — review it consciously to decide which upstream sources to include in your instance.
 

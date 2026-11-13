@@ -94,11 +94,13 @@ Crawlers handle message formatting differently based on whether they provide pre
 
 Run the following commands from `ingest/`.
 
+The `crawl` and `pipeline` commands share a [runtime registry](../sources/registry.ts) derived from `SOURCES` in `shared/src/sources.ts`. Only selected IDs appear in help and can run through these commands. An unselected source directory is rejected. `pipeline --all` runs every selected source; `pipeline --emergent` runs selected sources marked `emergent: true`. The build and deployment image still include unselected implementations during the package transition.
+
 ```bash
-# Run a specific crawler
+# Run a selected source
 pnpm crawl --source <source-name>
 
-# List available sources
+# List selected sources
 pnpm crawl --help
 ```
 
