@@ -142,6 +142,22 @@ describe("minimal source image fixture", () => {
     }
   });
 
+  it("prepares the context without a patches directory when the repository has no patches", () => {
+    const patchesDirectory = resolve(repository, "patches");
+    if (!patchesDirectory.startsWith(`${resolve(directory)}${sep}`)) {
+      throw new Error("Refusing to remove patches outside the temporary fixture");
+    }
+    rmSync(patchesDirectory, { recursive: true });
+
+    prepareSourceImageFixture(repository, target);
+
+    expect(existsSync(join(target, "patches"))).toBe(false);
+    expect(existsSync(join(target, "ingest", "Dockerfile"))).toBe(true);
+    expect(readdirSync(join(target, "ingest", "crawlers")).sort()).toEqual([
+      "shared", "sofiyska-voda", "triaditsa-org",
+    ]);
+  });
+
   it("preserves canonical job keys and settings while replacing every active locality job file", () => {
     prepareSourceImageFixture(repository, target);
 
