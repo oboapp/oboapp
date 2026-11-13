@@ -12,9 +12,9 @@ Each selected source uses either a published package or a remaining legacy crawl
 | Historical lookup, validation and raw persistence | Obo's collection helpers | Obo's scheduled source runner |
 | Scheduling, catalog selection and downstream processing | Obo | Obo |
 
-Installed package versions are pinned in `ingest/package.json` and `pnpm-lock.yaml`. The [remaining migration tracker](https://github.com/oboapp/oboapp/issues/609) records source cutovers. [Selection and deployment work](https://github.com/oboapp/oboapp/issues/610) tracks selected-only installation, builds and images.
+Installed package versions are pinned in `ingest/package.json` and `pnpm-lock.yaml`. The [remaining migration tracker](https://github.com/oboapp/oboapp/issues/609) records source cutovers. [Selection and deployment work](https://github.com/oboapp/oboapp/issues/610) tracks production dependency pruning and minimal-image verification.
 
-The current build still compiles all source integrations and includes legacy collector code in the image. Building with only selected implementations remains unfinished.
+The production build compiles selected source entrypoints and their imports alongside the common application code. It clears `dist` before compiling, so deselecting a source removes its previous output. The image uses compiled code and omits the raw crawler source tree. Package installation still follows `ingest/package.json`; retained unselected provider packages can remain in production dependencies and the image.
 
 ## Scheduled scan behavior
 
@@ -40,7 +40,7 @@ Keep the selected catalog in `shared/src/sources.ts` aligned with `ingest/terraf
 
 The `crawl` and `pipeline` commands share a [runtime registry](../../ingest/sources/registry.ts) derived from the selected `SOURCES` array. Their help lists selected sources. `crawl --source <source-id>` rejects unselected IDs even when their directories exist. `pipeline --all` runs every selected source; `pipeline --emergent` runs selected sources whose definition has `emergent: true`. Implementations load only when their selected source runs, after environment configuration.
 
-The upstream demo selects a small source set. `ingest/source-package-policy.json` explicitly lists unselected packages retained for compilation and integration tests during the transition. Retained packages still require isolated valid metadata, exact versions and unique source IDs. Unexpected unselected dependencies and stale policy entries fail validation. Remove a package's retention entry when selecting its source or removing its dependency. An absent or empty policy enables strict selection for all installed source packages.
+The upstream demo selects a small source set. `ingest/source-package-policy.json` explicitly lists unselected packages retained for integration tests during the transition. Retained packages still require isolated valid metadata, exact versions and unique source IDs. Unexpected unselected dependencies and stale policy entries fail validation. Remove a package's retention entry when selecting its source or removing its dependency. An absent or empty policy enables strict selection for all installed source packages.
 
 The default Sofia job file matches the demo. The full Sofia template under `ingest/terraform/examples/` is inactive. Existing deployments must retain their own catalog and job selection when rebasing. See the [instance setup guide](../setup/new-locality-instance.md) for translating the full template and updating the retention policy before deployment.
 
@@ -50,7 +50,15 @@ Check configuration without provider or database access:
 pnpm --dir ingest exec tsx scripts/check-source-config.ts
 ```
 
-The check rejects version ranges, duplicate IDs, metadata differences, unsupported localities, missing entrypoints, missing or extra jobs, reused job keys and emergent schedule differences. It loads browser-safe metadata without loading provider runtimes. The image build also checks compiled entrypoints and launches each packaged browser as the production user.
+The check rejects version ranges, duplicate IDs, metadata differences, unsupported localities, missing entrypoints, missing or extra jobs, reused job keys and emergent schedule differences. It loads browser-safe metadata without loading provider runtimes. The image build also checks compiled entrypoints. Source-package Chromium checks follow selected installed packages and their declared browser dependencies, including Playwright supplied through `@oboapp/source-web-utils`, and run as the production user.
+
+## Building selected sources
+
+Run `pnpm --dir ingest build` after building the database package. The build reads `SOURCES` from the shared instance assembly and uses each selected crawler's `index.ts` as a compiler entrypoint. Other crawler directories and test helpers are excluded from broad file discovery; imported shared helpers and runtime mock services remain available.
+
+An instance can remove an unselected provider dependency with `pnpm --dir ingest remove <package>`, remove its retention-policy entry, and remove its unselected crawler directory before building. Keep the source catalog and deployment jobs aligned. The production build requires selected entrypoints and their imports. Repository-wide integration tests still cover retained integrations, so forks removing them must also adapt the corresponding tests.
+
+The build does not remove packages from the instance manifest. Keep required provider packages at exact versions and review the manifest and lockfile separately when reducing production dependencies.
 
 ## Moving a source
 
