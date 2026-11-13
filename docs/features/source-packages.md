@@ -12,7 +12,7 @@ Each selected source uses either a published package or a remaining legacy crawl
 | Historical lookup, validation and raw persistence | Obo's collection helpers | Obo's scheduled source runner |
 | Scheduling, catalog selection and downstream processing | Obo | Obo |
 
-Installed package versions are pinned in `ingest/package.json` and `pnpm-lock.yaml`. The [remaining migration tracker](https://github.com/oboapp/oboapp/issues/609) records source cutovers. [Selection and deployment work](https://github.com/oboapp/oboapp/issues/610) tracks selected-only installation across the whole build and minimal-image and deployment verification.
+Installed package versions are pinned in `ingest/package.json` and `pnpm-lock.yaml`. The [remaining migration tracker](https://github.com/oboapp/oboapp/issues/609) records source cutovers. [Selection and deployment work](https://github.com/oboapp/oboapp/issues/610) tracks selected-only installation across the whole build and deployment of a minimal instance. The image checks below exercise a two-source production image.
 
 The production build compiles selected source entrypoints and their imports alongside the common application code. It clears `dist` before compiling, so deselecting a source removes its previous output. The image uses compiled code and omits the raw crawler source tree. Docker prepares a separate production workspace that removes unselected provider dependencies before installing runtime packages.
 
@@ -75,7 +75,26 @@ The target must be a new or empty directory. Docker uses `/app/production-worksp
 
 The production image installs this generated workspace into a fresh layer with `pnpm install --frozen-lockfile --prod --ignore-scripts`. It keeps the generated manifests alongside the compiled output, so package metadata and browser checks see the production selection. Browser checks resolve only the selected providers' declared browser dependencies.
 
-The builder still installs the full development workspace for compilation and validation. Selected-only installation across the whole build and verification of a minimal image and deployment remain in [#610](https://github.com/oboapp/oboapp/issues/610).
+The production stage sets `COREPACK_HOME=/home/node/.cache/node/corepack` before preparing pnpm. The runtime user owns this cache, making pinned pnpm available on first startup without downloading it.
+
+The builder still installs the full development workspace for compilation and validation. Selected-only installation across the whole build and deployment of a minimal instance remain in [#610](https://github.com/oboapp/oboapp/issues/610).
+
+## Verifying a minimal image
+
+The independent `Test Minimal Source Image` CI job creates a Docker context containing Triaditsa's packaged HTTP source, Sofiyska Voda's legacy HTTP source and shared helpers. Other crawler directories are absent. The context retains the development provider dependencies and records unselected packages in its retention policy, so the ordinary Dockerfile must remove them during production staging.
+
+To run the same check locally after workspace installation, use a new or empty fixture directory:
+
+```sh
+pnpm --dir ingest build
+node ingest/dist/scripts/prepare-source-image-fixture.js tmp/source-image
+docker build --progress=plain -t oboapp-source-image:local -f tmp/source-image/ingest/Dockerfile tmp/source-image
+node ingest/dist/scripts/check-source-image.js oboapp-source-image:local
+```
+
+The [fixture preparation command](../../ingest/scripts/prepare-source-image-fixture.ts) changes the copied catalog and deployment jobs while preserving the working checkout. The [image verifier](../../ingest/scripts/check-source-image.ts) checks that the final pnpm store contains only the source SDK and Triaditsa provider package, and that compiled crawler directories contain the two selected sources and shared helpers. It also checks `USER node`, offline startup through the default command, pinned pnpm availability, selected CLI help and rejection of an unselected source.
+
+Runtime checks use containers with networking disabled. They load selected entrypoints and run the HTTP-only browser check, verifying that database initialization and browser runtimes stay unloaded. Source collection is never invoked. The two-source Linux image has passed these checks locally. A minimal cloud deployment remains separate work.
 
 ## Moving a source
 

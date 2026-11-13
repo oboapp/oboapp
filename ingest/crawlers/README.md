@@ -96,7 +96,9 @@ Run the following commands from `ingest/`.
 
 The `crawl` and `pipeline` commands share a [runtime registry](../sources/registry.ts) derived from `SOURCES` in `shared/src/sources.ts`. Only selected IDs appear in help and can run through these commands. An unselected source directory is rejected. `pipeline --all` runs every selected source; `pipeline --emergent` runs selected sources marked `emergent: true`.
 
-The production build starts from selected crawler entrypoints and follows their imports, including shared helpers. It clears previous compiled output, and the image omits the raw crawler source tree. Docker stages production manifests and a matching frozen lockfile that exclude unselected provider dependencies. Development manifests retain integration dependencies for tests, and the builder still installs the full development workspace. See the [production dependency guidance](../../docs/features/source-packages.md#preparing-production-dependencies) for the staging process and remaining verification work.
+The production build starts from selected crawler entrypoints and follows their imports, including shared helpers. It clears previous compiled output, and the image omits the raw crawler source tree. Docker stages production manifests and a matching frozen lockfile that exclude unselected provider dependencies. Development manifests retain integration dependencies for tests, and the builder still installs the full development workspace. See the [production dependency guidance](../../docs/features/source-packages.md#preparing-production-dependencies) for the staging process.
+
+The independent `Test Minimal Source Image` CI job builds a copied context with only Triaditsa, Sofiyska Voda and shared helpers. It checks the final package store, compiled source directories and offline startup as the production user. Selected entrypoints load without invoking collection, database initialization or browser runtimes. See the [minimal-image instructions](../../docs/features/source-packages.md#verifying-a-minimal-image) for local commands and deployment boundaries.
 
 ```bash
 # Run a selected source
