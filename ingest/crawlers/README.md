@@ -96,7 +96,7 @@ Run the following commands from `ingest/`.
 
 The `crawl` and `pipeline` commands share a [runtime registry](../sources/registry.ts) derived from `SOURCES` in `shared/src/sources.ts`. Only selected IDs appear in help and can run through these commands. An unselected source directory is rejected. `pipeline --all` runs every selected source; `pipeline --emergent` runs selected sources marked `emergent: true`.
 
-The production build starts from selected crawler entrypoints and follows their imports, including shared helpers. It clears previous compiled output, and the image omits the raw crawler source tree. Unselected provider dependencies remain installed when retained in the instance manifest. See the [selected-build guidance](../../docs/features/source-packages.md#building-selected-sources) for removing unused packages and directories while keeping test coverage aligned.
+The production build starts from selected crawler entrypoints and follows their imports, including shared helpers. It clears previous compiled output, and the image omits the raw crawler source tree. Docker stages production manifests and a matching frozen lockfile that exclude unselected provider dependencies. Development manifests retain integration dependencies for tests, and the builder still installs the full development workspace. See the [production dependency guidance](../../docs/features/source-packages.md#preparing-production-dependencies) for the staging process and remaining verification work.
 
 ```bash
 # Run a selected source
