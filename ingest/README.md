@@ -33,7 +33,7 @@ During the [source-package transition](../docs/features/source-packages.md), the
 
 The `crawl` and `pipeline` commands share a [runtime registry](sources/registry.ts) derived from `SOURCES` in `shared/src/sources.ts`. Help lists selected sources, and `crawl --source` rejects unselected IDs even when their implementation directories exist. `pipeline --all` runs all selected sources; `pipeline --emergent` runs selected sources marked `emergent: true`.
 
-The production build clears `dist` and compiles selected source entrypoints and their imports alongside common application code. The image omits the raw crawler source tree. Source-package browser checks follow selected installed packages and their declared Playwright dependencies. Installation still follows `ingest/package.json`, so retained unselected provider dependencies can remain in the image. See the [selected-build guidance](../docs/features/source-packages.md#building-selected-sources) before removing unused dependencies or source directories.
+The production build clears `dist` and compiles selected source entrypoints and their imports alongside common application code. The image omits the raw crawler source tree. Docker prepares separate production manifests and matching lockfile importer entries, then installs selected provider dependencies into a fresh layer with a frozen production install. Source-package browser checks follow those selected packages and their declared Playwright dependencies. The builder still installs the full development workspace. See the [production dependency guidance](../docs/features/source-packages.md#preparing-production-dependencies) for the staging process and remaining verification work.
 
 ## Components
 
