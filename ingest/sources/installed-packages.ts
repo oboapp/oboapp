@@ -19,6 +19,10 @@ const sourceMetadataSchema = z.object({
 });
 const supportPackages = new Set(["@oboapp/source-sdk", "@oboapp/source-web-utils"]);
 
+export function isSourceImplementationPackage(name: string): boolean {
+  return name.startsWith("@oboapp/source-") && !supportPackages.has(name);
+}
+
 export interface InstalledPackageManifest {
   directory: string;
   dependencies: Readonly<Record<string, string>>;
@@ -51,12 +55,15 @@ export function readInstalledPackageManifest(
 /** Read declared source dependencies through their isolated metadata exports. */
 export function readInstalledSourcePackages(ingestDirectory: string): InstalledSourcePackageDetails[] {
   const manifestPath = join(ingestDirectory, "package.json");
-  const { dependencies } = z.object({ dependencies: dependenciesSchema }).parse(
+  const { dependencies, optionalDependencies } = z.object({
+    dependencies: dependenciesSchema.optional().default({}),
+    optionalDependencies: dependenciesSchema.optional().default({}),
+  }).parse(
     JSON.parse(readFileSync(manifestPath, "utf8")),
   );
   const packageRequire = createRequire(manifestPath);
-  return Object.entries(dependencies)
-    .filter(([name]) => name.startsWith("@oboapp/source-") && !supportPackages.has(name))
+  return Object.entries({ ...dependencies, ...optionalDependencies })
+    .filter(([name]) => isSourceImplementationPackage(name))
     .map(([name, version]) => {
       const metadataPath = `${name}/metadata`;
       try {
