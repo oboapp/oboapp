@@ -1,9 +1,62 @@
 import { strict as assert } from "node:assert";
 import { execFileSync } from "node:child_process";
+import { accessSync, constants, statSync } from "node:fs";
+import { platform } from "node:os";
+import { isAbsolute } from "node:path";
 import { readInstalledPackageManifest, readInstalledSourcePackages } from "@/sources/installed-packages";
 
+function standardDockerPaths(): readonly string[] {
+  switch (platform()) {
+    case "win32": {
+      return ["C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe"];
+    }
+    case "linux": {
+      return ["/usr/bin/docker", "/usr/local/bin/docker"];
+    }
+    case "darwin": {
+      return [
+        "/Applications/Docker.app/Contents/Resources/bin/docker",
+        "/usr/local/bin/docker",
+        "/opt/homebrew/bin/docker",
+      ];
+    }
+    default: {
+      return [];
+    }
+  }
+}
+
+function isExecutableFile(fileName: string): boolean {
+  try {
+    if (!statSync(fileName).isFile()) {
+      return false;
+    }
+    accessSync(fileName, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveDockerExecutable(explicitExecutable?: string): string {
+  if (explicitExecutable !== undefined) {
+    if (!isAbsolute(explicitExecutable)) {
+      throw new Error("A custom Docker executable must use an absolute path");
+    }
+    if (!isExecutableFile(explicitExecutable)) {
+      throw new Error(`Docker executable is missing or cannot be executed: ${explicitExecutable}`);
+    }
+    return explicitExecutable;
+  }
+  const executable = standardDockerPaths().find((candidate) => isExecutableFile(candidate));
+  if (!executable) {
+    throw new Error("Docker was not found in a standard installation directory; pass an absolute path for a custom installation");
+  }
+  return executable;
+}
+
 function createImageVerifier(unselectedPackages: readonly string[]): string {
-  return String.raw`
+  return `
 const assert = require("node:assert/strict");
 const { execFileSync, spawnSync } = require("node:child_process");
 const { existsSync, readFileSync, readdirSync } = require("node:fs");
@@ -123,11 +176,12 @@ verify().catch((error) => {
 }
 
 /** Verify the minimal two-source production image without provider or database access. */
-export function checkSourceImage(imageTag: string): void {
+export function checkSourceImage(imageTag: string, explicitDockerExecutable?: string): void {
   if (!imageTag || imageTag.startsWith("-")) {
     throw new Error("A local source image tag is required");
   }
-  const configuredUser = execFileSync("docker", ["image", "inspect", "--format", "{{.Config.User}}", imageTag], {
+  const dockerExecutable = resolveDockerExecutable(explicitDockerExecutable);
+  const configuredUser = execFileSync(dockerExecutable, ["image", "inspect", "--format", "{{.Config.User}}", imageTag], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "inherit"],
     timeout: 60_000,
@@ -137,8 +191,8 @@ export function checkSourceImage(imageTag: string): void {
   const runArguments = [
     "run", "--rm", "--pull", "never", "--network", "none", "--env", "COREPACK_ENABLE_NETWORK=0",
   ];
-  execFileSync("docker", [...runArguments, imageTag], { stdio: "inherit", timeout: 60_000 });
-  const pnpmVersion = execFileSync("docker", [...runArguments, imageTag, "pnpm", "--version"], {
+  execFileSync(dockerExecutable, [...runArguments, imageTag], { stdio: "inherit", timeout: 60_000 });
+  const pnpmVersion = execFileSync(dockerExecutable, [...runArguments, imageTag, "pnpm", "--version"], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "inherit"],
     timeout: 60_000,
@@ -150,7 +204,7 @@ export function checkSourceImage(imageTag: string): void {
     .filter((source) => source.name !== "@oboapp/source-triaditsa-org")
     .map((source) => source.name);
   unselectedPackages.push("@oboapp/source-web-utils");
-  execFileSync("docker", [
+  execFileSync(dockerExecutable, [
     ...runArguments, "-i", "--read-only", "--entrypoint", "node", imageTag,
   ], {
     input: createImageVerifier(unselectedPackages),
@@ -162,11 +216,11 @@ export function checkSourceImage(imageTag: string): void {
 
 if (require.main === module) {
   try {
-    const [imageTag, ...extraArguments] = process.argv.slice(2);
+    const [imageTag, dockerExecutable, ...extraArguments] = process.argv.slice(2);
     if (!imageTag || extraArguments.length > 0) {
-      throw new Error("Usage: check-source-image <local-image-tag>");
+      throw new Error("Usage: check-source-image <local-image-tag> [absolute-docker-executable]");
     }
-    checkSourceImage(imageTag);
+    checkSourceImage(imageTag, dockerExecutable);
   } catch (error) {
     console.error(error);
     process.exitCode = 1;
