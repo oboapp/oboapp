@@ -87,10 +87,10 @@ Configure `schedules` and `schedule_timezone` in your instance's Terraform varia
 | --- | --- | --- |
 | `pipeline-emergent` | Every 30 minutes from 07:00 to 22:30 | Dispatch emergent source jobs, ingestion and notifications |
 | `pipeline-all` | Daily at 10:00, 14:00 and 16:00 | Dispatch all selected source jobs, ingestion and notifications |
-| `gtfs-sync` | Monday at 03:00 | Refresh bus stop coordinates for geocoding |
+| `gtfs-sync` | Daily at 03:00 | Refresh bus stop coordinates for geocoding |
 | `educational-facilities-sync` | Monthly on the 1st at 04:00 | Refresh school and kindergarten coordinates for geocoding |
 
-Terraform also schedules the notification heartbeat and configured reports. Report jobs depend on instance settings, such as the storage bucket and billing export configuration.
+Terraform also schedules the notification heartbeat and configured reports. Report jobs depend on the instance's storage bucket settings.
 
 ## Deployment
 
