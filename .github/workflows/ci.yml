@@ -321,7 +321,7 @@ jobs:
   sonarcloud:
     name: SonarCloud
     runs-on: ubuntu-latest
-    needs: [dependency-check, test-ingest, test-source-deployment, test-web, build-web]
+    needs: [dependency-check, test-ingest, test-source-image, test-source-deployment, test-web, build-web]
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
