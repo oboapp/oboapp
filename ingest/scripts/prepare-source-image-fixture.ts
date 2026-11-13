@@ -4,8 +4,8 @@ import { z } from "zod";
 import { readInstalledSourcePackages } from "@/sources/installed-packages";
 import { resolveEmptyWorkspaceTarget } from "@/sources/workspace-target";
 
-const selectedIds = ["triaditsa-org", "sofiyska-voda"];
-const sourceJobsSchema = z.record(z.string(), z.object({ source: z.string() }).passthrough());
+const selectedIds = new Set(["triaditsa-org", "sofiyska-voda"]);
+const sourceJobsSchema = z.record(z.string(), z.looseObject({ source: z.string() }));
 const excludedDirectories = new Set([
   "node_modules", "dist", "tmp", "coverage", ".terraform", ".cache", ".next", ".git",
   "__tests__", "tests", "emulator-data",
@@ -28,7 +28,7 @@ function shouldCopySource(sourceRoot: string, source: string, isIngest: boolean)
     return true;
   }
   if (parts[0] === "crawlers" && parts.length > 1) {
-    return parts[1] === "shared" || selectedIds.includes(parts[1]);
+    return parts[1] === "shared" || selectedIds.has(parts[1]);
   }
   if (parts[0] === "terraform" && parts.length === 2 && /^source-jobs\..+\.json$/.test(name)) {
     return false;
@@ -39,7 +39,7 @@ function shouldCopySource(sourceRoot: string, source: string, isIngest: boolean)
 function readSelectedJobs(repository: string) {
   const examplePath = join(repository, "ingest", "terraform", "examples", "source-jobs.bg.sofia.json");
   const jobs = sourceJobsSchema.parse(JSON.parse(readFileSync(examplePath, "utf8")));
-  const selectedJobs = Object.entries(jobs).filter(([, job]) => selectedIds.includes(job.source));
+  const selectedJobs = Object.entries(jobs).filter(([, job]) => selectedIds.has(job.source));
   for (const sourceId of selectedIds) {
     if (selectedJobs.filter(([, job]) => job.source === sourceId).length !== 1) {
       throw new Error(`Expected one canonical image fixture job for ${sourceId}`);
@@ -54,7 +54,7 @@ export function prepareSourceImageFixture(repoDirectory: string, targetDirectory
   const target = resolveEmptyWorkspaceTarget(repository, targetDirectory);
   const jobs = readSelectedJobs(repository);
   const retainedPackages = readInstalledSourcePackages(join(repository, "ingest"))
-    .filter((source) => !selectedIds.includes(source.metadata.id))
+    .filter((source) => !selectedIds.has(source.metadata.id))
     .map((source) => source.name);
 
   mkdirSync(target, { recursive: true });
