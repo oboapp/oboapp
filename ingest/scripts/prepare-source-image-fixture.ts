@@ -1,4 +1,4 @@
-import { copyFileSync, cpSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { basename, extname, join, relative, resolve, sep } from "node:path";
 import { z } from "zod";
 import { readInstalledSourcePackages } from "@/sources/installed-packages";
@@ -61,7 +61,10 @@ export function prepareSourceImageFixture(repoDirectory: string, targetDirectory
   for (const name of ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".dockerignore"]) {
     copyFileSync(join(repository, name), join(target, name));
   }
-  cpSync(join(repository, "patches"), join(target, "patches"), { recursive: true });
+  const patchesDirectory = join(repository, "patches");
+  if (existsSync(patchesDirectory)) {
+    cpSync(patchesDirectory, join(target, "patches"), { recursive: true });
+  }
   for (const name of ["shared", "db", "ingest"]) {
     const sourceRoot = join(repository, name);
     cpSync(sourceRoot, join(target, name), {
