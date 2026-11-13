@@ -8,7 +8,7 @@ import { readInstalledPackageManifest, readInstalledSourcePackages } from "@/sou
 function standardDockerPaths(): readonly string[] {
   switch (platform()) {
     case "win32": {
-      return ["C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe"];
+      return [String.raw`C:\Program Files\Docker\Docker\resources\bin\docker.exe`];
     }
     case "linux": {
       return ["/usr/bin/docker", "/usr/local/bin/docker"];

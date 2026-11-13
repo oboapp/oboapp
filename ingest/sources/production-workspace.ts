@@ -5,27 +5,27 @@ import type { InstalledSourcePackage } from "./selection";
 const dependencyGroups = ["dependencies", "devDependencies", "optionalDependencies"] as const;
 const projectPaths = [".", "ingest", "shared", "db"] as const;
 const dependenciesSchema = z.record(z.string(), z.string());
-const manifestSchema = z.object({
+const manifestSchema = z.looseObject({
   dependencies: dependenciesSchema.optional(),
   devDependencies: dependenciesSchema.optional(),
   optionalDependencies: dependenciesSchema.optional(),
   peerDependencies: dependenciesSchema.optional(),
-}).passthrough();
-const lockedDependencySchema = z.object({
+});
+const lockedDependencySchema = z.looseObject({
   specifier: z.string(),
   version: z.string(),
-}).passthrough();
+});
 const importerDependenciesSchema = z.record(z.string(), lockedDependencySchema);
-const importerSchema = z.object({
+const importerSchema = z.looseObject({
   dependencies: importerDependenciesSchema.optional(),
   devDependencies: importerDependenciesSchema.optional(),
   optionalDependencies: importerDependenciesSchema.optional(),
-}).passthrough();
-const lockfileSchema = z.object({
+});
+const lockfileSchema = z.looseObject({
   lockfileVersion: z.union([z.literal("9.0"), z.literal(9)]),
   importers: z.record(z.string(), importerSchema),
-}).passthrough();
-const workspaceSchema = z.object({ packages: z.array(z.string()) }).passthrough();
+});
+const workspaceSchema = z.looseObject({ packages: z.array(z.string()) });
 
 export interface ProductionWorkspaceInput {
   manifests: Record<typeof projectPaths[number], unknown>;
