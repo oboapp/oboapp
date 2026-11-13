@@ -12,7 +12,7 @@ Each selected source uses either a published package or a remaining legacy crawl
 | Historical lookup, validation and raw persistence | Obo's collection helpers | Obo's scheduled source runner |
 | Scheduling, catalog selection and downstream processing | Obo | Obo |
 
-Installed package versions are pinned in `ingest/package.json` and `pnpm-lock.yaml`. The [remaining migration tracker](https://github.com/oboapp/oboapp/issues/609) records source cutovers. [Selection and deployment work](https://github.com/oboapp/oboapp/issues/610) tracks the final registry and image changes.
+Installed package versions are pinned in `ingest/package.json` and `pnpm-lock.yaml`. The [remaining migration tracker](https://github.com/oboapp/oboapp/issues/609) records source cutovers. [Selection and deployment work](https://github.com/oboapp/oboapp/issues/610) tracks selected-only installation, builds and images.
 
 The current build still compiles all source integrations and includes legacy collector code in the image. Building with only selected implementations remains unfinished.
 
@@ -37,6 +37,8 @@ Toplo illustrates synthetic identifiers: raw-record URLs identify incidents, whi
 ## Instance selection and deployment
 
 Keep the selected catalog in `shared/src/sources.ts` aligned with `ingest/terraform/source-jobs.<locality>.json`. Job keys identify deployed resources, so preserve them when translating existing configuration. Terraform selects locality maps through `var.localities`. A non-empty `var.crawlers` is an explicit manual override outside the checked selection.
+
+The `crawl` and `pipeline` commands share a [runtime registry](../../ingest/sources/registry.ts) derived from the selected `SOURCES` array. Their help lists selected sources. `crawl --source <source-id>` rejects unselected IDs even when their directories exist. `pipeline --all` runs every selected source; `pipeline --emergent` runs selected sources whose definition has `emergent: true`. Implementations load only when their selected source runs, after environment configuration.
 
 The upstream demo selects a small source set. `ingest/source-package-policy.json` explicitly lists unselected packages retained for compilation and integration tests during the transition. Retained packages still require isolated valid metadata, exact versions and unique source IDs. Unexpected unselected dependencies and stale policy entries fail validation. Remove a package's retention entry when selecting its source or removing its dependency. An absent or empty policy enables strict selection for all installed source packages.
 

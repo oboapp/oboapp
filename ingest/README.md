@@ -31,6 +31,8 @@ graph LR
 
 During the [source-package transition](../docs/features/source-packages.md), the existing command and Cloud Run jobs run either a legacy crawler or an adapter to a published source package. The transition guide describes migration status and deployment steps. Provider collection for packaged sources lives in the sources repository; remaining legacy implementations stay in `crawlers/`. Both paths feed the same processing pipeline. Packages supply data. Obo's runner handles deduplication, validation, and persistence: it skips known items, checks new content, and saves complete records.
 
+The `crawl` and `pipeline` commands share a [runtime registry](sources/registry.ts) derived from `SOURCES` in `shared/src/sources.ts`. Help lists selected sources, and `crawl --source` rejects unselected IDs even when their implementation directories exist. `pipeline --all` runs all selected sources; `pipeline --emergent` runs selected sources marked `emergent: true`. Unselected implementations remain installed, compiled and included in the image during the transition.
+
 ## Components
 
 - **[crawlers/](crawlers/README.md)** - Automated scrapers that fetch raw data from external sources
@@ -42,8 +44,11 @@ During the [source-package transition](../docs/features/source-packages.md), the
 ## Usage
 
 ```bash
-# Run a specific crawler
-pnpm crawl --source rayon-oborishte-bg
+# Run a selected source
+pnpm crawl --source <source-id>
+
+# List selected sources
+pnpm crawl --help
 
 # Sync GTFS bus stop data
 pnpm gtfs-stops
@@ -54,10 +59,10 @@ pnpm ingest
 # Send notifications for new messages
 pnpm notify
 
-# Run emergent pipeline (emergent crawlers + ingest + notify)
+# Run emergent pipeline (selected emergent sources + ingest + notify)
 pnpm pipeline:emergent
 
-# Run full pipeline (all crawlers + ingest + notify)
+# Run full pipeline (all selected sources + ingest + notify)
 pnpm pipeline:all
 
 # Generate geocoding frequency report (uploads to GCS)
@@ -70,27 +75,20 @@ pnpm geocode-cache:add --message <id> --address "..." --type pin|street
 
 ## Pipeline Schedules
 
-The system runs two automated pipelines via Cloud Scheduler:
+Cloud Scheduler invokes the `pipeline-emergent` and `pipeline-all` Workflows defined in [Terraform](terraform/main.tf). Each workflow submits its configured source jobs in parallel, then submits separate `ingest-messages` and `send-notifications` jobs. The source jobs come from the selected locality job JSON; the emergent workflow filters them by their `emergent` flag. Keep this selection aligned with `shared/src/sources.ts`.
 
-- **GTFS Sync** (`gtfs-stops`) - Daily at 3:00 AM EET
-  - Downloads latest GTFS static data from Sofia Traffic
-  - Updates bus stop coordinates in Firestore
-  - Enables geocoding of messages containing bus stop codes
+The manual `pipeline:emergent` and `pipeline:all` commands above run source collection sequentially in one process, followed by ingestion and notification matching.
 
-- **Educational Facilities Sync** (`educational-facilities-sync`) - Monthly on the 1st at 4:00 AM EET
-  - Downloads schools and kindergartens from Sofia open data (sofiaplan.bg)
-  - Updates facility coordinates in database
-  - Enables geocoding of messages referencing numbered schools and kindergartens
+Configure `schedules` and `schedule_timezone` in your instance's Terraform variables. The [defaults](terraform/variables.tf) use `Europe/Sofia`, including daylight saving time:
 
-- **Emergent Pipeline** (`pipeline:emergent`) - Every 30 minutes, 7:00AM-10:30PM
-  - Crawlers: Sources that publish short-lived disruptions
-  - Runs ingest and notify after crawling
-  - Handles short-lived messages and emergency works
+| Scheduled workflow or job | Default schedule | Purpose |
+| --- | --- | --- |
+| `pipeline-emergent` | Every 30 minutes from 07:00 to 22:30 | Dispatch emergent source jobs, ingestion and notifications |
+| `pipeline-all` | Daily at 10:00, 14:00 and 16:00 | Dispatch all selected source jobs, ingestion and notifications |
+| `gtfs-sync` | Monday at 03:00 | Refresh bus stop coordinates for geocoding |
+| `educational-facilities-sync` | Monthly on the 1st at 04:00 | Refresh school and kindergarten coordinates for geocoding |
 
-- **Full Pipeline** (`pipeline:all`) - 3 times daily (10:00, 14:00, 16:00 EET)
-  - Crawlers: All sources
-  - Runs ingest and notify after crawling
-  - Handles regularly scheduled announcements
+Terraform also schedules the notification heartbeat and configured reports. Report jobs depend on instance settings, such as the storage bucket and billing export configuration.
 
 ## Deployment
 
