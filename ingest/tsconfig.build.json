@@ -24,6 +24,8 @@
     "node_modules",
     "dist",
     "tmp",
+    "crawlers/**",
+    "**/__mocks__/**",
     "**/__evals__/**",
     "**/*.test.ts",
     "**/*.spec.ts",

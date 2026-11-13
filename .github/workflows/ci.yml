@@ -171,6 +171,12 @@ jobs:
         working-directory: ./ingest
         run: pnpm exec tsx scripts/check-source-config.ts
 
+      - name: Build selected source implementations
+        working-directory: ./ingest
+        run: |
+          pnpm build
+          node dist/scripts/check-source-config.js
+
       - name: Run unit tests
         working-directory: ./ingest
         run: pnpm test:run

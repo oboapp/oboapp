@@ -93,7 +93,6 @@ COPY --from=builder /app/db/dist ./db/dist
 COPY --from=builder /app/ingest/dist ./ingest/dist
 COPY --from=builder /app/ingest/package*.json ./ingest/
 COPY --from=builder /app/ingest/prompts ./ingest/prompts
-COPY --from=builder /app/ingest/crawlers ./ingest/crawlers
 COPY --from=builder /app/ingest/localities ./ingest/localities
 
 # Run as a non-root user in production image.
