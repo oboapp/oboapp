@@ -188,6 +188,39 @@ jobs:
         working-directory: ./ingest
         run: pnpm test:run
 
+  test-source-image:
+    name: Test Minimal Source Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20.x
+          cache: "pnpm"
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build fixture and image verification commands
+        run: pnpm --dir ingest build
+
+      - name: Prepare isolated two-source image context
+        run: node ingest/dist/scripts/prepare-source-image-fixture.js tmp/source-image
+
+      - name: Build minimal Linux image
+        run: docker build --progress=plain -t oboapp-source-image:ci -f tmp/source-image/ingest/Dockerfile tmp/source-image
+
+      - name: Verify non-root runtime and selected image contents offline
+        run: node ingest/dist/scripts/check-source-image.js oboapp-source-image:ci
+
   test-source-deployment:
     name: Test Source Deployment
     runs-on: ubuntu-latest
