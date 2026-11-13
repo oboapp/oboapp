@@ -232,6 +232,17 @@ describe("source image verification safeguards", () => {
     }
   });
 
+  it("rechecks module isolation after the browser compatibility check", () => {
+    checkSourceImage(imageTag);
+
+    const verificationRun = mocks.execFileSync.mock.calls.find(([, args]) => args.includes("--read-only"));
+    expect(verificationRun).toBeDefined();
+    const script: string = verificationRun?.[2].input;
+    const browserCheck = script.indexOf('await require("./dist/scripts/check-source-browsers.js").checkSourceBrowsers();');
+    expect(browserCheck).toBeGreaterThan(0);
+    expect(script.indexOf("verifySourceModuleIsolation();", browserCheck)).toBeGreaterThan(browserCheck);
+  });
+
   it("reports a pnpm version that differs from the production pin", () => {
     pnpmVersion = "10.12.0";
 
