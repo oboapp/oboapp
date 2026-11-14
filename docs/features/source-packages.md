@@ -24,6 +24,12 @@ Identifiers remain byte-for-byte compatible with historical URLs, including synt
 
 Obo assigns the source ID, locality, identifier, crawl timestamp and initial processing state. Validation runs before persistence. Writes create new records and preserve existing records during overlapping scans.
 
+Source content may include an optional boolean `cityWide` for notices covering the
+entire selected locality. The runner preserves both `true` and `false`, leaves an
+omitted field absent, and rejects other values before writing a raw record.
+Ingestion receives the stored scope alongside the source's validated GeoJSON,
+including an empty FeatureCollection for city-wide weather warnings.
+
 An individual lookup, fetch, validation or save failure is logged and counted while unrelated items continue. Listing failures and repeated pagination cursors fail the scan. The next scheduled run lists again and retries identifiers that are still missing. A provider can remove an item before a successful retry; this is an accepted recovery limit of the initial migration.
 
 ## Collection patterns and compatibility
