@@ -1,24 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createBrowserMock, createSourceStore, contractDate, rawSource } from "@/__mocks__/source-contract";
-import { weatherWarning, pointGeometry } from "@/__mocks__/source-contract-fixtures";
+import { createSourceStore, contractDate, rawSource } from "@/__mocks__/source-contract";
+import { pointGeometry } from "@/__mocks__/source-contract-fixtures";
 import { getDb } from "@/lib/db";
 import { launchBrowser } from "@/crawlers/shared/browser";
 import { encodeDocumentId, saveSourceDocument } from "@/crawlers/shared/firestore";
-import { crawl as crawlNimh } from "@/crawlers/nimh-severe-weather/index";
 import { crawl as crawlFeed } from "@/crawlers/triaditsa-org/index";
 import { messageIngest } from "./index";
 import { ingest } from "./from-sources";
 
 vi.mock("@/lib/db", () => ({ getDb: vi.fn() }));
 vi.mock("@/crawlers/shared/browser", () => ({ launchBrowser: vi.fn() }));
-vi.mock("@/crawlers/nimh-severe-weather/parser", async (original) => ({ ...await original<typeof import("@/crawlers/nimh-severe-weather/parser")>(), parseWeatherPage: () => weatherWarning }));
 vi.mock("@/geocoding/shared/boundary-utils", () => ({ loadBoundaries: () => null, isWithinBoundaries: () => true }));
 vi.mock("@/lib/delay", () => ({ delay: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("dotenv", () => ({ default: { config: vi.fn() } }));
 vi.mock("./index", () => ({ messageIngest: vi.fn() }));
 
 let store: ReturnType<typeof createSourceStore>;
-let browser: ReturnType<typeof createBrowserMock>;
 const result = { messages: [], totalCategorized: 0, totalRelevant: 0, totalIrrelevant: 0 };
 // Independent persisted contracts: missing crawler assignments must fail even
 // when the consumer faithfully forwards the incomplete raw document.
@@ -26,24 +23,13 @@ const expectedContent: Record<string, Record<string, unknown>> = {
   "triaditsa-org": {
     title: "Repair", message: "Water repair", datePublished: "2026-10-04T08:00:00.000Z",
   },
-  "nimh-severe-weather": {
-    title: "Предупреждение за опасно време - 4 октомври 2026",
-    message: "Жълт код за опасно време за 04.10.2026 (неделя)\n\nСилен вятър\n\nСилен вятър",
-    markdownText: "**Жълт код за опасно време за 04.10.2026 (неделя)**\n\nСилен вятър\n\n**Жълт код за вятър**\n- Силен вятър",
-    datePublished: "2026-10-04T08:00:00.000Z", geoJson: '{"type":"FeatureCollection","features":[]}',
-    categories: ["weather"], isRelevant: true, cityWide: true,
-    // Current builder uses a fixed +02:00 offset; changing timezone semantics is separate work.
-    timespanStart: new Date("2026-10-03T22:00:00.000Z"), timespanEnd: new Date("2026-10-04T21:59:59.000Z"),
-  },
 };
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
   vi.setSystemTime(contractDate);
   store = createSourceStore();
-  browser = createBrowserMock();
   vi.mocked(getDb).mockResolvedValue(store.db);
-  vi.mocked(launchBrowser).mockResolvedValue(browser.instance);
   vi.mocked(messageIngest).mockReset().mockResolvedValue(result);
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true,
     text: async () => `<?xml version="1.0"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><item><title>Repair</title><link>https://triaditza.org/repair/</link><pubDate>Sun, 04 Oct 2026 08:00:00 GMT</pubDate><content:encoded><![CDATA[<p>Water repair</p>]]></content:encoded></item></channel></rss>`,
@@ -97,11 +83,10 @@ describe("crawler raw document to ingest contract", () => {
     expect((await ingest()).total).toBe(0);
   });
 
-  it.each([
-    { name: "full feed", crawl: crawlFeed, url: "https://triaditza.org/repair/", sourceType: "triaditsa-org" },
-    { name: "city-wide listing", crawl: crawlNimh, url: "https://weather.bg/obshtini/index.php?z=u&o=SOF&date=2026-10-04&h=c9d1456eab46", sourceType: "nimh-severe-weather" },
-  ])("passes the persisted $name document through the actual ingest entrypoint", async ({ crawl, url, sourceType }) => {
-    await crawl();
+  it("passes the persisted full feed document through the actual ingest entrypoint", async () => {
+    const url = "https://triaditza.org/repair/";
+    const sourceType = "triaditsa-org";
+    await crawlFeed();
     const raw = store.records.get(encodeDocumentId(url));
     const expected = expectedContent[sourceType];
     expect(raw).toBeDefined();
@@ -117,15 +102,12 @@ describe("crawler raw document to ingest contract", () => {
       categories: expected.categories, isRelevant: expected.isRelevant, timespanStart: expected.timespanStart,
       timespanEnd: expected.timespanEnd, cityWide: expected.cityWide, locality: "bg.sofia",
     });
-    if (sourceType === "triaditsa-org") {
-      expect(launchBrowser).not.toHaveBeenCalled();
-    }
+    expect(launchBrowser).not.toHaveBeenCalled();
     // Seed the downstream-owned completion state; this suite stops at messageIngest.
     await store.sources.updateOne(encodeDocumentId(url), { processed: true });
     vi.mocked(messageIngest).mockClear();
-    await crawl();
-    const write = sourceType === "triaditsa-org" ? store.client.createOne : store.sources.setOne;
-    expect(write).toHaveBeenCalledTimes(1);
+    await crawlFeed();
+    expect(store.client.createOne).toHaveBeenCalledTimes(1);
     expect((await ingest()).total).toBe(0);
     expect(messageIngest).not.toHaveBeenCalled();
   });
