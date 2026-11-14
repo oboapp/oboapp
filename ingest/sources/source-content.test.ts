@@ -40,6 +40,28 @@ it.each([false, true])("stores validated GeoJSON in the existing serialized form
     .toBe(JSON.stringify(geoJson));
 });
 
+it.each([false, true])("preserves city-wide scope %s with empty geometry", (cityWide) => {
+  const geoJson = { type: "FeatureCollection", features: [] };
+
+  expect(parseSourceContent({ ...content, cityWide, geoJson })).toEqual({
+    ...content,
+    cityWide,
+    geoJson: JSON.stringify(geoJson),
+  });
+});
+
+it.each(["strict", "legacy-toplo"] as const)("omits unspecified city-wide scope in %s mode", (validation) => {
+  expect(parseSourceContent({ ...content, cityWide: undefined }, validation)).toEqual(content);
+});
+
+it.each(["strict", "legacy-toplo"] as const)("rejects non-boolean city-wide scope in %s mode", (validation) => {
+  for (const cityWide of ["true", "false", 0, 1, null, {}, []]) {
+    expect(() => {
+      return parseSourceContent({ ...content, cityWide }, validation);
+    }).toThrow();
+  }
+});
+
 it.each(["not JSON", null, { type: "Point", coordinates: [23, 42] }])("rejects invalid geometry %j", (geoJson) => {
   expect(() => parseSourceContent({ ...content, geoJson })).toThrow();
 });

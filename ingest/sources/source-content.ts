@@ -12,6 +12,7 @@ const contentSchema = z.object({
   geoJson: z.unknown().optional(),
   categories: z.array(z.string().trim().min(1)).optional(),
   isRelevant: z.boolean().optional(),
+  cityWide: z.boolean().optional(),
   deepLinkUrl: z.string().optional(),
 });
 
