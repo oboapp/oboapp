@@ -1,0 +1,28 @@
+{
+  "legacyRepository": "vbuch/oboapp",
+  "legacyCommit": "b485404039dab572133667d38e8d5b2c94f78968",
+  "expectedOutputMethod": "Parsed and built with the independently retained legacy parser/builders in vbuch/oboapp; no new source-package implementation was imported.",
+  "integration": {
+    "copiedFrom": "oboapp/sources packages/source-nimh-severe-weather/test/fixtures",
+    "sourcePackageVersion": "0.1.0",
+    "sourcePackageCommit": "48dd5a14f1e760e41a20575b956abb31f6427e85",
+    "legacyWind": "Synthetic browser-serialized fixture matching the existing c9d1456eab46 wind warning contract. Complete content and identifier were compared with the committed legacy parser/builders before removal.",
+    "identityChecks": "Literal MD5 and historical base64 document IDs cover both active fixtures in processed and unprocessed states. Structural update identifiers are frozen from the legacy sorted-warning SHA-256 algorithm.",
+    "browserBoundary": "The integration browser mock returns the frozen serialized HTML from page.content(). Source-package tests cover the browser ownership and entity serialization boundary."
+  },
+  "noDanger": {
+    "providerUrl": "https://weather.bg/obshtini/index.php?z=u&o=SOF",
+    "capturedAt": "2026-11-14T10:33:33.8475109Z",
+    "transport": "Public HTTP GET, then serialized through an ephemeral headless system Chrome context with external requests blocked.",
+    "originalByteLength": 809243,
+    "fixtureDerivation": "Retains captured forecast marker, issue marker, recommendation and exact Sofia table row. The complete parsed data, identifier and built content were deep-compared with the original full browser-serialized response."
+  },
+  "activeEntities": {
+    "origin": "Synthetic active-warning fixture, not a captured provider warning.",
+    "input": "active-entities-input.html",
+    "browserSerialized": "active-entities.html",
+    "purpose": "Shows the legacy browser serialization identity boundary for named and numeric degree/Bulgarian entities and NBSP before parser semicolon splitting.",
+    "rawHtmlIdentifier": "https://weather.bg/obshtini/index.php?z=u&o=SOF&date=2026-02-01&h=1662e0b8e108",
+    "browserHtmlIdentifier": "https://weather.bg/obshtini/index.php?z=u&o=SOF&date=2026-02-01&h=4af6312bda0b"
+  }
+}

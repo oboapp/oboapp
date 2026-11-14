@@ -169,6 +169,9 @@ importers:
       '@oboapp/source-nadezhda-org':
         specifier: 0.1.0
         version: 0.1.0
+      '@oboapp/source-nimh-severe-weather':
+        specifier: 0.1.0
+        version: 0.1.0
       '@oboapp/source-raioniskar-bg':
         specifier: 0.1.0
         version: 0.1.0
@@ -2429,6 +2432,10 @@ packages:
   '@oboapp/source-nadezhda-org@0.1.0':
     resolution: {integrity: sha512-RGr63BNSZEtx3c53F+g3kwEwP4XJ8Ze2Y8dDE2xnHepGyoz6/WqJO2Z2famrIcIkDsDx4CVCiHK5Qaez8NykSw==}
     engines: {node: '>=20.3'}
+
+  '@oboapp/source-nimh-severe-weather@0.1.0':
+    resolution: {integrity: sha512-GLpSZS3HZkI2mW/dmg1hL999YEGDwJySgcXN/jw6hw9fJbqBOoIdedOFZHCf5RzOylbxPEIEFHUCQ2OJhuimNg==}
+    engines: {node: '>=20.3.0'}
 
   '@oboapp/source-raioniskar-bg@0.1.0':
     resolution: {integrity: sha512-eh4wDeJnr0lOXAWCRXXveqys5qnmFGIx7z9wkauY59hcvI5vs6mDatDhAMed958i8Mg56R64PZnaiL0B+fvoqQ==}
@@ -13178,6 +13185,11 @@ snapshots:
     dependencies:
       '@oboapp/source-sdk': 0.1.1
       '@oboapp/source-web-utils': 0.2.0
+
+  '@oboapp/source-nimh-severe-weather@0.1.0':
+    dependencies:
+      '@oboapp/source-sdk': 0.2.0
+      playwright: 1.61.1
 
   '@oboapp/source-raioniskar-bg@0.1.0':
     dependencies:

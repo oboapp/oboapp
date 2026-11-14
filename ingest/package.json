@@ -63,6 +63,7 @@
     "@oboapp/source-lozenets-sofia-bg": "0.1.0",
     "@oboapp/source-mladost-bg": "0.1.1",
     "@oboapp/source-nadezhda-org": "0.1.0",
+    "@oboapp/source-nimh-severe-weather": "0.1.0",
     "@oboapp/source-raioniskar-bg": "0.1.0",
     "@oboapp/source-rayon-ilinden-bg": "0.1.0",
     "@oboapp/source-rayon-oborishte-bg": "0.1.0",
