@@ -51,7 +51,7 @@ it.each([false, true])("preserves city-wide scope %s with empty geometry", (city
 });
 
 it.each(["strict", "legacy-toplo"] as const)("omits unspecified city-wide scope in %s mode", (validation) => {
-  expect(parseSourceContent({ ...content, cityWide: undefined }, validation)).toEqual(content);
+  expect(parseSourceContent({ ...content, cityWide: undefined }, validation)).toStrictEqual(content);
 });
 
 it.each(["strict", "legacy-toplo"] as const)("rejects non-boolean city-wide scope in %s mode", (validation) => {
