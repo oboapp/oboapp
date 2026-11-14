@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { DataSource, SourceMetadata } from "@oboapp/source-sdk";
+import type { DataSource, SourceContent, SourceMetadata } from "@oboapp/source-sdk";
 import { createSourceStore, contractDate } from "@/__mocks__/source-contract";
 import { encodeDocumentId } from "@/crawlers/shared/firestore";
 import { getDb } from "@/lib/db";
@@ -51,7 +51,7 @@ afterEach(() => {
 });
 
 it.each([true, false, undefined])("passes city-wide scope %s from source content through raw storage to ingestion", async (cityWide) => {
-  const content = {
+  const content: SourceContent = {
     title: "Weather warning",
     message: "Strong wind",
     datePublished: contractDate.toISOString(),
@@ -104,7 +104,7 @@ it.each([true, false, undefined])("passes city-wide scope %s from source content
 });
 
 it("rejects invalid city-wide scope before persistence and retries it on the next scan", async () => {
-  const content = {
+  const content: SourceContent = {
     title: "Weather warning",
     message: "Strong wind",
     datePublished: contractDate.toISOString(),

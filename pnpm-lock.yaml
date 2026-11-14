@@ -182,8 +182,8 @@ importers:
         specifier: 0.1.0
         version: 0.1.0
       '@oboapp/source-sdk':
-        specifier: 0.1.1
-        version: 0.1.1
+        specifier: 0.2.0
+        version: 0.2.0
       '@oboapp/source-sredec-sofia-org':
         specifier: 0.1.0
         version: 0.1.0
@@ -2448,6 +2448,10 @@ packages:
 
   '@oboapp/source-sdk@0.1.1':
     resolution: {integrity: sha512-kCSJ04z+/yDvD2CikBLTGNjLAIdg/d91CuCMMHIzzwkffhXDqnPii1eM+SdlRmel54x7Eux1TTVqApVwGwWlVQ==}
+    engines: {node: '>=20'}
+
+  '@oboapp/source-sdk@0.2.0':
+    resolution: {integrity: sha512-gzh4EEMzuA/2/A/+bORgYkJmpG9gyiuLeSMYQB3BwqF4+UqhuGBC/L7vAPFePtIhUJRPay4m1djrYE4WhaEWAg==}
     engines: {node: '>=20'}
 
   '@oboapp/source-sredec-sofia-org@0.1.0':
@@ -13200,6 +13204,8 @@ snapshots:
       turndown: 7.2.2
 
   '@oboapp/source-sdk@0.1.1': {}
+
+  '@oboapp/source-sdk@0.2.0': {}
 
   '@oboapp/source-sredec-sofia-org@0.1.0':
     dependencies:
