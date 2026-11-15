@@ -26,6 +26,9 @@ jobs:
       - name: Test Sonar input detection
         run: node --test .github/scripts/sonar-inputs.test.mjs
 
+      - name: Test trusted fork analysis boundary
+        run: python3 -B -m unittest discover -s .github/scripts -p 'test_*.py'
+
       - name: Install pnpm
         uses: pnpm/action-setup@v5
 
