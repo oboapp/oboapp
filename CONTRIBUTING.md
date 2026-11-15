@@ -28,6 +28,7 @@ Each has its own `.env.local` configuration.
 - **[External API Mocks](docs/features/external-api-mocks.md)** - Mock Gemini, Geocoding, Overpass, Cadastre
 - **[Geocoding](ingest/geocoding/README.md)** - Hybrid geocoding system documentation
 - **[Fork and Upstream PR Workflow](docs/setup/fork-upstream-pr-workflow.md)** - Branch from `oboapp/oboapp:main`, push to your fork, and open the PR upstream when the change belongs in the base repo
+- **[Sonar Analysis](docs/setup/sonar-analysis.md)** - PR scan inputs, intentional skips, quality gates and credentials
 
 ## Code Standards
 
