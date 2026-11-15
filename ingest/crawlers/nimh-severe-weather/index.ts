@@ -18,12 +18,18 @@ export async function crawl(): Promise<void> {
   }
 }
 
-if (require.main === module) {
-  crawl().catch((error) => {
+export async function main(): Promise<void> {
+  try {
+    await crawl();
+  } catch (error) {
     logger.error("Fatal error", {
       sourceType: metadata.id,
       error: error instanceof Error ? error.message : String(error),
     });
     process.exit(1);
-  });
+  }
+}
+
+if (require.main === module) {
+  void main();
 }
