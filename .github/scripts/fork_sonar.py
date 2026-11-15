@@ -237,11 +237,11 @@ def write_settings(workspace, pr):
         "sonar.qualitygate.timeout": "300",
         "sonar.javascript.lcov.reportPaths": reports,
         "sonar.typescript.lcov.reportPaths": reports,
-        "sonar.typescript.tsconfigPaths": "../tsconfig.analysis.json",
+        "sonar.typescript.tsconfigPaths": "tsconfig.analysis.json",
     }
     properties += "\n" + "\n".join(f"{key}={property_value(value)}" for key, value in overrides.items())
     (workspace / "analysis/sonar-project.properties").write_text(properties + "\n", encoding="utf-8")
-    (workspace / "tsconfig.analysis.json").write_text(json.dumps({
+    (workspace / "analysis/tsconfig.analysis.json").write_text(json.dumps({
         "compilerOptions": {
             "allowJs": True,
             "jsx": "preserve",
@@ -250,7 +250,7 @@ def write_settings(workspace, pr):
             "module": "ESNext",
             "moduleResolution": "Bundler",
         },
-        "include": [f"analysis/{root}/**/*" for root in SOURCE_ROOTS],
+        "include": [f"{root}/**/*" for root in SOURCE_ROOTS],
     }), encoding="utf-8")
 
 
