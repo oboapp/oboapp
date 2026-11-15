@@ -1,7 +1,7 @@
-name: SonarCloud Fork PR
+name: SonarCloud Fork PR Coverage
 
 on:
-  pull_request_target:
+  pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
 
@@ -9,47 +9,62 @@ permissions:
   contents: read
 
 jobs:
-  sonarcloud-fork-pr:
-    name: SonarCloud (Fork PR)
+  coverage:
+    name: Fork coverage (no secrets)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: github.event.pull_request.head.repo.full_name != github.repository
 
     steps:
-      - name: Checkout fork PR merge ref (safe mode)
-        uses: actions/checkout@v4
+      - name: Checkout fork head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: refs/pull/${{ github.event.pull_request.number }}/merge
-          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
 
-      - name: Restore trusted Sonar config from base branch
-        run: git checkout "${{ github.event.pull_request.base.sha }}" -- sonar-project.properties
-
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
 
       - name: Setup Node.js 20.x
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 20.x
-          cache: "pnpm"
+          package-manager-cache: false
 
-      - name: Install workspace dependencies
+      - name: Install and build workspace dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Generate coverage reports
         run: pnpm test:coverage:sonar
 
-      - name: SonarCloud Scan (Fork PR)
-        uses: SonarSource/sonarqube-scan-action@0303d6b62e310685c0e34d0b9cde218036885c4d # v5.0.0
-        with:
-          args: >
-            -Dsonar.host.url=https://sonarcloud.io
-            -Dsonar.organization=oboapp
-            -Dsonar.projectKey=oboapp_oboapp
-            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-            -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
-            -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}
+      - name: Record artifact identity
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          Path("metadata.json").write_text(json.dumps({
+              "pr": int(os.environ["PR_NUMBER"]),
+              "head_sha": os.environ["HEAD_SHA"],
+              "run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+          }), encoding="utf-8")
+          PY
+
+      - name: Upload coverage data
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fork-sonar-coverage-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 1
+          if-no-files-found: error
+          path: |
+            metadata.json
+            api/coverage/lcov.info
+            db/coverage/lcov.info
+            ingest/coverage/lcov.info
+            shared/coverage/lcov.info
+            web/coverage/lcov.info
