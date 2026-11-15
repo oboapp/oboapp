@@ -368,6 +368,30 @@ class CoverageTests(WorkspaceTests):
 
 
 class ScannerSettingsTests(WorkspaceTests):
+    def test_generated_tsconfig_is_discoverable_inside_analysis_and_includes_sources(self):
+        _, _, _, _, pr, _ = fixtures()
+        self.write_source("trusted/sonar-project.properties", b"sonar.sources=api/src,web\n")
+        expected_sources = set()
+        for root in sonar.SOURCE_ROOTS:
+            expected_sources.add(self.write_source(f"analysis/{root}/included.ts").resolve())
+
+        sonar.write_settings(self.workspace, pr)
+
+        analysis = (self.workspace / "analysis").resolve()
+        properties = (analysis / "sonar-project.properties").read_text(encoding="utf-8")
+        values = dict(line.split("=", 1) for line in properties.splitlines() if "=" in line)
+        included_sources = set()
+        for configured_path in values["sonar.typescript.tsconfigPaths"].split(","):
+            config_path = (analysis / configured_path).resolve()
+            self.assertTrue(config_path.is_relative_to(analysis), "Sonar discovers configs inside its project root")
+            self.assertTrue(config_path.is_file())
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+            for pattern in config["include"]:
+                included_sources.update(
+                    path.resolve() for path in config_path.parent.glob(pattern) if path.is_file()
+                )
+        self.assertEqual(included_sources, expected_sources)
+
     def test_property_escaping_prevents_newline_and_unicode_injection(self):
         self.assertEqual(
             sonar.property_value("branch/\n=\U0001f600"),
@@ -395,11 +419,11 @@ class ScannerSettingsTests(WorkspaceTests):
         self.assertEqual(values["sonar.scm.exclusions.disabled"], "true")
         self.assertEqual(values["sonar.pullrequest.key"], "690")
         self.assertEqual(values["sonar.qualitygate.wait"], "true")
-        self.assertEqual(values["sonar.typescript.tsconfigPaths"], "../tsconfig.analysis.json")
+        self.assertEqual(values["sonar.typescript.tsconfigPaths"], "tsconfig.analysis.json")
         self.assertEqual(values["sonar.pullrequest.branch"], sonar.property_value(pr["head"]["ref"]))
         self.assertNotIn("fork.invalid", properties)
         self.assertNotIn("attacker.invalid\n", properties)
-        config = json.loads((self.workspace / "tsconfig.analysis.json").read_text(encoding="utf-8"))
+        config = json.loads((self.workspace / "analysis/tsconfig.analysis.json").read_text(encoding="utf-8"))
         self.assertNotIn("extends", config)
         self.assertNotIn("plugins", config["compilerOptions"])
         self.assertTrue(config["compilerOptions"]["noEmit"])
