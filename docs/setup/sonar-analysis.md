@@ -62,9 +62,9 @@ Dependabot PRs also need a Dependabot secret with that name, since they receive
 Dependabot secrets. The workflow reports a missing credential before generating
 coverage. Dependency-only and unrelated workflow PRs that skip need no token.
 
-This policy applies to the existing same-repository PR job. Fork execution safety
-and the separate fork workflow are tracked in
-[issue 691](https://github.com/oboapp/oboapp/issues/691).
+This policy applies to the same-repository PR job. See
+[fork PR analysis](fork-sonar-analysis.md) for the separate coverage and trusted
+analysis flow tracked in [issue 691](https://github.com/oboapp/oboapp/issues/691).
 
 Run the input-filter regression tests with:
 
