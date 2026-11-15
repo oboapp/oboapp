@@ -1,0 +1,60 @@
+name: SonarCloud Fork PR Analysis
+
+on:
+  workflow_run:
+    workflows: [SonarCloud Fork PR Coverage]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: fork-sonar-analysis-${{ github.event.workflow_run.head_repository.id }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+jobs:
+  analysis:
+    name: SonarCloud (Fork PR)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.id != github.event.repository.id
+
+    steps:
+      # Only trusted default-branch code is checked out. Fork files are read as data.
+      - name: Checkout trusted analysis tools
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+
+      - name: Validate run and prepare analysis data
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -B trusted/.github/scripts/fork_sonar.py prepare
+
+      - name: Analyze validated fork source
+        uses: SonarSource/sonarqube-scan-action@299e4b793aaa83bf2aba7c9c14bedbb485688ec4 # v7.1.0
+        with:
+          projectBaseDir: analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Record actual quality gate
+        if: ${{ always() && hashFiles('analysis/.scannerwork/report-task.txt') != '' }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: python3 -B trusted/.github/scripts/fork_sonar.py gate
+
+      - name: Preserve analysis evidence
+        if: ${{ always() && hashFiles('quality-gate.json') != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fork-sonar-result-${{ github.run_id }}-${{ github.run_attempt }}
+          path: quality-gate.json
+          retention-days: 14
