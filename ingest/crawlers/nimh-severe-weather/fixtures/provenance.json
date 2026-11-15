@@ -8,7 +8,9 @@
     "sourcePackageCommit": "48dd5a14f1e760e41a20575b956abb31f6427e85",
     "legacyWind": "Synthetic browser-serialized fixture matching the existing c9d1456eab46 wind warning contract. Complete content and identifier were compared with the committed legacy parser/builders before removal.",
     "identityChecks": "Literal MD5 and historical base64 document IDs cover both active fixtures in processed and unprocessed states. Structural update identifiers are frozen from the legacy sorted-warning SHA-256 algorithm.",
-    "browserBoundary": "The integration browser mock returns the frozen serialized HTML from page.content(). Source-package tests cover the browser ownership and entity serialization boundary."
+    "browserBoundary": "The integration browser mock returns the frozen serialized HTML from page.content(). Source-package tests cover the browser ownership and entity serialization boundary.",
+    "htmlNormalization": "Fixtures include an HTML doctype, Bulgarian document language, UTF-8 metadata, a title and column headings matching the legacy parser's weather column order. These wrapper additions preserve the exact Sofia table rows, forecast and issue markers, recommendation text, entity forms and frozen expected output.",
+    "serialization": "HTML fixtures retain compact serialization without indentation whitespace between tags. The entity input keeps its original named and numeric references; the paired browser fixture matches Chromium page.content() after loading that input."
   },
   "noDanger": {
     "providerUrl": "https://weather.bg/obshtini/index.php?z=u&o=SOF",
