@@ -1,0 +1,15 @@
+{
+  "identifier": "https://weather.bg/obshtini/index.php?z=u&o=SOF&date=2026-10-04&h=c9d1456eab46",
+  "content": {
+    "title": "Предупреждение за опасно време - 4 октомври 2026",
+    "message": "Жълт код за опасно време за 04.10.2026 (неделя)\n\nСилен вятър\n\nСилен вятър",
+    "markdownText": "**Жълт код за опасно време за 04.10.2026 (неделя)**\n\nСилен вятър\n\n**Жълт код за вятър**\n- Силен вятър",
+    "datePublished": "2026-10-04T08:00:00",
+    "geoJson": { "type": "FeatureCollection", "features": [] },
+    "categories": ["weather"],
+    "isRelevant": true,
+    "cityWide": true,
+    "timespanStart": "2026-10-03T22:00:00.000Z",
+    "timespanEnd": "2026-10-04T21:59:59.000Z"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "parsed": {
+    "forecastDate": "2026-02-01",
+    "issuedAt": "2026-01-31T11:02:45",
+    "recommendation": "",
+    "sofiaWarnings": [
+      {
+        "type": "wind",
+        "level": "yellow",
+        "notes": [
+          "Силен&nbsp",
+          "вятър 10°C",
+          "Сняг °C"
+        ]
+      }
+    ]
+  },
+  "hasActiveWarnings": true,
+  "identifier": "https://weather.bg/obshtini/index.php?z=u&o=SOF&date=2026-02-01&h=4af6312bda0b",
+  "content": {
+    "title": "Предупреждение за опасно време - 1 февруари 2026",
+    "datePublished": "2026-01-31T11:02:45",
+    "message": "Жълт код за опасно време за 01.02.2026 (неделя)\n\nСилен&nbsp; вятър 10°C; Сняг °C",
+    "markdownText": "**Жълт код за опасно време за 01.02.2026 (неделя)**\n\n**Жълт код за вятър**\n- Силен&nbsp\n- вятър 10°C\n- Сняг °C",
+    "geoJson": {
+      "type": "FeatureCollection",
+      "features": []
+    },
+    "categories": [
+      "weather"
+    ],
+    "isRelevant": true,
+    "cityWide": true,
+    "timespanStart": "2026-01-31T22:00:00.000Z",
+    "timespanEnd": "2026-02-01T21:59:59.000Z"
+  }
+}
