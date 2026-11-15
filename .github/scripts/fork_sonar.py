@@ -17,6 +17,8 @@ import zipfile
 
 WORKFLOW_PATH = ".github/workflows/sonar-fork-pr.yml"
 SOURCE_ROOTS = ("api/src", "db/src", "ingest", "shared/src", "web")
+# Static dependency checks need the committed workspace metadata.
+WORKSPACE_FILES = ("package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml")
 PACKAGES = ("api", "db", "ingest", "shared", "web")
 COVERAGE_PATHS = {f"{package}/coverage/lcov.info" for package in PACKAGES}
 MAX_ARCHIVE_SIZE = 32 * 1024 * 1024
@@ -149,7 +151,7 @@ def git(directory, *args):
 
 def materialize_source(directory, sha):
     """Write regular blobs directly, bypassing checkout filters and attributes."""
-    entries = git(directory, "ls-tree", "-rz", sha, "--", *SOURCE_ROOTS).split(b"\0")
+    entries = git(directory, "ls-tree", "-rz", sha, "--", *SOURCE_ROOTS, *WORKSPACE_FILES).split(b"\0")
     size = 0
     with subprocess.Popen(
         ["git", "-C", str(directory), "cat-file", "--batch"],
@@ -161,7 +163,7 @@ def materialize_source(directory, sha):
             attributes, raw_path = entry.split(b"\t", 1)
             mode, kind, oid = attributes.split()
             path = raw_path.decode("utf-8")
-            require(source_path(path), "Unexpected source root")
+            require(source_path(path) or path in WORKSPACE_FILES, "Unexpected source root")
             require(mode in (b"100644", b"100755") and kind == b"blob", "Source links are forbidden")
             parts = PurePosixPath(path).parts
             if any(part in ("node_modules", "coverage", "dist", ".next", ".scannerwork") for part in parts):

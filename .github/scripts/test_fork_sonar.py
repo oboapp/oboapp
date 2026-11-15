@@ -455,6 +455,55 @@ class GitMaterializationTests(WorkspaceTests):
         with mock.patch.object(sonar.subprocess, "Popen", side_effect=capture_stderr):
             sonar.materialize_source(self.workspace, tree)
 
+    def test_workspace_metadata_preserves_exact_git_data_and_excludes_root_settings(self):
+        metadata = {
+            "package.json": b'{"scripts":{"postinstall":"exit 73"}}\n',
+            "pnpm-lock.yaml": b"lockfileVersion: '9.0'\nimporters:\n  ingest: {}\n",
+            "pnpm-workspace.yaml": b"packages:\n  - ingest\n  - web\n",
+        }
+        for path, content in metadata.items():
+            self.add_blob(path, content)
+        excluded = (
+            ".npmrc", ".pnpmfile.cjs", "prepare.mjs",
+            "sonar-project.properties", "tsconfig.json",
+        )
+        for path in excluded:
+            self.add_blob(path, b"fork settings and scripts\n")
+        self.add_blob("ingest/index.ts", b"export {};\n")
+
+        sonar.materialize_source(self.workspace, self.run_git("write-tree"))
+
+        for path, content in metadata.items():
+            with self.subTest(metadata=path):
+                target = self.workspace / path
+                self.assertTrue(target.is_file(), "Scanner rules need workspace dependency metadata")
+                self.assertEqual(target.read_bytes(), content)
+        for path in excluded:
+            with self.subTest(excluded=path):
+                self.assertFalse((self.workspace / path).exists())
+        self.assertTrue((self.workspace / "ingest/index.ts").is_file())
+
+    def test_root_dependency_lockfile_cannot_be_a_symlink(self):
+        self.add_blob("pnpm-lock.yaml", b"../trusted/sonar-project.properties", "120000")
+
+        with self.assertRaisesRegex(ValueError, "links"):
+            sonar.materialize_source(self.workspace, self.run_git("write-tree"))
+
+        self.assertFalse((self.workspace / "pnpm-lock.yaml").exists())
+
+    def test_root_dependency_lockfile_cannot_be_a_git_submodule(self):
+        tree = self.run_git("write-tree")
+        commit = self.run_git(
+            "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
+            "commit-tree", tree, "-m", "fixture",
+        )
+        self.run_git("update-index", "--add", "--cacheinfo", f"160000,{commit},pnpm-lock.yaml")
+
+        with self.assertRaisesRegex(ValueError, "links"):
+            sonar.materialize_source(self.workspace, self.run_git("write-tree"))
+
+        self.assertFalse((self.workspace / "pnpm-lock.yaml").exists())
+
     def test_raw_blobs_preserve_export_ignored_source_and_bypass_filters(self):
         self.run_git("config", "filter.trap.smudge", "exit 71")
         self.run_git("config", "filter.trap.clean", "exit 72")
