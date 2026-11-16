@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { chromium } from "playwright";
 import {
   createBrowserMock,
   createSourceStore,
   contractDate,
 } from "@/__mocks__/source-contract";
+import { getPackagedChromium } from "@/__mocks__/source-package-browser";
 import { crawl as crawlOborishte } from "@/crawlers/rayon-oborishte-bg/index";
 import { crawl as crawlSlatina } from "@/crawlers/so-slatina-org/index";
 import { getDb } from "@/lib/db";
@@ -32,6 +32,7 @@ vi.mock("@/lib/sentry", () => ({
 const cases = [
   {
     sourceType: "rayon-oborishte-bg",
+    chromium: getPackagedChromium("@oboapp/source-rayon-oborishte-bg"),
     crawl: crawlOborishte,
     feedUrl: "https://rayon-oborishte.bg/feed/",
     url: "https://rayon-oborishte.bg/%d1%80%d0%b5%d0%bc%d0%be%d0%bd%d1%82/?id=1",
@@ -41,6 +42,7 @@ const cases = [
   },
   {
     sourceType: "so-slatina-org",
+    chromium: getPackagedChromium("@oboapp/source-so-slatina-org"),
     crawl: crawlSlatina,
     feedUrl: "https://so-slatina.org/feed/",
     url: "https://so-slatina.org/repair/?id=1",
@@ -98,7 +100,6 @@ beforeEach(() => {
   store = createSourceStore();
   browser = createBrowserMock();
   vi.mocked(getDb).mockResolvedValue(store.db);
-  vi.spyOn(chromium, "launch").mockResolvedValue(browser.instance);
   browser.page.evaluate.mockImplementation(async (callback, argument) => {
     return callback(argument);
   });
@@ -120,6 +121,7 @@ afterEach(() => {
 
 describe.each(cases)("$sourceType package handoff", ({
   sourceType,
+  chromium,
   crawl,
   feedUrl,
   url,
@@ -128,6 +130,7 @@ describe.each(cases)("$sourceType package handoff", ({
   article,
 }) => {
   beforeEach(() => {
+    vi.spyOn(chromium, "launch").mockResolvedValue(browser.instance);
     document.body.innerHTML = article;
     fetchFeed = vi.fn<typeof globalThis.fetch>(async (input) => {
       if (input !== feedUrl) {
@@ -234,6 +237,12 @@ describe.each(cases)("$sourceType package handoff", ({
 });
 
 describe("Oborishte discovery coverage", () => {
+  const { chromium } = cases[0];
+
+  beforeEach(() => {
+    vi.spyOn(chromium, "launch").mockResolvedValue(browser.instance);
+  });
+
   it.each([
     { discovery: "root RSS", rssFails: false },
     { discovery: "WordPress API after RSS HTTP 415", rssFails: true },

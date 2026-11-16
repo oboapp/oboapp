@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { chromium } from "playwright";
 import { createBrowserMock, createSourceStore, contractDate } from "@/__mocks__/source-contract";
+import { getPackagedChromium } from "@/__mocks__/source-package-browser";
 import { crawl as crawlIlinden } from "@/crawlers/rayon-ilinden-bg/index";
 import { crawl as crawlNadezhda } from "@/crawlers/nadezhda-org/index";
 import { crawl as crawlIskar } from "@/crawlers/raioniskar-bg/index";
@@ -33,6 +33,7 @@ vi.mock("@/lib/logger", () => ({
 const cases = [
   {
     sourceType: "rayon-ilinden-bg",
+    chromium: getPackagedChromium("@oboapp/source-rayon-ilinden-bg", "@oboapp/source-web-utils"),
     crawl: crawlIlinden,
     indexUrl: "https://ilinden.sofia.bg/category/%d0%be%d0%b1%d1%89%d0%b8%d0%bd%d0%b0/",
     identifier: "https://ilinden.sofia.bg/Test%2fPost/?x=1&y=2",
@@ -43,6 +44,7 @@ const cases = [
   },
   {
     sourceType: "nadezhda-org",
+    chromium: getPackagedChromium("@oboapp/source-nadezhda-org", "@oboapp/source-web-utils"),
     crawl: crawlNadezhda,
     indexUrl: "https://nadezhda.sofia.bg/%D0%BE%D0%B1%D1%8F%D0%B2%D0%B8-%D0%B8-%D1%81%D1%8A%D0%BE%D0%B1%D1%89%D0%B5%D0%BD%D0%B8%D1%8F",
     identifier: "https://nadezhda.sofia.bg/news/Test%2fPost/?x=1&y=2",
@@ -53,6 +55,7 @@ const cases = [
   },
   {
     sourceType: "raioniskar-bg",
+    chromium: getPackagedChromium("@oboapp/source-raioniskar-bg", "@oboapp/source-web-utils"),
     crawl: crawlIskar,
     indexUrl: "https://raioniskar.bg/?c=pages/static&template=home&lang=bg",
     identifier: "https://raioniskar.bg/?c=important_messages/show/123&lang=bg",
@@ -77,7 +80,6 @@ beforeEach(() => {
   browser.page.evaluate.mockImplementation(async (callback, argument) => {
     return callback(argument);
   });
-  vi.spyOn(chromium, "launch").mockResolvedValue(browser.instance);
   vi.mocked(getDb).mockResolvedValue(store.db);
   vi.mocked(messageIngest).mockResolvedValue({
     messages: [],
@@ -96,6 +98,7 @@ afterEach(() => {
 
 describe.each(cases)("$sourceType browser package handoff", ({
   sourceType,
+  chromium,
   crawl,
   indexUrl,
   identifier,
@@ -114,6 +117,7 @@ describe.each(cases)("$sourceType browser package handoff", ({
   }
 
   beforeEach(() => {
+    vi.spyOn(chromium, "launch").mockResolvedValue(browser.instance);
     listing = card(identifier);
     detailHtml = article;
     failedDetail = undefined;
