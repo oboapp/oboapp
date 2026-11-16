@@ -47,6 +47,7 @@ export default function SettingsPage() {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dataContext, setDataContext] = useState({ user, authLoading, isGuestUser });
 
   // API client state
   const [apiClient, setApiClient] = useState<ApiClient | null>(null);
@@ -59,23 +60,33 @@ export default function SettingsPage() {
     useState(false);
   const [isUnsubscribingAll, setIsUnsubscribingAll] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    if (!user) {
-      return;
-    }
-
-    try {
+  if (
+    dataContext.user !== user ||
+    dataContext.authLoading !== authLoading ||
+    dataContext.isGuestUser !== isGuestUser
+  ) {
+    setDataContext({ user, authLoading, isGuestUser });
+    if (!authLoading && user) {
       setIsLoading(true);
       setError(null);
+    }
+  }
 
+  const requestData = useCallback(() => {
+    if (!user) {
+      return Promise.resolve();
+    }
+    const currentUser = user;
+
+    async function loadData() {
       const subscriptionsRes = await fetchWithAuth(
-        user,
+        currentUser,
         "/api/notifications/subscription/all",
       );
 
       let apiClientRes: Response | null = null;
       if (!isGuestUser) {
-        apiClientRes = await fetchWithAuth(user, "/api/api-clients");
+        apiClientRes = await fetchWithAuth(currentUser, "/api/api-clients");
       }
 
       if (!subscriptionsRes.ok) {
@@ -86,19 +97,36 @@ export default function SettingsPage() {
       const apiClientData =
         apiClientRes?.ok ? await apiClientRes.json() : null;
 
-      setSubscriptions(
-        Array.isArray(subscriptionsData) ? subscriptionsData : [],
-      );
-      setApiClient(isGuestUser ? null : (apiClientData ?? null));
-    } catch (err) {
-      console.error("Error fetching data:", err);
-      setError("Неуспешно зареждане на данни");
-      // Ensure arrays are set even on error
-      setSubscriptions([]);
-    } finally {
-      setIsLoading(false);
+      return {
+        subscriptions: Array.isArray(subscriptionsData) ? subscriptionsData : [],
+        apiClient: isGuestUser ? null : (apiClientData ?? null),
+      };
     }
+
+    return loadData()
+      .then((data) => {
+        setSubscriptions(data.subscriptions);
+        setApiClient(data.apiClient);
+      })
+      .catch((err) => {
+        console.error("Error fetching data:", err);
+        setError("Неуспешно зареждане на данни");
+        setSubscriptions([]);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, [user, isGuestUser]);
+
+  const fetchData = useCallback(async () => {
+    if (!user) {
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    await requestData();
+  }, [user, requestData]);
 
   // Fetch data
   useEffect(() => {
@@ -107,12 +135,11 @@ export default function SettingsPage() {
     }
 
     if (!user) {
-      setIsLoading(false);
       return;
     }
 
-    void fetchData();
-  }, [authLoading, user, router, fetchData]);
+    void requestData();
+  }, [authLoading, user, requestData]);
 
   // Get current device FCM token
   useEffect(() => {
