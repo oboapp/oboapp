@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
+import type { User } from "firebase/auth";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MapContainer, { type NearbyLocationState } from "./MapContainer";
 
 const mocks = vi.hoisted(() => ({
@@ -10,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   fitBounds: vi.fn(),
   getBounds: vi.fn(),
   getZoom: vi.fn(),
+  auth: { user: null as User | null, loading: true, guestAuthUnavailable: false },
+  onboardingOptions: vi.fn(),
 }));
 const cityBounds = { south: 42.605, west: 23.188, north: 42.83, east: 23.528 };
 let locationState: NearbyLocationState | null = null;
@@ -51,15 +54,18 @@ vi.mock("@/lib/bounds-utils", async (importOriginal) => ({
   getLocalityCenter: () => ({ lat: 42.6977, lng: 23.3219 }),
 }));
 vi.mock("@/lib/auth-context", () => ({
-  useAuth: () => ({ user: null, loading: true, guestAuthUnavailable: false }),
+  useAuth: () => mocks.auth,
 }));
 vi.mock("@/lib/hooks/useOnboardingFlow", () => ({
-  useOnboardingFlow: () => ({
-    state: "loading",
-    handlePermissionResult: vi.fn(),
-    handleDismiss: vi.fn(),
-    handleRestart: vi.fn(),
-  }),
+  useOnboardingFlow: (options: unknown) => {
+    mocks.onboardingOptions(options);
+    return {
+      state: "loading",
+      handlePermissionResult: vi.fn(),
+      handleDismiss: vi.fn(),
+      handleRestart: vi.fn(),
+    };
+  },
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
@@ -94,6 +100,8 @@ function successfulPosition(lat = 42.7, lng = 23.4) {
 describe("MapContainer tab navigation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.auth.user = null;
+    mocks.auth.loading = true;
     locationState = null;
     mocks.getCurrentPosition.mockReset();
     mocks.queryPermission.mockReset().mockResolvedValue({ state: "granted" });
@@ -111,6 +119,184 @@ describe("MapContainer tab navigation", () => {
       configurable: true,
       value: { query: mocks.queryPermission },
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("waits for auth and interests before completing an unauthenticated subscription check", () => {
+    const { rerender } = render(<MapContainer {...defaultProps} interestsLoaded={false} />);
+    expect(mocks.onboardingOptions).toHaveBeenLastCalledWith(expect.objectContaining({
+      subscriptionsLoaded: false,
+      hasSubscriptions: false,
+    }));
+    mocks.auth.loading = false;
+    rerender(<MapContainer {...defaultProps} interestsLoaded={false} />);
+    expect(mocks.onboardingOptions).toHaveBeenLastCalledWith(expect.objectContaining({
+      subscriptionsLoaded: false,
+    }));
+    rerender(<MapContainer {...defaultProps} />);
+    expect(mocks.onboardingOptions).toHaveBeenLastCalledWith(expect.objectContaining({
+      subscriptionsLoaded: true,
+      hasSubscriptions: false,
+    }));
+  });
+
+  it("ignores a subscription response after the signed-in user changes", async () => {
+    const responses: ((response: Response) => void)[] = [];
+    const fetchSubscriptions = vi.fn(() => {
+      return new Promise<Response>((resolve) => {
+        responses.push(resolve);
+      });
+    });
+    vi.stubGlobal("fetch", fetchSubscriptions);
+    mocks.auth.loading = false;
+    mocks.auth.user = { uid: "previous-user", getIdToken: vi.fn().mockResolvedValue("first") } as unknown as User;
+    const { rerender } = render(<MapContainer {...defaultProps} />);
+    await waitFor(() => {
+      expect(responses).toHaveLength(1);
+    });
+    mocks.auth.user = { uid: "current-user", getIdToken: vi.fn().mockResolvedValue("second") } as unknown as User;
+    rerender(<MapContainer {...defaultProps} />);
+    await waitFor(() => {
+      expect(responses).toHaveLength(2);
+    });
+    await act(async () => {
+      responses[0](Response.json([{ token: "old-device" }]));
+    });
+    expect(mocks.onboardingOptions).toHaveBeenLastCalledWith(expect.objectContaining({
+      subscriptionsLoaded: false,
+      hasSubscriptions: false,
+    }));
+    await act(async () => {
+      responses[1](Response.json([]));
+    });
+    expect(mocks.onboardingOptions).toHaveBeenLastCalledWith(expect.objectContaining({
+      subscriptionsLoaded: true,
+      hasSubscriptions: false,
+    }));
+  });
+
+  it.each(["http", "network"])(
+    "keeps the same user's known subscription status after a failed %s refresh",
+    async (failure) => {
+      const fetchSubscriptions = vi.fn().mockResolvedValueOnce(
+        Response.json([{ token: "known-device" }]),
+      );
+      vi.stubGlobal("fetch", fetchSubscriptions);
+      mocks.auth.loading = false;
+      mocks.auth.user = {
+        uid: "current-user",
+        getIdToken: vi.fn().mockResolvedValue("first"),
+      } as unknown as User;
+      const { rerender } = render(<MapContainer {...defaultProps} />);
+      await waitFor(() => {
+        expect(mocks.onboardingOptions).toHaveBeenLastCalledWith(expect.objectContaining({
+          subscriptionsLoaded: true,
+          hasSubscriptions: true,
+        }));
+      });
+
+      if (failure === "http") {
+        fetchSubscriptions.mockResolvedValueOnce(new Response(null, { status: 503 }));
+      } else {
+        fetchSubscriptions.mockRejectedValueOnce(new Error("Network unavailable"));
+      }
+      mocks.auth.user = {
+        uid: "current-user",
+        getIdToken: vi.fn().mockResolvedValue("refreshed"),
+      } as unknown as User;
+      await act(async () => {
+        rerender(<MapContainer {...defaultProps} />);
+      });
+
+      expect(fetchSubscriptions).toHaveBeenCalledTimes(2);
+      expect(mocks.onboardingOptions).toHaveBeenLastCalledWith(expect.objectContaining({
+        subscriptionsLoaded: true,
+        hasSubscriptions: true,
+      }));
+    },
+  );
+
+  it("uses no subscriptions after a different user's initial check fails", async () => {
+    const fetchSubscriptions = vi.fn()
+      .mockResolvedValueOnce(Response.json([{ token: "previous-device" }]))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }));
+    vi.stubGlobal("fetch", fetchSubscriptions);
+    mocks.auth.loading = false;
+    mocks.auth.user = {
+      uid: "previous-user",
+      getIdToken: vi.fn().mockResolvedValue("first"),
+    } as unknown as User;
+    const { rerender } = render(<MapContainer {...defaultProps} />);
+    await waitFor(() => {
+      expect(mocks.onboardingOptions).toHaveBeenLastCalledWith(expect.objectContaining({
+        subscriptionsLoaded: true,
+        hasSubscriptions: true,
+      }));
+    });
+    mocks.auth.user = {
+      uid: "current-user",
+      getIdToken: vi.fn().mockResolvedValue("second"),
+    } as unknown as User;
+    await act(async () => {
+      rerender(<MapContainer {...defaultProps} />);
+    });
+
+    expect(fetchSubscriptions).toHaveBeenCalledTimes(2);
+    expect(mocks.onboardingOptions).toHaveBeenLastCalledWith(expect.objectContaining({
+      subscriptionsLoaded: true,
+      hasSubscriptions: false,
+    }));
+  });
+
+  it("clears known subscriptions after logout before the same account signs in again", async () => {
+    let resolveResponse!: (response: Response) => void;
+    const loginResponse = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    });
+    const fetchSubscriptions = vi.fn()
+      .mockResolvedValueOnce(Response.json([{ token: "previous-session-device" }]))
+      .mockReturnValueOnce(loginResponse);
+    vi.stubGlobal("fetch", fetchSubscriptions);
+    mocks.auth.loading = false;
+    mocks.auth.user = {
+      uid: "current-user",
+      getIdToken: vi.fn().mockResolvedValue("first-session"),
+    } as unknown as User;
+    const { rerender } = render(<MapContainer {...defaultProps} />);
+    await waitFor(() => {
+      expect(mocks.onboardingOptions).toHaveBeenLastCalledWith(expect.objectContaining({
+        subscriptionsLoaded: true,
+        hasSubscriptions: true,
+      }));
+    });
+
+    mocks.auth.user = null;
+    rerender(<MapContainer {...defaultProps} />);
+    expect(mocks.onboardingOptions).toHaveBeenLastCalledWith(expect.objectContaining({
+      subscriptionsLoaded: true,
+      hasSubscriptions: false,
+    }));
+    mocks.auth.user = {
+      uid: "current-user",
+      getIdToken: vi.fn().mockResolvedValue("next-session"),
+    } as unknown as User;
+    rerender(<MapContainer {...defaultProps} />);
+    expect(mocks.onboardingOptions).toHaveBeenLastCalledWith(expect.objectContaining({
+      subscriptionsLoaded: false,
+      hasSubscriptions: false,
+    }));
+    await act(async () => {
+      resolveResponse(new Response(null, { status: 503 }));
+    });
+
+    expect(fetchSubscriptions).toHaveBeenCalledTimes(2);
+    expect(mocks.onboardingOptions).toHaveBeenLastCalledWith(expect.objectContaining({
+      subscriptionsLoaded: true,
+      hasSubscriptions: false,
+    }));
   });
 
   it("opens All at the configured city and never locates from old consent", () => {
@@ -287,6 +473,34 @@ describe("MapContainer tab navigation", () => {
     expect(mocks.fitBounds).not.toHaveBeenCalled();
     rerender(<MapContainer {...defaultProps} navigationSource="manual" navigationRequestId={1} />);
     expect(mocks.fitBounds).toHaveBeenCalledExactlyOnceWith(cityBounds, 32);
+  });
+
+  it("shows loading when reentering Nearby without a new explicit request id", async () => {
+    successfulPosition();
+    const { rerender } = render(
+      <MapContainer {...defaultProps} navigationMode="nearby" navigationSource="manual" />,
+    );
+    readyMap();
+    await waitFor(() => {
+      expect(locationState?.status).toBe("ready");
+    });
+    rerender(<MapContainer {...defaultProps} navigationMode="zones" />);
+
+    let respond: PositionCallback | undefined;
+    mocks.getCurrentPosition.mockImplementation((success: PositionCallback) => {
+      respond = success;
+    });
+    rerender(
+      <MapContainer {...defaultProps} navigationMode="nearby" navigationSource="manual" />,
+    );
+    expect(locationState?.status).toBe("loading");
+    expect(screen.getByLabelText("Location tracking")).toHaveTextContent("disabled");
+    await act(async () => {
+      respond?.({ coords: { latitude: 42.7, longitude: 23.4 } } as GeolocationPosition);
+    });
+
+    expect(locationState?.status).toBe("ready");
+    expect(mocks.centerMap).toHaveBeenCalledTimes(2);
   });
 
   it("delivers fresh viewport bounds after each fix even when the camera stays in place", async () => {
