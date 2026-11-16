@@ -78,7 +78,7 @@ export default function DepsSection() {
         Пълният списък включва и: Next.js, React, Tailwind CSS, Firebase,
         Firebase Admin, MongoDB, Hono, Playwright, Turndown, TanStack Query,
         Turf.js, @react-google-maps/api, @googlemaps/markerclusterer,
-        lucide-react, react-markdown, react-cookie-consent, csv-parse, proj4,
+        lucide-react, react-markdown, csv-parse, proj4,
         commander, @google/genai, @google-cloud/storage, MDX, ua-parser-js,
         adm-zip, @asteasolutions/zod-to-openapi и много други.
       </p>
