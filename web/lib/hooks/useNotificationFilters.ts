@@ -18,27 +18,36 @@ const EMPTY_FILTERS: NotificationFiltersState = {
 
 export function useNotificationFilters() {
   const { user } = useAuth();
+  const [filterUser, setFilterUser] = useState(user);
   const [savedFilters, setSavedFilters] =
     useState<NotificationFiltersState>(EMPTY_FILTERS);
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
-    new Set(),
+    () => new Set(),
   );
   const [selectedSources, setSelectedSources] = useState<Set<string>>(
-    new Set(),
+    () => new Set(),
   );
   const [experimentalFeatures, setExperimentalFeatures] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(Boolean(user));
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch current filters on mount
-  useEffect(() => {
+  if (filterUser !== user) {
+    setFilterUser(user);
+    setIsLoading(Boolean(user));
+
     if (!user) {
-      setIsLoading(false);
       setSavedFilters(EMPTY_FILTERS);
       setSelectedCategories(new Set());
       setSelectedSources(new Set());
       setExperimentalFeatures(false);
+    } else {
+      setError(null);
+    }
+  }
+
+  useEffect(() => {
+    if (!user) {
       return;
     }
 
@@ -47,25 +56,31 @@ export function useNotificationFilters() {
 
     async function fetchFilters() {
       try {
-        setIsLoading(true);
-        setError(null);
         const res = await fetchWithAuth(
           currentUser,
           "/api/notifications/filters",
         );
-        if (!res.ok) throw new Error("Failed to fetch filters");
+        if (!res.ok) {
+          throw new Error("Failed to fetch filters");
+        }
         const data: NotificationFiltersState = await res.json();
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
         setSavedFilters(data);
         setSelectedCategories(new Set(data.notificationCategories));
         setSelectedSources(new Set(data.notificationSources));
         setExperimentalFeatures(data.experimentalFeatures ?? false);
       } catch (err) {
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
         console.error("Error fetching notification filters:", err);
         setError("Грешка при зареждане на филтрите");
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     }
 
@@ -120,23 +135,34 @@ export function useNotificationFilters() {
     const savedCats = new Set(savedFilters.notificationCategories);
     const savedSrcs = new Set(savedFilters.notificationSources);
 
-    if (selectedCategories.size !== savedCats.size) return true;
-    if (selectedSources.size !== savedSrcs.size) return true;
-    if (experimentalFeatures !== (savedFilters.experimentalFeatures ?? false))
+    if (selectedCategories.size !== savedCats.size) {
       return true;
+    }
+    if (selectedSources.size !== savedSrcs.size) {
+      return true;
+    }
+    if (experimentalFeatures !== (savedFilters.experimentalFeatures ?? false)) {
+      return true;
+    }
 
     for (const cat of selectedCategories) {
-      if (!savedCats.has(cat)) return true;
+      if (!savedCats.has(cat)) {
+        return true;
+      }
     }
     for (const src of selectedSources) {
-      if (!savedSrcs.has(src)) return true;
+      if (!savedSrcs.has(src)) {
+        return true;
+      }
     }
 
     return false;
   }, [savedFilters, selectedCategories, selectedSources, experimentalFeatures]);
 
   const save = useCallback(async (): Promise<boolean> => {
-    if (!user) return false;
+    if (!user) {
+      return false;
+    }
 
     try {
       setIsSaving(true);
@@ -154,7 +180,9 @@ export function useNotificationFilters() {
         body: JSON.stringify(body),
       });
 
-      if (!res.ok) throw new Error("Failed to save filters");
+      if (!res.ok) {
+        throw new Error("Failed to save filters");
+      }
 
       const data: NotificationFiltersState = await res.json();
       setSavedFilters(data);
