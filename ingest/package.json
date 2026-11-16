@@ -71,7 +71,7 @@
     "@oboapp/source-so-slatina-org": "0.1.0",
     "@oboapp/source-sredec-sofia-org": "0.1.0",
     "@oboapp/source-studentski-bg": "0.1.0",
-    "@oboapp/source-toplo-bg": "0.1.0",
+    "@oboapp/source-toplo-bg": "0.2.0",
     "@oboapp/source-triaditsa-org": "0.2.0",
     "@oboapp/source-vrabnitsa-org": "0.1.0",
     "@react-google-maps/api": "^2.20.7",
