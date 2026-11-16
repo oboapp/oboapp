@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { chromium } from "playwright";
 import {
   createBrowserMock,
   createSourceStore,
   contractDate,
 } from "@/__mocks__/source-contract";
+import { getPackagedChromium } from "@/__mocks__/source-package-browser";
 import { crawl as crawlMladost } from "@/crawlers/mladost-bg/index";
 import { crawl as crawlVrabnitsa } from "@/crawlers/vrabnitsa-org/index";
 import { getDb } from "@/lib/db";
@@ -37,6 +37,7 @@ vi.mock("@/lib/logger", () => ({
 const cases = [
   {
     sourceType: "mladost-bg",
+    chromium: getPackagedChromium("@oboapp/source-mladost-bg", "@oboapp/source-web-utils"),
     crawl: crawlMladost,
     indexUrl: "https://mladost.bg/gradska-i-okolna-sreda/planovi-remonti",
     identifier: "https://mladost.bg/gradska-i-okolna-sreda/planovi-remonti/Test%2fPost/?x=1&y=2",
@@ -54,6 +55,7 @@ const cases = [
   },
   {
     sourceType: "vrabnitsa-org",
+    chromium: getPackagedChromium("@oboapp/source-vrabnitsa-org", "@oboapp/source-web-utils"),
     crawl: crawlVrabnitsa,
     indexUrl: "https://vrabnitsa.sofia.bg/aktualno/news",
     identifier: "https://vrabnitsa.sofia.bg/aktualno/news/Test%2fPost/?x=1&y=2",
@@ -84,7 +86,6 @@ beforeEach(() => {
   browser.page.evaluate.mockImplementation(async (callback, argument) => {
     return callback(argument);
   });
-  vi.spyOn(chromium, "launch").mockResolvedValue(browser.instance);
   vi.mocked(getDb).mockResolvedValue(store.db);
   vi.mocked(messageIngest).mockResolvedValue({
     messages: [],
@@ -103,6 +104,7 @@ afterEach(() => {
 
 describe.each(cases)("$sourceType published Joomla package handoff", ({
   sourceType,
+  chromium,
   crawl,
   indexUrl,
   identifier,
@@ -127,6 +129,7 @@ describe.each(cases)("$sourceType published Joomla package handoff", ({
   }
 
   beforeEach(() => {
+    vi.spyOn(chromium, "launch").mockResolvedValue(browser.instance);
     listing = card(identifier);
     detailHtml = article;
     failedDetail = undefined;

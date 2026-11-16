@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { chromium } from "playwright";
 import { createBrowserMock, createSourceStore, contractDate } from "@/__mocks__/source-contract";
+import { getPackagedChromium } from "@/__mocks__/source-package-browser";
 import { crawl as crawlLozenets } from "@/crawlers/lozenets-sofia-bg/index";
 import { crawl as crawlStudentski } from "@/crawlers/studentski-bg/index";
 import { crawl as crawlSredets } from "@/crawlers/sredec-sofia-org/index";
@@ -33,6 +33,7 @@ vi.mock("@/lib/logger", () => ({
 const cases = [
   {
     sourceType: "lozenets-sofia-bg",
+    chromium: getPackagedChromium("@oboapp/source-lozenets-sofia-bg", "@oboapp/source-web-utils"),
     hostname: "lozenets.sofia.bg",
     crawl: crawlLozenets,
     itemId: "49cade97da4a079256a6b227d74e42b0",
@@ -42,6 +43,7 @@ const cases = [
   },
   {
     sourceType: "studentski-bg",
+    chromium: getPackagedChromium("@oboapp/source-studentski-bg", "@oboapp/source-web-utils"),
     hostname: "studentski.bg",
     crawl: crawlStudentski,
     itemId: "92f1c07e317b7de95fa502968401e1ae",
@@ -51,6 +53,7 @@ const cases = [
   },
   {
     sourceType: "sredec-sofia-org",
+    chromium: getPackagedChromium("@oboapp/source-sredec-sofia-org", "@oboapp/source-web-utils"),
     hostname: "sredec-sofia.org",
     crawl: crawlSredets,
     itemId: "327c61748a844d180792236f6804dd33",
@@ -74,7 +77,6 @@ beforeEach(() => {
   browser.page.evaluate.mockImplementation(async (callback, argument) => {
     return callback(argument);
   });
-  vi.spyOn(chromium, "launch").mockResolvedValue(browser.instance);
   vi.mocked(getDb).mockResolvedValue(store.db);
   vi.mocked(messageIngest).mockResolvedValue({
     messages: [],
@@ -94,6 +96,7 @@ afterEach(() => {
 
 describe.each(cases)("$sourceType published package handoff", ({
   sourceType,
+  chromium,
   hostname,
   crawl,
   itemId,
@@ -104,6 +107,7 @@ describe.each(cases)("$sourceType published package handoff", ({
   const identifier = `https://${hostname}/Test%2fPost/?x=1&y=2`;
 
   beforeEach(() => {
+    vi.spyOn(chromium, "launch").mockResolvedValue(browser.instance);
     document.body.innerHTML = article;
     fetchFeed = vi.fn<typeof globalThis.fetch>(async (input) => {
       const url = new URL(String(input));
