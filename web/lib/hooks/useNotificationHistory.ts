@@ -25,49 +25,75 @@ export function useNotificationHistory({
   onUnreadCountChange,
   refreshUnreadCountFromServer = false,
 }: UseNotificationHistoryOptions) {
+  const [requestContext, setRequestContext] = useState({ user, enabled });
   const [notifications, setNotifications] = useState<NotificationHistoryItem[]>(
     [],
   );
-  const [isLoading, setIsLoading] = useState(initialLoading);
+  const [isLoading, setIsLoading] = useState(
+    initialLoading || (enabled && Boolean(user)),
+  );
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [nextOffset, setNextOffset] = useState<number | null>(null);
 
-  const fetchNotifications = useCallback(
-    async (offset = 0, append = false) => {
-      if (!user) return;
+  if (requestContext.user !== user || requestContext.enabled !== enabled) {
+    setRequestContext({ user, enabled });
 
-      try {
-        if (append) {
-          setIsLoadingMore(true);
-        } else {
-          setIsLoading(true);
-          setError(null);
-        }
+    if (enabled && user) {
+      setIsLoading(true);
+      setError(null);
+    }
+  }
 
-        const data = await fetchNotificationHistory(user, offset);
-
-        if (append) {
-          setNotifications((prev) => [...prev, ...(data.items || [])]);
-        } else {
-          setNotifications(data.items || []);
-        }
-
-        setHasMore(data.hasMore || false);
-        setNextOffset(data.nextOffset);
-      } catch (fetchError) {
-        console.error("Error fetching notifications:", fetchError);
-        setError("Неуспешно зареждане на известията");
-        if (!append) {
-          setNotifications([]);
-        }
-      } finally {
-        setIsLoading(false);
-        setIsLoadingMore(false);
+  const requestNotifications = useCallback(
+    (offset = 0, append = false) => {
+      if (!user) {
+        return Promise.resolve();
       }
+
+      return fetchNotificationHistory(user, offset)
+        .then((data) => {
+          if (append) {
+            setNotifications((prev) => [...prev, ...(data.items || [])]);
+          } else {
+            setNotifications(data.items || []);
+          }
+
+          setHasMore(data.hasMore || false);
+          setNextOffset(data.nextOffset);
+        })
+        .catch((fetchError) => {
+          console.error("Error fetching notifications:", fetchError);
+          setError("Неуспешно зареждане на известията");
+          if (!append) {
+            setNotifications([]);
+          }
+        })
+        .finally(() => {
+          setIsLoading(false);
+          setIsLoadingMore(false);
+        });
     },
     [user],
+  );
+
+  const fetchNotifications = useCallback(
+    async (offset = 0, append = false) => {
+      if (!user) {
+        return;
+      }
+
+      if (append) {
+        setIsLoadingMore(true);
+      } else {
+        setIsLoading(true);
+        setError(null);
+      }
+
+      await requestNotifications(offset, append);
+    },
+    [user, requestNotifications],
   );
 
   const loadMore = useCallback(() => {
@@ -78,10 +104,12 @@ export function useNotificationHistory({
 
   const updateUnreadCount = useCallback(
     async (localCount: number) => {
-      if (!user) return;
+      if (!user) {
+        return;
+      }
 
-      if (emitUnreadCountEvent && typeof window !== "undefined") {
-        window.dispatchEvent(
+      if (emitUnreadCountEvent && typeof globalThis.window !== "undefined") {
+        globalThis.window.dispatchEvent(
           new CustomEvent("notifications:unread-count-changed", {
             detail: { count: localCount },
           }),
@@ -117,7 +145,9 @@ export function useNotificationHistory({
 
   const markAsRead = useCallback(
     async (notificationId: string) => {
-      if (!user) return;
+      if (!user) {
+        return;
+      }
 
       try {
         await markNotificationAsRead(user, notificationId);
@@ -144,7 +174,9 @@ export function useNotificationHistory({
   );
 
   const markAllRead = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
 
     try {
       await markAllNotificationsAsRead(user);
@@ -161,9 +193,11 @@ export function useNotificationHistory({
   }, [user, updateUnreadCount]);
 
   useEffect(() => {
-    if (!enabled || !user) return;
-    void fetchNotifications();
-  }, [enabled, user, fetchNotifications]);
+    if (!enabled || !user) {
+      return;
+    }
+    void requestNotifications();
+  }, [enabled, user, requestNotifications]);
 
   return {
     notifications,
