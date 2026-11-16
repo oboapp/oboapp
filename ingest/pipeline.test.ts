@@ -140,7 +140,10 @@ describe("selected-source pipeline command", () => {
   });
 
   it("continues selected sources, ingestion and notifications after a source failure", async () => {
-    mocks.runSelectedSource.mockRejectedValueOnce(new Error("District provider unavailable"));
+    const failure = new TypeError("fetch failed", {
+      cause: Object.assign(new Error("connection reset"), { code: "ECONNRESET" }),
+    });
+    mocks.runSelectedSource.mockRejectedValueOnce(failure);
     const program = await createProgram();
 
     await program.parseAsync(["node", "pipeline", "--all"]);
@@ -152,6 +155,13 @@ describe("selected-source pipeline command", () => {
     ]);
     expect(mocks.ingest).toHaveBeenCalledOnce();
     expect(mocks.notify).toHaveBeenCalledOnce();
+    expect(mocks.error).toHaveBeenCalledWith("Crawler district-news failed", {
+      step: "crawl",
+      source: "district-news",
+      sourceType: "district-news",
+      error: failure,
+    });
+    expect(mocks.error.mock.calls[0][1].error).toBe(failure);
     expect(mocks.error).toHaveBeenCalledWith(
       expect.stringContaining("1 crawler failure"),
       expect.objectContaining({ failedCrawlers: ["district-news"] }),

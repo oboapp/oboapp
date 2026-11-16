@@ -15,7 +15,7 @@ if (require.main === module) {
   crawl().catch((error) => {
     logger.error("Fatal error", {
       sourceType: metadata.id,
-      error: error instanceof Error ? error.message : String(error),
+      error,
     });
     process.exit(1);
   });

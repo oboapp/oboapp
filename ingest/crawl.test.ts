@@ -123,17 +123,49 @@ describe("selected-source crawl command", () => {
   });
 
   it("reports a selected source failure and flushes telemetry before failing", async () => {
-    const failure = new Error("Provider request failed");
+    const failure = new TypeError("fetch failed", {
+      cause: Object.assign(new Error("connect timed out"), {
+        code: "UND_ERR_CONNECT_TIMEOUT",
+      }),
+    });
     mocks.runSelectedSource.mockRejectedValueOnce(failure);
     const program = await createProgram();
 
     await program.parseAsync(["node", "crawl", "--source", "district-news"]);
 
     expect(mocks.error).toHaveBeenCalledWith(
-      expect.stringContaining(failure.message),
-      expect.objectContaining({ source: "district-news" }),
+      "Source district-news failed",
+      {
+        step: "crawl",
+        source: "district-news",
+        sourceType: "district-news",
+        error: failure,
+      },
     );
+    expect(mocks.error.mock.calls[0][1].error).toBe(failure);
     expect(mocks.flushSentry).toHaveBeenCalledOnce();
+    expect(mocks.error.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.flushSentry.mock.invocationCallOrder[0],
+    );
+    expect(mocks.flushSentry.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(process.exit).mock.invocationCallOrder[0],
+    );
     expect(process.exit).toHaveBeenCalledExactlyOnceWith(1);
+  });
+
+  it("can run successfully on the next scheduler attempt after a fetch failure", async () => {
+    mocks.runSelectedSource.mockRejectedValueOnce(new TypeError("fetch failed"));
+    const program = await createProgram();
+
+    await program.parseAsync(["node", "crawl", "--source", "district-news"]);
+    await program.parseAsync(["node", "crawl", "--source", "district-news"]);
+
+    expect(process.exit).toHaveBeenNthCalledWith(1, 1);
+    expect(process.exit).toHaveBeenNthCalledWith(2, 0);
+    expect(mocks.error).toHaveBeenCalledOnce();
+    expect(mocks.info).toHaveBeenCalledWith("Source district-news completed", {
+      step: "crawl",
+      source: "district-news",
+    });
   });
 });
