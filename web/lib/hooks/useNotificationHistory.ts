@@ -108,7 +108,7 @@ export function useNotificationHistory({
         return;
       }
 
-      if (emitUnreadCountEvent && typeof globalThis.window !== "undefined") {
+      if (emitUnreadCountEvent && globalThis.window !== undefined) {
         globalThis.window.dispatchEvent(
           new CustomEvent("notifications:unread-count-changed", {
             detail: { count: localCount },
