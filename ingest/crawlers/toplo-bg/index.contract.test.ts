@@ -39,6 +39,27 @@ afterEach(() => {
 });
 
 describe("Toplo packaged crawl contract", () => {
+  it("refreshes incident estimates on every crawl while retaining the first source record", async () => {
+    await crawl();
+    const historical = store.records.get(documentId);
+    vi.setSystemTime(new Date(contractDate.getTime() + 30 * 60 * 1000));
+    fetchListing.mockResolvedValue(new Response(toploHtml().replace(
+      '"UntilDate":null',
+      '"UntilDate":"2026-11-15T20:00:00Z"',
+    )));
+
+    await crawl();
+
+    expect(store.records.get(documentId)).toBe(historical);
+    expect(store.client.createOne).toHaveBeenCalledOnce();
+    expect(store.snapshots[0].incidents?.[0].estimatedEnd).toBeNull();
+    expect(store.snapshots[1].incidents?.[0]).toMatchObject({
+      id: "item-1",
+      type: "repair",
+      estimatedEnd: "2026-11-15T20:00:00Z",
+    });
+    expect(store.snapshots[1].observedAt).not.toBe(store.snapshots[0].observedAt);
+  });
   it("persists the historical raw fields once and fetches only the listing", async () => {
     await crawl();
     await crawl();
@@ -63,6 +84,20 @@ describe("Toplo packaged crawl contract", () => {
       timespanEnd: new Date("2026-10-04T08:00:00.000Z"),
     });
     expect(fetchListing).toHaveBeenCalledTimes(2);
+    expect(store.snapshots).toMatchObject([
+      {
+        sourceType: "toplo-bg",
+        locality: "bg.sofia",
+        count: 1,
+        observedAt: contractDate.toISOString(),
+      },
+      {
+        sourceType: "toplo-bg",
+        locality: "bg.sofia",
+        count: 1,
+        observedAt: contractDate.toISOString(),
+      },
+    ]);
     for (const [url, options] of fetchListing.mock.calls) {
       expect(url).toBe("https://toplo.bg/accidents-and-maintenance");
       expect(options?.signal?.aborted).toBe(true);
@@ -80,6 +115,7 @@ describe("Toplo packaged crawl contract", () => {
     expect(getDb).not.toHaveBeenCalled();
     expect(store.sources.findById).not.toHaveBeenCalled();
     expect(store.client.createOne).not.toHaveBeenCalled();
+    expect(store.sourceSnapshots.save).not.toHaveBeenCalled();
     expect(logger.info).toHaveBeenCalledWith("Crawl complete", expect.objectContaining({
       sourceType: "toplo-bg",
       saved: 2,
@@ -134,12 +170,13 @@ describe("Toplo packaged crawl contract", () => {
     }));
   });
 
-  it("rejects an empty listing and closes its source", async () => {
+  it("rejects an unrecognized listing and closes its source", async () => {
     fetchListing.mockResolvedValue(new Response("<html></html>"));
 
-    await expect(crawl()).rejects.toThrow("No incidents found in HTML");
+    await expect(crawl()).rejects.toThrow("complete incident listing");
 
     expect(store.client.createOne).not.toHaveBeenCalled();
+    expect(store.sourceSnapshots.save).not.toHaveBeenCalled();
     expect(fetchListing.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
   });
 
@@ -183,5 +220,103 @@ describe("Toplo packaged crawl contract", () => {
       message: expect.stringContaining("ул. Тест"),
       markdownText: expect.stringContaining("ул. Тест"),
     });
+  });
+
+  it("records a lower count when an incident disappears without changing source history", async () => {
+    fetchListing.mockImplementationOnce(async () => {
+      return new Response(toploHtml(["item-1", "item-2"]));
+    });
+    await crawl();
+    const nextCrawl = new Date(contractDate.getTime() + 30 * 60 * 1000);
+    vi.setSystemTime(nextCrawl);
+    await crawl();
+
+    expect(store.snapshots).toMatchObject([
+      {
+        sourceType: "toplo-bg",
+        locality: "bg.sofia",
+        count: 2,
+        observedAt: contractDate.toISOString(),
+      },
+      {
+        sourceType: "toplo-bg",
+        locality: "bg.sofia",
+        count: 1,
+        observedAt: nextCrawl.toISOString(),
+      },
+    ]);
+    expect(store.records.size).toBe(2);
+    expect(fetchListing).toHaveBeenCalledTimes(2);
+  });
+
+  it("records a verified zero and closes the source without message writes", async () => {
+    fetchListing.mockResolvedValue(new Response(toploHtml([])));
+
+    await crawl();
+
+    expect(store.snapshots).toMatchObject([
+      {
+        sourceType: "toplo-bg",
+        locality: "bg.sofia",
+        count: 0,
+        observedAt: contractDate.toISOString(),
+      },
+    ]);
+    expect(store.client.createOne).not.toHaveBeenCalled();
+    expect(fetchListing).toHaveBeenCalledOnce();
+    expect(store.snapshots[0].incidents).toEqual([]);
+    expect(fetchListing.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+  });
+
+  it("counts invalid map data before the package filters it", async () => {
+    const html = toploHtml(["item-1", "item-2"]).replace(
+      JSON.stringify(pointGeometry.features),
+      "[invalid json",
+    );
+    fetchListing.mockResolvedValue(new Response(html));
+
+    await crawl();
+
+    expect(store.snapshots[0].count).toBe(2);
+    expect(store.records.size).toBe(1);
+    expect(store.records.has(documentId)).toBe(false);
+    expect(fetchListing).toHaveBeenCalledOnce();
+    expect(store.sourceSnapshots.save.mock.invocationCallOrder[0]).toBeLessThan(
+      store.sources.findById.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("keeps a valid snapshot when every map incident is unusable", async () => {
+    const html = toploHtml().replace(JSON.stringify(pointGeometry.features), "[invalid json");
+    fetchListing.mockResolvedValue(new Response(html));
+
+    await expect(crawl()).rejects.toThrow("No incidents found in HTML");
+
+    expect(store.snapshots[0].count).toBe(1);
+    expect(store.client.createOne).not.toHaveBeenCalled();
+    expect(fetchListing.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+  });
+
+  it("preserves the last observation when the visible list and metadata disagree", async () => {
+    await crawl();
+    fetchListing.mockResolvedValue(new Response(toploHtml().replace(
+      'data-accidentId="item-1"',
+      'data-accidentId="unexpected"',
+    )));
+
+    await expect(crawl()).rejects.toThrow("does not match");
+
+    expect(store.snapshots).toHaveLength(1);
+    expect(store.snapshots[0].observedAt).toBe(contractDate.toISOString());
+  });
+
+  it("closes the package and stops before item persistence when saving a snapshot fails", async () => {
+    store.sourceSnapshots.save.mockRejectedValueOnce(new Error("Snapshot storage unavailable"));
+
+    await expect(crawl()).rejects.toThrow("Snapshot storage unavailable");
+
+    expect(store.client.createOne).not.toHaveBeenCalled();
+    expect(store.sources.findById).not.toHaveBeenCalled();
+    expect(fetchListing.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
   });
 });

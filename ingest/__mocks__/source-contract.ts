@@ -1,37 +1,65 @@
 import { vi } from "vitest";
 import type { DbClient, OboDb } from "@oboapp/db";
+import type { SourceSnapshot } from "@oboapp/shared";
 import type { Browser, Page } from "playwright";
 
 /** Small stateful fake; unsupported query operators fail explicitly. */
 export function createSourceStore() {
   const records = new Map<string, Record<string, unknown>>();
+  const snapshots: SourceSnapshot[] = [];
+  const sourceSnapshots = {
+    save: vi.fn<OboDb["sourceSnapshots"]["save"]>(async (snapshot) => {
+      snapshots.push({ ...snapshot });
+    }),
+    findLatest: vi.fn<OboDb["sourceSnapshots"]["findLatest"]>().mockResolvedValue(null),
+  };
   const sources = {
     findById: vi.fn<OboDb["sources"]["findById"]>(async (id) => records.get(id) ?? null),
-    setOne: vi.fn<OboDb["sources"]["setOne"]>(async (id, data) => { records.set(id, { ...data }); }),
+    setOne: vi.fn<OboDb["sources"]["setOne"]>(async (id, data) => {
+      records.set(id, { ...data });
+    }),
     updateOne: vi.fn<OboDb["sources"]["updateOne"]>(async (id, data) => {
-      if (!records.has(id)) throw new Error(`Missing source: ${id}`);
+      if (!records.has(id)) {
+        throw new Error(`Missing source: ${id}`);
+      }
       records.set(id, { ...records.get(id), ...data });
     }),
     findMany: vi.fn<OboDb["sources"]["findMany"]>(async (options) => {
       let result = [...records.values()].filter((record) =>
         (options?.where ?? []).every(({ field, op, value }) => {
-          if (op !== "==") throw new Error(`Unsupported operator: ${op}`);
+          if (op !== "==") {
+            throw new Error(`Unsupported operator: ${op}`);
+          }
           return record[field] === value;
         }),
       );
-      if (options?.limit) result = result.slice(0, options.limit);
+      if (options?.limit) {
+        result = result.slice(0, options.limit);
+      }
       return result.map((record) => ({ ...record }));
     }),
   };
   const client = {
     createOne: vi.fn<DbClient["createOne"]>(async (collection, data, id) => {
-      if (collection !== "sources") throw new Error(`Unsupported collection: ${collection}`);
-      if (records.has(id)) throw Object.assign(new Error("Already exists"), { code: 6 });
+      if (collection !== "sources") {
+        throw new Error(`Unsupported collection: ${collection}`);
+      }
+
+      if (records.has(id)) {
+        throw Object.assign(new Error("Already exists"), { code: 6 });
+      }
       records.set(id, { ...data });
       return id;
     }),
   };
-  return { records, sources, client, db: { sources, client } as unknown as OboDb };
+  return {
+    records,
+    snapshots,
+    sourceSnapshots,
+    sources,
+    client,
+    db: { sources, sourceSnapshots, client } as unknown as OboDb,
+  };
 }
 
 export function createBrowserMock() {
