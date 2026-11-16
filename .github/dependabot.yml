@@ -10,6 +10,9 @@ updates:
       timezone: Europe/Sofia
     open-pull-requests-limit: 5
     groups:
+      commitlint:
+        patterns:
+          - "@commitlint/*"
       runtime-minor-patch:
         dependency-type: production
         update-types:
