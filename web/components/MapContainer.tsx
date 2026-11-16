@@ -117,9 +117,10 @@ export default function MapContainer({
   >(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
 
-  // Subscription check state
-  const [subscriptionsLoaded, setSubscriptionsLoaded] = useState(false);
-  const [hasSubscriptions, setHasSubscriptions] = useState(false);
+  const [subscriptionResult, setSubscriptionResult] = useState<{
+    userId: string;
+    hasSubscriptions: boolean;
+  } | null>(null);
 
   const {
     user: authUser,
@@ -127,22 +128,30 @@ export default function MapContainer({
     guestAuthUnavailable,
   } = useAuth();
 
+  if (!authLoading && interestsLoaded && !authUser && subscriptionResult !== null) {
+    setSubscriptionResult(null);
+  }
+
+  const subscriptionsLoaded =
+    !authLoading &&
+    interestsLoaded &&
+    (!authUser || subscriptionResult?.userId === authUser.uid);
+  const hasSubscriptions =
+    Boolean(authUser && subscriptionResult?.userId === authUser.uid) &&
+    Boolean(subscriptionResult?.hasSubscriptions);
+
   // Check subscriptions when user is authenticated
   // Wait for auth and interests to finish loading first to avoid flickering
   useEffect(() => {
     // Don't do anything until auth state and interests are determined
-    if (authLoading || !interestsLoaded) {
+    if (authLoading || !interestsLoaded || !authUser) {
       return;
     }
 
-    if (!authUser) {
-      // Not logged in - mark as loaded with no subscriptions
-      setSubscriptionsLoaded(true);
-      setHasSubscriptions(false);
-      return;
-    }
+    let cancelled = false;
 
     const checkSubscriptions = async () => {
+      let subscribed: boolean | undefined;
       try {
         const token = await authUser.getIdToken();
         const response = await fetch("/api/notifications/subscription/all", {
@@ -151,18 +160,30 @@ export default function MapContainer({
 
         if (response.ok) {
           const subscriptions = await response.json();
-          setHasSubscriptions(
-            Array.isArray(subscriptions) && subscriptions.length > 0,
-          );
+          subscribed = Array.isArray(subscriptions) && subscriptions.length > 0;
         }
       } catch (error) {
         console.error("Error checking subscriptions:", error);
       } finally {
-        setSubscriptionsLoaded(true);
+        if (!cancelled) {
+          setSubscriptionResult((previous) => {
+            if (subscribed === undefined && previous?.userId === authUser.uid) {
+              return previous;
+            }
+
+            return {
+              userId: authUser.uid,
+              hasSubscriptions: subscribed ?? false,
+            };
+          });
+        }
       }
     };
 
     void checkSubscriptions();
+    return () => {
+      cancelled = true;
+    };
   }, [authUser, authLoading, interestsLoaded]);
 
   // Onboarding state machine
@@ -195,6 +216,10 @@ export default function MapContainer({
   const nearbyEnabled =
     initialNavigationReady && navigationMode === "nearby" && !navigationBlocked;
   const navigationKey = `${navigationMode}:${navigationRequestId}`;
+  if (navigationMode !== "nearby" && locationStatus.requestKey !== null) {
+    setLocationStatus({ requestKey: null, status: "idle", message: null });
+  }
+
   if (
     initialNavigationReady &&
     navigationMode === "nearby" &&
@@ -242,11 +267,6 @@ export default function MapContainer({
       }
 
       const request = ++locationRequest.current;
-      setLocationStatus({
-        requestKey: navigationKey,
-        status: "loading",
-        message: null,
-      });
       const result = await locate(
         (position) => {
           if (!isWithinBounds(getLocality(), position.lat, position.lng)) {
@@ -280,8 +300,17 @@ export default function MapContainer({
   );
 
   const retryLocation = useCallback(() => {
+    if (!centerMap || !nearbyEnabled) {
+      return;
+    }
+
+    setLocationStatus({
+      requestKey: navigationKey,
+      status: "loading",
+      message: null,
+    });
     void requestLocation(false);
-  }, [requestLocation]);
+  }, [centerMap, nearbyEnabled, navigationKey, requestLocation]);
   const { status: nearbyStatus, message: nearbyMessage } = currentLocationStatus;
 
   useEffect(() => {
