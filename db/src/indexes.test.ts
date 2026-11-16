@@ -48,4 +48,12 @@ describe("INDEX_DEFINITIONS", () => {
       seen.add(key);
     }
   });
+
+  it("indexes latest source observations within a locality", () => {
+    expect(INDEX_DEFINITIONS).toContainEqual({
+      collection: "sourceSnapshots",
+      spec: { locality: 1, sourceType: 1, observedAt: -1 },
+      options: { name: "locality_sourceType_observedAt" },
+    });
+  });
 });

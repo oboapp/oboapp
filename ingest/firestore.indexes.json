@@ -1,6 +1,15 @@
 {
   "indexes": [
     {
+      "collectionGroup": "sourceSnapshots",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "locality", "order": "ASCENDING" },
+        { "fieldPath": "sourceType", "order": "ASCENDING" },
+        { "fieldPath": "observedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "messages",
       "queryScope": "COLLECTION",
       "fields": [

@@ -15,6 +15,7 @@ import { MongoAdapter } from "./mongo-adapter";
 import { DualWriteAdapter } from "./dual-write";
 import { MessagesRepository } from "./collections/messages";
 import { SourcesRepository } from "./collections/sources";
+import { SourceSnapshotsRepository } from "./collections/source-snapshots";
 import { InterestsRepository } from "./collections/interests";
 import { NotificationMatchesRepository } from "./collections/notification-matches";
 import { NotificationSubscriptionsRepository } from "./collections/notification-subscriptions";
@@ -37,6 +38,8 @@ export interface OboDb {
   messages: MessagesRepository;
   /** Sources collection */
   sources: SourcesRepository;
+  /** Observed source listings and counts */
+  sourceSnapshots: SourceSnapshotsRepository;
   /** Interests collection */
   interests: InterestsRepository;
   /** Notification matches collection */
@@ -86,6 +89,7 @@ function buildRepositories(client: DbClient): OboDb {
     client,
     messages: new MessagesRepository(client),
     sources: new SourcesRepository(client),
+    sourceSnapshots: new SourceSnapshotsRepository(client),
     interests: new InterestsRepository(client),
     notificationMatches: new NotificationMatchesRepository(client),
     notificationSubscriptions: new NotificationSubscriptionsRepository(client),
