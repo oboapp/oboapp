@@ -25,6 +25,22 @@ const MIN_RADIUS = 100;
 const MAX_RADIUS = 1000;
 const DEFAULT_RADIUS = 500;
 
+function getEditingCenter(map: google.maps.Map | null, isEditing: boolean) {
+  if (!map || !isEditing) {
+    return null;
+  }
+
+  const center = map.getCenter();
+  if (!center) {
+    return null;
+  }
+
+  return {
+    lat: roundCoordinate(center.lat()),
+    lng: roundCoordinate(center.lng()),
+  };
+}
+
 export default function InterestTargetMode({
   map,
   initialRadius = DEFAULT_RADIUS,
@@ -36,12 +52,20 @@ export default function InterestTargetMode({
   const [currentCenter, setCurrentCenter] = useState<{
     lat: number;
     lng: number;
-  } | null>(null);
+  } | null>(() => getEditingCenter(map, isEditing));
   const [radius, setRadius] = useState(initialRadius);
   const [isSaving, setIsSaving] = useState(false);
   const circleRef = useRef<google.maps.Circle | null>(null);
 
   const circleColor = pendingColor || colors.interaction.circle;
+
+  // Capture the editing position once, including when the map becomes ready later.
+  if (!currentCenter) {
+    const editingCenter = getEditingCenter(map, isEditing);
+    if (editingCenter) {
+      setCurrentCenter(editingCenter);
+    }
+  }
 
   // Manage the native Google Maps Circle imperatively to avoid
   // ghost artifacts from the @react-google-maps/api <Circle> component.
@@ -104,26 +128,11 @@ export default function InterestTargetMode({
     };
   }, [map]);
 
-  // When editing an existing zone, use the map center as the starting position.
-  // For new zones, start with no circle — the user clicks to place it.
-  useEffect(() => {
-    if (!map || currentCenter) return;
-
-    // Only auto-set the center when editing an existing interest
-    if (isEditing) {
-      const center = map.getCenter();
-      if (center) {
-        setCurrentCenter({
-          lat: roundCoordinate(center.lat()),
-          lng: roundCoordinate(center.lng()),
-        });
-      }
-    }
-  }, [map, currentCenter, isEditing]);
-
   // Handle map clicks to reposition circle
   useEffect(() => {
-    if (!map) return;
+    if (!map) {
+      return;
+    }
 
     const clickListener = map.addListener(
       "click",
@@ -143,7 +152,9 @@ export default function InterestTargetMode({
   }, [map]);
 
   const handleSave = async () => {
-    if (!currentCenter) return;
+    if (!currentCenter) {
+      return;
+    }
 
     setIsSaving(true);
     try {
