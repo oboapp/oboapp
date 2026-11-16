@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { colors } from "@/lib/colors";
 import { getLocalityCenter } from "@/lib/bounds-utils";
 
@@ -53,7 +53,7 @@ async function fetchHeatmapData(
     params.set("sources", Array.from(sources).join(","));
   }
   const qs = params.toString();
-  const url = `/api/messages/heatmap${qs ? `?${qs}` : ""}`;
+  const url = qs ? `/api/messages/heatmap?${qs}` : "/api/messages/heatmap";
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error("Failed to fetch heatmap data");
@@ -77,14 +77,15 @@ export default function HistoryMapClient({
   const [error, setError] = useState<string | null>(null);
   const [pointCount, setPointCount] = useState(0);
 
-  // Keep a stable ref to the callback so the data-fetching effect doesn't
-  // need to list it as a dependency (avoids spurious re-fetches).
-  const onStatsLoadedRef = useRef(onStatsLoaded);
-  onStatsLoadedRef.current = onStatsLoaded;
+  const reportStats = useEffectEvent((stats: HeatmapStats) => {
+    onStatsLoaded?.(stats);
+  });
 
   // ── Map initialisation (runs once) ──────────────────────────────────────
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return;
+    if (!mapRef.current || mapInstanceRef.current) {
+      return;
+    }
 
     let cancelled = false;
 
@@ -98,7 +99,9 @@ export default function HistoryMapClient({
           "default" in leafletModule ? leafletModule.default : leafletModule;
         await import("leaflet.heat");
 
-        if (cancelled || !mapRef.current || mapInstanceRef.current) return;
+        if (cancelled || !mapRef.current || mapInstanceRef.current) {
+          return;
+        }
 
         leafletRef.current = L;
 
@@ -123,7 +126,9 @@ export default function HistoryMapClient({
           },
         ).addTo(map);
 
-        if (!cancelled) setIsMapReady(true);
+        if (!cancelled) {
+          setIsMapReady(true);
+        }
       } catch (err) {
         if (!cancelled) {
           console.error("Error initializing map:", err);
@@ -133,7 +138,7 @@ export default function HistoryMapClient({
       }
     }
 
-    initMap();
+    void initMap();
 
     return () => {
       cancelled = true;
@@ -147,7 +152,9 @@ export default function HistoryMapClient({
 
   // ── Data fetching (re-runs whenever filters change or map becomes ready) ─
   useEffect(() => {
-    if (!isMapReady) return;
+    if (!isMapReady) {
+      return;
+    }
 
     let cancelled = false;
 
@@ -163,10 +170,12 @@ export default function HistoryMapClient({
         }
 
         const data = await fetchHeatmapData(categories, sources);
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
 
         setPointCount(data.points.length);
-        onStatsLoadedRef.current?.({
+        reportStats({
           messageCount: data.messageCount,
           oldestDate: data.oldestDate,
         });
@@ -188,7 +197,9 @@ export default function HistoryMapClient({
           heatLayerRef.current = layer;
         }
 
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       } catch (err) {
         if (!cancelled) {
           console.error("Error loading heatmap data:", err);
@@ -198,7 +209,7 @@ export default function HistoryMapClient({
       }
     }
 
-    loadData();
+    void loadData();
 
     return () => {
       cancelled = true;
