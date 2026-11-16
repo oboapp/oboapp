@@ -22,10 +22,12 @@ async function runCrawler(source: string): Promise<boolean> {
     return true;
   } catch (error) {
     logger.error(
-      `Crawler ${source} failed: ${error instanceof Error ? error.message : String(error)}`,
+      `Crawler ${source} failed`,
       {
         step: "crawl",
         source,
+        sourceType: source,
+        error,
       },
     );
     return false;
@@ -40,9 +42,10 @@ async function runIngest(): Promise<void> {
     logger.info("Ingest completed", { step: "ingest" });
   } catch (error) {
     logger.error(
-      `Ingest failed: ${error instanceof Error ? error.message : String(error)}`,
+      "Ingest failed",
       {
         step: "ingest",
+        error,
       },
     );
     throw error;
@@ -57,9 +60,10 @@ async function runNotify(): Promise<void> {
     logger.info("Notify completed", { step: "notify" });
   } catch (error) {
     logger.error(
-      `Notify failed: ${error instanceof Error ? error.message : String(error)}`,
+      "Notify failed",
       {
         step: "notify",
+        error,
       },
     );
     throw error;
@@ -118,9 +122,10 @@ async function runPipeline(crawlers: string[], pipelineName: string) {
     }
   } catch (error) {
     logger.error(
-      `${pipelineName} pipeline failed: ${error instanceof Error ? error.message : String(error)}`,
+      `${pipelineName} pipeline failed`,
       {
         pipeline: pipelineName,
+        error,
       },
     );
     await flushSentry();

@@ -56,10 +56,12 @@ ${getSelectedSourceIds()
       process.exit(0);
     } catch (error) {
       logger.error(
-        `Source ${options.source} failed: ${error instanceof Error ? error.message : String(error)}`,
+        `Source ${options.source} failed`,
         {
           step: "crawl",
           source: options.source,
+          sourceType: options.source,
+          error,
         },
       );
       await flushSentry();

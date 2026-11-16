@@ -1,3 +1,5 @@
+import { sanitizeDiagnosticText, serializeError } from "./error-diagnostics";
+
 /**
  * Structured JSON logger for Google Cloud Logging.
  *
@@ -32,16 +34,49 @@ interface LogEntry {
   [key: string]: unknown;
 }
 
+function getCloudRunContext(): Record<string, string> {
+  const context: Record<string, string> = {};
+  const fields = {
+    cloudRunJob: "CLOUD_RUN_JOB",
+    cloudRunExecution: "CLOUD_RUN_EXECUTION",
+    cloudRunTaskIndex: "CLOUD_RUN_TASK_INDEX",
+    cloudRunTaskAttempt: "CLOUD_RUN_TASK_ATTEMPT",
+  };
+  for (const [key, variable] of Object.entries(fields)) {
+    const value = process.env[variable];
+    if (value) {
+      context[key] = value;
+    }
+  }
+  return context;
+}
+
+function serializeLogEntry(entry: LogEntry): LogEntry {
+  const serialized: LogEntry = {
+    ...entry,
+    message: sanitizeDiagnosticText(entry.message),
+  };
+  for (const [key, value] of Object.entries(entry)) {
+    if (key === "error" || value instanceof Error) {
+      serialized[key] = serializeError(value);
+    } else if (typeof value === "string") {
+      serialized[key] = sanitizeDiagnosticText(value);
+    }
+  }
+  return serialized;
+}
+
 function write(entry: LogEntry) {
+  const serialized = serializeLogEntry(entry);
   if (!isProduction) {
     // Locally: use console for colored, readable output
-    const fn =
-      entry.severity === "ERROR"
-        ? console.error
-        : entry.severity === "WARNING"
-          ? console.warn
-          : console.log;
-    const { severity: _, message, ...extra } = entry;
+    let fn = console.log;
+    if (entry.severity === "ERROR") {
+      fn = console.error;
+    } else if (entry.severity === "WARNING") {
+      fn = console.warn;
+    }
+    const { severity: _, message, ...extra } = serialized;
     if (Object.keys(extra).length > 0) {
       fn(message, extra);
     } else {
@@ -51,25 +86,28 @@ function write(entry: LogEntry) {
   }
 
   // Cloud Run: output single-line JSON that Cloud Logging auto-parses
-  process.stdout.write(JSON.stringify(entry) + "\n");
+  process.stdout.write(JSON.stringify(serialized) + "\n");
 }
 
 export const logger = {
   debug(message: string, extra?: Record<string, unknown>) {
     if (showDebug) {
-      write({ severity: "DEBUG", message, ...extra });
+      write({ severity: "DEBUG", message, ...extra, ...getCloudRunContext() });
     }
   },
   info(message: string, extra?: Record<string, unknown>) {
-    write({ severity: "INFO", message, ...extra });
+    write({ severity: "INFO", message, ...extra, ...getCloudRunContext() });
   },
   warn(message: string, extra?: Record<string, unknown>) {
-    write({ severity: "WARNING", message, ...extra });
+    write({ severity: "WARNING", message, ...extra, ...getCloudRunContext() });
   },
   error(message: string, extra?: Record<string, unknown>) {
-    write({ severity: "ERROR", message, ...extra });
+    const context = getCloudRunContext();
+    write({ severity: "ERROR", message, ...extra, ...context });
     try {
-      errorReporter?.(message, extra);
+      const metadata =
+        Object.keys(context).length > 0 ? { ...extra, ...context } : extra;
+      errorReporter?.(message, metadata);
     } catch {
       // Reporter failures must never crash the process or mask the original error
     }
