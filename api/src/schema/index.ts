@@ -2,6 +2,7 @@ export {
   // Contract types
   MessageSchema,
   SourceSchema,
+  SourceSnapshotSchema,
   CategoryEnum,
   CoordinatesSchema,
   TimespanSchema,
@@ -18,6 +19,7 @@ export {
   CadastralPropertySchema,
   type Message,
   type Source,
+  type SourceSnapshot,
   type Category,
   type Coordinates,
   type Pin,
@@ -33,10 +35,12 @@ export {
 // Response schemas
 export {
   SourcesResponseSchema,
+  SourceSnapshotResponseSchema,
   MessagesResponseSchema,
   MessageResponseSchema,
   ErrorResponseSchema,
   type SourcesResponse,
+  type SourceSnapshotResponse,
   type MessagesResponse,
   type MessageResponse,
   type ErrorResponse,

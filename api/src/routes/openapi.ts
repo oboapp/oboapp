@@ -8,11 +8,15 @@ import type { HeaderObject, OpenAPIObject } from "openapi3-ts/oas30";
 import {
   MessageSchema,
   SourceSchema,
+  SourceSnapshotSchema,
+} from "../schema/contract";
+import {
   SourcesResponseSchema,
+  SourceSnapshotResponseSchema,
   MessagesResponseSchema,
   MessageResponseSchema,
   ErrorResponseSchema,
-} from "../schema/index";
+} from "../schema/response";
 import { getMaxMessagesLimit } from "../lib/messages-limit-config";
 
 const compareStrings = (left: string, right: string): number => {
@@ -83,9 +87,14 @@ function buildOpenApiSpec(): OpenAPIObject {
   );
   registry.register("V1Message", MessageSchema);
   registry.register("V1Source", SourceSchema);
+  registry.register("V1SourceSnapshot", SourceSnapshotSchema);
   const sourcesResponse = registry.register(
     "V1SourcesResponse",
     SourcesResponseSchema,
+  );
+  const sourceSnapshotResponse = registry.register(
+    "V1SourceSnapshotResponse",
+    SourceSnapshotResponseSchema,
   );
   const messagesResponse = registry.register(
     "V1MessagesResponse",
@@ -122,6 +131,48 @@ function buildOpenApiSpec(): OpenAPIObject {
       401: {
         description: "Invalid or missing API key",
         content: { "application/json": { schema: errorResponse } },
+      },
+      500: {
+        description: "Server error",
+        content: { "application/json": { schema: errorResponse } },
+      },
+    },
+  });
+
+  registry.registerPath({
+    method: "get",
+    path: "/v1/sources/{sourceId}/snapshot",
+    description:
+      "Latest successful complete source listing count with its original UTC observation time. Collection currently supports Toplo when selected for the instance.",
+    security: [{ ApiKeyAuth: [] }],
+    request: {
+      params: z.object({ sourceId: z.string().min(1) }),
+    },
+    responses: {
+      200: {
+        description: "Latest successful count, including a verified zero",
+        content: { "application/json": { schema: sourceSnapshotResponse } },
+        headers: {
+          "X-RateLimit-Limit": rateLimitLimitHeader,
+          "X-RateLimit-Remaining": rateLimitRemainingHeader,
+        },
+      },
+      401: {
+        description: "Invalid or missing API key",
+        content: { "application/json": { schema: errorResponse } },
+      },
+      404: {
+        description: "Source is not selected for the locality or has no successful snapshot",
+        content: { "application/json": { schema: errorResponse } },
+      },
+      429: {
+        description: "Rate limit exceeded (only when rate limiting is enabled)",
+        content: { "application/json": { schema: errorResponse } },
+        headers: {
+          "X-RateLimit-Limit": rateLimitLimitHeader,
+          "X-RateLimit-Remaining": rateLimitRemainingHeader,
+          "Retry-After": retryAfterHeader,
+        },
       },
       500: {
         description: "Server error",

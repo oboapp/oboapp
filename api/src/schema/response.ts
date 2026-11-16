@@ -1,8 +1,12 @@
 import { z } from "../lib/zod-openapi";
-import { MessageSchema, SourceSchema } from "./contract";
+import { MessageSchema, SourceSchema, SourceSnapshotSchema } from "./contract";
 
 export const SourcesResponseSchema = z.object({
   sources: z.array(SourceSchema),
+});
+
+export const SourceSnapshotResponseSchema = z.object({
+  snapshot: SourceSnapshotSchema,
 });
 
 export const MessagesResponseSchema = z.object({
@@ -18,6 +22,7 @@ export const ErrorResponseSchema = z.object({
 });
 
 export type SourcesResponse = z.infer<typeof SourcesResponseSchema>;
+export type SourceSnapshotResponse = z.infer<typeof SourceSnapshotResponseSchema>;
 export type MessagesResponse = z.infer<typeof MessagesResponseSchema>;
 export type MessageResponse = z.infer<typeof MessageResponseSchema>;
 export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;

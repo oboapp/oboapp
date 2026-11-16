@@ -26,12 +26,53 @@ If `PUBLIC_API_HOST` is not set, web still starts, but `/api/v1/*` requests fail
 
 ## Endpoints
 
-| Method | Path                 | Description                                                          |
-| ------ | -------------------- | -------------------------------------------------------------------- |
-| `GET`  | `/v1/sources`        | List all data sources                                                |
-| `GET`  | `/v1/messages`       | Fetch messages filtered by geographic bounds and optional categories |
-| `GET`  | `/v1/messages/by-id` | Fetch a single message by ID                                         |
-| `GET`  | `/v1/openapi`        | OpenAPI 3.0 specification (no key required)                          |
+| Method | Path                             | Description                                                          |
+| ------ | -------------------------------- | -------------------------------------------------------------------- |
+| `GET`  | `/v1/sources`                    | List all data sources                                                |
+| `GET`  | `/v1/sources/:sourceId/snapshot` | Latest successful complete listing count for a source                |
+| `GET`  | `/v1/messages`                   | Fetch messages filtered by geographic bounds and optional categories |
+| `GET`  | `/v1/messages/by-id`             | Fetch a single message by ID                                         |
+| `GET`  | `/v1/openapi`                    | OpenAPI 3.0 specification (no key required)                            |
+
+## Source Count Snapshots
+
+`GET /v1/sources/toplo-bg/snapshot` returns the latest successful complete
+listing count from the Toplo crawler. Collection supports `toplo-bg` in
+`bg.sofia` when that source is selected for the instance. The upstream demo
+assembly does not select Toplo. See [instance configuration](../setup/new-locality-instance.md)
+for source selection and deployment setup.
+
+```json
+{
+  "snapshot": {
+    "sourceType": "toplo-bg",
+    "locality": "bg.sofia",
+    "count": 99,
+    "observedAt": "2026-11-09T19:30:00.000Z",
+    "sourceUrl": "https://toplo.bg/accidents-and-maintenance"
+  }
+}
+```
+
+The count includes every distinct accident and repair in the verified source
+listing, before geometry validation and message deduplication. A complete empty
+listing returns `count: 0`. Failed fetches and incomplete listings leave the
+previous successful snapshot available.
+
+`observedAt` is the original successful page-read time in UTC. Clients should
+use that timestamp to show the age of the data. Collection follows the deployed
+crawler schedule, and history begins with the first successful capture after
+deployment. Deploy the accompanying `sourceSnapshots` database index before
+using the endpoint.
+
+The endpoint uses the normal API key authentication, shared rate limits, usage
+tracking, and `Cache-Control: private, max-age=60`. It returns a count and
+observation time. Stored incident details remain internal to the collector.
+
+An unknown source or a source outside the selected instance locality returns
+`404` with `Source not found`. A configured source without a successful capture
+returns `404` with `No successful snapshot available for this source`. Database
+errors and invalid stored counts return `500`.
 
 ## Authentication
 
