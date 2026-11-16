@@ -1,10 +1,82 @@
 import * as Sentry from "@sentry/node";
-import { setErrorReporter } from "@/lib/logger";
+import { getCloudRunContext, logger, setErrorReporter } from "@/lib/logger";
 import {
   sanitizeDiagnosticText,
   sanitizeError,
   serializeError,
 } from "@/lib/error-diagnostics";
+
+interface SourceWarningMetadata extends Record<string, unknown> {
+  sourceType: string;
+  diagnosticCode: "rss-discovery-failure";
+  error: unknown;
+}
+
+function setDiagnosticExtras(
+  scope: Sentry.Scope,
+  extra: Record<string, unknown>,
+): void {
+  for (const [key, value] of Object.entries(extra)) {
+    if (key === "error" || value instanceof Error) {
+      scope.setExtra(key, serializeError(value));
+    } else if (typeof value === "string") {
+      scope.setExtra(key, sanitizeDiagnosticText(value));
+    } else {
+      scope.setExtra(key, value);
+    }
+  }
+}
+
+function setSourceWarningTags(
+  scope: Sentry.Scope,
+  extra: Record<string, unknown>,
+): void {
+  for (const key of ["sourceType", "diagnosticCode"]) {
+    const value = extra[key];
+    if (typeof value === "string") {
+      scope.setTag(key, sanitizeDiagnosticText(value));
+    }
+  }
+}
+
+function captureDiagnostic(
+  message: string,
+  extra: Record<string, unknown> | undefined,
+  level: "error" | "warning",
+): void {
+  const safeMessage = sanitizeDiagnosticText(message);
+  Sentry.withScope((scope) => {
+    scope.setLevel(level);
+    scope.setExtra("loggerMessage", safeMessage);
+    if (extra) {
+      setDiagnosticExtras(scope, extra);
+      if (level === "warning") {
+        setSourceWarningTags(scope, extra);
+      }
+    }
+    // Preserve the exception chain and stack with sensitive URL parts removed.
+    if (extra?.error instanceof Error) {
+      Sentry.captureException(sanitizeError(extra.error));
+    } else {
+      Sentry.captureMessage(safeMessage, level);
+    }
+  });
+}
+
+/** Report a recoverable source issue with its scheduler context. */
+export function reportSourceWarning(
+  message: string,
+  extra: SourceWarningMetadata,
+): void {
+  logger.warn(message, extra);
+  try {
+    if (Sentry.isInitialized()) {
+      captureDiagnostic(message, { ...extra, ...getCloudRunContext() }, "warning");
+    }
+  } catch {
+    // Keep source recovery running when telemetry is unavailable.
+  }
+}
 
 /**
  * Flush pending Sentry events before process exit.
@@ -36,26 +108,6 @@ export function initSentry(): void {
   // Forward every logger.error() call to Sentry so structured error logs
   // appear in Sentry alongside automatically captured unhandled exceptions.
   setErrorReporter((message, extra) => {
-    const safeMessage = sanitizeDiagnosticText(message);
-    Sentry.withScope((scope) => {
-      scope.setExtra("loggerMessage", safeMessage);
-      if (extra) {
-        for (const [key, value] of Object.entries(extra)) {
-          if (key === "error" || value instanceof Error) {
-            scope.setExtra(key, serializeError(value));
-          } else if (typeof value === "string") {
-            scope.setExtra(key, sanitizeDiagnosticText(value));
-          } else {
-            scope.setExtra(key, value);
-          }
-        }
-      }
-      // Preserve the exception chain and stack with sensitive URL parts removed.
-      if (extra?.error instanceof Error) {
-        Sentry.captureException(sanitizeError(extra.error));
-      } else {
-        Sentry.captureMessage(safeMessage, "error");
-      }
-    });
+    captureDiagnostic(message, extra, "error");
   });
 }

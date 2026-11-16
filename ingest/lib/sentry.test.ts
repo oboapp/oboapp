@@ -2,28 +2,44 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   init: vi.fn(),
+  isInitialized: vi.fn(),
   flush: vi.fn(),
   setExtra: vi.fn(),
+  setLevel: vi.fn(),
+  setTag: vi.fn(),
   captureException: vi.fn(),
   captureMessage: vi.fn(),
   setErrorReporter: vi.fn(),
+  getCloudRunContext: vi.fn(),
+  warn: vi.fn(),
 }));
 
 vi.mock("@sentry/node", () => ({
   init: mocks.init,
+  isInitialized: mocks.isInitialized,
   flush: mocks.flush,
   captureException: mocks.captureException,
   captureMessage: mocks.captureMessage,
-  withScope: (callback: (scope: { setExtra: typeof mocks.setExtra }) => void) => {
-    callback({ setExtra: mocks.setExtra });
+  withScope: (callback: (scope: {
+    setExtra: typeof mocks.setExtra;
+    setLevel: typeof mocks.setLevel;
+    setTag: typeof mocks.setTag;
+  }) => void) => {
+    callback({
+      setExtra: mocks.setExtra,
+      setLevel: mocks.setLevel,
+      setTag: mocks.setTag,
+    });
   },
 }));
 
 vi.mock("@/lib/logger", () => ({
   setErrorReporter: mocks.setErrorReporter,
+  getCloudRunContext: mocks.getCloudRunContext,
+  logger: { warn: mocks.warn },
 }));
 
-import { flushSentry, initSentry } from "./sentry";
+import { flushSentry, initSentry, reportSourceWarning } from "./sentry";
 
 function getReporter(): (message: string, extra?: Record<string, unknown>) => void {
   return mocks.setErrorReporter.mock.calls[0][0];
@@ -32,6 +48,8 @@ function getReporter(): (message: string, extra?: Record<string, unknown>) => vo
 describe("ingest Sentry reporting", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.isInitialized.mockReturnValue(true);
+    mocks.getCloudRunContext.mockReturnValue({});
     vi.stubEnv("SENTRY_DSN", "https://public@example.test/1");
     vi.stubEnv("NODE_ENV", "test");
   });
@@ -85,6 +103,7 @@ describe("ingest Sentry reporting", () => {
     expect(captured.stack).toContain("at request");
     expect(captured.cause).toBeInstanceOf(Error);
     expect(captured.cause).toMatchObject({ code: "ECONNRESET" });
+    expect(mocks.setLevel).toHaveBeenCalledWith("error");
     expect(mocks.setExtra).toHaveBeenCalledWith("error", expect.objectContaining({
       name: "TypeError",
       message: "fetch failed",
@@ -121,6 +140,102 @@ describe("ingest Sentry reporting", () => {
     getReporter()("Source failed");
 
     expect(mocks.captureMessage).toHaveBeenCalledWith("Source failed", "error");
+  });
+
+  it("reports recoverable source exceptions as warnings with bounded tags and scheduler context", () => {
+    const privateUrl = "https://reader:password@provider.example/feed/?token=private#fragment";
+    const cause = Object.assign(new Error(`Connection reset for ${privateUrl}`), {
+      code: "ECONNRESET",
+      authorization: "private-error-property",
+    });
+    const error = new TypeError("fetch failed", { cause });
+    mocks.getCloudRunContext.mockReturnValue({
+      cloudRunJob: "crawl-oborishte",
+      cloudRunExecution: "crawl-oborishte-recovery",
+      cloudRunTaskIndex: "0",
+      cloudRunTaskAttempt: "1",
+    });
+
+    reportSourceWarning("RSS discovery failed; trying WordPress posts API", {
+      sourceType: "rayon-oborishte-bg",
+      diagnosticCode: "rss-discovery-failure",
+      feedUrl: privateUrl,
+      error,
+    });
+
+    expect(mocks.warn).toHaveBeenCalledOnce();
+    expect(mocks.setLevel).toHaveBeenCalledWith("warning");
+    expect(mocks.setTag.mock.calls).toEqual([
+      ["sourceType", "rayon-oborishte-bg"],
+      ["diagnosticCode", "rss-discovery-failure"],
+    ]);
+    expect(mocks.setExtra).toHaveBeenCalledWith("cloudRunExecution", "crawl-oborishte-recovery");
+    expect(mocks.setExtra).toHaveBeenCalledWith("cloudRunTaskAttempt", "1");
+    expect(mocks.setExtra).toHaveBeenCalledWith("feedUrl", "https://provider.example/feed/");
+    expect(mocks.captureException).toHaveBeenCalledOnce();
+    const captured: Error = mocks.captureException.mock.calls[0][0];
+    expect(captured).not.toBe(error);
+    expect(captured.cause).toMatchObject({
+      message: "Connection reset for https://provider.example/feed/",
+      code: "ECONNRESET",
+    });
+    const diagnostics = JSON.stringify(mocks.setExtra.mock.calls)
+      + captured.stack + (captured.cause as Error).stack;
+    for (const secret of ["reader:", "password", "token=private", "#fragment", "private-error-property"]) {
+      expect(diagnostics).not.toContain(secret);
+    }
+    expect(mocks.captureMessage).not.toHaveBeenCalled();
+    expect(cause.message).toContain(privateUrl);
+  });
+
+  it("reports non-Error source warnings with sanitized metadata", () => {
+    const privateUrl = "https://reader:password@provider.example/feed/?token=private#fragment";
+
+    reportSourceWarning(`RSS failed for ${privateUrl}`, {
+      sourceType: "rayon-oborishte-bg",
+      diagnosticCode: "rss-discovery-failure",
+      error: { message: `Connection reset for ${privateUrl}`, code: "ECONNRESET", authorization: "private" },
+    });
+
+    expect(mocks.captureMessage).toHaveBeenCalledExactlyOnceWith(
+      "RSS failed for https://provider.example/feed/",
+      "warning",
+    );
+    expect(mocks.setExtra).toHaveBeenCalledWith("error", {
+      message: "Connection reset for https://provider.example/feed/",
+      code: "ECONNRESET",
+    });
+    expect(mocks.captureException).not.toHaveBeenCalled();
+  });
+
+  it("keeps warning logs available before Sentry is initialized", () => {
+    mocks.isInitialized.mockReturnValue(false);
+
+    reportSourceWarning("RSS discovery failed", {
+      sourceType: "rayon-oborishte-bg",
+      diagnosticCode: "rss-discovery-failure",
+      error: new Error("Provider unavailable"),
+    });
+
+    expect(mocks.warn).toHaveBeenCalledOnce();
+    expect(mocks.captureException).not.toHaveBeenCalled();
+    expect(mocks.captureMessage).not.toHaveBeenCalled();
+  });
+
+  it("keeps source recovery running when Sentry capture fails", () => {
+    mocks.captureException.mockImplementationOnce(() => {
+      throw new Error("Telemetry unavailable");
+    });
+
+    expect(() => {
+      reportSourceWarning("RSS discovery failed", {
+        sourceType: "rayon-oborishte-bg",
+        diagnosticCode: "rss-discovery-failure",
+        error: new Error("Provider unavailable"),
+      });
+    }).not.toThrow();
+
+    expect(mocks.warn).toHaveBeenCalledOnce();
   });
 
   it("flushes pending events before exit", async () => {
