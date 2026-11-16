@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
+import { scrubFacebookBreadcrumb, scrubFacebookEvent, scrubFacebookSpan } from "./lib/facebook-connect/telemetry";
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 const ignoredErrorMessages = ["vm.USE_MAIN_CONTEXT_DEFAULT_LOADER"];
@@ -15,6 +16,9 @@ if (dsn) {
     environment: process.env.NODE_ENV,
     tracesSampleRate: 0.1,
     integrations: [Sentry.captureConsoleIntegration({ levels: ["error"] })],
+    beforeBreadcrumb: scrubFacebookBreadcrumb,
+    beforeSendSpan: scrubFacebookSpan,
+    beforeSendTransaction: scrubFacebookEvent,
     beforeSend(event) {
       const exceptionValues = event.exception?.values ?? [];
       if (
@@ -26,7 +30,7 @@ if (dsn) {
         return null;
       }
 
-      return event;
+      return scrubFacebookEvent(event);
     },
   });
 }
