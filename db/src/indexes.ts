@@ -91,6 +91,13 @@ export const INDEX_DEFINITIONS: IndexDefinition[] = [
     options: { name: "geoJson_2dsphere", sparse: true },
   },
 
+  // --- sourceSnapshots ---
+  {
+    collection: "sourceSnapshots",
+    spec: { locality: 1, sourceType: 1, observedAt: -1 },
+    options: { name: "locality_sourceType_observedAt" },
+  },
+
   // --- notificationMatches ---
   {
     collection: "notificationMatches",

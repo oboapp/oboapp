@@ -14,6 +14,7 @@ export * from "./notification-history.schema";
 export * from "./notification-subscription.schema";
 export * from "./pin.schema";
 export * from "./source.schema";
+export * from "./source-snapshot.schema";
 export * from "./street-section.schema";
 export * from "./timespan.schema";
 export * from "./user-preferences.schema";
