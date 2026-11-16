@@ -1,6 +1,6 @@
 # Sentry Error Monitoring
 
-Sentry is an optional error monitoring integration. When configured, it captures unhandled exceptions and error-level logs from the web app, the public API, and the ingest pipeline. Errors also appear in your host platform's logs and Google Cloud Logging.
+Sentry is an optional error monitoring integration. When configured, it captures unhandled exceptions and error-level logs from the web app, the public API, and the ingest pipeline. The ingest pipeline also reports explicit source warnings. Errors appear in your host platform's logs and Google Cloud Logging.
 
 ## What Gets Captured
 
@@ -19,6 +19,7 @@ Sentry is an optional error monitoring integration. When configured, it captures
 
 - Unhandled exceptions and promise rejections
 - All `logger.error()` calls from the pipeline
+- Recoverable source warnings reported through `reportSourceWarning`, including Oborishte's RSS-to-API fallback
 
 Pass the exception in the `error` metadata field so Sentry receives its stack and
 nested cause. The structured logger also serializes these details for Cloud
@@ -32,9 +33,20 @@ When running as a Cloud Run job, log entries and Sentry error metadata include
 the same task. A later `Crawl complete` or source completion entry shows that a
 scheduler retry recovered; a failed attempt still reports its exception.
 
-Feed URLs and in-process retry details are owned by the source package. A generic
-`fetch failed` exception can retain its network cause here, but the package must
-include the requested URL to identify a particular feed.
+Source packages supply feed URLs and in-process retry details. Lozenets 0.2.0
+emits retry and recovery events through its optional factory callback. Its
+adapter records a warning for `rss-feed-retry` and information for
+`rss-feed-recovered`, including flat `feedUrl`, `feedAttempt` or `feedAttempts`
+fields and the current Cloud Run context. The same sanitized data becomes a
+Sentry breadcrumb, which accompanies later captured exceptions. Successful
+recovery is visible in Cloud Logging.
+
+Feed attempts count requests within one scan. `cloudRunTaskAttempt` counts
+scheduler attempts. A final Lozenets failure reports its feed identity, attempt
+count and sanitized nested network cause through the existing error path. The
+[package integration notes](../features/source-packages.md#lozenets) describe the
+retry budget and production verification that remains for
+[oboapp/oboapp#688](https://github.com/oboapp/oboapp/issues/688).
 
 ## Configuration
 

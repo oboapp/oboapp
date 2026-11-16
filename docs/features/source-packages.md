@@ -51,6 +51,16 @@ warning fails to process. Warning-free scans succeed. Provider parsing tests liv
 in the sources repository; Obo tests the published package through persistence
 and ingestion.
 
+### Lozenets
+
+Lozenets pins [`@oboapp/source-lozenets-sofia-bg@0.2.0`](https://www.npmjs.com/package/@oboapp/source-lozenets-sofia-bg/v/0.2.0), prepared in [sources#43](https://github.com/oboapp/sources/pull/43). The published npm archive matches the inspected [GitHub release](https://github.com/oboapp/sources/releases/tag/source-lozenets-sofia-bg-v0.2.0), and the registry README and repository metadata are verified. It uses shared RSS helper 0.5.0.
+
+Feed discovery makes at most two attempts within one 30-second budget covering requests, body reads and the retry delay. Eligible transient failures wait at least two seconds before another attempt. Supported `Retry-After` values can extend the delay when it fits the remaining budget. The [helper's retry policy](https://github.com/oboapp/sources/blob/source-web-utils-v0.5.0/packages/source-web-utils/README.md#rss-retries-and-diagnostics) defines eligible network codes and HTTP statuses. Persistent access, certificate and invalid-content failures remain scan failures.
+
+The adapter records `RSS feed retry scheduled` as a warning and `RSS feed recovered after retry` as information in Cloud Logging and Sentry breadcrumbs. Flat diagnostic fields include `sourceType`, `feedUrl`, `diagnosticCode` and feed attempt counts, alongside Cloud Run execution and task context. Feed attempt counts describe requests inside one scan; `cloudRunTaskAttempt` identifies the scheduler attempt. Breadcrumbs accompany later Sentry exceptions, while successful recovery remains visible in Cloud Logging. Final failures retain the feed identity, attempt count and sanitized nested network cause.
+
+Literal article URLs, RSS dates, article extraction, two-second detail pacing, source ID `lozenets-sofia-bg` and locality `bg.sofia` remain compatible. Historical base64/MD5 lookups and create-only persistence preserve stored records. The native RSS investigation in [#688](https://github.com/oboapp/oboapp/issues/688) and the older browser-navigation issue [#451](https://github.com/oboapp/oboapp/issues/451) concern different collection stages; article navigation uses `domcontentloaded`. Deployment and subsequent scheduled scans still need to confirm production recovery before closing #688.
+
 ## Instance selection and deployment
 
 Keep the selected catalog in `shared/src/sources.ts` aligned with `ingest/terraform/source-jobs.<locality>.json`. Job keys identify deployed resources, so preserve them when translating existing configuration. Terraform selects locality maps through `var.localities`. A non-empty `var.crawlers` is an explicit manual override outside the checked selection.

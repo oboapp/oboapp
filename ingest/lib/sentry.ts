@@ -12,6 +12,11 @@ interface SourceWarningMetadata extends Record<string, unknown> {
   error: unknown;
 }
 
+interface SourceBreadcrumbMetadata extends Record<string, string | number | undefined> {
+  sourceType: string;
+  diagnosticCode: "rss-feed-retry" | "rss-feed-recovered";
+}
+
 function setDiagnosticExtras(
   scope: Sentry.Scope,
   extra: Record<string, unknown>,
@@ -75,6 +80,37 @@ export function reportSourceWarning(
     }
   } catch {
     // Keep source recovery running when telemetry is unavailable.
+  }
+}
+
+/** Record feed retries and recovery with the current scheduler context. */
+export function reportSourceBreadcrumb(
+  message: string,
+  extra: SourceBreadcrumbMetadata,
+  level: "warning" | "info",
+): void {
+  if (level === "warning") {
+    logger.warn(message, extra);
+  } else {
+    logger.info(message, extra);
+  }
+  try {
+    if (Sentry.isInitialized()) {
+      const data: SourceBreadcrumbMetadata = { ...extra, ...getCloudRunContext() };
+      for (const [key, value] of Object.entries(data)) {
+        if (typeof value === "string") {
+          data[key] = sanitizeDiagnosticText(value);
+        }
+      }
+      Sentry.addBreadcrumb({
+        category: "source.rss",
+        level,
+        message: sanitizeDiagnosticText(message),
+        data,
+      });
+    }
+  } catch {
+    // Telemetry failures must leave feed recovery running.
   }
 }
 

@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import type { Command } from "commander";
+import { createRequire } from "node:module";
 import type { createSource } from "@oboapp/source-rayon-oborishte-bg";
 import { chromium } from "playwright";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -17,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   setTag: vi.fn(),
   captureException: vi.fn(),
   captureMessage: vi.fn(),
+  addBreadcrumb: vi.fn(),
   createOborishteSource: vi.fn<typeof createSource>(),
 }));
 
@@ -60,6 +62,7 @@ vi.mock("@sentry/node", () => ({
   flush: mocks.flush,
   captureException: mocks.captureException,
   captureMessage: mocks.captureMessage,
+  addBreadcrumb: mocks.addBreadcrumb,
   withScope: (callback: (scope: {
     setExtra: typeof mocks.setExtra;
     setLevel: typeof mocks.setLevel;
@@ -72,6 +75,12 @@ vi.mock("@sentry/node", () => ({
     });
   },
 }));
+
+const lozenetsFeedUrl = "https://lozenets.sofia.bg/category/%d0%bd%d0%be%d0%b2%d0%b8%d0%bd%d0%b8/feed/";
+const consumerRequire = createRequire(import.meta.url);
+const sourceRequire = createRequire(consumerRequire.resolve("@oboapp/source-lozenets-sofia-bg"));
+const helperRequire = createRequire(sourceRequire.resolve("@oboapp/source-web-utils/browser"));
+const { chromium: lozenetsChromium } = helperRequire("playwright") as typeof import("playwright");
 
 beforeEach(() => {
   vi.resetModules();
@@ -97,10 +106,120 @@ afterEach(() => {
 });
 
 describe("published RSS source failure diagnostics", () => {
+  it("records an internal Lozenets retry and recovery as breadcrumbs while known content exits successfully", async () => {
+    const store = createSourceStore();
+    const identifier = "https://lozenets.sofia.bg/Test%2fPost/?x=1&y=2";
+    const historicalId = "aHR0cHM6Ly9sb3plbmV0cy5zb2ZpYS5iZy9UZXN0JTJmUG9zdC8_eD0xJnk9Mg__";
+    const historical = { url: identifier, title: "Historical content", processed: true };
+    store.records.set(historicalId, historical);
+    mocks.getDb.mockResolvedValue(store.db);
+    const launch = vi.spyOn(lozenetsChromium, "launch").mockRejectedValue(
+      new Error("Known content must not launch a browser"),
+    );
+    const attemptTimes: number[] = [];
+    const failure = new TypeError("fetch failed", {
+      cause: Object.assign(new Error("connection reset"), { code: "ECONNRESET" }),
+    });
+    const fetchMock = vi.fn<typeof fetch>(async () => {
+      attemptTimes.push(Date.now());
+      if (attemptTimes.length === 1) {
+        throw failure;
+      }
+      return new Response(`<rss><channel><item><title>Known notice</title>
+        <link><![CDATA[${identifier}]]></link>
+        <pubDate>Tue, 09 Jun 2026 11:13:10 GMT</pubDate>
+      </item></channel></rss>`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const output: string[] = [];
+    vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      output.push(String(chunk));
+      return true;
+    });
+    await import("@/crawl");
+    const program = mocks.program;
+    if (!program) {
+      throw new Error("The crawl command was not created");
+    }
+    await program.parseAsync(["node", "crawl", "--source", "lozenets-sofia-bg"]);
+
+    expect(attemptTimes[1] - attemptTimes[0]).toBeGreaterThanOrEqual(2_000);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const logs = output.map((line) => {
+      return JSON.parse(line) as Record<string, unknown>;
+    });
+    const retryContext = {
+      sourceType: "lozenets-sofia-bg",
+      diagnosticCode: "rss-feed-retry",
+      feedUrl: lozenetsFeedUrl,
+      feedAttempt: 1,
+      nextFeedAttempt: 2,
+      retryDelayMs: 2_000,
+      retryReason: "network",
+      networkCode: "ECONNRESET",
+      cloudRunJob: "crawl-lozenets",
+      cloudRunExecution: "crawl-lozenets-recovery",
+      cloudRunTaskIndex: "0",
+      cloudRunTaskAttempt: "0",
+    };
+    const recoveryContext = {
+      sourceType: "lozenets-sofia-bg",
+      diagnosticCode: "rss-feed-recovered",
+      feedUrl: lozenetsFeedUrl,
+      feedAttempts: 2,
+      cloudRunJob: "crawl-lozenets",
+      cloudRunExecution: "crawl-lozenets-recovery",
+      cloudRunTaskIndex: "0",
+      cloudRunTaskAttempt: "0",
+    };
+    expect(logs.filter((entry) => entry.severity === "WARNING")).toEqual([
+      expect.objectContaining({
+        severity: "WARNING",
+        message: "RSS feed retry scheduled",
+        ...retryContext,
+      }),
+    ]);
+    expect(logs).toContainEqual(expect.objectContaining({
+      severity: "INFO",
+      message: "RSS feed recovered after retry",
+      ...recoveryContext,
+    }));
+    expect(logs).toContainEqual(expect.objectContaining({
+      message: "Crawl complete",
+      saved: 0,
+      skipped: 1,
+      failed: 0,
+      cloudRunTaskAttempt: "0",
+    }));
+    expect(logs.some((entry) => entry.severity === "ERROR")).toBe(false);
+    expect(mocks.addBreadcrumb.mock.calls).toEqual([
+      [expect.objectContaining({
+        category: "source.rss",
+        level: "warning",
+        message: "RSS feed retry scheduled",
+        data: expect.objectContaining(retryContext),
+      })],
+      [expect.objectContaining({
+        category: "source.rss",
+        level: "info",
+        message: "RSS feed recovered after retry",
+        data: expect.objectContaining(recoveryContext),
+      })],
+    ]);
+    expect(mocks.captureException).not.toHaveBeenCalled();
+    expect(mocks.captureMessage).not.toHaveBeenCalled();
+    expect(mocks.setExtra).not.toHaveBeenCalled();
+    expect(store.records.get(historicalId)).toBe(historical);
+    expect(store.client.createOne).not.toHaveBeenCalled();
+    expect(launch).not.toHaveBeenCalled();
+    expect(process.exit).toHaveBeenCalledExactlyOnceWith(0);
+    expect(mocks.flush).toHaveBeenCalledExactlyOnceWith(5000);
+  });
+
   it("retains the fetch cause through the CLI and correlates a recovered scheduler attempt", async () => {
     const store = createSourceStore();
     mocks.getDb.mockResolvedValue(store.db);
-    const launch = vi.spyOn(chromium, "launch").mockRejectedValue(
+    const launch = vi.spyOn(lozenetsChromium, "launch").mockRejectedValue(
       new Error("An empty feed must not launch a browser"),
     );
     const privateUrl = "https://reader:password@lozenets.sofia.bg/feed/?token=private#fragment";
@@ -110,6 +229,7 @@ describe("published RSS source failure diagnostics", () => {
     });
     const failure = new TypeError("fetch failed", { cause });
     const fetchMock = vi.fn<typeof fetch>()
+      .mockRejectedValueOnce(failure)
       .mockRejectedValueOnce(failure)
       .mockResolvedValueOnce(new Response("<rss><channel></channel></rss>"));
     vi.stubGlobal("fetch", fetchMock);
@@ -123,7 +243,6 @@ describe("published RSS source failure diagnostics", () => {
     if (!program) {
       throw new Error("The crawl command was not created");
     }
-
     await program.parseAsync(["node", "crawl", "--source", "lozenets-sofia-bg"]);
 
     const logs = output.map((line) => {
@@ -138,11 +257,15 @@ describe("published RSS source failure diagnostics", () => {
       cloudRunTaskIndex: "0",
       cloudRunTaskAttempt: "0",
       error: expect.objectContaining({
-        name: "TypeError",
-        message: "fetch failed",
+        name: "RssFeedFetchError",
+        message: expect.stringContaining(lozenetsFeedUrl),
         cause: expect.objectContaining({
-          code: "ECONNRESET",
-          message: "connection reset for https://lozenets.sofia.bg/feed/",
+          name: "TypeError",
+          message: "fetch failed",
+          cause: expect.objectContaining({
+            code: "ECONNRESET",
+            message: "connection reset for https://lozenets.sofia.bg/feed/",
+          }),
         }),
       }),
     }));
@@ -151,10 +274,15 @@ describe("published RSS source failure diagnostics", () => {
     expect(captured).toBeInstanceOf(Error);
     expect(captured).not.toBe(failure);
     expect(captured).toMatchObject({
-      name: "TypeError",
-      message: "fetch failed",
-      cause: expect.objectContaining({ code: "ECONNRESET" }),
+      name: "RssFeedFetchError",
+      cause: expect.objectContaining({
+        name: "TypeError",
+        message: "fetch failed",
+        cause: expect.objectContaining({ code: "ECONNRESET" }),
+      }),
     });
+    expect(captured.message).toContain(lozenetsFeedUrl);
+    expect(captured.message).toContain("after 2 attempts");
     expect(captured.cause).toBeInstanceOf(Error);
     expect(mocks.setExtra).toHaveBeenCalledWith("sourceType", "lozenets-sofia-bg");
     expect(mocks.setExtra).toHaveBeenCalledWith("cloudRunExecution", "crawl-lozenets-recovery");
@@ -190,7 +318,7 @@ describe("published RSS source failure diagnostics", () => {
     expect(mocks.captureException).toHaveBeenCalledOnce();
     expect(mocks.captureMessage).not.toHaveBeenCalled();
     expect(mocks.flush).toHaveBeenCalledTimes(2);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock).toHaveBeenNthCalledWith(1,
       "https://lozenets.sofia.bg/category/%d0%bd%d0%be%d0%b2%d0%b8%d0%bd%d0%b8/feed/",
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
