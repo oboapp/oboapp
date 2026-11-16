@@ -9,9 +9,11 @@ const mocks = vi.hoisted(() => ({
   setTag: vi.fn(),
   captureException: vi.fn(),
   captureMessage: vi.fn(),
+  addBreadcrumb: vi.fn(),
   setErrorReporter: vi.fn(),
   getCloudRunContext: vi.fn(),
   warn: vi.fn(),
+  info: vi.fn(),
 }));
 
 vi.mock("@sentry/node", () => ({
@@ -20,6 +22,7 @@ vi.mock("@sentry/node", () => ({
   flush: mocks.flush,
   captureException: mocks.captureException,
   captureMessage: mocks.captureMessage,
+  addBreadcrumb: mocks.addBreadcrumb,
   withScope: (callback: (scope: {
     setExtra: typeof mocks.setExtra;
     setLevel: typeof mocks.setLevel;
@@ -36,10 +39,10 @@ vi.mock("@sentry/node", () => ({
 vi.mock("@/lib/logger", () => ({
   setErrorReporter: mocks.setErrorReporter,
   getCloudRunContext: mocks.getCloudRunContext,
-  logger: { warn: mocks.warn },
+  logger: { warn: mocks.warn, info: mocks.info },
 }));
 
-import { flushSentry, initSentry, reportSourceWarning } from "./sentry";
+import { flushSentry, initSentry, reportSourceBreadcrumb, reportSourceWarning } from "./sentry";
 
 function getReporter(): (message: string, extra?: Record<string, unknown>) => void {
   return mocks.setErrorReporter.mock.calls[0][0];
@@ -244,5 +247,85 @@ describe("ingest Sentry reporting", () => {
     await flushSentry();
 
     expect(mocks.flush).toHaveBeenCalledWith(5000);
+  });
+
+  it.each(["warning", "info"] as const)("records sanitized flat %s breadcrumbs with scheduler context", (level) => {
+    const privateUrl = "https://reader:password@provider.example/feed/?token=private#fragment";
+    mocks.getCloudRunContext.mockReturnValue({
+      cloudRunJob: "crawl-lozenets",
+      cloudRunExecution: "crawl-lozenets-recovery",
+      cloudRunTaskIndex: "0",
+      cloudRunTaskAttempt: "1",
+    });
+
+    reportSourceBreadcrumb(`Feed event for ${privateUrl}`, {
+      sourceType: "lozenets-sofia-bg",
+      diagnosticCode: "rss-feed-retry",
+      feedUrl: privateUrl,
+      pagination: "paged=2",
+      feedAttempt: 1,
+      nextFeedAttempt: 2,
+      retryDelayMs: 2_000,
+      retryReason: "network",
+      networkCode: "ECONNRESET",
+    }, level);
+
+    expect(level === "warning" ? mocks.warn : mocks.info).toHaveBeenCalledOnce();
+    expect(mocks.addBreadcrumb).toHaveBeenCalledExactlyOnceWith({
+      category: "source.rss",
+      level,
+      message: "Feed event for https://provider.example/feed/",
+      data: {
+        sourceType: "lozenets-sofia-bg",
+        diagnosticCode: "rss-feed-retry",
+        feedUrl: "https://provider.example/feed/",
+        pagination: "paged=2",
+        feedAttempt: 1,
+        nextFeedAttempt: 2,
+        retryDelayMs: 2_000,
+        retryReason: "network",
+        networkCode: "ECONNRESET",
+        cloudRunJob: "crawl-lozenets",
+        cloudRunExecution: "crawl-lozenets-recovery",
+        cloudRunTaskIndex: "0",
+        cloudRunTaskAttempt: "1",
+      },
+    });
+    expect(mocks.captureException).not.toHaveBeenCalled();
+    expect(mocks.captureMessage).not.toHaveBeenCalled();
+    expect(mocks.setExtra).not.toHaveBeenCalled();
+  });
+
+  it("keeps retry logs available before Sentry is initialized", () => {
+    mocks.isInitialized.mockReturnValue(false);
+
+    reportSourceBreadcrumb("RSS feed retry scheduled", {
+      sourceType: "lozenets-sofia-bg",
+      diagnosticCode: "rss-feed-retry",
+      feedAttempt: 1,
+    }, "warning");
+
+    expect(mocks.warn).toHaveBeenCalledOnce();
+    expect(mocks.addBreadcrumb).not.toHaveBeenCalled();
+    expect(mocks.captureException).not.toHaveBeenCalled();
+    expect(mocks.captureMessage).not.toHaveBeenCalled();
+  });
+
+  it("keeps feed recovery running when adding a breadcrumb fails", () => {
+    mocks.addBreadcrumb.mockImplementationOnce(() => {
+      throw new Error("Telemetry unavailable");
+    });
+
+    expect(() => {
+      reportSourceBreadcrumb("RSS feed recovered after retry", {
+        sourceType: "lozenets-sofia-bg",
+        diagnosticCode: "rss-feed-recovered",
+        feedAttempts: 2,
+      }, "info");
+    }).not.toThrow();
+
+    expect(mocks.info).toHaveBeenCalledOnce();
+    expect(mocks.captureException).not.toHaveBeenCalled();
+    expect(mocks.captureMessage).not.toHaveBeenCalled();
   });
 });

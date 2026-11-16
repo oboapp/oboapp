@@ -35,6 +35,8 @@ The `crawl` and `pipeline` commands share a [runtime registry](sources/registry.
 
 The production build clears `dist` and compiles selected source entrypoints and their imports alongside common application code. The image omits the raw crawler source tree. Docker prepares separate production manifests and matching lockfile importer entries, then installs selected provider dependencies into a fresh layer with a frozen production install. Source-package browser checks follow those selected packages and their declared Playwright dependencies. The builder still installs the full development workspace. See the [production dependency guidance](../docs/features/source-packages.md#preparing-production-dependencies) for the staging process and remaining verification work.
 
+Lozenets pins `@oboapp/source-lozenets-sofia-bg@0.2.0` for bounded RSS retries and safe feed diagnostics. Its adapter records retry and recovery events in contextual logs and Sentry breadcrumbs. See the [Lozenets package notes](../docs/features/source-packages.md#lozenets) for timing, historical compatibility and production verification.
+
 ## Components
 
 - **[crawlers/](crawlers/README.md)** - Automated scrapers that fetch raw data from external sources
