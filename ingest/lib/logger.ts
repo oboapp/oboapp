@@ -34,7 +34,7 @@ interface LogEntry {
   [key: string]: unknown;
 }
 
-function getCloudRunContext(): Record<string, string> {
+export function getCloudRunContext(): Record<string, string> {
   const context: Record<string, string> = {};
   const fields = {
     cloudRunJob: "CLOUD_RUN_JOB",

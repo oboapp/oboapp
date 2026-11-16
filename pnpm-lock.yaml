@@ -179,8 +179,8 @@ importers:
         specifier: 0.1.0
         version: 0.1.0
       '@oboapp/source-rayon-oborishte-bg':
-        specifier: 0.1.0
-        version: 0.1.0
+        specifier: 0.1.1
+        version: 0.1.1
       '@oboapp/source-so-slatina-org':
         specifier: 0.1.0
         version: 0.1.0
@@ -2445,9 +2445,9 @@ packages:
     resolution: {integrity: sha512-p+epzjIjKAkVNj897zBBM97SaU+B+YCW/pfupYwxoVF+Wp3PdbN6Tlyfe8uhdpU5eVa+UVDSjih9bfDRR03UiA==}
     engines: {node: '>=20.3'}
 
-  '@oboapp/source-rayon-oborishte-bg@0.1.0':
-    resolution: {integrity: sha512-lRzFHzpD6eWU7TfPfp+6BfKU+oOn0sUESxaUSDHY+aTScgrHKA1A0kbUfBcRYD8qJXM9ricMLqfxDGHdnXs99A==}
-    engines: {node: '>=20'}
+  '@oboapp/source-rayon-oborishte-bg@0.1.1':
+    resolution: {integrity: sha512-tjh/lvRJWY70vjLNBbPrAIAhf8/I1t9IodQFc5iQ6Zs1Lv+WPC5V0ECSKUXUN1+h4vi5d0w+AIUDpH1VygyAFA==}
+    engines: {node: '>=20.3'}
 
   '@oboapp/source-so-slatina-org@0.1.0':
     resolution: {integrity: sha512-b8EyGZ1LeuHNbPPwa5O+vleojMWwL7qkro+ak1XVEsiBn9nw09YsNF2QnWpRKqXAQh4MlJcHWyYSBM5RhN/duw==}
@@ -2495,6 +2495,10 @@ packages:
 
   '@oboapp/source-web-utils@0.3.1':
     resolution: {integrity: sha512-JFnAiw2cp+hYbTC0UShe1c2xjctL8nJAO3cSIn40GS3VZppJaWrjwBrnCtwEGaEPDNNi6e2hhllC9l/b3dD6dg==}
+    engines: {node: '>=20.3'}
+
+  '@oboapp/source-web-utils@0.4.0':
+    resolution: {integrity: sha512-KK+FJsRp6SEKlZAK8Ks1RBAnqvMC8WYatl9x+TFwHSqdlfX7p89UaRKlpsYJH2SMB7mO+y8QLwC/QXrnI1+1wg==}
     engines: {node: '>=20.3'}
 
   '@open-draft/deferred-promise@2.2.0':
@@ -13201,9 +13205,10 @@ snapshots:
       '@oboapp/source-sdk': 0.1.1
       '@oboapp/source-web-utils': 0.2.0
 
-  '@oboapp/source-rayon-oborishte-bg@0.1.0':
+  '@oboapp/source-rayon-oborishte-bg@0.1.1':
     dependencies:
       '@oboapp/source-sdk': 0.1.1
+      '@oboapp/source-web-utils': 0.4.0
       html-entities: 2.6.0
       playwright: 1.61.1
       turndown: 7.2.2
@@ -13266,6 +13271,13 @@ snapshots:
       turndown: 7.2.2
 
   '@oboapp/source-web-utils@0.3.1':
+    dependencies:
+      '@oboapp/source-sdk': 0.1.1
+      html-entities: 2.6.0
+      playwright: 1.61.1
+      turndown: 7.2.2
+
+  '@oboapp/source-web-utils@0.4.0':
     dependencies:
       '@oboapp/source-sdk': 0.1.1
       html-entities: 2.6.0
