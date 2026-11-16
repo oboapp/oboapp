@@ -18,7 +18,7 @@
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
-    "@sentry/cli": "^3.3.5",
+    "@sentry/cli": "^3.8.2",
     "@types/node": "^20",
     "eslint": "^9.18.0",
     "eslint-plugin-sonarjs": "^4.0.3",
@@ -30,13 +30,17 @@
     "vitest": "^4.0.15"
   },
   "optionalDependencies": {
-    "lightningcss-darwin-arm64": "^1.31.1"
+    "lightningcss-darwin-arm64": "^1.33.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild"
     ],
     "overrides": {
+      "msw": "2.12.10",
+      "playwright": "1.61.1",
+      "react": "19.3.1",
+      "react-dom": "19.3.1",
       "@xmldom/xmldom": "^0.9.10",
       "@ungap/structured-clone": "^1.3.1",
       "basic-ftp": "^5.2.1"
