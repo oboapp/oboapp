@@ -40,7 +40,16 @@ Each migration preserves provider-specific URL filtering, date fallback, content
 
 Toplo illustrates synthetic identifiers: raw-record URLs identify incidents, while empty public detail links prevent navigation to invented detail pages. Its restricted compatibility profile preserves historical empty titles and malformed publication-date strings while validating content and geometry. Its preview validates candidates without database initialization; preview counts describe items that would be saved.
 
-NIMH uses `@oboapp/source-nimh-severe-weather@0.1.0` with SDK 0.2.0. Discovery keeps complete warning data in the source instance, and fetching returns that cached content for the historical synthetic identifier. The package preserves browser-serialized warning hashes, city-wide scope, empty GeoJSON and fixed `+02:00` forecast timespans. The adapter fails the job when every new warning fails to process. Warning-free scans succeed. Provider parsing tests live in the sources repository; Obo tests the published package through persistence and ingestion.
+NIMH uses `@oboapp/source-nimh-severe-weather@0.1.1` with SDK 0.2.0. Chromium
+waits for `domcontentloaded` before reading the server-rendered warning text and
+tables, so discovery can finish while background requests remain active.
+Discovery keeps complete warning data in the source instance, and fetching
+returns that cached content for the historical synthetic identifier. The package
+preserves browser-serialized warning hashes, city-wide scope, empty GeoJSON and
+fixed `+02:00` forecast timespans. The adapter fails the job when every new
+warning fails to process. Warning-free scans succeed. Provider parsing tests live
+in the sources repository; Obo tests the published package through persistence
+and ingestion.
 
 ## Instance selection and deployment
 

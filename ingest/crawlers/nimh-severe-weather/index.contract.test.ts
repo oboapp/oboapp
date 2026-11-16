@@ -2,6 +2,7 @@
 
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import type { Page } from "playwright";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { metadata } from "@oboapp/source-nimh-severe-weather/metadata";
 import sourceDefinition from "../../../shared/src/sources/nimh-severe-weather";
@@ -153,11 +154,35 @@ describe("published NIMH package to ingestion", () => {
     expect((await ingest({ sourceType: metadata.id })).total).toBe(0);
     expect(messageIngest).toHaveBeenCalledOnce();
     expect(browser.page.goto.mock.calls).toEqual([
-      [metadata.url, { waitUntil: "networkidle", timeout: 30_000 }],
-      [metadata.url, { waitUntil: "networkidle", timeout: 30_000 }],
+      [metadata.url, { waitUntil: "domcontentloaded", timeout: 30_000 }],
+      [metadata.url, { waitUntil: "domcontentloaded", timeout: 30_000 }],
     ]);
     expect(chromium.launch).toHaveBeenCalledTimes(2);
     expect(browser.browser.close).toHaveBeenCalledTimes(2);
+  });
+
+  it("ingests available warning content while background traffic stays active", async () => {
+    browser.page.goto.mockImplementation(async (...args: Parameters<Page["goto"]>) => {
+      if (args[1]?.waitUntil === "networkidle") {
+        throw new Error("Background requests prevented networkidle");
+      }
+      return null;
+    });
+
+    await crawl();
+
+    expect(store.records.get(entityId)).toEqual(expectedRaw(entityWarning));
+    expect(await ingest({ sourceType: metadata.id })).toMatchObject({
+      total: 1,
+      ingested: 1,
+      failed: 0,
+    });
+    expect(messageIngest).toHaveBeenCalledWith(entityWarning.content.message, metadata.id, expect.objectContaining({
+      sourceDocumentId: entityId,
+      sourceUrl: entityWarning.identifier,
+      cityWide: true,
+    }));
+    expect(browser.browser.close).toHaveBeenCalledOnce();
   });
 
   it("keeps the previous wind warning URL, text and fixed +02:00 autumn timespan", async () => {
