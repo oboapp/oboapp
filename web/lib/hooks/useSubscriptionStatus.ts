@@ -102,39 +102,43 @@ export interface SubscriptionStatus {
  * Handles Firebase messaging setup, permission checks, and backend verification
  */
 export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
+  const [statusUser, setStatusUser] = useState(user);
   const [isCurrentDeviceSubscribed, setIsCurrentDeviceSubscribed] =
-    useState(true);
+    useState(Boolean(user));
   const [hasAnySubscriptions, setHasAnySubscriptions] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(Boolean(user));
   const [hasStatusCheckError, setHasStatusCheckError] = useState(false);
   const previousUserIdRef = useRef<string | null>(null);
   const requestIdRef = useRef(0);
   const reportedNonOkStatusCodesRef = useRef(new Set<number>());
   const hasKnownStatusRef = useRef(false);
 
-  const checkStatus = useCallback(async () => {
+  if (statusUser !== user) {
+    setStatusUser(user);
+    setIsLoading(Boolean(user));
+    setHasStatusCheckError(false);
+
+    if (!user || (statusUser !== null && statusUser.uid !== user.uid)) {
+      setIsCurrentDeviceSubscribed(false);
+      setHasAnySubscriptions(false);
+    }
+  }
+
+  const fetchStatus = useCallback(() => {
     const requestId = ++requestIdRef.current;
 
     if (!user) {
-      setIsCurrentDeviceSubscribed(false);
-      setHasAnySubscriptions(false);
-      setHasStatusCheckError(false);
-      setIsLoading(false);
       previousUserIdRef.current = null;
       reportedNonOkStatusCodesRef.current.clear();
       hasKnownStatusRef.current = false;
-      return;
+      return Promise.resolve();
     }
 
     if (
       previousUserIdRef.current !== null &&
       previousUserIdRef.current !== user.uid
     ) {
-      // Reset cached state on account switch so transient failures cannot keep
-      // the previous account's last-known subscription status.
-      setIsCurrentDeviceSubscribed(false);
-      setHasAnySubscriptions(false);
-      setHasStatusCheckError(false);
+      // A different account must not reuse the previous account's cached status.
       reportedNonOkStatusCodesRef.current.clear();
       hasKnownStatusRef.current = false;
     }
@@ -142,84 +146,95 @@ export function useSubscriptionStatus(user: User | null): SubscriptionStatus {
     const activeUserId = user.uid;
 
     const isStaleRequest = (): boolean =>
-      requestId !== requestIdRef.current || previousUserIdRef.current !== activeUserId;
+      requestId !== requestIdRef.current ||
+      previousUserIdRef.current !== activeUserId;
 
-    try {
-      setIsLoading(true);
-      setHasStatusCheckError(false);
+    return resolveCurrentDeviceToken(isStaleRequest)
+      .then(async (currentToken) => {
+        if (!currentToken) {
+          setIsCurrentDeviceSubscribed(false);
+          setHasAnySubscriptions(false);
+          hasKnownStatusRef.current = true;
+          return;
+        }
 
-      const currentToken = await resolveCurrentDeviceToken(isStaleRequest);
-      if (!currentToken) {
-        setIsCurrentDeviceSubscribed(false);
-        setHasAnySubscriptions(false);
-        hasKnownStatusRef.current = true;
-        return;
-      }
-
-      // Check if this token is in the backend
-      throwIfStale(isStaleRequest);
-      const response = await fetchWithAuth(
-        user,
-        "/api/notifications/subscription/all",
-      );
-      throwIfStale(isStaleRequest);
-
-      if (!response.ok) {
+        // Check if this token is in the backend
         throwIfStale(isStaleRequest);
+        const response = await fetchWithAuth(
+          user,
+          "/api/notifications/subscription/all",
+        );
+        throwIfStale(isStaleRequest);
+
+        if (!response.ok) {
+          throwIfStale(isStaleRequest);
+          if (!hasKnownStatusRef.current) {
+            setIsCurrentDeviceSubscribed(false);
+            setHasAnySubscriptions(false);
+          }
+          setHasStatusCheckError(true);
+          captureStatusCheckWarning(
+            new Error(
+              `Subscription status check failed with status ${response.status}`,
+            ),
+            "non_ok_response",
+            reportedNonOkStatusCodesRef.current,
+            { statusCode: response.status },
+          );
+          return;
+        }
+
+        const subscriptions = await response.json();
+        throwIfStale(isStaleRequest);
+        const hasCurrentDevice =
+          Array.isArray(subscriptions) &&
+          subscriptions.some((sub) => sub.token === currentToken);
+
+        setIsCurrentDeviceSubscribed(hasCurrentDevice);
+        setHasAnySubscriptions(
+          Array.isArray(subscriptions) && subscriptions.length > 0,
+        );
+        hasKnownStatusRef.current = true;
+      })
+      .catch((err) => {
+        if (isStaleStatusCheckError(err) || isStaleRequest()) {
+          return;
+        }
+        // Preserve the last known status during transient auth/network/backend failures.
         if (!hasKnownStatusRef.current) {
           setIsCurrentDeviceSubscribed(false);
           setHasAnySubscriptions(false);
         }
         setHasStatusCheckError(true);
         captureStatusCheckWarning(
-          new Error(
-            `Subscription status check failed with status ${response.status}`,
-          ),
-          "non_ok_response",
+          err,
+          "exception",
           reportedNonOkStatusCodesRef.current,
-          { statusCode: response.status },
         );
-        return;
-      }
-
-      const subscriptions = await response.json();
-      throwIfStale(isStaleRequest);
-      const hasCurrentDevice =
-        Array.isArray(subscriptions) &&
-        subscriptions.some((sub) => sub.token === currentToken);
-
-      setIsCurrentDeviceSubscribed(hasCurrentDevice);
-      setHasAnySubscriptions(
-        Array.isArray(subscriptions) && subscriptions.length > 0,
-      );
-      hasKnownStatusRef.current = true;
-    } catch (err) {
-      if (isStaleStatusCheckError(err) || isStaleRequest()) {
-        return;
-      }
-      // Preserve the last known status to avoid false "not subscribed" messages
-      // when there are transient auth/network/backend failures.
-      if (!hasKnownStatusRef.current) {
-        setIsCurrentDeviceSubscribed(false);
-        setHasAnySubscriptions(false);
-      }
-      setHasStatusCheckError(true);
-      captureStatusCheckWarning(
-        err,
-        "exception",
-        reportedNonOkStatusCodesRef.current,
-      );
-    } finally {
-      if (!isStaleRequest()) {
-        setIsLoading(false);
-      }
-    }
+      })
+      .finally(() => {
+        if (!isStaleRequest()) {
+          setIsLoading(false);
+        }
+      });
   }, [user]);
+
+  const checkStatus = useCallback(async () => {
+    setIsLoading(Boolean(user));
+    setHasStatusCheckError(false);
+
+    if (!user) {
+      setIsCurrentDeviceSubscribed(false);
+      setHasAnySubscriptions(false);
+    }
+
+    await fetchStatus();
+  }, [user, fetchStatus]);
 
   // Check status on mount and when user changes
   useEffect(() => {
-    void checkStatus();
-  }, [checkStatus]);
+    void fetchStatus();
+  }, [fetchStatus]);
 
   return {
     isCurrentDeviceSubscribed,

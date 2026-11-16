@@ -69,6 +69,68 @@ describe("useSubscriptionStatus", () => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
+
+  it("does not check messaging while signed out and starts loading on login", async () => {
+    const user = { uid: "user-1" } as User;
+    const { result, rerender } = renderHook(
+      ({ currentUser }) => useSubscriptionStatus(currentUser),
+      { initialProps: { currentUser: null as User | null } },
+    );
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isCurrentDeviceSubscribed).toBe(false);
+    expect(result.current.hasAnySubscriptions).toBe(false);
+    expect(isMessagingSupportedMock).not.toHaveBeenCalled();
+
+    rerender({ currentUser: user });
+
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.hasStatusCheckError).toBe(false);
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isCurrentDeviceSubscribed).toBe(true);
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the previous account status while a new account check is pending", async () => {
+    const firstUser = { uid: "user-1" } as User;
+    const secondUser = { uid: "user-2" } as User;
+    const supported = createDeferred<boolean>();
+    const { result, rerender } = renderHook(
+      ({ user }) => useSubscriptionStatus(user),
+      { initialProps: { user: firstUser } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+    expect(result.current.isCurrentDeviceSubscribed).toBe(true);
+
+    isMessagingSupportedMock.mockReturnValueOnce(supported.promise);
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(JSON.stringify([{ token: "token-1" }]), { status: 200 }),
+    );
+    rerender({ user: secondUser });
+
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isCurrentDeviceSubscribed).toBe(false);
+    expect(result.current.hasAnySubscriptions).toBe(false);
+    expect(result.current.hasStatusCheckError).toBe(false);
+
+    await act(async () => {
+      supported.resolve(true);
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+    expect(result.current.isCurrentDeviceSubscribed).toBe(true);
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps last known subscription status when backend check fails", async () => {
     const user = { uid: "user-1" } as User;
     const { result } = renderHook(() => useSubscriptionStatus(user));
@@ -93,6 +155,39 @@ describe("useSubscriptionStatus", () => {
     expect(result.current.hasAnySubscriptions).toBe(true);
     expect(result.current.hasStatusCheckError).toBe(true);
     expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the known status visible while a manual check is pending", async () => {
+    const user = { uid: "user-1" } as User;
+    const token = createDeferred<string | null>();
+    const { result } = renderHook(() => useSubscriptionStatus(user));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    getTokenMock.mockReturnValueOnce(token.promise);
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(JSON.stringify([{ token: "token-1" }]), { status: 200 }),
+    );
+
+    let check!: Promise<void>;
+    act(() => {
+      check = result.current.checkStatus();
+    });
+
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isCurrentDeviceSubscribed).toBe(true);
+    expect(result.current.hasAnySubscriptions).toBe(true);
+    expect(result.current.hasStatusCheckError).toBe(false);
+
+    await act(async () => {
+      token.resolve("token-1");
+      await check;
+    });
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isCurrentDeviceSubscribed).toBe(true);
   });
 
   it("sets unsubscribed state when initial backend check fails", async () => {
