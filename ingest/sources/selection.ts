@@ -114,6 +114,11 @@ function validatePackages(
     }
     validatePackageMetadata(source, selected, errors);
   }
+  for (const id of catalog.keys()) {
+    if (!packagedIds.has(id)) {
+      errors.push(`Catalog source ${id} has no source package dependency`);
+    }
+  }
 }
 
 function validateLocalityJobs(
