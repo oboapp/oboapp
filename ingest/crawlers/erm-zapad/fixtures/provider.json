@@ -1,0 +1,68 @@
+{
+  "municipalities": [
+    { "code": "SOF1", "name": "ПЪРВИ РАЙОН" },
+    { "code": "SOF2", "name": "ВТОРИ РАЙОН" }
+  ],
+  "responses": {
+    "SOF1": {
+      "first": {
+        "ceo": "SF_0009",
+        "typedist": "планирано",
+        "type_event": "1",
+        "city_name": "София",
+        "grid_id": "",
+        "cities": "София",
+        "begin_event": "04.10.2026 10:00",
+        "end_event": "04.10.2026 12:00",
+        "lat": "42.700932123456789",
+        "lon": "23.323421987654321",
+        "points": {
+          "cnt": "2",
+          "1": { "lat": "42.8", "lon": "23.4" },
+          "2": { "lat": "42.9", "lon": "23.5" }
+        }
+      },
+      "grouped": {
+        "ceo": "SF_0010",
+        "typedist": "непланирано",
+        "type_event": "2",
+        "city_name": "жк.МЛАДОСТ",
+        "grid_id": "GRID",
+        "cities": "София, Младост",
+        "begin_event": "04.10.2026 09:00",
+        "end_event": "04.10.2026 11:00",
+        "lat": "42.65",
+        "lon": "23.38",
+        "points": { "cnt": "0" }
+      }
+    },
+    "SOF2": {
+      "lower": {
+        "ceo": "SF_0001",
+        "typedist": "планирано",
+        "type_event": "1",
+        "city_name": "София",
+        "grid_id": "",
+        "cities": "София",
+        "begin_event": "04.10.2026 10:00",
+        "end_event": "04.10.2026 12:00",
+        "lat": "42.700932123456789",
+        "lon": "23.323421987654321",
+        "points": { "cnt": "0" }
+      },
+      "secondPoint": {
+        "ceo": "SF_0010",
+        "typedist": "непланирано",
+        "type_event": "2",
+        "city_name": "жк.МЛАДОСТ",
+        "grid_id": "GRID",
+        "cities": "София, Младост",
+        "begin_event": "04.10.2026 09:00",
+        "end_event": "04.10.2026 11:00",
+        "lat": "42.66",
+        "lon": "23.39",
+        "points": { "cnt": "0" }
+      }
+    }
+  }
+}

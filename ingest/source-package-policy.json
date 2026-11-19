@@ -1,5 +1,6 @@
 {
   "retainedUnselectedPackages": [
+    "@oboapp/source-erm-zapad",
     "@oboapp/source-inspectorat-so-org",
     "@oboapp/source-lozenets-sofia-bg",
     "@oboapp/source-mladost-bg",
