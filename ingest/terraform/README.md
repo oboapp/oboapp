@@ -234,7 +234,7 @@ terraform apply
 
 **Adding source jobs**: Add an entry to the relevant locality's JSON file, such as `source-jobs.bg.sofia.json`. `crawlers.tf` discovers these files, reads the selected localities with `jsondecode(file(...))`, and supplies the assembled `local.crawlers` map to the jobs and workflows.
 
-The upstream Sofia JSON selects the three demo sources: Sofia BG, Sofiyska Voda and sensor.community. `examples/source-jobs.bg.sofia.json` contains the full 23-source Sofia example and is outside the active file discovery. To configure a full Sofia instance, copy that example into the Terraform directory and keep only jobs selected by your `shared/src/sources.ts` catalog. Existing deployments should preserve their instance JSON on rebase so job keys and resource settings remain stable.
+The upstream Sofia JSON selects three demo sources, Sofia BG, Sofiyska Voda and Sensor.Community. `examples/source-jobs.bg.sofia.json` contains the full 23-source Sofia example and is outside the active file discovery. To configure a full Sofia instance, copy that example into the Terraform directory and keep only jobs selected by your `shared/src/sources.ts` catalog. Existing deployments should preserve their instance JSON on rebase so job keys and resource settings remain stable.
 
 ```json
 {
@@ -250,7 +250,7 @@ The upstream Sofia JSON selects the three demo sources: Sofia BG, Sofiyska Voda 
 
 The JSON key identifies the Cloud Run job: `toplo` produces `crawl-toplo`. Its `source` must match the instance catalog source ID and runtime entrypoint. Include `memory` and `timeout`; `description` is optional. Set `"emergent": true` for the 30-minute schedule; omitting it uses the regular schedule. Keep the matching source definition's `emergent` flag in sync with this value.
 
-Run `pnpm --dir ingest exec tsx scripts/check-source-config.ts` from the repository root after changing the catalog or job data. During the package migration, upstream explicitly retains inactive integration dependencies in `ingest/source-package-policy.json`. Remove a package from `retainedUnselectedPackages` when selecting its source. A full Sofia deployment that selects all thirteen package integrations can delete this policy or empty its list. See [new-locality setup](../../docs/setup/new-locality-instance.md) for rebase and selection guidance.
+Run `pnpm --dir ingest exec tsx scripts/check-source-config.ts` from the repository root after changing the catalog or job data. The demo retains 20 unselected integrations for development tests in `ingest/source-package-policy.json`. Remove a package from `retainedUnselectedPackages` when selecting its source. A deployment that selects every installed provider can delete this policy or empty its list. The Sofia fork retains Sensor.Community without scheduling its collection job. See [new-locality setup](../../docs/setup/new-locality-instance.md) for rebase and selection guidance.
 
 For a new locality, create `source-jobs.<locality-id>.json` and select that ID in `var.localities`. Job keys must be unique across selected locality files. The current deployment supports one selected locality because all jobs share the same execution context. A non-empty `var.crawlers` remains a full manual override for the assembled map.
 

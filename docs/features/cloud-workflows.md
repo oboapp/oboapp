@@ -19,19 +19,16 @@ The ingestion pipeline uses **Google Cloud Workflows** to orchestrate crawler ex
 ```mermaid
 flowchart TD
     schedule[Cloud Scheduler] --> workflow[Cloud Workflows]
-    workflow --> legacy[Parallel source jobs: legacy implementations]
-    workflow --> packaged[Parallel source jobs: package adapters and runner]
-    legacy --> raw[(Raw sources)]
-    packaged --> raw
-    legacy --> join[Wait for all source jobs, including failures]
-    packaged --> join
+    workflow --> packaged[Parallel selected source jobs]
+    packaged --> raw[(Raw sources)]
+    packaged --> join[Wait for all source jobs, including failures]
     join --> ingest[Ingest job]
     raw --> ingest
     ingest --> notify[Notify job]
     notify --> fcm[Firebase Cloud Messaging]
 ```
 
-During the [source-package transition](source-packages.md), each existing source job runs either a legacy crawler or an adapter to a published source package through Obo's runner. Both paths keep their job names and schedules. The transition guide tracks the current source inventory.
+Each job runs its selected source package through Obo's runner. The instance job configuration sets its name, schedule and resources. [Source package integration](source-packages.md)
 
 ### Two Workflow Types
 
@@ -55,7 +52,7 @@ For adapting schedules and locality configuration for a new city instance, see [
 
 ### Step 1: Parallel Crawler Execution
 
-Selected source jobs run at the same time. Each fetches data from an API or website and saves complete raw records through `@oboapp/db`. Legacy jobs use their existing helpers. Packaged sources use their npm packages to list items and convert provider content. Obo's runner skips known items and saves new ones. Within a packaged source job, the runner processes one item at a time.
+Selected source jobs run in parallel. Within each job, Obo's runner checks the identifiers supplied by the package, fetches new items one at a time and saves complete raw records through `@oboapp/db`.
 
 **Failure behavior**: Crawlers are wrapped in `try`/`except` blocks. If one fails, it logs an ERROR but doesn't stop other crawlers or the workflow.
 
@@ -259,9 +256,9 @@ terraform plan
 terraform apply
 ```
 
-## Adding New Crawlers
+## Adding a source
 
-Adding a new crawler requires updating both the crawler implementation and the Terraform workflow definitions. See [AGENTS.md](../../AGENTS.md) for detailed crawler development guidelines.
+Publish the provider package and pin its exact version in `ingest/package.json`. Add its Obo entrypoint and source definition, select it in `shared/src/sources.ts`, and add its job to `ingest/terraform/source-jobs.<locality>.json`. Terraform uses the locality job map to generate the workflows. [Source package integration](source-packages.md)
 
 ## Related Documentation
 
