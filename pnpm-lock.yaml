@@ -167,6 +167,9 @@ importers:
       '@oboapp/shared':
         specifier: workspace:*
         version: link:../shared
+      '@oboapp/source-inspectorat-so-org':
+        specifier: 0.1.0
+        version: 0.1.0
       '@oboapp/source-lozenets-sofia-bg':
         specifier: 0.2.0
         version: 0.2.0
@@ -2711,6 +2714,10 @@ packages:
   '@npmcli/fs@5.0.0':
     resolution: {integrity: sha512-7OsC1gNORBEawOa5+j2pXN9vsicaIOH5cPXxoR6fJOmH6/EXpJB2CajXOu1fPRFun2m1lktEFX11+P89hqO/og==}
     engines: {node: ^20.17.0 || >=22.9.0}
+
+  '@oboapp/source-inspectorat-so-org@0.1.0':
+    resolution: {integrity: sha512-4bZK50GTEihsuQRhn+69zSGDwaeVZRwFn0YJ/qHDH8MiUVZcaCC47yBrn6Aj/SduUduL1WUBxsiKAy0oacHHbg==}
+    engines: {node: '>=20.3'}
 
   '@oboapp/source-lozenets-sofia-bg@0.2.0':
     resolution: {integrity: sha512-6ym7LYYtlwtp50Z/qaM5NvNb+00+CHz3twI7OF/FHK3I/peoeYgz145EWPcSBxLyeP2qvYx0uM3trz+iCN/VSg==}
@@ -13742,6 +13749,11 @@ snapshots:
     dependencies:
       semver: 7.7.4
     optional: true
+
+  '@oboapp/source-inspectorat-so-org@0.1.0':
+    dependencies:
+      '@oboapp/source-sdk': 0.1.1
+      '@oboapp/source-web-utils': 0.4.0
 
   '@oboapp/source-lozenets-sofia-bg@0.2.0':
     dependencies:
