@@ -1,16 +1,16 @@
-# Source package migration
+# Source packages and Obo adapters
 
-Tracking: [#586](https://github.com/oboapp/oboapp/issues/586). Published collectors and their provider documentation live in [oboapp/sources](https://github.com/oboapp/sources).
+All 23 source integrations use published npm packages. To change how a provider discovers items or parses their content, edit its package in `oboapp/sources`. To connect a package to an Obo instance, use the adapter and catalog in this repository. [Provider packages](https://github.com/oboapp/sources/tree/main/packages) · [Obo adapter guide](../../ingest/crawlers/README.md)
 
-## Source packages
+## Package, adapter and runner
 
-Each collection job loads a selected package through an entrypoint in `ingest/crawlers/`. Packages supply identifiers and content. Obo owns the schedule, historical lookups, validation, create-only storage, ingestion and notifications. Raw records with precomputed GeoJSON keep their existing ingestion path.
+| Component | Responsibility |
+| --- | --- |
+| Provider package | Lists identifiers and returns the content for each item. Provider requests, parsing, fixtures and parsing tests belong with the package. |
+| Obo adapter | Exports `crawl` from `ingest/crawlers/<source-id>/index.ts` and connects the package factory to the runner. It supplies instance services when a provider needs them. For example, Sofia BG checks historical article titles and Sensor.Community reads stored measurements. [Sofia BG adapter](../../ingest/crawlers/sofia-bg/index.ts) · [Sensor.Community adapter](../../ingest/crawlers/sensor-community/index.ts) |
+| Obo runner | Supplies the configured locality, checks known identifiers, validates returned content and saves new raw records through `@oboapp/db`. Obo then processes those records for the map, API and notifications. [Source runner](../../ingest/sources/run-source.ts) |
 
-The upstream demo selects Sofia BG, Sofiyska Voda and Sensor.Community. Its development workspace retains 20 other provider packages for integration tests. The build discovers provider packages by the `@oboapp/source-*` naming convention. Each instance pins its provider versions in `ingest/package.json` and `pnpm-lock.yaml`. [Source migration tracker](https://github.com/oboapp/oboapp/issues/609) · [Deployment verification](https://github.com/oboapp/oboapp/issues/610)
-
-The Sofia production fork selects 22 packages and retains Sensor.Community for tests. Its final four production jobs switched to version `0.1.0`. Sofia BG, Sofia Capital of Sport and Krasna Polyana completed production scans. Serdika still needs reliable access to the district's feeds. The published archives for these four providers and Sensor.Community match the GitHub release archives byte for byte. [Fork rollout](https://github.com/vbuch/oboapp/pull/81) · [Serdika provider access](https://github.com/oboapp/oboapp/issues/711)
-
-The production build compiles selected source entrypoints and their imports alongside the common application code. It clears `dist` before compiling, so deselecting a source removes its previous output. The image uses compiled code and omits the raw crawler source tree. Docker prepares a separate production workspace that removes unselected provider dependencies before installing runtime packages.
+The upstream demo selects Sofia BG, Sofiyska Voda and Sensor.Community. Its development workspace retains the other 20 packages for integration tests. The Sofia production fork selects 22 sources and retains Sensor.Community for development. The selected catalog controls the CLI and build. The locality job file controls what Terraform deploys. [Instance catalog](../../shared/src/sources.ts) · [Sofia jobs](../../ingest/terraform/source-jobs.bg.sofia.json) · [Development retention policy](../../ingest/source-package-policy.json)
 
 ## Scheduled scan behavior
 
@@ -26,13 +26,13 @@ omitted field absent, and rejects other values before writing a raw record.
 Ingestion receives the stored scope alongside the source's validated GeoJSON,
 including an empty FeatureCollection for city-wide weather warnings.
 
-An individual lookup, fetch, validation or save failure is logged and counted while unrelated items continue. Listing failures and repeated pagination cursors fail the scan. The next scheduled run lists again and retries identifiers that are still missing. A provider can remove an item before a successful retry; this is an accepted recovery limit of the initial migration.
+An individual lookup, fetch, validation or save failure is logged and counted while unrelated items continue. Listing failures and repeated pagination cursors fail the scan. The next scheduled run lists again and retries identifiers that are still missing. A retry can recover an item while the provider still lists it.
 
 ## Collection patterns and compatibility
 
 Website packages can reuse Chromium for listing and detail requests. Full-content feeds and listing/API packages can reuse content already obtained during discovery. Discovery context must stay within the SDK's serializable payload limit; larger content can remain in the source instance until fetched.
 
-The last five adapters preserve the following provider contracts.
+The integration tests cover these provider contracts.
 
 | Source | Behavior covered by integration tests |
 | --- | --- |
@@ -67,13 +67,13 @@ Literal article URLs, RSS dates, article extraction, two-second detail pacing, s
 
 ## Instance selection and deployment
 
-Keep the selected catalog in `shared/src/sources.ts` aligned with `ingest/terraform/source-jobs.<locality>.json`. Job keys identify deployed resources, so preserve them when translating existing configuration. Terraform selects locality maps through `var.localities`. A non-empty `var.crawlers` is an explicit manual override outside the checked selection.
+Pin each provider to an exact version in `ingest/package.json` and commit `pnpm-lock.yaml`. The build recognizes `@oboapp/source-*` dependencies, excluding the SDK and web utilities. A selected source needs a package whose metadata matches its catalog definition. [Package discovery](../../ingest/sources/installed-packages.ts) · [Instance setup](../setup/new-locality-instance.md)
 
-The `crawl` and `pipeline` commands share a [runtime registry](../../ingest/sources/registry.ts) derived from the selected `SOURCES` array. Their help lists selected sources. `crawl --source <source-id>` rejects unselected IDs even when their directories exist. `pipeline --all` runs every selected source; `pipeline --emergent` runs selected sources whose definition has `emergent: true`. Implementations load only when their selected source runs, after environment configuration.
+Select sources in `shared/src/sources.ts` and configure the matching jobs in `ingest/terraform/source-jobs.<locality>.json`. Keep existing job keys when updating a deployment. Terraform loads these files for `var.localities`. A non-empty `var.crawlers` overrides the job files. The full Sofia template under `ingest/terraform/examples/` is an example.
 
-`ingest/source-package-policy.json` lists the unselected packages that the development workspace retains for integration tests. Retained packages still require isolated valid metadata, exact versions and unique source IDs. Unexpected unselected dependencies and stale policy entries fail validation. Remove a package's retention entry when selecting its source or removing its dependency. Each selected source must have a matching provider package. With an absent or empty policy, each installed provider must also be selected. Docker omits retained packages and their policy from both the builder installation and production workspace.
+The `crawl` and `pipeline` commands use the same runtime registry. Their help lists selected sources. `crawl --source <source-id>` rejects unselected IDs even if an adapter exists. `pipeline --all` runs every selected source. `pipeline --emergent` runs those marked `emergent: true`. The registry loads the selected adapter after environment setup. [Runtime registry](../../ingest/sources/registry.ts)
 
-The default Sofia job file matches the demo. The full Sofia template under `ingest/terraform/examples/` is inactive. Existing deployments must retain their own catalog and job selection when rebasing. See the [instance setup guide](../setup/new-locality-instance.md) for translating the full template and updating the retention policy before deployment.
+List each unselected provider kept for development in `ingest/source-package-policy.json`. Configuration validation rejects unlisted extra providers, stale entries, duplicate source IDs and missing selected packages. Remove a retention entry when selecting or uninstalling its provider. The Docker builder and runtime install only selected providers.
 
 Check configuration without provider or database access:
 
@@ -146,19 +146,18 @@ On 19 November 2026, Cloud Build built the two-source fixture from fork revision
 
 The jobs ran the source runner in database-free preview mode against the live providers. Execution `proof586-triaditsa-c617-plhkm` validated 20 notices. Execution `proof586-voda-c617-mk7rg` validated four. Both completed with zero item failures. [Deployment tracker](https://github.com/oboapp/oboapp/issues/610)
 
-## Moving a source
+## Updating a provider
 
-1. Capture contracts for literal identifiers, historical lookups, content, dates, locality and scheduling. Include fixes already deployed by an instance.
-2. Review the independent package, then follow its release procedure to publish it and verify the registry archive. Preserve provider parsing tests and source-mapped coverage in the sources repository.
-3. Install the exact version with `pnpm --dir ingest add --save-exact <package>@<version>`. Connect the existing command entrypoint to Obo's runner, remove the replaced provider code, and update selection or retention configuration.
-4. Test the actual package through raw persistence and ingestion. Cover historical skips, repeated scans, failed-item continuation, later retry and session cleanup. Run the repository's required quality checks and inspect the actual Sonar quality gate.
-5. Deploy using the existing job identity. Inspect saved/skipped/failed totals, verify complete raw records reach ingestion, and confirm a later scan skips known identifiers. Record deployment evidence in the migration issue.
+1. Change discovery, parsing and provider fixtures in `oboapp/sources`. Keep literal identifiers and supported metadata compatible with existing records. Publish the tested package and verify its registry archive. [Release procedure](https://github.com/oboapp/sources/blob/main/RELEASING.md)
+2. Pin the release with `pnpm --dir ingest add --save-exact <package>@<version>`. If the package needs new Obo services, update its adapter. For a new selection, update the catalog, job file and retention policy as described above.
+3. Test the installed package through the adapter, raw record persistence and ingestion. Cover historical skips, retries and cleanup when changing those behaviors. Run the source configuration check before deploying. [Adapter guide](../../ingest/crawlers/README.md)
+4. Deploy under the existing job identity for an update. Review saved, skipped and failed totals against the provider's eligible items. Check that a later scan recognizes saved identifiers. To roll back, deploy the previous image.
 
-With the normal ingest environment configured, `pnpm --dir ingest crawl --source <source-id>` runs a scan and saves new records. A successful empty listing alone does not establish provider health; compare the result with the provider's current eligible items.
-
-To roll back, revert the source integration and deploy the previous image. Existing raw records remain compatible. Preserve the instance catalog and deployment job selection during rollback.
+With the ingest environment configured, `pnpm --dir ingest crawl --source <source-id>` runs the selected adapter and saves new records.
 
 ## Production follow-ups and quality
+
+In the final Sofia rollout, Sofia BG, Sofia Capital of Sport and Krasna Polyana completed production scans. Serdika's connection to the district site failed and is tracked separately. The four production adapters and the upstream demo's Sensor.Community adapter use published `0.1.0` releases. [Migration record](https://github.com/oboapp/oboapp/issues/586) · [Fork deployment](https://github.com/vbuch/oboapp/pull/81) · [Serdika access](https://github.com/oboapp/oboapp/issues/711)
 
 ### Pancharevo
 
@@ -166,6 +165,6 @@ Pancharevo uses the published `0.1.1` package for the current planned-repairs RS
 
 ### Other sources
 
-Mladost's package reports unsuccessful HTTP navigation as a failure. Provider access from Cloud Run remains blocked in [#677](https://github.com/oboapp/oboapp/issues/677); its migration still needs a healthy discovery and deduplication scan in [#673](https://github.com/oboapp/oboapp/issues/673). Krasna Polyana's provider change and production verification are documented in [#675](https://github.com/oboapp/oboapp/issues/675).
+Mladost's package reports unsuccessful HTTP navigation as a failure. Provider access from Cloud Run remains blocked in [#677](https://github.com/oboapp/oboapp/issues/677); production recovery is tracked in [#673](https://github.com/oboapp/oboapp/issues/673). Krasna Polyana's provider change and production verification are documented in [#675](https://github.com/oboapp/oboapp/issues/675).
 
 Obo tests the package-to-ingestion contract. The sources repository owns provider implementation tests, source-mapped coverage and its own Sonar analysis. [#663](https://github.com/oboapp/oboapp/issues/663) records the verified quality-gate setup for extracted code.

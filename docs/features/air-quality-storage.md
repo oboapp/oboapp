@@ -2,23 +2,17 @@
 
 ## Overview
 
-Raw sensor readings are stored as JSON files — one file per locality — containing a rolling window of the last 24 hours. This approach replaces database storage to minimize write costs, since the data is high-churn (thousands of readings every 15 minutes) and only needed for short-term evaluation.
-
-## Architecture
+Obo stores raw measurements in a rolling JSON file for each locality. The sampling job writes readings. The source adapter supplies the evaluator with a read-only window. Storage configuration and credentials stay in Obo. [Sampling job](../../ingest/air-quality-fetch.ts) · [Source adapter](../../ingest/crawlers/sensor-community/index.ts)
 
 ```mermaid
-flowchart TD
-    A[Fetch Job] -->|appendAndPrune| B[Readings Store]
-    C[Evaluation Crawler] -->|getReadingsInRange| B
-    B --> D{Environment}
-    D -->|GCS_GENERIC_BUCKET set| E[Google Cloud Storage]
-    D -->|otherwise| F[Local Filesystem]
+flowchart LR
+    fetch[Obo sampling job] -->|Append and prune| store[Obo readings store]
+    adapter[Source adapter] -->|Read four-hour window| store
+    store -->|Bucket configured| gcs[(Cloud Storage)]
+    store -->|Local development| fs[(Local file)]
 ```
 
-The store provides two operations:
-
-- **Append and prune** — merges new readings into the existing file, deduplicates by sensor ID + timestamp, and removes readings older than the retention window (24 hours).
-- **Get readings in range** — loads and filters readings by a time window, returning them with reconstituted timestamps.
+The store merges new readings with existing observations, deduplicates by sensor ID and timestamp, and prunes readings older than 24 hours. The evaluator requests the last four hours and receives observations with timestamps restored to JavaScript `Date` values. [Readings store](../../ingest/lib/air-quality/readings-store.ts)
 
 ## Production (GCS)
 
@@ -26,14 +20,10 @@ Readings are stored in a GCS bucket at `air-quality/{locality}/readings.json`. T
 
 ## Development (Local Filesystem)
 
-When `GCS_GENERIC_BUCKET` is not set, readings fall back to the local filesystem at `{LOCAL_READINGS_PATH}/{locality}/readings.json`. The default path is `./tmp/air-quality`. Directories are created automatically on first write.
+Outside production, when `GCS_GENERIC_BUCKET` is unset, readings fall back to the local filesystem at `{LOCAL_READINGS_PATH}/{locality}/readings.json`. The default path is `./tmp/air-quality`. Directories are created automatically on first write.
 
 This enables full local development without GCS emulators or cloud credentials.
 
-## Data Retention
-
-Readings older than 24 hours are pruned on every append cycle. The evaluation crawler only needs the last 4 hours, but the 24-hour window provides a safety margin for debugging and reprocessing.
-
 ## Related
 
-- [Air Quality Monitoring](air-quality-monitoring.md) — feature overview, alert types, and scheduling
+[Air quality monitoring, alert types and job selection](air-quality-monitoring.md)

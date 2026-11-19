@@ -1,34 +1,18 @@
 # Cloud Workflows Orchestration
 
-This document describes how Google Cloud Workflows orchestrate the ingestion pipeline, providing granular task execution and improved observability.
-
-## Overview
-
-The ingestion pipeline uses **Google Cloud Workflows** to orchestrate crawler execution, data processing (ingest), and notifications. This replaces the previous monolithic approach where a single Cloud Run job performed all tasks sequentially.
-
-### Key Benefits
-
-- **Granular logging**: Each crawler, ingest, and notify task runs as a separate Cloud Run job execution with isolated logs
-- **Better alerting**: Failures can be traced to specific tasks (e.g., "crawler toplo failed" vs "pipeline failed")
-- **Parallel execution**: All crawlers run simultaneously, reducing total pipeline time
-- **Visibility**: Workflow execution graph shows task dependencies and status in Cloud Console
-- **Resilience**: Pipeline continues to ingest/notify even if some crawlers fail
+Google Cloud Scheduler triggers a workflow that submits collection, ingestion and notification jobs to Cloud Run. Each job has its own execution and logs.
 
 ## Architecture
 
 ```mermaid
 flowchart TD
     schedule[Cloud Scheduler] --> workflow[Cloud Workflows]
-    workflow --> packaged[Parallel selected source jobs]
-    packaged --> raw[(Raw sources)]
-    packaged --> join[Wait for all source jobs, including failures]
-    join --> ingest[Ingest job]
-    raw --> ingest
-    ingest --> notify[Notify job]
-    notify --> fcm[Firebase Cloud Messaging]
+    workflow --> collectors[Submit selected collection jobs in parallel]
+    collectors -->|Launch requests return| ingest[Submit ingest-messages]
+    ingest -->|Launch request returns| notify[Submit send-notifications]
 ```
 
-Each job runs its selected source package through Obo's runner. The instance job configuration sets its name, schedule and resources. [Source package integration](source-packages.md)
+The workflow sends up to ten collection launch requests at a time. A successful `jobs.run` request creates a Cloud Run execution. The templates continue after the HTTP requests return, so collecting, ingesting and notifying can overlap. Check each Cloud Run execution for its outcome. [All-source workflow](../../ingest/terraform/workflows/all.yaml.tftpl) · [Emergent workflow](../../ingest/terraform/workflows/emergent.yaml.tftpl) · [Cloud Run jobs.run](https://docs.cloud.google.com/run/docs/reference/rest/v1/namespaces.jobs/run)
 
 ### Two Workflow Types
 
@@ -50,15 +34,15 @@ For adapting schedules and locality configuration for a new city instance, see [
 
 ## Workflow Execution Flow
 
-### Step 1: Parallel Crawler Execution
+### Step 1. Launch selected collection jobs
 
 Selected source jobs run in parallel. Within each job, Obo's runner checks the identifiers supplied by the package, fetches new items one at a time and saves complete raw records through `@oboapp/db`.
 
-**Failure behavior**: Crawlers are wrapped in `try`/`except` blocks. If one fails, it logs an ERROR but doesn't stop other crawlers or the workflow.
+If Cloud Run rejects a launch, the workflow logs the failed request and continues submitting other jobs.
 
-### Step 2: Sequential Ingest
+### Step 2. Launch ingestion
 
-After all crawlers complete (success or failure), the `ingest-messages` job runs:
+After the collection launch requests return, the workflow submits `ingest-messages`. The job processes the records available when it runs:
 
 - Processes all unprocessed source documents in Firestore
 - Performs AI categorization (for sources without precomputed GeoJSON)
@@ -66,19 +50,19 @@ After all crawlers complete (success or failure), the `ingest-messages` job runs
 - Creates messages with GeoJSON geometries
 - Marks messages as `finalized`
 
-**Failure behavior**: If ingest fails, workflow logs an ERROR and continues to notify step.
+A rejected ingest launch is logged before the workflow submits the notification job.
 
 **Handled geocoding misses**: Not every message-level geocoding problem is a workflow failure. Messages that cannot produce valid geometry can still be finalized without GeoJSON and inspected later through `ingestErrors`. Temporary Overpass saturation is expected to surface mainly as warnings unless it aborts the job.
 
-### Step 3: Sequential Notify
+### Step 3. Launch notifications
 
-After ingest completes, the `send-notifications` job runs:
+After the ingest launch request returns, the workflow submits `send-notifications`. The job processes finalized messages available at execution time:
 
 - Matches finalized messages to user notification preferences
 - Sends push notifications via Firebase Cloud Messaging
 - Updates last notification timestamp for users
 
-**Failure behavior**: If notify fails, workflow logs an ERROR and completes.
+If Cloud Run rejects the notification launch, the workflow logs the error and completes.
 
 ## Monitoring Workflow Executions
 
@@ -148,75 +132,15 @@ gcloud workflows executions list \
   --limit=10
 ```
 
-## Failure Scenarios
+## Failure scenarios
 
-### Scenario 1: Single Crawler Fails
-
-**Example**: One crawler fails due to a website timeout
-
-**Behavior**:
-
-- Workflow logs ERROR for the failed crawler
-- Other crawlers continue running
-- Ingest processes all successful crawler results
-- Notify runs normally
-- **Result**: Partial success - most sources updated, failed source data stale
-
-**Investigation**:
-
-1. Check workflow execution graph - the failed step will show error
-2. View that crawler's Cloud Run job logs for detailed error
-3. Check if the source website is accessible
-
-### Scenario 2: All Crawlers Fail
-
-**Example**: Firestore outage prevents all crawlers from writing
-
-**Behavior**:
-
-- All crawler steps log ERRORs
-- Ingest runs but finds no new source documents to process
-- Notify runs but has no new messages to send
-- **Result**: No new data, but system remains operational
-
-**Investigation**:
-
-1. Check Firestore status in Cloud Console
-2. Review multiple crawler logs to identify common failure pattern
-3. Check service account permissions
-
-### Scenario 3: Ingest Fails
-
-**Example**: Google AI API quota exceeded during categorization
-
-**Behavior**:
-
-- Crawlers complete successfully, new source documents in Firestore
-- Ingest step logs ERROR
-- Notify runs but has no new finalized messages
-- **Result**: Data collected but not processed
-
-**Investigation**:
-
-1. Check `ingest-messages` job logs for quota errors
-2. Review Google AI API quota in GCP Console
-3. Re-run workflow manually after quota resets
-
-### Scenario 4: Notify Fails
-
-**Example**: Firebase Cloud Messaging certificate expired
-
-**Behavior**:
-
-- Crawlers and ingest complete successfully
-- Notify step logs ERROR
-- **Result**: New messages available in app but users not notified
-
-**Investigation**:
-
-1. Check `send-notifications` job logs for FCM errors
-2. Verify Firebase project configuration
-3. Re-run workflow to retry notifications
+| Symptom | Where to check |
+| --- | --- |
+| A job has no execution | Inspect the workflow step for a rejected launch request. Check the job name, region and the workflow service account's permissions. |
+| A source job starts and fails | Open the Cloud Run execution for that source. Check provider access and the saved, skipped and failed item counts. Other launched jobs continue independently. |
+| Multiple sources fail to save records | Check their Cloud Run logs for a shared storage error. Ingest can still process records from earlier scans. |
+| A source saves items after ingest has read the queue | Check the next ingest execution for those pending records. The same timing applies to messages finalized after the notification job reads its queue. |
+| Ingest or delivery fails | Inspect `ingest-messages` for processing errors and `send-notifications` for delivery errors. Check the affected service and rerun the relevant job after recovery. |
 
 ## Emergency Fallback: Legacy Pipeline Jobs
 
@@ -234,17 +158,7 @@ gcloud run jobs execute pipeline-all --region=europe-west1 --wait
 
 ## Alerting
 
-Cloud Monitoring alert policies trigger when:
-
-- Workflow execution fails (any step logs severity >= ERROR)
-- Cloud Run job execution fails
-- Notifications sent to configured email address
-
-Alert notifications include:
-
-- Workflow/job name
-- Execution ID
-- Link to Cloud Console for investigation
+Workflow logs record failed launch requests. Cloud Run job logs record errors during collection, ingestion and notification. For configured alert policies and where to investigate, see the [error monitoring guide](error-monitoring.md).
 
 ## Workflow Source Files
 

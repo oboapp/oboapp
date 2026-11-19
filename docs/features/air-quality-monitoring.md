@@ -2,38 +2,25 @@
 
 ## Overview
 
-The system monitors outdoor particulate matter (PM2.5 and PM10) using data from the [sensor.community](https://sensor.community/) citizen science network. Two separate jobs work together:
+Sensor.Community readings can produce `air-quality` alerts with a grid-cell polygon for the map. Obo samples outdoor PM2.5 and PM10 readings. The published `@oboapp/source-sensor-community` package evaluates stored readings for each locality. [Sensor.Community](https://sensor.community/) · [Provider package](https://github.com/oboapp/sources/tree/source-sensor-community-v0.1.0/packages/source-sensor-community)
 
-1. **Fetch job** — collects raw sensor readings every 15 minutes and stores them in a rolling 24-hour window.
-2. **Evaluation crawler** — runs every 30 minutes during daytime hours, analyzes the stored readings, and generates alerts when air quality deteriorates.
+The upstream demo selects the Sensor.Community evaluator as an emergent source. Terraform also creates the separate sampling job when `gcs_generic_bucket` is configured. [Demo job selection](../../ingest/terraform/source-jobs.bg.sofia.json) · [Terraform resources](../../ingest/terraform/main.tf)
 
-Alerts flow into the standard message ingestion pipeline with the `air-quality` category and appear on the map as grid cell polygons.
-
-## How It Works
+## How it works
 
 ```mermaid
 flowchart LR
-    A[sensor.community API] -->|every 15 min| B[Fetch Job]
-    B --> C[Readings Store]
-    C -->|every 30 min| D[Evaluation Crawler]
-    D --> E{AQI Thresholds}
-    E -->|immediate or sustained| F[Alert → Pipeline]
-    E -->|below threshold| G[No action]
+    api[Sensor.Community API] --> sample[Obo sampling job]
+    sample --> store[(Rolling readings)]
+    store --> adapter[Selected Obo adapter]
+    adapter --> provider[Provider evaluates cells]
+    provider -->|Qualifying alerts| runner[Obo runner]
+    runner --> ingest[Message ingestion]
 ```
 
-### Fetch Job
-
-Queries the sensor.community API for all outdoor sensors within the configured locality bounds. Each reading is validated (coordinate bounds, PM value sanity, indoor sensor exclusion) before storage. Duplicate readings are deduplicated by sensor ID and timestamp. Readings older than 24 hours are pruned automatically.
-
-### Evaluation Crawler
-
-Loads the last 4 hours of readings from the store and groups them into a grid of ~4 km cells. Within each cell:
-
-1. **Outlier filtering** — a hard cap removes malfunctioning sensors, then IQR filtering removes statistical outliers per pollutant.
-2. **Minimum sensor check** — cells with fewer than 3 unique sensors (after filtering) are skipped to avoid noisy single-sensor alerts.
-3. **Hourly coverage check** — at least 50% of hourly time bins must have data.
-4. **European AQI** — the NowCast algorithm computes a weighted average that gives more weight to recent hours, then maps PM concentrations to the European Air Quality Index (1–6 scale).
-5. **Alert decision** — two alert types exist (see below).
+1. The Obo fetch job requests readings within the locality bounds and checks coordinates, pollutant values and indoor-sensor flags. The readings store deduplicates observations by sensor ID and timestamp and keeps the last 24 hours. [Sampling job](../../ingest/air-quality-fetch.ts) · [Readings storage](air-quality-storage.md)
+2. The Obo adapter supplies the locality bounds and read-only access to the last four hours of measurements. The provider groups readings into roughly 4 km cells. It drops invalid values and concentrations above 999.9 μg/m³. For cells with four or more remaining readings, it applies a per-pollutant interquartile range filter. [Source adapter](../../ingest/crawlers/sensor-community/index.ts)
+3. The provider calculates a NowCast index for each two-hour half. The current half must include three distinct sensors and at least one observation within the last 45 minutes. One populated hourly bin meets the 50% coverage threshold for a two-hour half. For each qualifying alert the provider returns an identifier, text, timespan and cell polygon. Obo's runner skips known identifiers and saves new alerts for ingestion. [Tagged evaluator](https://github.com/oboapp/sources/blob/source-sensor-community-v0.1.0/packages/source-sensor-community/src/index.ts) · [Source packages and adapters](source-packages.md)
 
 ## Alert Types
 
@@ -48,7 +35,7 @@ Each alert is created as a source document with the grid cell's polygon geometry
 
 ## AQI Scale
 
-The system uses the [European Air Quality Index (EAQI)](https://airindex.eea.europa.eu/AQI/index.html) with Bulgarian labels:
+The package uses the following historical EAQI concentration bands and Bulgarian labels. It interpolates within each band and uses the higher of the two pollutant indices. [Index calculation](https://github.com/oboapp/sources/blob/source-sensor-community-v0.1.0/packages/source-sensor-community/src/aqi.ts)
 
 | EAQI | Level                              | PM2.5 (μg/m³) | PM10 (μg/m³) |
 | ---- | ---------------------------------- | ------------- | ------------ |
@@ -57,14 +44,11 @@ The system uses the [European Air Quality Index (EAQI)](https://airindex.eea.eur
 | 3    | Умерено (Moderate)                 | 20–25         | 40–50        |
 | 4    | Лошо (Poor)                        | 25–50         | 50–100       |
 | 5    | Много лошо (Very Poor)             | 50–75         | 100–150      |
-| 6    | Изключително лошо (Extremely Poor) | >75           | >150         |
+| 6    | Изключително лошо (Extremely Poor) | ≥75           | ≥150         |
 
 ## Scheduling
 
-| Job        | Schedule                              | Notes                                           |
-| ---------- | ------------------------------------- | ----------------------------------------------- |
-| Fetch      | `*/15 * * * *` (every 15 min, 24/7)   | Standalone Cloud Run job                        |
-| Evaluation | Part of the emergent crawler workflow | Runs every 30 min, 7 AM–10:30 PM (Europe/Sofia) |
+The default sampling schedule is every 15 minutes. The evaluator follows the selected emergent workflow, which runs every 30 minutes from 07:00 through 22:30 in `Europe/Sofia` by default. It also runs in the full workflow. [Workflow schedules](cloud-workflows.md)
 
 ## Configuration
 
