@@ -10,7 +10,7 @@ The project supports hosting data for a single configurable locality through the
 
 - **Format:** `{country}.{locality}` (e.g., `bg.sofia` for Sofia, Bulgaria)
 - **Storage:** Added to both `sources` and `messages` collections in Firestore
-- **Required:** All crawlers must specify a locality
+- **Collection:** The Obo runner reads `LOCALITY`, checks that the selected package supports it, and writes the locality on new raw records. [Source runner](../../ingest/sources/run-source.ts)
 
 ### Environment Configuration
 
@@ -76,7 +76,7 @@ Each locality requires a corresponding GeoJSON file for locality-wide messages:
 1. **Add bounds and center** in `shared/src/bounds.ts`:
 
    ```typescript
-   export const BOUNDS: Record<string, BoundingBox> = {
+   export const BOUNDS: Record<string, BoundsDefinition> = {
      "bg.sofia": {
        /* existing */
      },
@@ -112,7 +112,7 @@ Each locality requires a corresponding GeoJSON file for locality-wide messages:
    - `districts` — list of residential complexes, quarters, and industrial zones sourced from OpenStreetMap
    - `address-hints` — address format notes injected into AI prompts for geocoding
 
-5. **Create crawlers** in `ingest/crawlers/` that set `locality: "bg.plovdiv"` when saving sources
+5. **Select supported provider packages.** Check that each package declares `bg.plovdiv` in its metadata. Connect its adapter, select its source definition in `shared/src/sources.ts`, and add the matching job to `ingest/terraform/source-jobs.bg.plovdiv.json`. [Source package integration](source-packages.md) · [New locality setup](../setup/new-locality-instance.md)
 
 6. **Set environment variables**:
    ```bash
@@ -122,8 +122,8 @@ Each locality requires a corresponding GeoJSON file for locality-wide messages:
 
 ## Migration
 
-Migration script: `migrate/2026-02-10-add-locality-field.ts`
+The [locality backfill script](../../db/migrate/2026-02-10-add-locality-field.ts) runs from the `db/` directory.
 
 - Backfills `locality: "bg.sofia"` to all existing records
 - Safe to run multiple times (skips records that already have locality)
-- Run with: `npx tsx migrate/2026-02-10-add-locality-field.ts`
+- From the repository root, run `pnpm --dir db exec tsx migrate/2026-02-10-add-locality-field.ts`.

@@ -37,20 +37,21 @@ Built for Sofia first, OboApp is designed so other cities can fork the platform,
 ```mermaid
 flowchart LR
 	sources[Public sources] --> packaged[Source packages]
-	packaged --> runner[Simple source runner]
+	packaged --> runner[Obo source runner]
 	runner --> raw[(Raw source documents)]
 	raw -->|Text sources| ingest[AI filtering and extraction]
-	raw -->|Precomputed GeoJSON| events
+	raw -->|Precomputed GeoJSON| messages[Messages]
 	ingest --> geocoding[Multi-provider geocoding]
-	geocoding --> events[Messages and events]
+	geocoding --> messages
+	messages --> events[Event matching]
 	events --> web[PWA map]
 	events --> api[Public API]
 	events --> notifications[Push notifications]
 ```
 
-Automated crawlers collect notices from public sources such as utility providers, heating companies, transport operators, and municipal sites. AI-powered filtering, categorization, location extraction, and multi-service geocoding convert raw text into map-ready GeoJSON. Event matching groups related disruptions, and the notification engine matches new events with user-defined interest areas.
+Each city chooses which source packages to run. The packages read provider feeds, APIs and web pages. Obo schedules collection, skips known notices and saves new ones for ingestion. The collectors and their release instructions live in [oboapp/sources](https://github.com/oboapp/sources).
 
-Each instance chooses its source packages. Obo's runner skips known identifiers and saves new records for ingestion. Sources that provide GeoJSON go directly to event processing. [Source package integration and deployment](docs/features/source-packages.md)
+For text notices, ingestion filters the content, extracts locations and geocodes them. Sources that supply ready-to-use GeoJSON can skip those steps. Both paths produce messages that Obo can match to events. [Source package integration](docs/features/source-packages.md) · [Event aggregation](docs/features/event-aggregation.md)
 
 The web app is a Next.js Progressive Web App with an interactive map. Users can browse current disruptions, define interest circles with a custom radius, and receive notifications when new issues affect their areas.
 
@@ -62,7 +63,9 @@ Choose the setup path that matches what you want to work on:
 | -------------------------------------------- | ------------------------------------------------------------------------- |
 | Front-end development without Java or Docker | [Quick Start: Front-End with MSW](docs/setup/quick-start-frontend-msw.md) |
 | Full-stack local development with emulators  | [Quick Start: Firebase Emulators](docs/setup/quick-start-emulators.md)    |
-| Production deployment                        | [Production Setup Guide](docs/setup/production-setup.md)                  |
+| Add a provider or fix a collector | [Provider packages and contributor guide](https://github.com/oboapp/sources) |
+| Select sources for a city | [Instance setup](docs/setup/new-locality-instance.md) |
+| Production deployment | [Production Setup Guide](docs/setup/production-setup.md) |
 | API integration                              | [Public API](docs/features/public-api.md)                                 |
 
 This is a pnpm workspace monorepo. Always install dependencies from the repository root:
@@ -86,7 +89,7 @@ pnpm build:db
 | ----------------- | -------------------------------------------------------------------------------------------- |
 | [shared/](shared) | Shared TypeScript schemas and source configuration used by the app, API, and ingest pipeline |
 | [db/](db)         | Database abstraction layer, `@oboapp/db`, with dual-write support over Firestore and MongoDB |
-| [ingest/](ingest) | Crawlers, AI processing, geocoding, event matching, and notifications                        |
+| [ingest/](ingest) | Source runner, storage, AI processing, geocoding, event matching and notifications |
 | [web/](web)       | Next.js PWA, map UI, onboarding, notifications UX, and BFF route handlers                    |
 | [api/](api)       | Public REST API built with Hono, Zod, OpenAPI generation, and API key auth                   |
 
@@ -113,7 +116,7 @@ New contributors may want to start with [good first issues](https://github.com/o
 
 | Area                   | What you can work on                                              | Open issues                                                                                                                                                                                                                                           |
 | ---------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Crawlers               | Add or improve public disruption sources                          | [crawler issues](https://github.com/oboapp/oboapp/issues?q=is%3Aissue%20state%3Aopen%20label%3Acrawler)                                                                                                                                               |
+| Source packages | Add a provider, update a feed or fix article parsing | [Provider issues](https://github.com/oboapp/sources/issues) |
 | Ingestion pipeline     | Filtering, extraction, source cleanup, and pipeline reliability   | [ingestion issues](https://github.com/oboapp/oboapp/issues?q=is%3Aissue%20state%3Aopen%20label%3Aingestion)                                                                                                                                           |
 | Geocoding              | Address, street, locality, transit, and geometry resolution       | [geocoding issues](https://github.com/oboapp/oboapp/issues?q=is%3Aissue%20state%3Aopen%20label%3Ageocoding)                                                                                                                                           |
 | Event aggregation      | Duplicate detection, event matching, and incident lifecycle       | [event aggregation issues](https://github.com/oboapp/oboapp/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22event%20aggregations%22)                                                                                                                  |
@@ -141,7 +144,7 @@ Important project rules:
 
 - Database operations go through `@oboapp/db`; application code should not call Firestore directly.
 - Shared schema changes require rebuilding [shared/](shared) and [db/](db) before running dependent packages.
-- New crawlers should update the crawler implementation, Terraform crawler list, source definition, and source assembly together.
+- When enabling a source, pin its package version, connect its Obo entrypoint and select the same source ID in the catalog and Terraform jobs. [Instance setup](docs/setup/new-locality-instance.md)
 - Web UI text is Bulgarian in informal register.
 - Documentation is concise, behavior-focused, and written for technical stakeholders, operators, and QA personnel.
 
@@ -151,6 +154,11 @@ Additional implementation standards live in [AGENTS.md](AGENTS.md).
 
 ### Features
 
+The full [feature directory](docs/features) includes these guides.
+
+- [Source packages](docs/features/source-packages.md) covers provider selection, collection, historical identifiers and deployment checks.
+- [Cloud workflows](docs/features/cloud-workflows.md) covers scheduled collection and ingestion.
+- [Event aggregation](docs/features/event-aggregation.md) explains how messages become events.
 - [Message Filtering](docs/features/message-filtering.md) - AI-powered content filtering, address extraction, geocoding, and time-based relevance
 - [Message URLs](docs/features/message-urls.md) - Short, shareable URLs for deep-linking to messages
 - [Geocoding System](ingest/geocoding/README.md) - Multi-service geocoding with Google, OpenStreetMap, Bulgarian Cadastre, and GTFS APIs
@@ -163,7 +171,7 @@ Additional implementation standards live in [AGENTS.md](AGENTS.md).
 
 - [Ingest Overview](ingest/README.md) - Data collection and processing pipeline architecture
 - [Message Processing](ingest/messageIngest/README.md) - Filtering, extraction, geocoding, and GeoJSON conversion flow
-- [Crawlers](ingest/crawlers/README.md) - Data sources and web scraping implementations
+- [Source adapters](ingest/crawlers/README.md) explains the CLI entrypoints, database integration and contract tests.
 
 ### Operations
 

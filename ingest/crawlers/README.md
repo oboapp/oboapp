@@ -1,28 +1,41 @@
-# Crawlers
+# Source adapters
 
-Each source directory contains an entrypoint for the collection CLI and its Cloud Run job. The provider package discovers identifiers and fetches content. Obo checks historical records and saves validated content through `@oboapp/db`. The instance catalog controls which entrypoints can run. [Source package guide](../../docs/features/source-packages.md)
+`pnpm --dir ingest crawl --source <source-id>` runs one source from the instance catalog. The [runtime registry](../sources/registry.ts) checks the selected ID and loads its entrypoint. Cloud Run uses the compiled version of the same command.
 
-Maintain provider parsing, dates, identifiers and browser behavior in [oboapp/sources](https://github.com/oboapp/sources). This repository owns the runtime, database integration, job configuration and package-to-ingestion tests.
+The provider package discovers notices and fetches their content. Obo's [source runner](../sources/run-source.ts) checks historical identifiers, validates new content and saves complete raw records through `@oboapp/db`. Change provider requests, parsing rules and browser fixtures in [oboapp/sources](https://github.com/oboapp/sources).
+
+## What lives here
+
+| Code | Responsibility |
+| --- | --- |
+| `<source-id>/index.ts` | Connects one package to Obo. Most adapters pass its metadata and factory to the common runner. The build compiles only selected entrypoints and their imports. |
+| `shared/firestore.ts` and `shared/geojson-validation.ts` | Preserve historical document ID lookups and validate geometry before storage. |
+| Contract tests and fixtures | Exercise the installed package through Obo's storage and ingestion path. Historical provider screenshots serve as references. |
+
+Of the 23 entrypoints, 13 pass the package metadata and factory directly to `createSourceCrawler`. Triaditsa runs the same steps inline. The other nine add behavior that the general runner does not supply.
+
+| Adapters | Obo behavior |
+| --- | --- |
+| ERM Zapad, Sofiyska Voda, NIMH | Fail the job when every discovered item fails. An empty scan succeeds. |
+| Lozenets, Oborishte | Record provider retry and recovery diagnostics. |
+| Serdika | Log which provider section failed. |
+| Sofia.bg | Check historical article titles and URL aliases. |
+| Sensor.Community | Read the locality's stored measurements for alert evaluation. |
+| Toplo | Record listing snapshots and support a database-free preview. |
+
+The registry loads `<source-id>/index.js` by selected ID. The build and Docker checks also look for that entrypoint. Consolidating the 14 equivalent adapters would require updating these paths together and verifying that an image still loads only its selected packages. [Runtime registry](../sources/registry.ts) · [Minimal image verification](../../docs/features/source-packages.md#verifying-a-minimal-image)
+
+For source selection, exact dependency versions and the two-source Docker check, see the [source package guide](../../docs/features/source-packages.md).
 
 ## Crawler and package contract tests
 
-The contract tests protect historical identifiers and the handoff from each package to Obo. Run these commands from the repository root.
+Run the adapter contracts and package-to-ingestion tests from the repository root.
 
 ```sh
 pnpm --dir shared build
 pnpm --dir db build
 pnpm --dir ingest test:run crawlers
-pnpm --dir ingest test:run crawlers/erm-zapad/index.contract.test.ts
-pnpm --dir ingest test:run crawlers/nimh-severe-weather/index.contract.test.ts
-pnpm --dir ingest test:run messageIngest/source-handoff.test.ts
-pnpm --dir ingest test:run messageIngest/packaged-hybrid-handoff.test.ts
-pnpm --dir ingest test:run messageIngest/packaged-toplo-handoff.test.ts
-pnpm --dir ingest test:run messageIngest/packaged-sofiyska-voda-handoff.test.ts
-pnpm --dir ingest test:run messageIngest/packaged-next-districts-handoff.test.ts
-pnpm --dir ingest test:run messageIngest/packaged-browser-districts-handoff.test.ts
-pnpm --dir ingest test:run messageIngest/packaged-joomla-districts-handoff.test.ts
-pnpm --dir ingest test:run messageIngest/packaged-browser-services-handoff.test.ts
-pnpm --dir ingest test:run messageIngest/packaged-pancharevo-handoff.test.ts
+pnpm --dir ingest test:run handoff
 ```
 
 All source directories, including currently unselected sources, have crawl-entrypoint coverage. `shared/source-inventory.test.ts` checks the explicit inventory against the implementation directories. Add a real crawl contract suite and update that inventory when adding a source; parser tests alone are insufficient.
@@ -52,45 +65,13 @@ Preserve literal identifiers byte-for-byte. Do not derive expected identifiers u
 
 The runner checks both historical document ID formats before requesting a known article. It saves complete records with a create-only write so an overlapping scan cannot reset their processing state. An item that fails remains eligible on the next scan. The runner closes its source instance even when discovery fails.
 
-Before considering a PR ready, check every applicable CI job and available Sonar findings for changed files, including the actual quality gate. State when Sonar results are unavailable. A green gate does not necessarily mean there are no new issues. Keep test declarations explicit in each `.test.ts` file so static analysis can recognize them; shared mock/assertion support belongs under `__mocks__`.
+## Raw records and ingestion
 
-## Provider pages and fixtures
+Every new notice has a `message` field. A package can also supply `markdownText` for display. Ingestion can use validated GeoJSON directly, including an empty FeatureCollection for a city-wide alert. For a notice that needs geocoding, ingestion filters the text, extracts locations and builds the geometry. [Message ingestion](../messageIngest/README.md)
 
-Some source directories contain historical listing and article screenshots named `_entry.png` and `_message.png`. When a provider redesign changes the extraction rules, update the parser and its fixtures together in the provider package.
+## Running a source
 
-## Crawler Architecture
-
-District packages manage browser sessions, parse feeds and listings, extract publication dates and convert articles to Markdown. Obo's runner checks historical records and saves new ones.
-
-API sources use provider-specific request and parsing logic.
-
-ERM Zapad's entrypoint calls the published HTTP factory through the runner. Its package collects every municipality before global pin deduplication selects historical incident identifiers, with a two-second delay between municipality requests. Obo keeps historical lookups, geometry validation, complete raw persistence and ingestion. The entrypoint fails when all discovered incidents fail; empty scans succeed. Its emergent classification remains unchanged.
-
-### Markdown Text Handling
-
-Crawlers handle message formatting differently based on whether they provide precomputed GeoJSON:
-
-**Crawlers with precomputed GeoJSON** (utility APIs, weather services):
-
-- Skip the AI filtering and extraction pipeline
-- Must store formatted text in both `message` and `markdownText` fields
-- **City-wide messages**: Set `cityWide: true` with empty FeatureCollection for alerts applying to the entire city
-
-**Crawlers without GeoJSON** (municipality websites):
-
-- Go through the full AI extraction pipeline
-- Store HTML content converted to markdown in `message` field only
-- The AI filter & split stage produces `markdownText` for display
-
-## Running Crawlers
-
-Run the following commands from `ingest/`.
-
-The `crawl` and `pipeline` commands share a [runtime registry](../sources/registry.ts) derived from `SOURCES` in `shared/src/sources.ts`. Only selected IDs appear in help and can run through these commands. An unselected source directory is rejected. `pipeline --all` runs every selected source; `pipeline --emergent` runs selected sources marked `emergent: true`.
-
-The production build starts from selected crawler entrypoints and follows their imports, including shared helpers. It clears previous compiled output, and the image omits the raw crawler source tree. Docker removes unselected provider dependencies from copied manifests and the matching frozen lockfile before builder and runtime installation. Development manifests retain integration dependencies for tests. See the [selected-build guidance](../../docs/features/source-packages.md#building-selected-sources) and [production dependency guidance](../../docs/features/source-packages.md#preparing-production-dependencies) for the preparation steps.
-
-The independent `Test Minimal Source Image` CI job builds a copied context with only Triaditsa, Sofiyska Voda and shared helpers. It checks selected packages in both the builder and runtime images, compiled source directories and offline startup as the production user. Selected entrypoints load without invoking collection, database initialization or browser runtimes. See the [minimal-image instructions](../../docs/features/source-packages.md#verifying-a-minimal-image) for local commands and deployment boundaries.
+Run these commands from `ingest/`. The catalog in `shared/src/sources.ts` determines which IDs appear in CLI help. `pnpm pipeline:all` runs the full selection and `pnpm pipeline:emergent` runs the sources marked `emergent: true`.
 
 ```bash
 # Run a selected source
@@ -102,7 +83,7 @@ pnpm crawl --help
 
 ### Development: Cleaning Test Data
 
-When developing a new crawler, you may want to clear test data from other sources while keeping your crawler's data:
+For local integration tests, the cleanup command can retain records from one source.
 
 ```bash
 # Delete all unprocessed sources except lozenets-sofia-bg
@@ -118,7 +99,7 @@ pnpm sources:clean --retain lozenets-sofia-bg --dry-run
 
 ```mermaid
 flowchart LR
-    A[External Sources] --> B[Crawlers]
+    A[Provider packages] --> B[Obo source runner]
     B --> C[Raw source documents via @oboapp/db]
     C --> D[Ingest Script]
     D --> E[messageIngest]
@@ -126,7 +107,7 @@ flowchart LR
     F --> G[GeoJSON on Map]
 ```
 
-After crawlers store raw documents in the `sources` collection, use the ingest script to process them:
+After a scan, the ingest command reads pending raw documents from the `sources` collection.
 
 ```bash
 # Process all sources within Oborishte boundaries
@@ -138,5 +119,3 @@ pnpm ingest --source-name sofiyska-voda
 # Dry run to preview
 pnpm ingest --dry-run --source-name rayon-oborishte-bg
 ```
-
-The ingest script runs each source through the [messageIngest](../messageIngest) pipeline to extract addresses, geocode locations, and generate map-ready GeoJSON features.
