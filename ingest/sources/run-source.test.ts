@@ -81,6 +81,16 @@ describe("scheduled source runner", () => {
     expect(records.get(id)).toEqual({ processed: false });
   });
 
+  it("persists native geometry for historical Sensor.Community alerts", async () => {
+    const { db, create, source, records } = setup();
+    const geoJson = { type: "FeatureCollection", features: [] };
+    source.fetchItem.mockResolvedValue({ ...content, geoJson });
+    expect(await runSource(db, { ...metadata, id: "sensor-community" }, create)).toEqual({
+      saved: 1, skipped: 0, failed: 0,
+    });
+    expect(records.get(encodeDocumentId(identifier))?.geoJson).toEqual(geoJson);
+  });
+
   it("continues after a failure and retries missing items on the next scan", async () => {
     const { db, create, source, records } = setup();
     source.discoverItems.mockResolvedValue({ items: [{ identifier }, { identifier: "synthetic:2", payload: { message: "ready" } }] });

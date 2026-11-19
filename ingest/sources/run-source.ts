@@ -59,7 +59,9 @@ async function processItem(
     if (db && await isUrlProcessed(identifier, db)) {
       return "skipped";
     }
-    const content = parseSourceContent(await source.fetchItem(item), validation);
+    // The existing Sensor.Community Mongo records store native geometry.
+    const geometryFormat = sourceType === "sensor-community" ? "object" : "string";
+    const content = parseSourceContent(await source.fetchItem(item), validation, geometryFormat);
     if (!db) {
       return "saved";
     }
