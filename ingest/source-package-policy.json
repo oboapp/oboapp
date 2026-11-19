@@ -2,6 +2,7 @@
   "retainedUnselectedPackages": [
     "@oboapp/source-erm-zapad",
     "@oboapp/source-inspectorat-so-org",
+    "@oboapp/source-krasna-polyana-org",
     "@oboapp/source-lozenets-sofia-bg",
     "@oboapp/source-mladost-bg",
     "@oboapp/source-nadezhda-org",
@@ -11,7 +12,9 @@
     "@oboapp/source-rayon-oborishte-bg",
     "@oboapp/source-rayon-pancharevo-bg",
     "@oboapp/source-sdvr-mvr-bg",
+    "@oboapp/source-serdika-egov-bg",
     "@oboapp/source-so-slatina-org",
+    "@oboapp/source-sofia-capital-of-sport",
     "@oboapp/source-sredec-sofia-org",
     "@oboapp/source-studentski-bg",
     "@oboapp/source-toplo-bg",

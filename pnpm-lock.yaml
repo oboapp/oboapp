@@ -173,6 +173,9 @@ importers:
       '@oboapp/source-inspectorat-so-org':
         specifier: 0.1.0
         version: 0.1.0
+      '@oboapp/source-krasna-polyana-org':
+        specifier: 0.1.0
+        version: 0.1.0
       '@oboapp/source-lozenets-sofia-bg':
         specifier: 0.2.0
         version: 0.2.0
@@ -203,7 +206,19 @@ importers:
       '@oboapp/source-sdvr-mvr-bg':
         specifier: 0.1.0
         version: 0.1.0
+      '@oboapp/source-sensor-community':
+        specifier: 0.1.0
+        version: 0.1.0
+      '@oboapp/source-serdika-egov-bg':
+        specifier: 0.1.0
+        version: 0.1.0
       '@oboapp/source-so-slatina-org':
+        specifier: 0.1.0
+        version: 0.1.0
+      '@oboapp/source-sofia-bg':
+        specifier: 0.1.0
+        version: 0.1.0
+      '@oboapp/source-sofia-capital-of-sport':
         specifier: 0.1.0
         version: 0.1.0
       '@oboapp/source-sofiyska-voda':
@@ -251,9 +266,6 @@ importers:
       firebase-admin:
         specifier: ^13.6.0
         version: 13.10.0(encoding@0.1.13)
-      html-entities:
-        specifier: ^2.6.0
-        version: 2.6.0
       js-yaml:
         specifier: ^4.1.1
         version: 4.3.2
@@ -263,9 +275,6 @@ importers:
       proj4:
         specifier: ^2.20.2
         version: 2.23.0
-      turndown:
-        specifier: ^7.2.2
-        version: 7.2.5
       zod:
         specifier: ^4.3.6
         version: 4.6.7
@@ -285,9 +294,6 @@ importers:
       '@types/node':
         specifier: ^20
         version: 20.19.43
-      '@types/turndown':
-        specifier: ^5.0.6
-        version: 5.0.6
       '@vitest/coverage-v8':
         specifier: 4.0.18
         version: 4.0.18(vitest@4.0.18)
@@ -2732,6 +2738,10 @@ packages:
     resolution: {integrity: sha512-4bZK50GTEihsuQRhn+69zSGDwaeVZRwFn0YJ/qHDH8MiUVZcaCC47yBrn6Aj/SduUduL1WUBxsiKAy0oacHHbg==}
     engines: {node: '>=20.3'}
 
+  '@oboapp/source-krasna-polyana-org@0.1.0':
+    resolution: {integrity: sha512-w8zsLHxpA7BtJRH48VtJBIOaqmmLSps+V6F97Qz9VEGU0ZJ//M+8COdr43pQJfM0Xv9FBqclLzV91AfQcXIsvA==}
+    engines: {node: '>=20.3.0'}
+
   '@oboapp/source-lozenets-sofia-bg@0.2.0':
     resolution: {integrity: sha512-6ym7LYYtlwtp50Z/qaM5NvNb+00+CHz3twI7OF/FHK3I/peoeYgz145EWPcSBxLyeP2qvYx0uM3trz+iCN/VSg==}
     engines: {node: '>=20.3'}
@@ -2776,9 +2786,25 @@ packages:
     resolution: {integrity: sha512-AN204UEd+OUBFZkcWlanUBzYxiK5DHEA2mjAyw3KGGB7D7cSNe8ZBj+feJ0ZxxTxpjc95xnAH+VvcrJe+LpMIg==}
     engines: {node: '>=20.3'}
 
+  '@oboapp/source-sensor-community@0.1.0':
+    resolution: {integrity: sha512-dE381c66ktFsNzkTXUMnB1QhzSSdNGKzXhcereKRr96y1+Rpm924ahZY2IOouxAUlmyYEyeLLvdX5fTVjWDbAA==}
+    engines: {node: '>=20.3.0'}
+
+  '@oboapp/source-serdika-egov-bg@0.1.0':
+    resolution: {integrity: sha512-kFboU3wZfvM4UKsXk28FDI1JLtsacYP+moi1ZOkJuG6RwqYlb0GxZ+VDbBFbdvM/nRlGn/Ewl033uJ+ZRFByIw==}
+    engines: {node: '>=20.3'}
+
   '@oboapp/source-so-slatina-org@0.1.0':
     resolution: {integrity: sha512-b8EyGZ1LeuHNbPPwa5O+vleojMWwL7qkro+ak1XVEsiBn9nw09YsNF2QnWpRKqXAQh4MlJcHWyYSBM5RhN/duw==}
     engines: {node: '>=20'}
+
+  '@oboapp/source-sofia-bg@0.1.0':
+    resolution: {integrity: sha512-uSXC+kGTgwjkGZQUoC/BVpyDPa/cqFpVpzMRtt+5YHYQz3U3/3FvtEXmNEPZqoSXBMjyowgoh2ALruLcON8irQ==}
+    engines: {node: '>=20.3.0'}
+
+  '@oboapp/source-sofia-capital-of-sport@0.1.0':
+    resolution: {integrity: sha512-45O31GgahwrQr4fDswAHPrSKkXwGwKXeLSdBEZ6RhNx4dEwXzfWP+/Xxs4Fokr6nkC7vKQgxzyjYryx6nNe99Q==}
+    engines: {node: '>=20.3'}
 
   '@oboapp/source-sofiyska-voda@0.1.0':
     resolution: {integrity: sha512-BNKxX8xNPMcH3azEs4tQUd37900wLTW+iLRSEwnv46Ns1EaLlx7IKWv/OhFRvua6Q0y3QYxqR5oQSMoB6Ajm/g==}
@@ -13834,6 +13860,12 @@ snapshots:
       '@oboapp/source-sdk': 0.1.1
       '@oboapp/source-web-utils': 0.4.0
 
+  '@oboapp/source-krasna-polyana-org@0.1.0':
+    dependencies:
+      '@oboapp/source-sdk': 0.2.0
+      html-entities: 2.6.0
+      turndown: 7.2.2
+
   '@oboapp/source-lozenets-sofia-bg@0.2.0':
     dependencies:
       '@oboapp/source-sdk': 0.1.1
@@ -13886,10 +13918,33 @@ snapshots:
       '@oboapp/source-sdk': 0.1.1
       '@oboapp/source-web-utils': 0.4.0
 
+  '@oboapp/source-sensor-community@0.1.0':
+    dependencies:
+      '@oboapp/source-sdk': 0.2.0
+
+  '@oboapp/source-serdika-egov-bg@0.1.0':
+    dependencies:
+      '@oboapp/source-sdk': 0.2.0
+      turndown: 7.2.2
+
   '@oboapp/source-so-slatina-org@0.1.0':
     dependencies:
       '@oboapp/source-sdk': 0.1.1
       html-entities: 2.6.0
+      playwright: 1.61.1
+      turndown: 7.2.2
+
+  '@oboapp/source-sofia-bg@0.1.0':
+    dependencies:
+      '@oboapp/source-sdk': 0.2.0
+      '@oboapp/source-web-utils': 0.4.0
+      playwright: 1.61.1
+      turndown: 7.2.2
+
+  '@oboapp/source-sofia-capital-of-sport@0.1.0':
+    dependencies:
+      '@oboapp/source-sdk': 0.2.0
+      '@oboapp/source-web-utils': 0.5.0
       playwright: 1.61.1
       turndown: 7.2.2
 
