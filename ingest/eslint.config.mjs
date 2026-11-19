@@ -64,6 +64,14 @@ const eslintConfig = [
     },
   },
   {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+      },
+    },
+  },
+  {
     ignores: [
       "dist/**",
       "build/**",
@@ -72,7 +80,7 @@ const eslintConfig = [
       "**/*.d.ts", // Type declaration files
       "emulator-data/**",
       "terraform/**/.terraform/**",
-      "**/*.mjs", // Config files not in tsconfig
+      "eslint.config.mjs",
     ],
   },
 ];
