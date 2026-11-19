@@ -194,6 +194,9 @@ importers:
       '@oboapp/source-sdk':
         specifier: 0.2.0
         version: 0.2.0
+      '@oboapp/source-sdvr-mvr-bg':
+        specifier: 0.1.0
+        version: 0.1.0
       '@oboapp/source-so-slatina-org':
         specifier: 0.1.0
         version: 0.1.0
@@ -2754,6 +2757,10 @@ packages:
   '@oboapp/source-sdk@0.2.0':
     resolution: {integrity: sha512-gzh4EEMzuA/2/A/+bORgYkJmpG9gyiuLeSMYQB3BwqF4+UqhuGBC/L7vAPFePtIhUJRPay4m1djrYE4WhaEWAg==}
     engines: {node: '>=20'}
+
+  '@oboapp/source-sdvr-mvr-bg@0.1.0':
+    resolution: {integrity: sha512-AN204UEd+OUBFZkcWlanUBzYxiK5DHEA2mjAyw3KGGB7D7cSNe8ZBj+feJ0ZxxTxpjc95xnAH+VvcrJe+LpMIg==}
+    engines: {node: '>=20.3'}
 
   '@oboapp/source-so-slatina-org@0.1.0':
     resolution: {integrity: sha512-b8EyGZ1LeuHNbPPwa5O+vleojMWwL7qkro+ak1XVEsiBn9nw09YsNF2QnWpRKqXAQh4MlJcHWyYSBM5RhN/duw==}
@@ -13796,6 +13803,11 @@ snapshots:
   '@oboapp/source-sdk@0.1.1': {}
 
   '@oboapp/source-sdk@0.2.0': {}
+
+  '@oboapp/source-sdvr-mvr-bg@0.1.0':
+    dependencies:
+      '@oboapp/source-sdk': 0.1.1
+      '@oboapp/source-web-utils': 0.4.0
 
   '@oboapp/source-so-slatina-org@0.1.0':
     dependencies:
