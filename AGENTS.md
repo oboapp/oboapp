@@ -122,7 +122,7 @@ For the full implementation guide, see the `long-flow-crawler-generator` skill. 
 - **Check for an exposed API first:** Before writing any Playwright scraper, check if the site publishes an RSS/ATOM feed or JSON API (try `/feed`, `/rss.xml`, `/atom.xml`, inspect `<link rel="alternate">` in `<head>`, and trace any AJAX calls in the page JS). A plain HTTP feed is far more reliable than headless Chromium.
 
 - **Workflow Sync (CRITICAL):** When adding/removing crawlers, update ALL:
-  1. `ingest/crawlers/{source-name}/` — implementation
+  1. Publish the provider implementation in `oboapp/sources`, pin its exact version in `ingest/`, and connect its factory in `ingest/crawlers/{source-name}/index.ts`.
   2. `ingest/terraform/source-jobs.<locality-id>.json`: add the job entry (set `"emergent": true` for 30-min sources). `var.crawlers` is a manual override.
   3. `shared/src/sources/{source-name}.ts` — create the source definition file
   4. `shared/src/sources.ts` — import the new definition and add it to the `SOURCES` array (this is the instance assembly; see Instance Configuration below)
