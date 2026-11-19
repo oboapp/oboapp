@@ -73,7 +73,7 @@ All per-item details (fetching, saving, skipping) go to `debug`.
 
 ### Required Metadata
 
-- Always include `sourceType` in crawler-level log entries for filtering. Shared helpers that receive a document (e.g., `saveSourceDocument`) can read `sourceType` from the document itself. Generic utilities without source context (e.g., shared extractors) are exempt.
+- Include `sourceType` in Obo's scan-level log entries. The source runner gets this value from package metadata. Generic helpers can omit it when the caller supplies the source context.
 - Summary logs should include counts: `saved`, `skipped`, `failed`, and `total`.
 - Error logs should include the error message in an `error` field.
 
