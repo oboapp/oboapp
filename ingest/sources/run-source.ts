@@ -12,6 +12,14 @@ import { parseSourceContent, type SourceContentValidation } from "./source-conte
 interface RunSourceOptions {
   dryRun?: boolean;
   contentValidation?: SourceContentValidation;
+  history?: SourceHistory;
+}
+
+/** Instance-owned compatibility lookup for providers with historical identifier aliases. */
+interface SourceHistory {
+  isKnown(item: DiscoveredItem, lookupIdentifier: () => Promise<boolean>): Promise<boolean>;
+  listingTitle?(item: DiscoveredItem): string;
+  remember(item: DiscoveredItem): void;
 }
 
 const itemSchema = z.object({
@@ -50,24 +58,33 @@ async function processItem(
   sourceType: string,
   locality: string,
   candidate: unknown,
-  validation: SourceContentValidation,
+  options: RunSourceOptions,
 ): Promise<"saved" | "skipped" | "failed"> {
   let identifier: string | undefined;
   try {
     const item = parseItem(candidate);
     identifier = item.identifier;
-    if (db && await isUrlProcessed(identifier, db)) {
-      return "skipped";
+    if (db) {
+      const lookup = () => isUrlProcessed(item.identifier, db);
+      const known = options.history ? await options.history.isKnown(item, lookup) : await lookup();
+      if (known) {
+        return "skipped";
+      }
     }
     // The existing Sensor.Community Mongo records store native geometry.
     const geometryFormat = sourceType === "sensor-community" ? "object" : "string";
-    const content = parseSourceContent(await source.fetchItem(item), validation, geometryFormat);
+    const content = parseSourceContent(await source.fetchItem(item), options.contentValidation, geometryFormat);
     if (!db) {
       return "saved";
     }
+    const listingTitle = options.history?.listingTitle?.(item);
     const saved = await saveNewSource(db, identifier, {
       ...content, url: identifier, sourceType, locality, crawledAt: new Date(), processed: false,
+      ...(listingTitle && listingTitle !== content.title ? { listingTitle } : {}),
     });
+    if (saved) {
+      options.history?.remember(item);
+    }
     return saved ? "saved" : "skipped";
   } catch (error) {
     logger.warn("Source item failed; retry on the next scheduled scan", { sourceType, identifier, error });
@@ -104,7 +121,7 @@ export async function runSource(
       const page = pageSchema.parse(await source.discoverItems(cursor));
       for (const candidate of page.items) {
         const outcome = await processItem(
-          persistenceDb, source, metadata.id, locality, candidate, validation,
+          persistenceDb, source, metadata.id, locality, candidate, options,
         );
         summary[outcome]++;
       }
