@@ -12,7 +12,7 @@ Each selected source uses either a published package or a remaining legacy crawl
 | Historical lookup, validation and raw persistence | Obo's collection helpers | Obo's scheduled source runner |
 | Scheduling, catalog selection and downstream processing | Obo | Obo |
 
-Installed package versions are pinned in `ingest/package.json` and `pnpm-lock.yaml`. The [remaining migration tracker](https://github.com/oboapp/oboapp/issues/609) records source cutovers. [Selection and deployment work](https://github.com/oboapp/oboapp/issues/610) tracks selected-only installation across the whole build and deployment of a minimal instance. The image checks below exercise a two-source production image.
+Installed package versions are pinned in `ingest/package.json` and `pnpm-lock.yaml`. The [remaining migration tracker](https://github.com/oboapp/oboapp/issues/609) records source cutovers. [Selection and deployment work](https://github.com/oboapp/oboapp/issues/610) tracks deployment of a minimal instance. The image checks below exercise a two-source builder and production image.
 
 The production build compiles selected source entrypoints and their imports alongside the common application code. It clears `dist` before compiling, so deselecting a source removes its previous output. The image uses compiled code and omits the raw crawler source tree. Docker prepares a separate production workspace that removes unselected provider dependencies before installing runtime packages.
 
@@ -67,7 +67,7 @@ Keep the selected catalog in `shared/src/sources.ts` aligned with `ingest/terraf
 
 The `crawl` and `pipeline` commands share a [runtime registry](../../ingest/sources/registry.ts) derived from the selected `SOURCES` array. Their help lists selected sources. `crawl --source <source-id>` rejects unselected IDs even when their directories exist. `pipeline --all` runs every selected source; `pipeline --emergent` runs selected sources whose definition has `emergent: true`. Implementations load only when their selected source runs, after environment configuration.
 
-The upstream demo selects a small source set. `ingest/source-package-policy.json` explicitly lists unselected packages retained in the development workspace for integration tests during the transition. Retained packages still require isolated valid metadata, exact versions and unique source IDs. Unexpected unselected dependencies and stale policy entries fail validation. Remove a package's retention entry when selecting its source or removing its dependency. An absent or empty policy enables strict selection for all installed source packages. The generated production workspace omits this development retention policy.
+The upstream demo selects a small source set. `ingest/source-package-policy.json` explicitly lists unselected packages retained in the development workspace for integration tests during the transition. Retained packages still require isolated valid metadata, exact versions and unique source IDs. Unexpected unselected dependencies and stale policy entries fail validation. Remove a package's retention entry when selecting its source or removing its dependency. An absent or empty policy enables strict selection for all installed source packages. Docker omits retained packages and their policy from both the builder installation and production workspace.
 
 The default Sofia job file matches the demo. The full Sofia template under `ingest/terraform/examples/` is inactive. Existing deployments must retain their own catalog and job selection when rebasing. See the [instance setup guide](../setup/new-locality-instance.md) for translating the full template and updating the retention policy before deployment.
 
@@ -84,6 +84,19 @@ The check rejects version ranges, duplicate IDs, metadata differences, unsupport
 Run `pnpm --dir ingest build` after building the database package. The build reads `SOURCES` from the shared instance assembly and uses each selected crawler's `index.ts` as a compiler entrypoint. Other crawler directories and test helpers are excluded from broad file discovery; imported shared helpers and runtime mock services remain available.
 
 To remove an integration from a fork's checkout, remove its unselected provider dependency with `pnpm --dir ingest remove <package>`, remove its retention-policy entry, and remove its unselected crawler directory. Keep the source catalog and deployment jobs aligned. The production build requires selected entrypoints and their imports. Repository-wide integration tests still cover retained integrations, so forks removing them must also adapt the corresponding tests.
+
+## Preparing builder dependencies
+
+Docker installs root tooling first, then projects the frozen workspace inputs before installing provider packages. The projection removes retained unselected providers while preserving selected providers, ordinary dependencies, locked resolutions and configured patches. Development manifests and the lockfile stay unchanged.
+
+The builder validates installed packages against the selected catalog and deployment jobs with the retention policy absent. Normal development checks continue to validate the original retention policy and all retained integrations.
+
+To inspect the projected inputs after installing root tooling, use a new or empty target directory:
+
+```sh
+node ingest/scripts/prepare-build-workspace.mjs . tmp/build-workspace
+pnpm --dir tmp/build-workspace install --frozen-lockfile --ignore-scripts
+```
 
 ## Preparing production dependencies
 
@@ -104,22 +117,24 @@ The production image installs this generated workspace into a fresh layer with `
 
 The production stage sets `COREPACK_HOME=/home/node/.cache/node/corepack` before preparing pnpm. The runtime user owns this cache, making pinned pnpm available on first startup without downloading it.
 
-The builder still installs the full development workspace for compilation and validation. Selected-only installation across the whole build and deployment of a minimal instance remain in [#610](https://github.com/oboapp/oboapp/issues/610).
+Deployment of a minimal instance remains in [#610](https://github.com/oboapp/oboapp/issues/610).
 
 ## Verifying a minimal image
 
-The independent `Test Minimal Source Image` CI job creates a Docker context containing Triaditsa's packaged HTTP source, Sofiyska Voda's legacy HTTP source and shared helpers. Other crawler directories are absent. The context retains the development provider dependencies and records unselected packages in its retention policy, so the ordinary Dockerfile must remove them during production staging.
+The independent `Test Minimal Source Image` CI job creates a Docker context containing the packaged HTTP sources for Triaditsa and Sofiyska Voda, alongside shared helpers. Other crawler directories are absent. The context retains development provider dependencies and records unselected packages in its retention policy, so the ordinary Dockerfile must remove them before builder installation.
 
 To run the same check locally after workspace installation, use a new or empty fixture directory:
 
 ```sh
 pnpm --dir ingest build
 node ingest/dist/scripts/prepare-source-image-fixture.js tmp/source-image
+docker build --progress=plain --target builder -t oboapp-source-builder:local -f tmp/source-image/ingest/Dockerfile tmp/source-image
+node ingest/dist/scripts/check-source-builder-image.js oboapp-source-builder:local
 docker build --progress=plain -t oboapp-source-image:local -f tmp/source-image/ingest/Dockerfile tmp/source-image
 node ingest/dist/scripts/check-source-image.js oboapp-source-image:local
 ```
 
-The [fixture preparation command](../../ingest/scripts/prepare-source-image-fixture.ts) changes the copied catalog and deployment jobs while preserving the working checkout. The [image verifier](../../ingest/scripts/check-source-image.ts) checks that the final pnpm store contains only the source SDK and Triaditsa provider package, and that compiled crawler directories contain the two selected sources and shared helpers. It also checks `USER node`, offline startup through the default command, pinned pnpm availability, selected CLI help and rejection of an unselected source.
+The fixture command changes copied configuration while preserving the working checkout. Both image verifiers check selected package versions, physical dependency-store contents, source directories and entrypoint loading. The builder check also requires the retention policy to be absent. The production check verifies `USER node`, offline startup, pinned pnpm availability, selected CLI help and rejection of an unselected source.
 
 Runtime checks use containers with networking disabled. They load selected entrypoints and run the HTTP-only browser check, verifying that database initialization and browser runtimes stay unloaded. Source collection is never invoked. The two-source Linux image has passed these checks locally. A minimal cloud deployment remains separate work.
 
@@ -136,6 +151,12 @@ With the normal ingest environment configured, `pnpm --dir ingest crawl --source
 To roll back, revert the source integration and deploy the previous image. Existing raw records remain compatible. Preserve the instance catalog and deployment job selection during rollback.
 
 ## Production follow-ups and quality
+
+### Pancharevo
+
+Pancharevo uses the published `0.1.1` package for the current planned-repairs RSS feed and article structure. Feed failures fail discovery before saving records. Cloud Run still receives HTTP 403 responses, tracked in [#687](https://github.com/oboapp/oboapp/issues/687). Provider changes to historical paths and numeric IDs also require a deduplication review before collection resumes. Keep historical backfill separate.
+
+### Other sources
 
 Mladost's package reports unsuccessful HTTP navigation as a failure. Provider access from Cloud Run remains blocked in [#677](https://github.com/oboapp/oboapp/issues/677); its migration still needs a healthy discovery and deduplication scan in [#673](https://github.com/oboapp/oboapp/issues/673). Legacy provider repairs remain part of the remaining migration tracker.
 
