@@ -26,7 +26,7 @@ describe("selected source configuration", () => {
     expect(() => validateSourceSelection(selection())).not.toThrow();
   });
 
-  it("accepts mixed package and legacy sources with their existing job keys", () => {
+  it("rejects a selected entrypoint and job without a provider package", () => {
     const legacy = { ...metadata, id: "legacy-water", emergent: true };
     expect(() => validateSourceSelection(selection({
       catalog: [metadata, legacy],
@@ -37,7 +37,7 @@ describe("selected source configuration", () => {
           water: { source: legacy.id, emergent: true },
         },
       },
-    }))).not.toThrow();
+    }))).toThrow("Catalog source legacy-water has no source package dependency");
   });
 
   it("allows a package to support more localities than the instance selects", () => {
@@ -139,7 +139,7 @@ describe("selected source configuration", () => {
 
   it("allows an explicitly retained unselected integration package", () => {
     expect(() => validateSourceSelection(selection({
-      packages: [{
+      packages: [...selection().packages, {
         name: "@oboapp/source-sofia-news",
         version: "0.1.0",
         metadata: { ...metadata, id: "sofia-news" },
