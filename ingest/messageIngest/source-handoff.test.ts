@@ -2,16 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSourceStore, contractDate, rawSource } from "@/__mocks__/source-contract";
 import { pointGeometry } from "@/__mocks__/source-contract-fixtures";
 import { getDb } from "@/lib/db";
-import { launchBrowser } from "@/crawlers/shared/browser";
-import { encodeDocumentId, saveSourceDocument } from "@/crawlers/shared/firestore";
+import { chromium } from "playwright";
+import { encodeDocumentId } from "@/crawlers/shared/firestore";
 import { crawl as crawlFeed } from "@/crawlers/triaditsa-org/index";
 import { messageIngest } from "./index";
 import { ingest } from "./from-sources";
 
 vi.mock("@/lib/db", () => ({ getDb: vi.fn() }));
-vi.mock("@/crawlers/shared/browser", () => ({ launchBrowser: vi.fn() }));
 vi.mock("@/geocoding/shared/boundary-utils", () => ({ loadBoundaries: () => null, isWithinBoundaries: () => true }));
-vi.mock("@/lib/delay", () => ({ delay: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("dotenv", () => ({ default: { config: vi.fn() } }));
 vi.mock("./index", () => ({ messageIngest: vi.fn() }));
 
@@ -26,6 +24,7 @@ const expectedContent: Record<string, Record<string, unknown>> = {
 };
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(chromium, "launch").mockRejectedValue(new Error("Unexpected browser launch for an HTTP feed"));
   vi.useFakeTimers();
   vi.setSystemTime(contractDate);
   store = createSourceStore();
@@ -38,6 +37,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("crawler raw document to ingest contract", () => {
@@ -102,7 +102,7 @@ describe("crawler raw document to ingest contract", () => {
       categories: expected.categories, isRelevant: expected.isRelevant, timespanStart: expected.timespanStart,
       timespanEnd: expected.timespanEnd, cityWide: expected.cityWide, locality: "bg.sofia",
     });
-    expect(launchBrowser).not.toHaveBeenCalled();
+    expect(chromium.launch).not.toHaveBeenCalled();
     // Seed the downstream-owned completion state; this suite stops at messageIngest.
     await store.sources.updateOne(encodeDocumentId(url), { processed: true });
     vi.mocked(messageIngest).mockClear();
@@ -113,7 +113,8 @@ describe("crawler raw document to ingest contract", () => {
   });
 
   it.each([undefined, "", "https://example.com/public"])("keeps identity independent of deepLinkUrl=%s", async (deepLinkUrl) => {
-    await saveSourceDocument(rawSource({ deepLinkUrl, geoJson: pointGeometry, categories: ["water"] }), store.db);
+    const document = rawSource({ deepLinkUrl, geoJson: pointGeometry, categories: ["water"], processed: false });
+    store.records.set(encodeDocumentId(document.url), document);
     await ingest();
     expect(messageIngest).toHaveBeenCalledWith("Water repair", "sofiyska-voda", expect.objectContaining({
       sourceDocumentId: encodeDocumentId("https://example.com/item"),
@@ -123,8 +124,9 @@ describe("crawler raw document to ingest contract", () => {
   });
 
   it("leaves a failed record retryable and continues with later sources", async () => {
-    await saveSourceDocument(rawSource(), store.db);
-    await saveSourceDocument(rawSource({ url: "https://example.com/second" }), store.db);
+    for (const url of ["https://example.com/item", "https://example.com/second"]) {
+      store.records.set(encodeDocumentId(url), rawSource({ url, processed: false }));
+    }
     vi.mocked(messageIngest).mockRejectedValueOnce(new Error("downstream unavailable"));
     expect(await ingest()).toMatchObject({ total: 2, ingested: 1, failed: 1 });
     expect(store.records.get(encodeDocumentId("https://example.com/item"))?.processed).toBe(false);
