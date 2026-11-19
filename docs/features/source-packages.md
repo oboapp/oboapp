@@ -6,7 +6,7 @@ Tracking: [#586](https://github.com/oboapp/oboapp/issues/586). Published collect
 
 Each collection job loads a selected package through an entrypoint in `ingest/crawlers/`. Packages supply identifiers and content. Obo owns the schedule, historical lookups, validation, create-only storage, ingestion and notifications. Raw records with precomputed GeoJSON keep their existing ingestion path.
 
-The upstream demo selects Sofia BG, Sofiyska Voda and Sensor.Community. Its development workspace retains 20 other provider packages for integration tests. Each instance pins its provider versions in `ingest/package.json` and `pnpm-lock.yaml`. [Source migration tracker](https://github.com/oboapp/oboapp/issues/609) · [Deployment verification](https://github.com/oboapp/oboapp/issues/610)
+The upstream demo selects Sofia BG, Sofiyska Voda and Sensor.Community. Its development workspace retains 20 other provider packages for integration tests. The build discovers provider packages by the `@oboapp/source-*` naming convention. Each instance pins its provider versions in `ingest/package.json` and `pnpm-lock.yaml`. [Source migration tracker](https://github.com/oboapp/oboapp/issues/609) · [Deployment verification](https://github.com/oboapp/oboapp/issues/610)
 
 The Sofia production fork selects 22 packages and retains Sensor.Community for tests. Its final four production jobs switched to version `0.1.0`. Sofia BG, Sofia Capital of Sport and Krasna Polyana completed production scans. Serdika still needs reliable access to the district's feeds. The published archives for these four providers and Sensor.Community match the GitHub release archives byte for byte. [Fork rollout](https://github.com/vbuch/oboapp/pull/81) · [Serdika provider access](https://github.com/oboapp/oboapp/issues/711)
 
@@ -142,7 +142,7 @@ The fixture command changes copied configuration while preserving the working ch
 
 Offline runtime checks load the selected entrypoints and run the HTTP-only browser check. They verify that database initialization and browser runtimes stay unloaded.
 
-On 19 November 2026, Cloud Build built the two-source fixture from fork revision `c6175377`. Two isolated Cloud Run jobs executed image `sha256:3051fcaf165412558ff7894a32a1466e2b5abb0b8f041265ff5b0a0592befa9a`. Each checked the runtime registry, compiled source directories, non-root user and installed provider packages. The package store contained the SDK, Triaditsa and Sofiyska Voda. [Cloud Build record](https://console.cloud.google.com/cloud-build/builds/1b6964c3-0e4b-480a-8f7c-f081292de007?project=oborishte-map)
+On 19 November 2026, Cloud Build built the two-source fixture from fork revision `c6175377`. Two isolated Cloud Run jobs executed image `sha256:3051fcaf165412558ff7894a32a1466e2b5abb0b8f041265ff5b0a0592befa9a`. Each checked the runtime registry, compiled source directories, non-root user and installed provider packages. The package store contained the SDK, Triaditsa and Sofiyska Voda.
 
 The jobs ran the source runner in database-free preview mode against the live providers. Execution `proof586-triaditsa-c617-plhkm` validated 20 notices. Execution `proof586-voda-c617-mk7rg` validated four. Both completed with zero item failures. [Deployment tracker](https://github.com/oboapp/oboapp/issues/610)
 
