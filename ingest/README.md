@@ -12,13 +12,11 @@ The shared package (@oboapp/shared) is built automatically during workspace inst
 
 ```mermaid
 graph LR
-    B[crawl.ts: existing source entrypoints] --> L[Legacy crawler implementations]
-    B --> T[Packaged source adapters]
+    B[crawl.ts] --> T[Packaged source adapters]
     T --> R[Simple source runner]
     R --> P[npm source: list and fetch]
     P --> R
-    L --> C[(Raw sources via @oboapp/db)]
-    R --> C
+    R --> C[(Raw sources via @oboapp/db)]
     C --> D[ingest.ts]
     D --> E[(Firestore: messages)]
     E --> F[notify.ts]
@@ -29,7 +27,7 @@ graph LR
     style F fill:#e1f5ff
 ```
 
-During the [source-package transition](../docs/features/source-packages.md), the existing command and Cloud Run jobs run either a legacy crawler or an adapter to a published source package. The transition guide describes migration status and deployment steps. Provider collection for packaged sources lives in the sources repository; remaining legacy implementations stay in `crawlers/`. Both paths feed the same processing pipeline. Packages supply data. Obo's runner handles deduplication, validation, and persistence: it skips known items, checks new content, and saves complete records.
+Each collection command loads the selected source entrypoint. Its package discovers candidates and supplies new content. Obo's runner checks historical identifiers, validates content and saves complete records through `@oboapp/db`. [Source packages and deployment](../docs/features/source-packages.md)
 
 Pancharevo pins `@oboapp/source-rayon-pancharevo-bg@0.1.1` for the provider's planned-repairs RSS feed and article pages. See its [package notes](../docs/features/source-packages.md#pancharevo) for historical identifier compatibility and the open provider-access issue.
 
@@ -41,7 +39,7 @@ Lozenets pins `@oboapp/source-lozenets-sofia-bg@0.2.0` for bounded RSS retries a
 
 ## Components
 
-- **[crawlers/](crawlers/README.md)** - Automated scrapers that fetch raw data from external sources
+- **[crawlers/](crawlers/README.md)** - Collection entrypoints for independently versioned source packages
 - **[sources/](sources/run-source.ts)** - Simple scheduled runner for packaged sources, including Toplo's synthetic-identifier listing
 - **[messageIngest/](messageIngest/README.md)** - Processing pipeline: AI extraction → geocoding → GeoJSON conversion
 - **[geocoding/](geocoding/README.md)** - Geocoding services (Google, Overpass, Cadastre, GTFS) with persistent cache
@@ -100,7 +98,7 @@ Terraform also schedules the notification heartbeat and configured reports. Repo
 
 Dockerized for Google Cloud Run Jobs. See `Dockerfile` and `terraform/` directory.
 
-The independent `Test Minimal Source Image` CI job builds the ordinary Dockerfile with only Triaditsa, Sofiyska Voda and shared crawler helpers in its context. It checks selected packages in both the builder and production image, compiled sources, `USER node`, offline default startup and pinned pnpm availability. Runtime checks load entrypoints without invoking collection or initializing the database. See the [minimal-image instructions](../docs/features/source-packages.md#verifying-a-minimal-image) for local commands. A minimal cloud deployment remains separate work.
+The independent `Test Minimal Source Image` CI job builds the ordinary Dockerfile with only Triaditsa, Sofiyska Voda and shared crawler helpers in its context. It checks selected packages in both the builder and production image, compiled sources, `USER node`, offline default startup and pinned pnpm availability. Runtime checks load entrypoints without invoking collection or initializing the database. See the [minimal-image instructions](../docs/features/source-packages.md#verifying-a-minimal-image) for local commands and the verified two-source Cloud Run executions.
 
 ## Testing Toolchain Note
 

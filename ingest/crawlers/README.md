@@ -1,21 +1,12 @@
 # Crawlers
 
-This directory contains the crawler entrypoints: the functions called by the collection commands. During the [source-package transition](../../docs/features/source-packages.md), each directory holds either a legacy crawler or an adapter to a published source package. Packaged entrypoints call their published npm packages through Obo's runner. Both paths save raw records through `@oboapp/db`.
+Each source directory contains an entrypoint for the collection CLI and its Cloud Run job. The provider package discovers identifiers and fetches content. Obo checks historical records and saves validated content through `@oboapp/db`. The instance catalog controls which entrypoints can run. [Source package guide](../../docs/features/source-packages.md)
 
-## How They Work
-
-Each legacy crawler:
-
-1. Fetches raw data from its source (web scraping or API)
-2. Extracts structured information (title, content, dates, URLs)
-3. Stores documents in the sources collection through `@oboapp/db` with a `sourceType` identifier
-4. Tracks processed URLs to avoid duplicates
-
-For packaged sources, maintain provider parsing, source-content and provider-specific deduplication tests in [oboapp/sources](https://github.com/oboapp/sources). Maintain the runner, historical-record lookup, persistence tests and job entrypoints in this repository. Existing directory names and `crawl --source` commands remain for compatibility during migration.
+Maintain provider parsing, dates, identifiers and browser behavior in [oboapp/sources](https://github.com/oboapp/sources). This repository owns the runtime, database integration, job configuration and package-to-ingestion tests.
 
 ## Crawler and package contract tests
 
-The contract baseline from [#579](https://github.com/oboapp/oboapp/issues/579) protects historical behavior throughout the source-package migration in [#586](https://github.com/oboapp/oboapp/issues/586). Run from the repository root:
+The contract tests protect historical identifiers and the handoff from each package to Obo. Run these commands from the repository root.
 
 ```sh
 pnpm --dir shared build
@@ -38,9 +29,9 @@ All source directories, including currently unselected sources, have crawl-entry
 
 | Suite | Contract protected |
 | --- | --- |
-| Each source's `index.contract.test.ts` (Sofia uses `index.test.ts`) | Identity/locality wiring, output or shared-helper delegation, and source-specific failure behavior |
-| `shared/persistence-contract.test.ts` | Legacy base64 and MD5 lookups, sequential idempotency, no overwrites, validation, categories, processing state |
-| `shared/orchestration-contract.test.ts` | Website/full-feed/hybrid deduplication, persistence, failure continuation and browser ownership |
+| Each source's `index.contract.test.ts` (Sofia uses `index.test.ts`) | Source identity, locality, package output and source-specific failures |
+| `shared/persistence-contract.test.ts` | Literal historical identifiers and both base64 and MD5 lookup paths |
+| `sources/run-source.test.ts` | Create-only persistence, failure continuation, repeat scans, validation and cleanup |
 | `erm-zapad/index.contract.test.ts` | Published ERM package through persistence and ingestion, global lowest-ID deduplication, grouped center points, geometry repair, dates, optional fields, historical lookups, failures and retry |
 | `nimh-severe-weather/index.contract.test.ts` | Published NIMH package through persistence and ingestion, city-wide content, literal warning hashes, historical lookups, failures and retry |
 | `messageIngest/source-handoff.test.ts` | Actual Triaditsa full-feed crawler output through persistence and `from-sources.ingest()` |
@@ -53,34 +44,23 @@ All source directories, including currently unselected sources, have crawl-entry
 | `messageIngest/packaged-browser-services-handoff.test.ts` | Inspectorat and SDVR packages through persistence and ingestion, literal identifiers, detail dates, historical lookups, failures and retry |
 | `messageIngest/packaged-pancharevo-handoff.test.ts` | Pancharevo package through persistence and ingestion, RSS discovery, article dates, historical lookups, failures and retry |
 
-Tests use frozen time, local fixtures and mocked browser/network/storage boundaries. `__mocks__/source-contract.ts` provides a small stateful mock of the `@oboapp/db` sources repository; it is not a database emulator. Shared helper tests execute actual persistence code. Legacy wrapper suites invoke the exported crawler and its detail callback; packaged-source suites exercise the adapter and the package handoff. Custom suites retain real builders and transforms. AQI calculations and parsers retain their own unit suites. No credentials, browser downloads, provider access, or emulator are needed.
+The suites use frozen time and simulated network, browser and database boundaries. They run the real adapters, provider packages and runner. Provider parsing and air-quality calculations have their own package tests. Sofia's adapter tests cover historical title and URL matching. Sensor.Community's tests exercise the stored reading window and the native geometry handed to ingestion.
 
 The handoff smoke suites stop at `messageIngest`, explicitly seeding downstream completion state for repeat-crawl checks. Actual message creation and processed-state updates are covered by `messageIngest/db/store-incoming-message.test.ts`; precomputed-geometry processing is covered by `messageIngest/index.test.ts`. AI and event matching have their own pipeline tests.
 
 Preserve literal identifiers byte-for-byte. Do not derive expected identifiers using the production builder. Freeze only shared contract fields, not entire HTML responses or log output. Existing records remain known even when `processed=false`, provider content changes, or a package is upgraded. NIMH's structured-warning hash remains part of its identifier, so a changed warning can still produce a different identifier.
 
-During #586, keep historical lookup/no-overwrite tests in Obo and reuse identifier/content fixtures for `discoverItems`/`fetchItem`. Replace obsolete wrapper call assertions as entrypoints change. Triaditsa's handoff test runs the actual package with simulated HTTP responses and storage. Runner tests cover later retries and scans that run at the same time. The legacy helper checks for an existing record before writing. It guarantees sequential idempotency: repeated scans avoid duplicates when they run one at a time. Queues and saved discovery checkpoints are deferred.
-
-Known boundaries: this baseline does not assert universal failure behavior. Some legacy sources abort on a lookup/provider failure, while shared RSS skips unreadable items. Legacy browser cleanup is not certified on every exceptional path. Packaged sources close their source instance through the runner's `finally` block. Review remaining legacy cleanup changes separately.
-
-Before migrating Sofia, preserve its URL aliases, exact historical-title fallback, and lookup-failure handling. A failed URL lookup skips the item. Its contract suite protects these rules, feed/query failure propagation, and detail-failure continuation. The ingestion tests also protect the empty-message completion guard in `from-sources`.
+The runner checks both historical document ID formats before requesting a known article. It saves complete records with a create-only write so an overlapping scan cannot reset their processing state. An item that fails remains eligible on the next scan. The runner closes its source instance even when discovery fails.
 
 Before considering a PR ready, check every applicable CI job and available Sonar findings for changed files, including the actual quality gate. State when Sonar results are unavailable. A green gate does not necessarily mean there are no new issues. Keep test declarations explicit in each `.test.ts` file so static analysis can recognize them; shared mock/assertion support belongs under `__mocks__`.
 
-## Screenshot Baselines (Required)
+## Provider pages and fixtures
 
-Every crawler directory should include baseline screenshots for easier maintenance when source site design changes.
+Some source directories contain historical listing and article screenshots named `_entry.png` and `_message.png`. When a provider redesign changes the extraction rules, update the parser and its fixtures together in the provider package.
 
-- Preferred files: `_entry.png` (listing/index page) and `_message.png` (detail page)
-- Place screenshots directly in `ingest/crawlers/{source-name}/`
-- Source-specific names are allowed when structure differs
-- Refresh screenshots whenever selectors/parsers are updated after site redesign
+## Crawler Architecture
 
-Tip: full-page capture tools such as GoFullPage can speed up baseline creation.
-
-### Crawler Architecture
-
-Legacy district crawlers use the shared WordPress helpers in `ingest/crawlers/shared/` for browser sessions, listing and detail extraction, duplicate checks and raw persistence. Packaged district sources use helpers in the sources repository for provider collection, while Obo's runner owns duplicate checks and persistence.
+District packages manage browser sessions, parse feeds and listings, extract publication dates and convert articles to Markdown. Obo's runner checks historical records and saves new ones.
 
 API sources use provider-specific request and parsing logic.
 

@@ -1,6 +1,6 @@
 # Deploying oboapp for a New City
 
-oboapp is designed to be deployed for any city. The upstream repository (`oboapp/oboapp`) contains the infrastructure definitions and crawler implementations. Each production deployment is a **fork** that contributes its own instance configuration on top.
+oboapp is designed to be deployed for any city. The upstream repository (`oboapp/oboapp`) contains the infrastructure definitions and source entrypoints. Each production deployment is a **fork** that contributes its own instance configuration on top.
 
 ## Upstream vs. Instance Files
 
@@ -13,11 +13,11 @@ Configure upstream Terraform logic through variables in instance files.
 
 ## Configuring Sources
 
-**Migration in progress:** each selected source uses either a published package or a remaining legacy crawler. For a packaged source, install its exact published version in `ingest/` and connect its command entrypoint to Obo's runner. Select sources through `shared/src/sources.ts` and `ingest/terraform/source-jobs.<locality>.json`. Catalog definitions remain in `shared/src/sources/`. CI and the ingest image build validate the selected catalog, package metadata, entrypoints and job data. Production compilation follows the selected source entrypoints and their imports. Docker prepares separate production manifests and a matching frozen lockfile to install only selected provider dependencies. See [the transition guide](../features/source-packages.md) for the current source inventory and integration steps.
+Choose the provider packages for your instance. Install each exact published version in `ingest/` and connect its entrypoint to Obo's runner. Select sources in `shared/src/sources.ts` and list the matching jobs in `ingest/terraform/source-jobs.<locality>.json`. CI and the image build validate the package metadata, entrypoints, catalog and jobs. Both Docker stages install only selected providers. [Source package integration](../features/source-packages.md)
 
-The upstream demo selects Sofia BG, Sofiyska Voda and sensor.community. It also keeps the migrated source packages installed in the development workspace for integration tests during the migration. `ingest/source-package-policy.json` lists these packages under `retainedUnselectedPackages`. The check still validates their isolated metadata, exact dependency versions and unique source IDs. An installed unselected package needs an explicit retention entry. Remove that entry when selecting the source or removing its package. With the policy absent or empty, all installed source packages must be selected. The generated production workspace removes unselected provider dependencies and omits this development retention policy.
+The upstream demo selects Sofia BG, Sofiyska Voda and Sensor.Community. Its development workspace retains 20 other integrations for tests. The Sofia production fork selects 22 sources and retains Sensor.Community for tests. `ingest/source-package-policy.json` lists these packages under `retainedUnselectedPackages`. The check still validates their isolated metadata, exact dependency versions and unique source IDs. An installed unselected package needs an explicit retention entry. Remove that entry when selecting the source or removing its package. With the policy absent or empty, all installed source packages must be selected. The generated production workspace removes unselected provider dependencies and omits this development retention policy.
 
-Docker projects the frozen workspace before installing providers in the builder, then prepares a separate production installation. Both stages remove retained unselected providers and preserve ordinary dependencies, workspace links, locked resolutions and patches. The repository's manifests and lockfile stay unchanged. Deployment of a minimal instance remains part of [#610](https://github.com/oboapp/oboapp/issues/610).
+Docker projects the frozen workspace before installing providers in the builder, then prepares a separate production installation. Both stages remove retained unselected providers and preserve ordinary dependencies, workspace links, locked resolutions and patches. The repository's manifests and lockfile stay unchanged. The two-source fixture was deployed and exercised on Cloud Run on 19 November 2026. [Deployment evidence](https://github.com/oboapp/oboapp/issues/610)
 
 The independent `Test Minimal Source Image` CI job builds a two-source fixture through the ordinary Dockerfile. Its checks cover selected packages and source directories in both stages, the production user and offline startup. Follow the [minimal-image instructions](../features/source-packages.md#verifying-a-minimal-image) to run this check locally before changing an instance's deployment selection. It uses copied configuration and never runs source collection.
 
@@ -76,7 +76,7 @@ vars.LOCALITY = "bg.sofia"
 
 To add crawler support for a new city, contribute to the upstream repository:
 
-1. Add the new locality's crawler support in the upstream ingestion code and shared source configuration.
+1. Publish the new locality's provider packages in `oboapp/sources`. Pin their exact versions in `ingest/`, add their Obo entrypoints, and register the source definitions in the instance catalog.
 2. Add `ingest/terraform/source-jobs.<locality-id>.json` with the new locality's jobs. Keep source IDs and emergent flags aligned with the instance catalog, then run the source configuration check.
 3. Follow the [Crawler Development guidelines](../../AGENTS.md#crawler-development) for the full checklist and current file-level requirements.
 

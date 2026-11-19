@@ -2,17 +2,13 @@
 
 Tracking: [#586](https://github.com/oboapp/oboapp/issues/586). Published collectors and their provider documentation live in [oboapp/sources](https://github.com/oboapp/sources).
 
-## Current transition
+## Source packages
 
-Each selected source uses either a published package or a remaining legacy crawler. Both collection paths save complete raw records for the same ingestion, event-matching and notification pipeline. Sources that supply GeoJSON keep their existing processing path.
+Each collection job loads a selected package through an entrypoint in `ingest/crawlers/`. Packages supply identifiers and content. Obo owns the schedule, historical lookups, validation, create-only storage, ingestion and notifications. Raw records with precomputed GeoJSON keep their existing ingestion path.
 
-| Responsibility | Legacy sources | Packaged sources |
-| --- | --- | --- |
-| Provider requests, parsing and content conversion | Collector code in Obo | Independently versioned source packages |
-| Historical lookup, validation and raw persistence | Obo's collection helpers | Obo's scheduled source runner |
-| Scheduling, catalog selection and downstream processing | Obo | Obo |
+The upstream demo selects Sofia BG, Sofiyska Voda and Sensor.Community. Its development workspace retains 20 other provider packages for integration tests. Each instance pins its provider versions in `ingest/package.json` and `pnpm-lock.yaml`. [Source migration tracker](https://github.com/oboapp/oboapp/issues/609) · [Deployment verification](https://github.com/oboapp/oboapp/issues/610)
 
-Installed package versions are pinned in `ingest/package.json` and `pnpm-lock.yaml`. The [remaining migration tracker](https://github.com/oboapp/oboapp/issues/609) records source cutovers. [Selection and deployment work](https://github.com/oboapp/oboapp/issues/610) tracks deployment of a minimal instance. The image checks below exercise a two-source builder and production image.
+The Sofia production fork selects 22 packages and retains Sensor.Community for tests. Its final four production jobs switched to version `0.1.0`. Sofia BG, Sofia Capital of Sport and Krasna Polyana completed production scans. Serdika still needs reliable access to the district's feeds. The published archives for these four providers and Sensor.Community match the GitHub release archives byte for byte. [Fork rollout](https://github.com/vbuch/oboapp/pull/81) · [Serdika provider access](https://github.com/oboapp/oboapp/issues/711)
 
 The production build compiles selected source entrypoints and their imports alongside the common application code. It clears `dist` before compiling, so deselecting a source removes its previous output. The image uses compiled code and omits the raw crawler source tree. Docker prepares a separate production workspace that removes unselected provider dependencies before installing runtime packages.
 
@@ -36,7 +32,15 @@ An individual lookup, fetch, validation or save failure is logged and counted wh
 
 Website packages can reuse Chromium for listing and detail requests. Full-content feeds and listing/API packages can reuse content already obtained during discovery. Discovery context must stay within the SDK's serializable payload limit; larger content can remain in the source instance until fetched.
 
-Each migration preserves provider-specific URL filtering, date fallback, content conversion and legacy deduplication. Contract fixtures protect these behaviors before the old provider implementation is removed. Sofia's historical title fallback must remain supported when that source migrates.
+The last five adapters preserve the following provider contracts.
+
+| Source | Behavior covered by integration tests |
+| --- | --- |
+| Sofia BG | Repairs listings, news RSS and listing fallback. Obo checks historical titles, URL aliases and both raw document ID formats before fetching a detail. When an article heading differs from the listing title, Obo stores both titles on the new record so future scans recognize either one. |
+| Sofia Capital of Sport | WordPress RSS discovery, browser article detail and historical publication dates. |
+| Serdika | HTTP collection across messages, news and events, preserving article identifiers and per-section discovery. The district's redirect omits an intermediate TLS certificate. [Production access follow-up](https://github.com/oboapp/oboapp/issues/711) |
+| Krasna Polyana | Current WordPress notices use their public links. The July 2026 cutover keeps earlier Joomla records under their original identifiers. |
+| Sensor.Community | The adapter supplies locality bounds and a read-only window of stored sensor readings. The package calculates air-quality alerts. Obo persists the historical grid-cell identifiers and native GeoJSON. |
 
 Toplo illustrates synthetic identifiers: raw-record URLs identify incidents, while empty public detail links prevent navigation to invented detail pages. Its restricted compatibility profile preserves historical empty titles and malformed publication-date strings while validating content and geometry. Its preview validates candidates without database initialization; preview counts describe items that would be saved.
 
@@ -67,7 +71,7 @@ Keep the selected catalog in `shared/src/sources.ts` aligned with `ingest/terraf
 
 The `crawl` and `pipeline` commands share a [runtime registry](../../ingest/sources/registry.ts) derived from the selected `SOURCES` array. Their help lists selected sources. `crawl --source <source-id>` rejects unselected IDs even when their directories exist. `pipeline --all` runs every selected source; `pipeline --emergent` runs selected sources whose definition has `emergent: true`. Implementations load only when their selected source runs, after environment configuration.
 
-The upstream demo selects a small source set. `ingest/source-package-policy.json` explicitly lists unselected packages retained in the development workspace for integration tests during the transition. Retained packages still require isolated valid metadata, exact versions and unique source IDs. Unexpected unselected dependencies and stale policy entries fail validation. Remove a package's retention entry when selecting its source or removing its dependency. An absent or empty policy enables strict selection for all installed source packages. Docker omits retained packages and their policy from both the builder installation and production workspace.
+`ingest/source-package-policy.json` lists the unselected packages that the development workspace retains for integration tests. Retained packages still require isolated valid metadata, exact versions and unique source IDs. Unexpected unselected dependencies and stale policy entries fail validation. Remove a package's retention entry when selecting its source or removing its dependency. Each selected source must have a matching provider package. With an absent or empty policy, each installed provider must also be selected. Docker omits retained packages and their policy from both the builder installation and production workspace.
 
 The default Sofia job file matches the demo. The full Sofia template under `ingest/terraform/examples/` is inactive. Existing deployments must retain their own catalog and job selection when rebasing. See the [instance setup guide](../setup/new-locality-instance.md) for translating the full template and updating the retention policy before deployment.
 
@@ -117,7 +121,7 @@ The production image installs this generated workspace into a fresh layer with `
 
 The production stage sets `COREPACK_HOME=/home/node/.cache/node/corepack` before preparing pnpm. The runtime user owns this cache, making pinned pnpm available on first startup without downloading it.
 
-Deployment of a minimal instance remains in [#610](https://github.com/oboapp/oboapp/issues/610).
+The two-source configuration passed a Cloud Run deployment check on 19 November 2026. See the execution evidence below.
 
 ## Verifying a minimal image
 
@@ -136,12 +140,16 @@ node ingest/dist/scripts/check-source-image.js oboapp-source-image:local
 
 The fixture command changes copied configuration while preserving the working checkout. Both image verifiers check selected package versions, physical dependency-store contents, source directories and entrypoint loading. The builder check also requires the retention policy to be absent. The production check verifies `USER node`, offline startup, pinned pnpm availability, selected CLI help and rejection of an unselected source.
 
-Runtime checks use containers with networking disabled. They load selected entrypoints and run the HTTP-only browser check, verifying that database initialization and browser runtimes stay unloaded. Source collection is never invoked. The two-source Linux image has passed these checks locally. A minimal cloud deployment remains separate work.
+Offline runtime checks load the selected entrypoints and run the HTTP-only browser check. They verify that database initialization and browser runtimes stay unloaded.
+
+On 19 November 2026, Cloud Build built the two-source fixture from fork revision `c6175377`. Two isolated Cloud Run jobs executed image `sha256:3051fcaf165412558ff7894a32a1466e2b5abb0b8f041265ff5b0a0592befa9a`. Each checked the runtime registry, compiled source directories, non-root user and installed provider packages. The package store contained the SDK, Triaditsa and Sofiyska Voda. [Cloud Build record](https://console.cloud.google.com/cloud-build/builds/1b6964c3-0e4b-480a-8f7c-f081292de007?project=oborishte-map)
+
+The jobs ran the source runner in database-free preview mode against the live providers. Execution `proof586-triaditsa-c617-plhkm` validated 20 notices. Execution `proof586-voda-c617-mk7rg` validated four. Both completed with zero item failures. [Deployment tracker](https://github.com/oboapp/oboapp/issues/610)
 
 ## Moving a source
 
 1. Capture contracts for literal identifiers, historical lookups, content, dates, locality and scheduling. Include fixes already deployed by an instance.
-2. Publish and review the independent package. Preserve provider parsing tests and source-mapped coverage in the sources repository.
+2. Review the independent package, then follow its release procedure to publish it and verify the registry archive. Preserve provider parsing tests and source-mapped coverage in the sources repository.
 3. Install the exact version with `pnpm --dir ingest add --save-exact <package>@<version>`. Connect the existing command entrypoint to Obo's runner, remove the replaced provider code, and update selection or retention configuration.
 4. Test the actual package through raw persistence and ingestion. Cover historical skips, repeated scans, failed-item continuation, later retry and session cleanup. Run the repository's required quality checks and inspect the actual Sonar quality gate.
 5. Deploy using the existing job identity. Inspect saved/skipped/failed totals, verify complete raw records reach ingestion, and confirm a later scan skips known identifiers. Record deployment evidence in the migration issue.
@@ -158,6 +166,6 @@ Pancharevo uses the published `0.1.1` package for the current planned-repairs RS
 
 ### Other sources
 
-Mladost's package reports unsuccessful HTTP navigation as a failure. Provider access from Cloud Run remains blocked in [#677](https://github.com/oboapp/oboapp/issues/677); its migration still needs a healthy discovery and deduplication scan in [#673](https://github.com/oboapp/oboapp/issues/673). Legacy provider repairs remain part of the remaining migration tracker.
+Mladost's package reports unsuccessful HTTP navigation as a failure. Provider access from Cloud Run remains blocked in [#677](https://github.com/oboapp/oboapp/issues/677); its migration still needs a healthy discovery and deduplication scan in [#673](https://github.com/oboapp/oboapp/issues/673). Krasna Polyana's provider change and production verification are documented in [#675](https://github.com/oboapp/oboapp/issues/675).
 
 Obo tests the package-to-ingestion contract. The sources repository owns provider implementation tests, source-mapped coverage and its own Sonar analysis. [#663](https://github.com/oboapp/oboapp/issues/663) records the verified quality-gate setup for extracted code.

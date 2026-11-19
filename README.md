@@ -36,11 +36,9 @@ Built for Sofia first, OboApp is designed so other cities can fork the platform,
 
 ```mermaid
 flowchart LR
-	sources[Public sources] --> legacy[Legacy crawlers]
-	sources --> packaged[Packaged sources]
+	sources[Public sources] --> packaged[Source packages]
 	packaged --> runner[Simple source runner]
-	legacy --> raw[(Raw source documents)]
-	runner --> raw
+	runner --> raw[(Raw source documents)]
 	raw -->|Text sources| ingest[AI filtering and extraction]
 	raw -->|Precomputed GeoJSON| events
 	ingest --> geocoding[Multi-provider geocoding]
@@ -52,7 +50,7 @@ flowchart LR
 
 Automated crawlers collect notices from public sources such as utility providers, heating companies, transport operators, and municipal sites. AI-powered filtering, categorization, location extraction, and multi-service geocoding convert raw text into map-ready GeoJSON. Event matching groups related disruptions, and the notification engine matches new events with user-defined interest areas.
 
-**Migration in progress:** Obo collects data through packaged sources and remaining legacy crawlers. Packaged sources supply data through Obo's runner; legacy crawler implementations remain in this repository. Both paths save raw records for the same processing and notification pipeline. Each source uses one collection path. See [the transition guide](docs/features/source-packages.md) for the current source inventory, code responsibilities, and deployment steps. Sources that already provide GeoJSON continue to skip AI extraction and geocoding.
+Each instance chooses its source packages. Obo's runner skips known identifiers and saves new records for ingestion. Sources that provide GeoJSON go directly to event processing. [Source package integration and deployment](docs/features/source-packages.md)
 
 The web app is a Next.js Progressive Web App with an interactive map. Users can browse current disruptions, define interest circles with a custom radius, and receive notifications when new issues affect their areas.
 
