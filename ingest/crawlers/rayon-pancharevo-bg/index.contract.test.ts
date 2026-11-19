@@ -1,20 +1,50 @@
-import { describe, it } from "vitest";
-import { sourceWrapperContract } from "@/__mocks__/source-wrapper-contract";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createSource } from "@oboapp/source-rayon-pancharevo-bg";
+import { metadata } from "@oboapp/source-rayon-pancharevo-bg/metadata";
+import sourceDefinition from "../../../shared/src/sources/rayon-pancharevo-bg";
+import { crawl } from "./index";
 
-describe("rayon-pancharevo-bg crawl contract", () => {
-  const contract = sourceWrapperContract(
-    "rayon-pancharevo-bg",
-    "https://www.pancharevo.org/%D1%80%D0%B5%D0%BC%D0%BE%D0%BD%D1%82%D0%B8-%D0%B8-%D0%B8%D0%BD%D1%84%D1%80%D0%B0%D1%81%D1%82%D1%80%D1%83%D0%BA%D1%82%D1%83%D1%80%D0%B0",
-    "webpage",
-    () => import("./index"),
-    () => import("./extractors"),
-  );
+const mocks = vi.hoisted(() => {
+  return {
+    db: {},
+    getDb: vi.fn(),
+    runSource: vi.fn(),
+    info: vi.fn(),
+  };
+});
+vi.mock("@/lib/db", () => {
+  return { getDb: mocks.getDb };
+});
+vi.mock("@/sources/run-source", () => {
+  return { runSource: mocks.runSource };
+});
+vi.mock("@/lib/logger", () => {
+  return { logger: { info: mocks.info } };
+});
 
-  it("wires discovery, source identity, locality and detail processing", async () => {
-    await contract.assertWiring();
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.getDb.mockResolvedValue(mocks.db);
+  mocks.runSource.mockResolvedValue({ saved: 1, skipped: 2, failed: 0 });
+});
+
+describe("rayon-pancharevo-bg package entrypoint", () => {
+  it("runs the published factory with its historical identity and reports totals", async () => {
+    await crawl();
+    expect(metadata.id).toBe("rayon-pancharevo-bg");
+    expect(metadata.localities).toEqual(["bg.sofia"]);
+    expect(metadata).toEqual(sourceDefinition);
+    expect(mocks.runSource).toHaveBeenCalledExactlyOnceWith(mocks.db, metadata, createSource);
+    expect(mocks.info).toHaveBeenCalledWith("Crawl complete", {
+      sourceType: "rayon-pancharevo-bg",
+      saved: 1,
+      skipped: 2,
+      failed: 0,
+    });
   });
 
-  it("propagates orchestration failures to the runner", async () => {
-    await contract.assertFailurePropagation();
+  it("propagates failed scans to the existing scheduler", async () => {
+    mocks.runSource.mockRejectedValueOnce(new Error("Listing unavailable"));
+    await expect(crawl()).rejects.toThrow("Listing unavailable");
   });
 });
