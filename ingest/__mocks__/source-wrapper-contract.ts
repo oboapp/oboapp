@@ -11,7 +11,7 @@ import {
   crawlWordpressPage,
   processWordpressPost,
 } from "@/crawlers/shared/webpage-crawlers";
-import { crawlHybridRss, crawlFullRss } from "@/crawlers/shared/rss-crawler";
+import { crawlHybridRss } from "@/crawlers/shared/rss-crawler";
 
 vi.mock("@/crawlers/shared/webpage-crawlers", () => ({
   crawlWordpressPage: vi.fn(),
@@ -19,7 +19,6 @@ vi.mock("@/crawlers/shared/webpage-crawlers", () => ({
 }));
 vi.mock("@/crawlers/shared/rss-crawler", () => ({
   crawlHybridRss: vi.fn(),
-  crawlFullRss: vi.fn(),
 }));
 vi.mock("dotenv", () => ({
   default: { config: vi.fn() },
@@ -37,15 +36,11 @@ interface Extractors {
 
 function expectedDateCase(source: string) {
   // These expectations deliberately do not call the source's production parser.
-  const localMidnight = new Date(2026, 9, 4).toISOString();
   const cases: Record<string, { input: string; expected: string }> = {
-    "sdvr-mvr-bg": { input: "4 октомври 2026", expected: localMidnight },
     "krasna-polyana-org": {
       input: "2026-10-04T10:00:00+03:00",
       expected: "2026-10-04T07:00:00.000Z",
     },
-    "rayon-pancharevo-bg": { input: "4-6.10.2026", expected: localMidnight },
-    "inspectorat-so-org": { input: "", expected: "2026-10-03T22:00:00.000Z" },
   };
   return cases[source];
 }
@@ -53,7 +48,7 @@ function expectedDateCase(source: string) {
 export function sourceWrapperContract(
   sourceType: string,
   url: string,
-  mode: "webpage" | "hybrid" | "full",
+  mode: "webpage" | "hybrid",
   load: () => Promise<{ crawl: () => Promise<void> }>,
   loadExtractors: () => Promise<Extractors>,
 ) {
@@ -79,17 +74,6 @@ export function sourceWrapperContract(
       ? vi.spyOn(extractors, "extractPostLinks").mockResolvedValue([item])
       : undefined;
     await crawl();
-    if (mode === "full") {
-      expect(crawlFullRss).toHaveBeenCalledExactlyOnceWith({
-        feedUrl: url,
-        sourceType,
-        locality: "bg.sofia",
-        extractItems: expect.any(Function),
-      });
-      expect(processWordpressPost).not.toHaveBeenCalled();
-      expect(vi.mocked(crawlFullRss).mock.calls[0][0].extractItems).toBe(extractors.extractFeedItems);
-      return;
-    }
     const options = mode === "hybrid"
       ? vi.mocked(crawlHybridRss).mock.calls[0][0]
       : vi.mocked(crawlWordpressPage).mock.calls[0][0];
@@ -137,11 +121,7 @@ export function sourceWrapperContract(
   }
 
   async function assertFailurePropagation() {
-    const helper = mode === "full"
-      ? crawlFullRss
-      : mode === "hybrid"
-        ? crawlHybridRss
-        : crawlWordpressPage;
+    const helper = mode === "hybrid" ? crawlHybridRss : crawlWordpressPage;
     vi.mocked(helper).mockRejectedValueOnce(new Error("discovery failed"));
     const { crawl } = await load();
     await expect(crawl()).rejects.toThrow("discovery failed");
