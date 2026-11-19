@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { prepareSourceImageFixture } from "./prepare-source-image-fixture";
 
 const selectedPackage = "@oboapp/source-triaditsa-org";
+const waterPackage = "@oboapp/source-sofiyska-voda";
 const unselectedPackage = "@oboapp/source-mladost-bg";
 const optionalPackage = "@oboapp/source-other-city";
 const canonicalJobs = {
@@ -47,7 +48,12 @@ beforeEach(() => {
   writeFile("patches/source.patch", "Patch bytes\r\n");
   writeJson("ingest/package.json", {
     name: "oboapp-ingest",
-    dependencies: { [selectedPackage]: "0.2.0", [unselectedPackage]: "0.1.1", "@oboapp/source-sdk": "0.1.1" },
+    dependencies: {
+      [selectedPackage]: "0.2.0",
+      [waterPackage]: "0.1.0",
+      [unselectedPackage]: "0.1.1",
+      "@oboapp/source-sdk": "0.1.1",
+    },
     devDependencies: { vitest: "4.0.18" },
     optionalDependencies: { [optionalPackage]: "0.1.0" },
   });
@@ -67,18 +73,67 @@ beforeEach(() => {
   writeJson("ingest/terraform/source-jobs.bg.plovdiv.json", { extra: { source: "other-city" } });
   writeFile("ingest/terraform/main.tf", "Existing Terraform logic\n");
   writeJson("ingest/source-package-policy.json", { retainedUnselectedPackages: ["original-policy"] });
-  for (const [name, id] of [
-    [selectedPackage, "triaditsa-org"],
-    [unselectedPackage, "mladost-bg"],
-    [optionalPackage, "other-city"],
+  for (const { name, version, metadata, dependencies } of [
+    {
+      name: selectedPackage,
+      version: "0.2.0",
+      dependencies: {
+        "@oboapp/source-sdk": "0.1.1",
+        "html-entities": "2.6.0",
+        turndown: "7.2.2",
+      },
+      metadata: {
+        id: "triaditsa-org",
+        name: 'Столична община, Район "Триадица"',
+        url: "https://triaditza.org/%D0%BD%D0%BE%D0%B2%D0%B8%D0%BD%D0%B8/",
+        localities: ["bg.sofia"],
+      },
+    },
+    {
+      name: waterPackage,
+      version: "0.1.0",
+      dependencies: { "@oboapp/source-sdk": "0.1.1" },
+      metadata: {
+        id: "sofiyska-voda",
+        name: "Софийска вода",
+        url: "https://sofiyskavoda.bg/water-stops",
+        localities: ["bg.sofia"],
+        emergent: true,
+      },
+    },
+    {
+      name: unselectedPackage,
+      version: "0.1.1",
+      dependencies: {
+        "@oboapp/source-sdk": "0.1.1",
+        "@oboapp/source-web-utils": "0.3.1",
+      },
+      metadata: {
+        id: "mladost-bg",
+        name: "Район Младост",
+        url: "https://mladost.bg/",
+        localities: ["bg.sofia"],
+      },
+    },
+    {
+      name: optionalPackage,
+      version: "0.1.0",
+      dependencies: { "@oboapp/source-sdk": "0.1.1" },
+      metadata: {
+        id: "other-city",
+        name: "Other city",
+        url: "https://example.com/other-city",
+        localities: ["bg.plovdiv"],
+      },
+    },
   ]) {
     writeJson(`ingest/node_modules/${name}/package.json`, {
       name,
+      version,
+      dependencies,
       exports: { ".": "./runtime.cjs", "./metadata": "./metadata.cjs" },
     });
-    writeFile(`ingest/node_modules/${name}/metadata.cjs`, `exports.metadata = ${JSON.stringify({
-      id, name: id, url: `https://example.com/${id}`, localities: ["bg.sofia"],
-    })};`);
+    writeFile(`ingest/node_modules/${name}/metadata.cjs`, `exports.metadata = ${JSON.stringify(metadata)};`);
     writeFile(`ingest/node_modules/${name}/runtime.cjs`, "throw new Error('Provider runtime was loaded');");
   }
   for (const project of ["shared", "db", "ingest"]) {
@@ -117,6 +172,13 @@ describe("minimal source image fixture", () => {
       "shared", "sofiyska-voda", "triaditsa-org",
     ]);
     expect(readFileSync(join(target, "ingest", "package.json"))).toEqual(before[3]);
+    expect(readJson("ingest/package.json")).toMatchObject({
+      dependencies: {
+        [selectedPackage]: "0.2.0",
+        [waterPackage]: "0.1.0",
+        "@oboapp/source-sdk": "0.1.1",
+      },
+    });
     expect(readFileSync(join(target, "pnpm-lock.yaml"))).toEqual(before[1]);
     expect(readFileSync(join(target, "pnpm-workspace.yaml"))).toEqual(before[2]);
     expect(readFileSync(join(target, "patches", "source.patch"))).toEqual(

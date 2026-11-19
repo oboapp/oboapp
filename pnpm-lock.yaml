@@ -194,6 +194,9 @@ importers:
       '@oboapp/source-so-slatina-org':
         specifier: 0.1.0
         version: 0.1.0
+      '@oboapp/source-sofiyska-voda':
+        specifier: 0.1.0
+        version: 0.1.0
       '@oboapp/source-sredec-sofia-org':
         specifier: 0.1.0
         version: 0.1.0
@@ -2748,6 +2751,10 @@ packages:
   '@oboapp/source-so-slatina-org@0.1.0':
     resolution: {integrity: sha512-b8EyGZ1LeuHNbPPwa5O+vleojMWwL7qkro+ak1XVEsiBn9nw09YsNF2QnWpRKqXAQh4MlJcHWyYSBM5RhN/duw==}
     engines: {node: '>=20'}
+
+  '@oboapp/source-sofiyska-voda@0.1.0':
+    resolution: {integrity: sha512-BNKxX8xNPMcH3azEs4tQUd37900wLTW+iLRSEwnv46Ns1EaLlx7IKWv/OhFRvua6Q0y3QYxqR5oQSMoB6Ajm/g==}
+    engines: {node: '>=20.3.0'}
 
   '@oboapp/source-sredec-sofia-org@0.1.0':
     resolution: {integrity: sha512-FvmGkobqgEGTBl3mJKr2SS5UGk+eZgPAihOaoRXWfviYFm43cIMFzf03tlsRtwP9+zpeA2jLEaPpYv4haf/kBw==}
@@ -13784,6 +13791,10 @@ snapshots:
       html-entities: 2.6.0
       playwright: 1.61.1
       turndown: 7.2.2
+
+  '@oboapp/source-sofiyska-voda@0.1.0':
+    dependencies:
+      '@oboapp/source-sdk': 0.1.1
 
   '@oboapp/source-sredec-sofia-org@0.1.0':
     dependencies:
