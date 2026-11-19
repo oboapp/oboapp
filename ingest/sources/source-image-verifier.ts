@@ -42,7 +42,11 @@ const dependencies = {
 const expectedPackages = Object.keys(dependencies)
   .filter((name) => name.startsWith("@oboapp/source-"))
   .sort();
-contentsAssert.deepEqual(expectedPackages, ["@oboapp/source-sdk", "@oboapp/source-triaditsa-org"],
+contentsAssert.deepEqual(expectedPackages, [
+  "@oboapp/source-sdk",
+  "@oboapp/source-sofiyska-voda",
+  "@oboapp/source-triaditsa-org",
+],
   "The image manifest must select only the fixture packages");
 if (isBuilder) {
   contentsAssert.equal(existsSync(join(ingestDirectory, "source-package-policy.json")), false,

@@ -1,52 +1,93 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createSourceStore, contractDate } from "@/__mocks__/source-contract";
-import { getDb } from "@/lib/db";
+// @vitest-environment node
+
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createSource } from "@oboapp/source-sofiyska-voda";
+import { metadata } from "@oboapp/source-sofiyska-voda/metadata";
+import sourceDefinition from "../../../shared/src/sources/sofiyska-voda";
 import { crawl } from "./index";
 
-vi.mock("@/lib/db", () => ({ getDb: vi.fn() }));
-vi.mock("dotenv", () => ({ default: { config: vi.fn() } }));
-const feature = { attributes: { OBJECTID: 123, LOCATION: "ул. Тест", START_: Date.parse("2026-10-04T08:00:00Z"), ALERTEND: Date.parse("2026-10-04T12:00:00Z") }, geometry: { x: 23.32, y: 42.7 } };
-const response = (data: unknown) => new Response(JSON.stringify(data), { status: 200 });
-let store: ReturnType<typeof createSourceStore>;
-const fetchMock = vi.fn<typeof fetch>();
-beforeEach(() => {
-  vi.clearAllMocks(); vi.useFakeTimers(); vi.setSystemTime(contractDate);
-  store = createSourceStore(); vi.mocked(getDb).mockResolvedValue(store.db);
-  vi.stubGlobal("fetch", fetchMock);
-  fetchMock.mockReset().mockImplementation(async (url) => response({ features: String(url).includes("/2/query") ? [feature, feature] : [] }));
-});
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+const mocks = vi.hoisted(() => ({
+  db: {},
+  getDb: vi.fn(),
+  runSource: vi.fn(),
+  info: vi.fn(),
+}));
 
-describe("Sofiyska Voda crawl contract", () => {
-  it("persists provider geometry and times once across duplicate records and repeat crawls", async () => {
-    await crawl(); await crawl();
-    expect(store.sources.setOne).toHaveBeenCalledTimes(1);
-    const doc = [...store.records.values()][0];
-    expect(doc).toMatchObject({
-      url: "https://gispx.sofiyskavoda.bg/arcgis/rest/services/WSI_PUBLIC/InfoCenter_Public/MapServer/2/123",
-      deepLinkUrl: "", locality: "bg.sofia", sourceType: "sofiyska-voda", categories: ["water"],
-      processed: false, isRelevant: true, crawledAt: contractDate,
-      timespanStart: new Date("2026-10-04T08:00:00Z"), timespanEnd: new Date("2026-10-04T12:00:00Z"),
-    });
-    expect(JSON.parse(String(doc.geoJson))).toMatchObject({ type: "FeatureCollection", features: [{ geometry: { type: "Point", coordinates: [23.32, 42.7] } }] });
-  });
-  it("reads subsequent ArcGIS pages before moving to the next layer", async () => {
-    fetchMock.mockResolvedValueOnce(response({ features: [feature], exceededTransferLimit: true }))
-      .mockResolvedValueOnce(response({ features: [{ ...feature, attributes: { ...feature.attributes, OBJECTID: 124 } }] }));
+vi.mock("@/lib/db", () => ({ getDb: mocks.getDb }));
+vi.mock("@/sources/run-source", () => ({ runSource: mocks.runSource }));
+vi.mock("@/lib/logger", () => ({ logger: { info: mocks.info } }));
+vi.mock("dotenv", () => ({ default: { config: vi.fn() } }));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.getDb.mockResolvedValue(mocks.db);
+  mocks.runSource.mockResolvedValue({ saved: 1, skipped: 2, failed: 0 });
+});
+
+describe("Sofiyska Voda package entrypoint", () => {
+  it("keeps catalog identity and runs the published factory through the platform", async () => {
     await crawl();
-    expect(fetchMock.mock.calls.map(([url]) => new URL(String(url)).searchParams.get("resultOffset"))).toEqual(["0", "1000", "0"]);
-    expect(store.sources.setOne).toHaveBeenCalledTimes(2);
+
+    expect(metadata).toEqual(sourceDefinition);
+    expect(metadata).toEqual({
+      id: "sofiyska-voda",
+      name: "Софийска вода",
+      url: "https://sofiyskavoda.bg/water-stops",
+      localities: ["bg.sofia"],
+      emergent: true,
+    });
+    expect(mocks.getDb).toHaveBeenCalledOnce();
+    expect(mocks.runSource).toHaveBeenCalledExactlyOnceWith(mocks.db, metadata, createSource);
+    expect(mocks.info).toHaveBeenCalledExactlyOnceWith("Crawl complete", {
+      sourceType: "sofiyska-voda",
+      saved: 1,
+      skipped: 2,
+      failed: 0,
+    });
   });
-  it("ignores empty layers and features missing geometry or identity", async () => {
-    fetchMock.mockResolvedValueOnce(response({ features: [{ attributes: { OBJECTID: 1 } }, { geometry: feature.geometry }] })).mockResolvedValueOnce(response({ features: [] }));
-    await crawl(); expect(store.sources.setOne).not.toHaveBeenCalled();
+
+  it.each([
+    { saved: 1, skipped: 0, failed: 1 },
+    { saved: 0, skipped: 1, failed: 1 },
+    { saved: 0, skipped: 0, failed: 0 },
+  ])("reports a completed scan with $saved saved, $skipped skipped and $failed failed", async (summary) => {
+    mocks.runSource.mockResolvedValue(summary);
+
+    await expect(crawl()).resolves.toBeUndefined();
+
+    expect(mocks.info).toHaveBeenCalledExactlyOnceWith("Crawl complete", {
+      sourceType: "sofiyska-voda",
+      ...summary,
+    });
   });
-  it.each(["http", "provider", "lookup", "write"])("propagates %s failures without claiming a successful crawl", async (stage) => {
-    if (stage === "http") fetchMock.mockResolvedValueOnce(new Response("error", { status: 503 }));
-    if (stage === "provider") fetchMock.mockResolvedValueOnce(response({ error: { message: "unavailable" } }));
-    if (stage === "lookup") store.sources.findById.mockRejectedValueOnce(new Error("lookup"));
-    if (stage === "write") store.sources.setOne.mockRejectedValueOnce(new Error("write"));
-    await expect(crawl()).rejects.toThrow();
-    expect(store.records.size).toBe(0);
+
+  it("keeps the failed-job signal when every interruption fails", async () => {
+    mocks.runSource.mockResolvedValue({ saved: 0, skipped: 0, failed: 2 });
+
+    await expect(crawl()).rejects.toThrow("All Sofiyska Voda interruptions failed to process");
+
+    expect(mocks.info).toHaveBeenCalledExactlyOnceWith("Crawl complete", {
+      sourceType: "sofiyska-voda",
+      saved: 0,
+      skipped: 0,
+      failed: 2,
+    });
+  });
+
+  it("propagates listing failures without reporting completed scan totals", async () => {
+    mocks.runSource.mockRejectedValueOnce(new Error("ArcGIS listing unavailable"));
+
+    await expect(crawl()).rejects.toThrow("ArcGIS listing unavailable");
+
+    expect(mocks.info).not.toHaveBeenCalled();
+  });
+
+  it("propagates database initialization failures before starting collection", async () => {
+    mocks.getDb.mockRejectedValueOnce(new Error("Storage unavailable"));
+
+    await expect(crawl()).rejects.toThrow("Storage unavailable");
+
+    expect(mocks.runSource).not.toHaveBeenCalled();
+    expect(mocks.info).not.toHaveBeenCalled();
   });
 });

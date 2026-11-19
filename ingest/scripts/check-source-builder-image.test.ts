@@ -19,6 +19,7 @@ vi.mock("@/sources/docker-executable", () => ({
 const imageTag = "oboapp-source-builder:test";
 const sourceVersions = {
   "@oboapp/source-sdk": "0.1.1",
+  "@oboapp/source-sofiyska-voda": "0.1.0",
   "@oboapp/source-triaditsa-org": "0.2.0",
 };
 const sourceIds = ["shared", "sofiyska-voda", "triaditsa-org"];
@@ -33,7 +34,15 @@ function addInstalledPackage(name: string, version: string): void {
   const storeEntry = `${name.replace("/", "+")}@${version}`;
   directories.get("/app/node_modules/.pnpm")?.push(storeEntry);
   const packageDirectory = `/app/node_modules/.pnpm/${storeEntry}/node_modules/${name}`;
-  files.set(`${packageDirectory}/package.json`, JSON.stringify({ name, version }));
+  const dependencies: Record<string, string> = {};
+  if (name !== "@oboapp/source-sdk") {
+    dependencies["@oboapp/source-sdk"] = "0.1.1";
+  }
+  if (name === "@oboapp/source-triaditsa-org") {
+    dependencies["html-entities"] = "2.6.0";
+    dependencies.turndown = "7.2.2";
+  }
+  files.set(`${packageDirectory}/package.json`, JSON.stringify({ name, version, dependencies }));
   resolvedPackages.set(name, `${packageDirectory}/index.js`);
 }
 
@@ -206,16 +215,25 @@ describe("source builder image verification", () => {
     expect(() => runContentsVerifier()).toThrow(/pnpm store/);
   });
 
-  it("rejects an installed selected package whose version differs from the manifest", () => {
-    const resolved = resolvedPackages.get("@oboapp/source-triaditsa-org");
-    assert.ok(resolved);
-    files.set(`${dirname(resolved)}/package.json`, JSON.stringify({
-      name: "@oboapp/source-triaditsa-org",
-      version: "0.1.0",
-    }));
+  it("rejects a browser helper retained transitively in the HTTP-only image", () => {
+    addInstalledPackage("@oboapp/source-web-utils", "0.1.0");
 
-    expect(() => runContentsVerifier()).toThrow(/Direct source versions/);
+    expect(() => runContentsVerifier()).toThrow(/pnpm store/);
   });
+
+  it.each(["@oboapp/source-sofiyska-voda", "@oboapp/source-triaditsa-org"])(
+    "rejects an installed selected package with a different version: %s",
+    (name) => {
+      const resolved = resolvedPackages.get(name);
+      assert.ok(resolved);
+      files.set(`${dirname(resolved)}/package.json`, JSON.stringify({
+        name,
+        version: "0.0.0",
+      }));
+
+      expect(() => runContentsVerifier()).toThrow(/Direct source versions/);
+    },
+  );
 
   it("rejects the retained development package policy", () => {
     files.set("/app/ingest/source-package-policy.json", "{}");

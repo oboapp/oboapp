@@ -2,6 +2,7 @@
 
 import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as sourceImageVerifier from "@/sources/source-image-verifier";
 import { checkSourceImage } from "./check-source-image";
 
 const mocks = vi.hoisted(() => ({
@@ -88,9 +89,51 @@ beforeEach(() => {
   });
   mocks.readInstalledPackageManifest.mockReturnValue({ directory: "/fixture/ingest", dependencies: {} });
   mocks.readInstalledSourcePackages.mockReturnValue([
-    { name: "@oboapp/source-triaditsa-org" },
-    { name: "@oboapp/source-rayon-oborishte-bg" },
+    {
+      name: "@oboapp/source-triaditsa-org",
+      version: "0.2.0",
+      dependencies: {
+        "@oboapp/source-sdk": "0.1.1",
+        "html-entities": "2.6.0",
+        turndown: "7.2.2",
+      },
+      metadata: {
+        id: "triaditsa-org",
+        name: 'Столична община, Район "Триадица"',
+        url: "https://triaditza.org/%D0%BD%D0%BE%D0%B2%D0%B8%D0%BD%D0%B8/",
+        localities: ["bg.sofia"],
+      },
+    },
+    {
+      name: "@oboapp/source-sofiyska-voda",
+      version: "0.1.0",
+      dependencies: { "@oboapp/source-sdk": "0.1.1" },
+      metadata: {
+        id: "sofiyska-voda",
+        name: "Софийска вода",
+        url: "https://sofiyskavoda.bg/water-stops",
+        localities: ["bg.sofia"],
+        emergent: true,
+      },
+    },
+    {
+      name: "@oboapp/source-rayon-oborishte-bg",
+      version: "0.1.0",
+      dependencies: {
+        "@oboapp/source-sdk": "0.1.1",
+        "html-entities": "2.6.0",
+        playwright: "1.61.1",
+        turndown: "7.2.2",
+      },
+      metadata: {
+        id: "rayon-oborishte-bg",
+        name: "Район Оборище",
+        url: "https://rayon-oborishte.bg/",
+        localities: ["bg.sofia"],
+      },
+    },
   ]);
+  vi.spyOn(sourceImageVerifier, "createSourceImageContentsVerifier");
   vi.spyOn(console, "log").mockReturnValue(undefined);
 });
 
@@ -241,6 +284,15 @@ describe("source image verification safeguards", () => {
     const browserCheck = script.indexOf('await require("./dist/scripts/check-source-browsers.js").checkSourceBrowsers();');
     expect(browserCheck).toBeGreaterThan(0);
     expect(script.indexOf("verifySourceModuleIsolation();", browserCheck)).toBeGreaterThan(browserCheck);
+  });
+
+  it("keeps selected HTTP packages out of the unselected dependency checks", () => {
+    checkSourceImage(imageTag);
+
+    expect(sourceImageVerifier.createSourceImageContentsVerifier).toHaveBeenCalledWith("production", [
+      "@oboapp/source-rayon-oborishte-bg",
+      "@oboapp/source-web-utils",
+    ]);
   });
 
   it("reports a pnpm version that differs from the production pin", () => {

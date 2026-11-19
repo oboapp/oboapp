@@ -74,8 +74,12 @@ export function checkSourceImage(imageTag: string, explicitDockerExecutable?: st
   assert.equal(pnpmVersion, "10.11.0", "The production user must have the pinned pnpm version available offline");
 
   const ingestDirectory = readInstalledPackageManifest("oboapp-ingest", __filename).directory;
+  const selectedPackageNames = new Set([
+    "@oboapp/source-sofiyska-voda",
+    "@oboapp/source-triaditsa-org",
+  ]);
   const unselectedPackages = readInstalledSourcePackages(ingestDirectory)
-    .filter((source) => source.name !== "@oboapp/source-triaditsa-org")
+    .filter((source) => !selectedPackageNames.has(source.name))
     .map((source) => source.name);
   unselectedPackages.push("@oboapp/source-web-utils");
   execFileSync(dockerExecutable, [
