@@ -29,6 +29,7 @@ export type SourceContentValidation = "strict" | "legacy-toplo";
 export function parseSourceContent(
   value: unknown,
   validation: SourceContentValidation = "strict",
+  geometryFormat: "object" | "string" = "string",
 ): Record<string, unknown> {
   const schema = validation === "legacy-toplo" ? legacyToploContentSchema : contentSchema;
   const { geoJson, ...content } = schema.parse(value);
@@ -41,7 +42,7 @@ export function parseSourceContent(
     if (!validated.isValid || validated.errors.length > 0) {
       throw new Error(`Invalid source GeoJSON: ${validated.errors.join("; ")}`);
     }
-    result.geoJson = JSON.stringify(validated.geoJson);
+    result.geoJson = geometryFormat === "object" ? validated.geoJson : JSON.stringify(validated.geoJson);
   }
   return result;
 }
