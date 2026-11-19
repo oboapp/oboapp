@@ -60,6 +60,7 @@
     "@google/genai": "^1.33.0",
     "@oboapp/db": "workspace:*",
     "@oboapp/shared": "workspace:*",
+    "@oboapp/source-erm-zapad": "0.1.0",
     "@oboapp/source-inspectorat-so-org": "0.1.0",
     "@oboapp/source-lozenets-sofia-bg": "0.2.0",
     "@oboapp/source-mladost-bg": "0.1.1",

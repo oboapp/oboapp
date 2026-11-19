@@ -1,0 +1,32 @@
+[
+  {
+    "identifier": "https://info.ermzapad.bg/incidents/SF_0001",
+    "content": {
+      "title": "планирано - София - SF_0001",
+      "message": "планирано\n\nНаселено място: София\nНачало: 04.10.2026 10:00\nКрай: 04.10.2026 12:00\nМрежов код: SF_0001",
+      "markdownText": "**планирано**\n\n**Населено място:** София\n**Начало:** 04.10.2026 10:00\n**Край:** 04.10.2026 12:00\n**Мрежов код:** SF_0001",
+      "datePublished": "2026-10-04T10:00:00.000Z",
+      "deepLinkUrl": "",
+      "geoJson": "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[23.323422,42.700932]},\"properties\":{\"eventId\":\"SF_0001\",\"cityName\":\"София\",\"eventType\":\"планирано\",\"startTime\":\"04.10.2026 10:00\",\"endTime\":\"04.10.2026 12:00\"}}]}",
+      "categories": ["electricity"],
+      "isRelevant": true,
+      "timespanStart": "2026-10-04T10:00:00.000Z",
+      "timespanEnd": "2026-10-04T12:00:00.000Z"
+    }
+  },
+  {
+    "identifier": "https://info.ermzapad.bg/incidents/SF_0010",
+    "content": {
+      "title": "непланирано - жк.МЛАДОСТ - SF_0010",
+      "message": "непланирано\n\nНаселено място: жк.МЛАДОСТ\nНачало: 04.10.2026 09:00\nКрай: 04.10.2026 11:00\nМрежов код: SF_0010",
+      "markdownText": "**непланирано**\n\n**Населено място:** жк.МЛАДОСТ\n**Начало:** 04.10.2026 09:00\n**Край:** 04.10.2026 11:00\n**Мрежов код:** SF_0010",
+      "datePublished": "2026-10-04T09:00:00.000Z",
+      "deepLinkUrl": "",
+      "geoJson": "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[23.38,42.65]},\"properties\":{\"eventId\":\"SF_0010\",\"cityName\":\"жк.МЛАДОСТ\",\"eventType\":\"непланирано\",\"startTime\":\"04.10.2026 09:00\",\"endTime\":\"04.10.2026 11:00\"}},{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[23.39,42.66]},\"properties\":{\"eventId\":\"SF_0010\",\"cityName\":\"жк.МЛАДОСТ\",\"eventType\":\"непланирано\",\"startTime\":\"04.10.2026 09:00\",\"endTime\":\"04.10.2026 11:00\"}}]}",
+      "categories": ["electricity"],
+      "isRelevant": true,
+      "timespanStart": "2026-10-04T09:00:00.000Z",
+      "timespanEnd": "2026-10-04T11:00:00.000Z"
+    }
+  }
+]
