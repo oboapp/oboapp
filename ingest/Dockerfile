@@ -1,20 +1,34 @@
 # Multi-stage build for minimal image size
-FROM node:20-slim AS builder
+FROM node:20-slim AS build-inputs
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
 
 WORKDIR /app
 
-# Copy workspace root config files
+# Root tooling projects frozen inputs before the first provider installation.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm --filter . install --frozen-lockfile --ignore-scripts
+COPY ingest/scripts/prepare-build-workspace.mjs ./ingest/scripts/
+RUN --mount=type=bind,source=.,target=/source \
+    node ingest/scripts/prepare-build-workspace.mjs /source /app/build-workspace
+
+FROM node:20-slim AS builder
+
+RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
+
+WORKDIR /app
 
 # Copy shared, db and ingest package files
 COPY shared ./shared
 COPY db ./db
 COPY ingest ./ingest
 
-# Install workspace dependencies without lifecycle scripts
+# Overlay selected manifests and remove the development retention policy.
+COPY --from=build-inputs /app/build-workspace ./
+RUN rm -f ingest/source-package-policy.json
+
+# Install only selected provider packages and platform build tools.
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Build shared and db packages first (ingest depends on them)
