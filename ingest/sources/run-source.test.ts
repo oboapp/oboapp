@@ -64,7 +64,9 @@ afterEach(() => {
 describe("scheduled source runner", () => {
   it("preserves identifiers and owns all workflow fields", async () => {
     const { db, create, source, records } = setup();
-    source.fetchItem.mockResolvedValue({ ...content, url: "wrong", processed: true, sourceType: "wrong" } as typeof content);
+    source.fetchItem.mockResolvedValue({
+      ...content, url: "wrong", processed: true, sourceType: "wrong", listingTitle: "wrong",
+    } as typeof content);
     expect(await runSource(db, metadata, create)).toEqual({ saved: 1, skipped: 0, failed: 0 });
     expect(records.get(encodeDocumentId(identifier))).toEqual({
       ...content, url: identifier, sourceType: metadata.id, locality: "bg.sofia", crawledAt: expect.any(Date), processed: false,
@@ -79,6 +81,31 @@ describe("scheduled source runner", () => {
     expect(await runSource(db, metadata, create)).toEqual({ saved: 0, skipped: 1, failed: 0 });
     expect(source.fetchItem).not.toHaveBeenCalled();
     expect(records.get(id)).toEqual({ processed: false });
+  });
+
+  it("remembers an alias only after creating the complete record", async () => {
+    const { db, create, source, records } = setup();
+    const known = { identifier: identifier + "/old" };
+    const invalid = { identifier: identifier + "/invalid" };
+    const fresh = { identifier };
+    const remember = vi.fn();
+    source.discoverItems.mockResolvedValue({ items: [known, invalid, fresh] });
+    source.fetchItem.mockRejectedValueOnce(new Error("Incomplete detail")).mockResolvedValue(content);
+    const history = {
+      async isKnown(item: { identifier: string }, lookup: () => Promise<boolean>) {
+        return item.identifier === known.identifier || await lookup();
+      },
+      listingTitle() {
+        return "Original listing title";
+      },
+      remember,
+    };
+    expect(await runSource(db, metadata, create, { history })).toEqual({ saved: 1, skipped: 1, failed: 1 });
+    expect(remember).toHaveBeenCalledExactlyOnceWith(fresh);
+    expect(records.get(encodeDocumentId(identifier))).toMatchObject({
+      title: content.title,
+      listingTitle: "Original listing title",
+    });
   });
 
   it("persists native geometry for historical Sensor.Community alerts", async () => {
