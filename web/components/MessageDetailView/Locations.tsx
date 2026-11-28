@@ -79,7 +79,7 @@ interface ClickableCardProps {
   onClick?: () => void;
 }
 
-function ClickableCard({ children, onClick }: ClickableCardProps) {
+function ClickableCard({ children, onClick }: Readonly<ClickableCardProps>) {
   const baseClasses =
     "w-full text-left bg-neutral-light rounded-md p-3 border border-neutral-border";
   const interactiveClasses = onClick
@@ -108,7 +108,7 @@ export default function Locations({
   cadastralProperties,
   addresses,
   onLocationClick,
-}: LocationsProps) {
+}: Readonly<LocationsProps>) {
   const handleClickCoords = (lat: number, lng: number) => {
     if (!onLocationClick) {
       return;
