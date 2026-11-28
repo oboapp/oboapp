@@ -62,13 +62,18 @@ async function sendNotifications(
   const allMatchIds = matches
     .map((m) => m.id)
     .filter((id): id is string => !!id);
+  const sendableMatches = uniqueMatches.filter(
+    (match): match is NotificationMatch & { id: string } => Boolean(match.id),
+  );
+  const records = await db.messages.findByIds(
+    sendableMatches.map((match) => match.messageId),
+  );
+  const messagesById = new Map(
+    records.map((record) => [getString(record._id), record]),
+  );
 
-  for (const match of uniqueMatches) {
-    if (!match.id) {
-      continue;
-    }
-
-    const messageData = await db.messages.findById(match.messageId);
+  for (const match of sendableMatches) {
+    const messageData = messagesById.get(match.messageId) ?? null;
     const message = buildNotificationMessage(match, messageData);
     if (!message) {
       continue;
