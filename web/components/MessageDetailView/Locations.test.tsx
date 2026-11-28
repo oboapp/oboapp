@@ -11,6 +11,47 @@ const createAddress = (overrides: Partial<Address> = {}): Address => ({
   ...overrides,
 });
 
+describe("Locations street sections", () => {
+  it("opens the first available endpoint on the map and keeps unlocated streets as text", async () => {
+    const user = userEvent.setup();
+    const street = {
+      street: "ул. Искър",
+      from: "ул. Раковски",
+      to: "ул. Будапеща",
+      timespans: [],
+    };
+    const start = createAddress({ originalText: street.from });
+    const end = createAddress({
+      originalText: street.to,
+      coordinates: { lat: 42.7, lng: 23.33 },
+    });
+    const scrollTo = vi.fn();
+    vi.stubGlobal("scrollTo", scrollTo);
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+    }));
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
+
+    const onLocationClick = vi.fn();
+    const props = { streets: [street], onLocationClick };
+    const { rerender } = render(<Locations {...props} addresses={[start, end]} />);
+    const button = () => screen.getByRole("button", { name: /ул\. Искър/ });
+    await user.click(button());
+    expect(onLocationClick).toHaveBeenLastCalledWith(42.6977, 23.3219);
+    expect(scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: "instant" });
+
+    rerender(<Locations {...props} addresses={[end]} />);
+    await user.click(button());
+    expect(onLocationClick).toHaveBeenLastCalledWith(42.7, 23.33);
+
+    rerender(<Locations {...props} addresses={[]} />);
+    expect(screen.getByText(street.street)).toBeVisible();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+});
+
 describe("Locations – bus stops", () => {
   it("displays formattedAddress when a matching address is found", () => {
     render(

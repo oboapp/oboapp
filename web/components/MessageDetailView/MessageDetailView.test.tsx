@@ -33,10 +33,6 @@ vi.mock("@/lib/hooks/useEscapeKey", () => ({
   useEscapeKey: vi.fn(),
 }));
 
-vi.mock("@/lib/geometry-utils", () => ({
-  getFeaturesCentroid: () => null,
-}));
-
 vi.mock("@/components/CategoryChips", () => ({
   default: () => <div data-testid="category-chips" />,
 }));
@@ -295,6 +291,46 @@ describe("MessageDetailView summary notice", () => {
 });
 
 describe("MessageDetailView locations accordion", () => {
+  it("centers the map on the feature and respects the current motion preference", async () => {
+    const user = userEvent.setup();
+    const onAddressClick = vi.fn();
+    const scrollTo = vi.fn();
+    vi.stubGlobal("scrollTo", scrollTo);
+    const matchMedia = globalThis.matchMedia;
+    let reduceMotion = false;
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      ...matchMedia(query),
+      matches: query === "(prefers-reduced-motion: reduce)" && reduceMotion,
+    }));
+
+    render(
+      <MessageDetailView
+        message={{
+          ...baseMessage,
+          geoJson: {
+            type: "FeatureCollection",
+            features: [{
+              type: "Feature",
+              geometry: { type: "Point", coordinates: [23.32, 42.69] },
+              properties: {},
+            }],
+          },
+        }}
+        onClose={vi.fn()}
+        onAddressClick={onAddressClick}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "1 обект на картата" });
+    await user.click(button);
+    expect(onAddressClick).toHaveBeenCalledWith(42.69, 23.32);
+    expect(scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: "smooth" });
+
+    reduceMotion = true;
+    await user.click(button);
+    expect(scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: "instant" });
+  });
+
   it("keeps location sections collapsed by default", () => {
     render(
       <MessageDetailView
