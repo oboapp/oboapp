@@ -12,6 +12,7 @@ import { createSnippet } from "@/lib/text-utils";
 import CategoryChips from "@/components/CategoryChips";
 import SourceLogo from "@/components/SourceLogo";
 import EventAccordion from "@/components/EventAccordion";
+import { LoadingStatus } from "@/components/LoadingStatus";
 
 type EventsCursor = {
   updatedAt: string;
@@ -37,7 +38,9 @@ const fetchEvents = async ({
   }
 
   const response = await fetch(`/api/events?${params}`, { signal });
-  if (!response.ok) throw new Error("Failed to fetch events");
+  if (!response.ok) {
+    throw new Error("Failed to fetch events");
+  }
   return response.json();
 };
 
@@ -83,7 +86,10 @@ function SingleEventCard({ event }: { readonly event: Event }) {
 
 function EventCardSkeleton() {
   return (
-    <div className="bg-white rounded-lg shadow-md p-4 border border-neutral-border animate-pulse">
+    <div
+      aria-hidden="true"
+      className="bg-white rounded-lg shadow-md p-4 border border-neutral-border animate-pulse"
+    >
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 bg-neutral-light rounded" />
@@ -123,7 +129,8 @@ export default function EventsPage() {
     [data],
   );
 
-  const isEmpty = !isLoading && events.length === 0;
+  const isEmpty = !isLoading && !error && events.length === 0;
+  const errorMessage = "Грешка при зареждане на събитията. Опитай отново.";
 
   return (
     <div className="min-h-screen bg-neutral-light">
@@ -153,9 +160,14 @@ export default function EventsPage() {
           </div>
         </div>
 
+        <LoadingStatus
+          isLoading={isLoading || isFetchingNextPage}
+          loadingMessage="Събитията се зареждат."
+          finishedMessage={error ? errorMessage : "Събитията са заредени."}
+        />
         {error && (
           <div className="mb-6 rounded-md border border-error-border bg-error-light p-4 text-error">
-            Грешка при зареждане на събитията. Опитай отново.
+            {errorMessage}
           </div>
         )}
 

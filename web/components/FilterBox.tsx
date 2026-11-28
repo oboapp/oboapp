@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useMemo } from "react";
 import FilterIcon from "@/components/icons/FilterIcon";
+import { LoadingStatus } from "@/components/LoadingStatus";
 import CategoryFilterItem from "@/components/CategoryFilterItem";
 import SourceFilterItem from "@/components/SourceFilterItem";
 import Accordion from "@/components/Accordion";
@@ -150,9 +151,15 @@ export default function FilterBox({
           ref={panelRef}
           className="relative w-[320px] max-h-[calc(100vh-80px-2rem)] [@media(min-width:1280px)_and_(min-aspect-ratio:4/3)]:max-h-[450px] my-4 bg-white shadow-2xl rounded-r-lg flex flex-col"
         >
-          {/* Filter Lists - Only show when loaded */}
+          {isOpen && (
+            <LoadingStatus
+              isLoading={isInitialLoad || isLoadingCounts}
+              loadingMessage="Броят съобщения по категории и източници се обновява."
+              finishedMessage="Обновяването на филтрите приключи."
+            />
+          )}
           {isInitialLoad ? (
-            <div className="overflow-y-auto flex-1">
+            <div aria-hidden="true" className="overflow-y-auto flex-1">
               <CategoryFilterSkeleton />
             </div>
           ) : (

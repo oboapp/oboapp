@@ -5,10 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import MessageCard, { MessageCardSkeleton } from "@/components/MessageCard";
+import { MessageListStatus, MessageListPagination } from "@/components/MessageListFeedback";
 import MessageDetailView from "@/components/MessageDetailView/MessageDetailView";
 import type { InternalMessage, Message } from "@/lib/types";
 import { navigateBackOrReplace } from "@/lib/navigation-utils";
-import { getButtonClasses } from "@/lib/theme";
 import { useMessageByIdFallback } from "@/lib/hooks/useMessageByIdFallback";
 
 const PAGE_SIZE = 12;
@@ -92,9 +92,6 @@ function UnreadablePageContent() {
     navigateBackOrReplace(router, "/unreadable");
   }, [router]);
 
-  const isEmpty = !isLoading && messages.length === 0;
-  const isLoadingCards = isLoading || isFetchingNextPage;
-
   return (
     <div className="min-h-screen bg-neutral-light">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -122,11 +119,7 @@ function UnreadablePageContent() {
           </div>
         </div>
 
-        {error && (
-          <div className="mb-6 rounded-md border border-error-border bg-error-light p-4 text-error">
-            Грешка при зареждане на съобщенията. Опитай отново.
-          </div>
-        )}
+        <MessageListStatus isLoading={isLoading || isFetchingNextPage} hasError={Boolean(error)} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {isLoading &&
@@ -143,35 +136,18 @@ function UnreadablePageContent() {
               />
             ))}
 
-          {isEmpty && (
+          {!isLoading && !error && messages.length === 0 && (
             <div className="col-span-full text-center text-neutral py-8">
               Няма налични съобщения
             </div>
           )}
         </div>
 
-        {hasNextPage && (
-          <div className="mt-8 flex justify-center">
-            <button
-              type="button"
-              onClick={() => {
-                fetchNextPage();
-              }}
-              className={getButtonClasses("ghost", "lg", "sm")}
-              disabled={isFetchingNextPage}
-            >
-              {isFetchingNextPage ? "Зареждане..." : "Покажи още"}
-            </button>
-          </div>
-        )}
-
-        {isLoadingCards && !isLoading && (
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 3 }, (_, index) => (
-              <MessageCardSkeleton key={`loading-${index}`} />
-            ))}
-          </div>
-        )}
+        <MessageListPagination
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          onLoadMore={fetchNextPage}
+        />
       </div>
 
       <MessageDetailView

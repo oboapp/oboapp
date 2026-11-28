@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import MessagesGrid from "@/components/MessagesGrid";
 import { recordToMessage } from "@/lib/doc-to-message";
 
@@ -22,6 +28,24 @@ afterEach(() => {
 });
 
 describe("MessagesGrid", () => {
+  it("announces a load and its result once for the whole grid", async () => {
+    const props = { messages: [], onMessageClick: vi.fn() };
+    const { rerender } = render(<MessagesGrid {...props} isLoading={false} />);
+    const status = screen.getByRole("status");
+    expect(status).toBeEmptyDOMElement();
+
+    rerender(<MessagesGrid {...props} isLoading />);
+    await waitFor(() => {
+      expect(status).toHaveTextContent("Съобщенията се зареждат.");
+    });
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+
+    rerender(<MessagesGrid {...props} isLoading={false} />);
+    await waitFor(() => {
+      expect(status).toHaveTextContent("Няма налични съобщения.");
+    });
+  });
+
   it.each([
     { name: "missing geometry", fields: {} },
     { name: "null geometry", fields: { geoJson: null } },

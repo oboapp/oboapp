@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import { Message } from "@/lib/types";
 import MessageCard, { MessageCardSkeleton } from "./MessageCard";
+import { LoadingStatus } from "./LoadingStatus";
 
 interface MessagesGridProps {
   readonly messages: Message[];
@@ -36,6 +37,15 @@ function GridContent({
 }: GridContentProps) {
   return (
     <>
+      <LoadingStatus
+        isLoading={isLoading}
+        loadingMessage="Съобщенията се зареждат."
+        finishedMessage={
+          finalizedMessages.length > 0
+            ? "Съобщенията са заредени."
+            : "Няма налични съобщения."
+        }
+      />
       <div className={containerClasses}>
         {isLoading &&
           skeletonKeys.map((key) => <MessageCardSkeleton key={key} />)}

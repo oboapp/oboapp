@@ -19,7 +19,10 @@ interface MessageCardProps {
 
 export function MessageCardSkeleton() {
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 border border-neutral-border overflow-clip">
+    <div
+      aria-hidden="true"
+      className="bg-white rounded-lg shadow-md p-6 border border-neutral-border overflow-clip"
+    >
       <div className="space-y-4 animate-pulse">
         {/* Source logo skeleton */}
         <div className="flex items-center space-x-3">

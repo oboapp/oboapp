@@ -8,6 +8,7 @@ import SubscribeDevicePrompt from "@/app/settings/SubscribeDevicePrompt";
 import { useNotificationHistory } from "@/lib/hooks/useNotificationHistory";
 import { useSubscribeCurrentDevice } from "@/lib/hooks/useSubscribeCurrentDevice";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { LoadingStatus } from "@/components/LoadingStatus";
 import NotificationItem from "@/components/NotificationItem";
 import Link from "next/link";
 
@@ -48,7 +49,9 @@ export default function NotificationDropdown({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target;
-      if (!(target instanceof Node)) return;
+      if (!(target instanceof Node)) {
+        return;
+      }
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(target) &&
@@ -66,7 +69,11 @@ export default function NotificationDropdown({
     }
   }, [isOpen, onClose, anchorRef]);
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
+
+  const showList = !isLoading && !error;
 
   return (
     <div
@@ -74,6 +81,11 @@ export default function NotificationDropdown({
       className={`absolute top-full right-0 mt-2 w-[calc(100vw-2rem)] sm:w-96 bg-white border border-neutral-border rounded-lg shadow-lg ${zIndex.dropdown}`}
       style={{ maxHeight: "80vh", display: "flex", flexDirection: "column" }}
     >
+      <LoadingStatus
+        isLoading={isLoading || isLoadingMore}
+        loadingMessage="Известията се зареждат."
+        finishedMessage={error ?? "Известията са заредени."}
+      />
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-neutral-border">
         <h3 className="text-lg font-semibold text-foreground">Известия</h3>
@@ -111,15 +123,18 @@ export default function NotificationDropdown({
           </div>
         )}
 
-        {isLoading ? (
-          <div className="flex justify-center items-center py-8">
+        {isLoading && (
+          <div aria-hidden="true" className="flex justify-center items-center py-8">
             <LoadingSpinner />
           </div>
-        ) : error ? (
+        )}
+        {!isLoading && error && (
           <div className="p-4 text-center text-error">{error}</div>
-        ) : notifications.length === 0 ? (
+        )}
+        {showList && notifications.length === 0 && (
           <div className="p-8 text-center text-neutral">Няма известия</div>
-        ) : (
+        )}
+        {showList && notifications.length > 0 && (
           <>
             {notifications.map((notification) => (
               <NotificationItem
