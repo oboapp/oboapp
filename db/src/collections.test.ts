@@ -66,6 +66,33 @@ describe("MessagesRepository", () => {
     expect(db.insertOne).toHaveBeenCalledWith("messages", data, undefined);
   });
 
+  describe("findByIds", () => {
+    it("fetches unique document IDs in bounded batches and returns the found records", async () => {
+      const ids = Array.from({ length: 31 }, (_, index) => `message-${index}`);
+      const first = { _id: ids[0], text: "First" };
+      const last = { _id: ids[30], text: "Last" };
+      vi.mocked(db.findMany)
+        .mockResolvedValueOnce([first])
+        .mockResolvedValueOnce([last]);
+
+      const found = await repo.findByIds([...ids, ids[0], ids[30]]);
+
+      expect(db.findMany).toHaveBeenCalledTimes(2);
+      expect(db.findMany).toHaveBeenNthCalledWith(1, "messages", {
+        where: [{ field: "_id", op: "in", value: ids.slice(0, 30) }],
+      });
+      expect(db.findMany).toHaveBeenNthCalledWith(2, "messages", {
+        where: [{ field: "_id", op: "in", value: [ids[30]] }],
+      });
+      expect(found).toEqual([first, last]);
+    });
+
+    it("skips the database query for an empty collection of IDs", async () => {
+      expect(await repo.findByIds([])).toEqual([]);
+      expect(db.findMany).not.toHaveBeenCalled();
+    });
+  });
+
   describe("findBySourceDocumentIds", () => {
     it("queries single batch for <= 30 IDs", async () => {
       const ids = Array.from({ length: 10 }, (_, i) => `id-${i}`);

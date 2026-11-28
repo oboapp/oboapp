@@ -14,12 +14,18 @@ import type {
 
 /** Collection name constant */
 export const MESSAGES_COLLECTION = "messages";
+const MAX_IDS_PER_QUERY = 30;
 
 export class MessagesRepository {
   constructor(private readonly db: DbClient) {}
 
   async findById(id: string): Promise<Record<string, unknown> | null> {
     return this.db.findOne(MESSAGES_COLLECTION, id);
+  }
+
+  /** Fetch each requested message once, in batches supported by both databases. */
+  async findByIds(ids: readonly string[]): Promise<Record<string, unknown>[]> {
+    return this.findByFieldValues("_id", [...new Set(ids)]);
   }
 
   async findMany(options?: FindManyOptions): Promise<Record<string, unknown>[]> {
@@ -61,13 +67,24 @@ export class MessagesRepository {
     sourceDocumentIds: string[],
     selectFields?: string[],
   ): Promise<Record<string, unknown>[]> {
-    const BATCH_SIZE = 30;
+    return this.findByFieldValues(
+      "sourceDocumentId",
+      sourceDocumentIds,
+      selectFields,
+    );
+  }
+
+  private async findByFieldValues(
+    field: "_id" | "sourceDocumentId",
+    values: readonly string[],
+    selectFields?: string[],
+  ): Promise<Record<string, unknown>[]> {
     const results: Record<string, unknown>[] = [];
 
-    for (let i = 0; i < sourceDocumentIds.length; i += BATCH_SIZE) {
-      const batch = sourceDocumentIds.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < values.length; i += MAX_IDS_PER_QUERY) {
+      const batch = values.slice(i, i + MAX_IDS_PER_QUERY);
       const docs = await this.db.findMany(MESSAGES_COLLECTION, {
-        where: [{ field: "sourceDocumentId", op: "in", value: batch }],
+        where: [{ field, op: "in", value: batch }],
         select: selectFields,
       });
       results.push(...docs);
