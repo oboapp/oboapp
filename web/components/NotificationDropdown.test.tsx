@@ -144,6 +144,43 @@ describe("NotificationDropdown", () => {
     expect(screen.getByText("Столична община")).toBeInTheDocument();
   });
 
+  it("announces loading older notifications and reports a failed request", async () => {
+    const history = {
+      notifications: [baseNotification],
+      isLoading: false,
+      isLoadingMore: false,
+      error: null as string | null,
+      hasMore: true,
+      loadMore,
+      markAsRead,
+      markAllRead,
+    };
+    mockUseNotificationHistory.mockImplementation(() => history);
+    const props = {
+      isOpen: true,
+      onClose,
+      onCountUpdate,
+      anchorRef: { current: document.createElement("button") },
+    };
+    const { rerender } = render(<NotificationDropdown {...props} />);
+    const status = screen.getByRole("status");
+    expect(status).toBeEmptyDOMElement();
+
+    fireEvent.click(screen.getByRole("button", { name: "Зареди още" }));
+    expect(loadMore).toHaveBeenCalledOnce();
+    history.isLoadingMore = true;
+    rerender(<NotificationDropdown {...props} />);
+    await waitFor(() => expect(status).toHaveTextContent("Известията се зареждат."));
+    expect(screen.getByRole("button", { name: "Зареждане..." })).toBeDisabled();
+
+    history.isLoadingMore = false;
+    const errorMessage = "Грешка при зареждане на известията.";
+    history.error = errorMessage;
+    rerender(<NotificationDropdown {...props} />);
+    await waitFor(() => expect(status).toHaveTextContent(errorMessage));
+    expect(screen.queryByRole("button", { name: "Зареди още" })).not.toBeInTheDocument();
+  });
+
   it("captures exception and shows toast when subscribe action fails", async () => {
     mockUseSubscriptionStatus.mockReturnValue({
       isCurrentDeviceSubscribed: false,
