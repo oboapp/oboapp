@@ -6,6 +6,7 @@ import type {
 } from "@/lib/types";
 import DetailItem from "./DetailItem";
 import TimespanList from "./TimespanList";
+import { getPreferredScrollBehavior } from "@/lib/scroll-behavior";
 
 interface LocationsProps {
   pins?: Pin[] | null;
@@ -78,7 +79,7 @@ interface ClickableCardProps {
   onClick?: () => void;
 }
 
-function ClickableCard({ children, onClick }: ClickableCardProps) {
+function ClickableCard({ children, onClick }: Readonly<ClickableCardProps>) {
   const baseClasses =
     "w-full text-left bg-neutral-light rounded-md p-3 border border-neutral-border";
   const interactiveClasses = onClick
@@ -107,21 +108,20 @@ export default function Locations({
   cadastralProperties,
   addresses,
   onLocationClick,
-}: LocationsProps) {
-  const handleClick = (text: string) => {
-    if (!onLocationClick) return;
-    const coords = findCoordinates(text, addresses);
-    if (coords) {
-      onLocationClick(coords.lat, coords.lng);
-      // Scroll to bring the map into view (especially on mobile)
-      window.scrollTo({ top: 0, behavior: "smooth" });
+}: Readonly<LocationsProps>) {
+  const handleClickCoords = (lat: number, lng: number) => {
+    if (!onLocationClick) {
+      return;
     }
+    onLocationClick(lat, lng);
+    window.scrollTo({ top: 0, behavior: getPreferredScrollBehavior() });
   };
 
-  const handleClickCoords = (lat: number, lng: number) => {
-    if (!onLocationClick) return;
-    onLocationClick(lat, lng);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const handleClick = (text: string) => {
+    const coords = findCoordinates(text, addresses);
+    if (coords) {
+      handleClickCoords(coords.lat, coords.lng);
+    }
   };
 
   return (

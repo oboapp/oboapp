@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { CATEGORY_LABELS, Category } from "@oboapp/shared";
 import CategoryIcon from "@/components/CategoryIcon";
 import { getCategoryColor } from "@/lib/category-styles";
+import { getPreferredScrollBehavior } from "@/lib/scroll-behavior";
 
 interface CategoryChipsProps {
   readonly categories?: string[];
@@ -86,7 +87,7 @@ export default function CategoryChips({
               }}
               onClick={(event) => {
                 event.currentTarget.scrollIntoView({
-                  behavior: "smooth",
+                  behavior: getPreferredScrollBehavior(),
                   block: "nearest",
                   inline: "center",
                 });
