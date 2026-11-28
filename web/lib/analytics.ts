@@ -132,25 +132,33 @@ const CONSENT_KEY = "ga_consent";
 const CONSENT_GRANTED = "granted";
 const CONSENT_DENIED = "denied";
 
-// Check if user has granted consent
-export function hasConsent(): boolean {
+function readConsent(): string | null {
   try {
-    return globalThis.window?.localStorage.getItem(CONSENT_KEY) === CONSENT_GRANTED;
+    return globalThis.window?.localStorage.getItem(CONSENT_KEY) ?? null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+export function hasConsent(): boolean {
+  return readConsent() === CONSENT_GRANTED;
 }
 
 // Store consent decision
 export function setConsent(granted: boolean): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(CONSENT_KEY, granted ? CONSENT_GRANTED : CONSENT_DENIED);
+  try {
+    globalThis.window?.localStorage.setItem(
+      CONSENT_KEY,
+      granted ? CONSENT_GRANTED : CONSENT_DENIED,
+    );
+  } catch {
+    // Private browsing can block storage. Only a saved decision enables analytics.
+  }
 }
 
 // Check if user has made a consent decision
 export function hasConsentDecision(): boolean {
-  if (typeof window === "undefined") return false;
-  const consent = localStorage.getItem(CONSENT_KEY);
+  const consent = readConsent();
   return consent === CONSENT_GRANTED || consent === CONSENT_DENIED;
 }
 
@@ -172,13 +180,14 @@ export function initGA(): void {
     return;
   }
 
-  if (typeof window !== "undefined" && window.gtag) {
-    window.gtag("consent", "update", {
+  const browser = globalThis.window;
+  if (browser?.gtag) {
+    browser.gtag("consent", "update", {
       analytics_storage: "granted",
     });
 
-    window.gtag("config", measurementId, {
-      page_path: window.location.pathname,
+    browser.gtag("config", measurementId, {
+      page_path: browser.location.pathname,
     });
 
     if (process.env.NODE_ENV === "development") {
@@ -191,10 +200,13 @@ export function initGA(): void {
 export function trackPageView(url: string): void {
   const measurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
-  if (!measurementId || !hasConsent()) return;
+  if (!measurementId || !hasConsent()) {
+    return;
+  }
 
-  if (typeof window !== "undefined" && window.gtag) {
-    window.gtag("config", measurementId, {
+  const browser = globalThis.window;
+  if (browser?.gtag) {
+    browser.gtag("config", measurementId, {
       page_path: url,
     });
 
@@ -222,8 +234,9 @@ export function trackEvent<T extends AnalyticsEvent>(event: T): void {
     return;
   }
 
-  if (typeof window !== "undefined" && window.gtag) {
-    window.gtag("event", event.name, event.params);
+  const browser = globalThis.window;
+  if (browser?.gtag) {
+    browser.gtag("event", event.name, event.params);
 
     if (process.env.NODE_ENV === "development") {
       console.log("[GA] Event:", event.name, event.params);
