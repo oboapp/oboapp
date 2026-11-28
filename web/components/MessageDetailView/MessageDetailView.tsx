@@ -8,6 +8,9 @@ import {
   useSyncExternalStore,
 } from "react";
 import { ChevronDown } from "lucide-react";
+import { isValidMessageId } from "@oboapp/shared";
+import MessageShareButton from "@/components/MessageShareButton";
+import { messageShareData } from "@/lib/message-page-metadata";
 import { trackEvent } from "@/lib/analytics";
 import type { InternalMessage } from "@/lib/types";
 import { classifyMessage } from "@/lib/message-classification";
@@ -312,6 +315,13 @@ export default function MessageDetailView({
           isVisible ? "opacity-100" : "opacity-0"
         }`}
       >
+        {message.id && isValidMessageId(message.id) && (
+          <MessageShareButton
+            key={message.id}
+            messageId={message.id}
+            data={messageShareData(message, message.id)}
+          />
+        )}
         {message.finalizedAt && (
           <DetailItem title="Публикувано тук">
             <p className="text-base text-gray-900">

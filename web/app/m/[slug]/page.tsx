@@ -9,11 +9,13 @@ import type { InternalMessage } from "@/lib/types";
 import { hasValidSourceUrl } from "@/lib/url-utils";
 import {
   messageMetadata,
+  messageShareData,
   messageStructuredData,
   safeJsonLd,
 } from "@/lib/message-page-metadata";
 import MessageText from "@/components/MessageDetailView/MessageText";
 import AiProcessedNotice from "@/components/MessageDetailView/AiProcessedNotice";
+import MessageShareButton from "@/components/MessageShareButton";
 
 type Props = Readonly<{ params: Promise<{ slug: string }> }>;
 
@@ -72,6 +74,8 @@ export default async function MessagePage({ params }: Props) {
           </p>
         )}
       </header>
+
+      <MessageShareButton messageId={slug} data={messageShareData(message, slug)} />
 
       <section aria-label="Текст" className="space-y-4">
         <MessageText

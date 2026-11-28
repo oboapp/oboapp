@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import type { Message } from "@/lib/types";
-import { stripHtmlTags } from "@oboapp/shared";
+import { LOCALITY_METADATA, stripHtmlTags } from "@oboapp/shared";
 import { hasValidSourceUrl } from "@/lib/url-utils";
+import { APP_NAME } from "@/lib/pwa-metadata";
 
 function stripMarkdownLinks(text: string): string {
   let result = "";
@@ -35,10 +36,9 @@ function markdownToPlainText(markdown: string): string {
 }
 
 function visibleText(message: Message): string {
-  const formatted = message.summary ?? message.markdownText;
-  return (formatted ? markdownToPlainText(formatted) : message.text)
-    .replace(/\s+/g, " ")
-    .trim();
+  const formatted =
+    message.summary || message.markdownText || message.plainText || message.text;
+  return markdownToPlainText(formatted).replace(/\s+/g, " ").trim();
 }
 
 function shorten(text: string, limit: number): string {
@@ -49,12 +49,52 @@ export function messageUrl(id: string): string {
   return new URL(`/m/${id}`, process.env.NEXT_PUBLIC_BASE_URL).toString();
 }
 
-export function messageMetadata(message: Message): Metadata {
-  const id = message.id!;
+const disruptionTime = new Intl.DateTimeFormat("bg-BG", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "Europe/Sofia",
+});
+
+function shareTimespan(message: Message): string {
+  const start = Date.parse(message.timespanStart ?? "");
+  const end = Date.parse(message.timespanEnd ?? "");
+  if (Number.isFinite(start) && Number.isFinite(end) && start <= end) {
+    return disruptionTime.formatRange(start, end);
+  }
+  if (Number.isFinite(start)) {
+    return `От ${disruptionTime.format(start)}`;
+  }
+  if (Number.isFinite(end)) {
+    return `До ${disruptionTime.format(end)}`;
+  }
+  return "";
+}
+
+/** The same public description accompanies native shares and social previews. */
+export function messageShareData(message: Message, id: string) {
   const content = visibleText(message);
-  const title = shorten(content, 80) || "Сигнал";
-  const description = shorten(content, 200);
-  const url = messageUrl(id);
+  const location =
+    message.addresses?.[0]?.formattedAddress ||
+    message.pins?.[0]?.address ||
+    message.streets?.[0]?.street ||
+    message.busStops?.[0] ||
+    LOCALITY_METADATA[message.locality]?.name ||
+    "";
+  const excerpt = shorten(content, 180);
+  const where = location && !excerpt.includes(location) ? shorten(location, 90) : "";
+  const details = [where, shareTimespan(message)].filter(Boolean).join(" · ");
+  return {
+    title: `${shorten(content, 80) || "Сигнал"} | ${APP_NAME}`,
+    text: [excerpt, details].filter(Boolean).join("\n") || "Сигнал",
+    url: messageUrl(id),
+  };
+}
+
+export function messageMetadata(message: Message): Metadata {
+  const { title, text: description, url } = messageShareData(message, message.id!);
 
   return {
     title,
@@ -67,9 +107,15 @@ export function messageMetadata(message: Message): Metadata {
       url,
       publishedTime: message.finalizedAt,
       locale: "bg_BG",
-      siteName: "OboApp",
+      siteName: APP_NAME,
+      images: [{ url: new URL("/opengraph-image", url), alt: APP_NAME }],
     },
-    twitter: { card: "summary", title, description },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [{ url: new URL("/twitter-image", url), alt: APP_NAME }],
+    },
   };
 }
 
