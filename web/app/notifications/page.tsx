@@ -10,6 +10,7 @@ import SubscribeDevicePrompt from "@/app/settings/SubscribeDevicePrompt";
 import { useNotificationHistory } from "@/lib/hooks/useNotificationHistory";
 import { useSubscribeCurrentDevice } from "@/lib/hooks/useSubscribeCurrentDevice";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { LoadingStatus } from "@/components/LoadingStatus";
 import NotificationItem from "@/components/NotificationItem";
 
 export default function NotificationsPage() {
@@ -36,13 +37,22 @@ export default function NotificationsPage() {
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/");
-      return;
     }
   }, [authLoading, user, router]);
 
-  if (authLoading || isLoading) {
+  const isInitialLoad = authLoading || isLoading;
+  const loadingStatus = (
+    <LoadingStatus
+      isLoading={isInitialLoad || isLoadingMore}
+      loadingMessage="Известията се зареждат."
+      finishedMessage={error ?? "Известията са заредени."}
+    />
+  );
+
+  if (isInitialLoad) {
     return (
       <div className="min-h-screen bg-neutral-light">
+        {loadingStatus}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           {/* Back button */}
           <div className="mb-6">
@@ -50,7 +60,7 @@ export default function NotificationsPage() {
           </div>
 
           <h1 className="text-3xl font-bold text-foreground mb-8">Известия</h1>
-          <div className="flex justify-center items-center py-12">
+          <div aria-hidden="true" className="flex justify-center items-center py-12">
             <LoadingSpinner size="lg" />
           </div>
         </div>
@@ -60,6 +70,7 @@ export default function NotificationsPage() {
 
   return (
     <div className="min-h-screen bg-neutral-light">
+      {loadingStatus}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Back button */}
         <div className="mb-6">

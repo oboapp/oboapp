@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import MessageCard, { MessageCardSkeleton } from "@/components/MessageCard";
+import { LoadingStatus } from "@/components/LoadingStatus";
 import MessageDetailView from "@/components/MessageDetailView/MessageDetailView";
 import type { InternalMessage, Message } from "@/lib/types";
 import { navigateBackOrReplace } from "@/lib/navigation-utils";
@@ -92,8 +93,9 @@ function UnreadablePageContent() {
     navigateBackOrReplace(router, "/unreadable");
   }, [router]);
 
-  const isEmpty = !isLoading && messages.length === 0;
+  const isEmpty = !isLoading && !error && messages.length === 0;
   const isLoadingCards = isLoading || isFetchingNextPage;
+  const errorMessage = "Грешка при зареждане на съобщенията. Опитай отново.";
 
   return (
     <div className="min-h-screen bg-neutral-light">
@@ -122,9 +124,14 @@ function UnreadablePageContent() {
           </div>
         </div>
 
+        <LoadingStatus
+          isLoading={isLoadingCards}
+          loadingMessage="Съобщенията се зареждат."
+          finishedMessage={error ? errorMessage : "Съобщенията са заредени."}
+        />
         {error && (
           <div className="mb-6 rounded-md border border-error-border bg-error-light p-4 text-error">
-            Грешка при зареждане на съобщенията. Опитай отново.
+            {errorMessage}
           </div>
         )}
 
@@ -155,7 +162,7 @@ function UnreadablePageContent() {
             <button
               type="button"
               onClick={() => {
-                fetchNextPage();
+                void fetchNextPage();
               }}
               className={getButtonClasses("ghost", "lg", "sm")}
               disabled={isFetchingNextPage}
@@ -165,7 +172,7 @@ function UnreadablePageContent() {
           </div>
         )}
 
-        {isLoadingCards && !isLoading && (
+        {isFetchingNextPage && (
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 3 }, (_, index) => (
               <MessageCardSkeleton key={`loading-${index}`} />

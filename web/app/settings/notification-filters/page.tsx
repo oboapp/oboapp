@@ -18,6 +18,7 @@ import { borderRadius } from "@/lib/colors";
 import { Info } from "lucide-react";
 import BackButton from "@/components/BackButton";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { LoadingStatus } from "@/components/LoadingStatus";
 import ExperimentalFeaturesSection from "../ExperimentalFeaturesSection";
 import { useEffect, useMemo } from "react";
 
@@ -129,6 +130,11 @@ export default function NotificationFiltersPage() {
           </p>
         </div>
 
+        <LoadingStatus
+          isLoading={isLoading}
+          loadingMessage="Филтрите за известия се зареждат."
+          finishedMessage={error ?? "Филтрите за известия са заредени."}
+        />
         {error && (
           <div className="p-4 mb-6 bg-error-light border border-error-border rounded-lg text-error text-sm">
             {error}
@@ -136,7 +142,7 @@ export default function NotificationFiltersPage() {
         )}
 
         {isLoading ? (
-          <div className="flex justify-center items-center py-12">
+          <div aria-hidden="true" className="flex justify-center items-center py-12">
             <LoadingSpinner />
           </div>
         ) : (

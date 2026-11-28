@@ -140,6 +140,36 @@ describe("NotificationsPage", () => {
     mockGetEnableNotificationsMessage.mockReturnValue("Активирай известия");
   });
 
+  it("keeps one status through initial loading, pagination and a failed request", async () => {
+    const history = mockUseNotificationHistory();
+    mockUseNotificationHistory.mockReturnValue({ ...history, isLoading: true });
+    const { rerender } = render(<NotificationsPage />);
+    const status = screen.getByRole("status");
+    await waitFor(() => {
+      expect(status).toHaveTextContent("Известията се зареждат.");
+    });
+
+    mockUseNotificationHistory.mockReturnValue(history);
+    rerender(<NotificationsPage />);
+    await waitFor(() => {
+      expect(status).toHaveTextContent("Известията са заредени.");
+    });
+
+    mockUseNotificationHistory.mockReturnValue({ ...history, isLoadingMore: true });
+    rerender(<NotificationsPage />);
+    await waitFor(() => {
+      expect(status).toHaveTextContent("Известията се зареждат.");
+    });
+
+    const error = "Неуспешно зареждане на известията";
+    mockUseNotificationHistory.mockReturnValue({ ...history, error });
+    rerender(<NotificationsPage />);
+    await waitFor(() => {
+      expect(status).toHaveTextContent(error);
+    });
+    expect(screen.getAllByRole("status")).toEqual([status]);
+  });
+
   it("renders source logo and resolved source name in notification row", () => {
     render(<NotificationsPage />);
 
