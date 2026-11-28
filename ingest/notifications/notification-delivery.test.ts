@@ -23,14 +23,15 @@ describe("scheduled notification delivery", () => {
     { label: "empty source", source: "", icon: "/icon-192x192.png" },
     { label: "invalid source", source: 123, icon: "/icon-192x192.png" },
   ])("sends the expected icon for $label", async ({ source, icon }) => {
-    const findById = vi.fn().mockResolvedValue({
+    const findByIds = vi.fn().mockResolvedValue([{
+      _id: "message-1",
       locality: "bg.sofia",
       text: "Weather warning",
       createdAt: "2026-10-06T08:00:00Z",
       ...(source === undefined ? {} : { source }),
-    });
+    }]);
     const db = {
-      messages: { findMany: vi.fn().mockResolvedValue([]), findById },
+      messages: { findMany: vi.fn().mockResolvedValue([]), findByIds },
       notificationMatches: {
         findUnnotified: vi.fn().mockResolvedValue([
           {
@@ -59,7 +60,7 @@ describe("scheduled notification delivery", () => {
 
     await processNotificationWork(db, messaging);
 
-    expect(findById).toHaveBeenCalledWith("message-1");
+    expect(findByIds).toHaveBeenCalledWith(["message-1"]);
     expect(send).toHaveBeenCalledExactlyOnceWith({
       token: "device-token",
       data: expect.objectContaining({

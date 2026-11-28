@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { OboDb } from "@oboapp/db";
+import { MessagesRepository, type DbClient, type OboDb } from "@oboapp/db";
 import type { Messaging } from "firebase-admin/messaging";
 
 const mocks = vi.hoisted(() => ({
@@ -119,36 +119,102 @@ describe("processNotificationWork()", () => {
     expect(mocks.markMessagesAsNotified).toHaveBeenCalledWith(db, ["message-1"]);
   });
 
-  it("sends pending matches even when there are no new messages", async () => {
+  it("loads shared messages once and delivers pending matches in user order", async () => {
+    const firstUser = {
+      id: "match-1",
+      messageId: "message-1",
+      userId: "user-1",
+      distance: 25,
+    };
+    const closer = { ...firstUser, id: "match-2", distance: 5 };
+    const secondUser = { id: "match-3", messageId: "message-1", userId: "user-2" };
+    const otherMessage = { id: "match-4", messageId: "message-2", userId: "user-2" };
     mocks.getUnprocessedMessages.mockResolvedValueOnce([]);
     mocks.getUnnotifiedMatches.mockResolvedValueOnce([
-      {
-        id: "match-1",
-        userId: "user-1",
-        messageId: "message-1",
-        interestId: "interest-1",
-        matchedAt: "2026-10-01T10:00:00Z",
-        notified: false,
-      },
+      firstUser,
+      secondUser,
+      otherMessage,
+      closer,
+      { id: "match-5", messageId: "deleted", userId: "user-1" },
+      { id: "match-6", messageId: "no-locality", userId: "user-1" },
+      { messageId: "no-match-id", userId: "user-1" },
     ]);
-    mocks.sendToUserDevices.mockResolvedValueOnce({
-      successCount: 1,
-      notifications: [{ subscriptionId: "device-1", success: true }],
-    });
-    mocks.updateMatchWithResults.mockResolvedValueOnce(undefined);
-    mocks.markMatchesAsNotified.mockResolvedValueOnce(undefined);
-    const findById = vi.fn().mockResolvedValue({
+    const notifications = [{ subscriptionId: "device-1", success: true }];
+    mocks.sendToUserDevices.mockResolvedValue({ successCount: 1, notifications });
+    const firstRecord = {
+      _id: "message-1",
       locality: "bg.sofia",
       text: "Notification body",
-      createdAt: new Date("2026-10-01T10:00:00Z"),
-    });
-    const db = { messages: { findById } } as unknown as OboDb;
+    };
+    const secondRecord = { ...firstRecord, _id: "message-2", text: "Another body" };
+    const findMany = vi.fn().mockResolvedValue([
+      secondRecord,
+      { _id: "no-locality" },
+      firstRecord,
+    ]);
+    const messages = new MessagesRepository({ findMany } as unknown as DbClient);
+    const db = { messages } as OboDb;
+    const messaging = {} as Messaging;
 
-    await processNotificationWork(db, {} as Messaging);
+    await processNotificationWork(db, messaging);
 
     expect(mocks.getAllInterests).not.toHaveBeenCalled();
-    expect(findById).toHaveBeenCalledWith("message-1");
-    expect(mocks.sendToUserDevices).toHaveBeenCalledOnce();
-    expect(mocks.markMatchesAsNotified).toHaveBeenCalledWith(db, ["match-1"]);
+    expect(findMany).toHaveBeenCalledExactlyOnceWith("messages", {
+      where: [{
+        field: "_id",
+        op: "in",
+        value: ["message-1", "message-2", "deleted", "no-locality"],
+      }],
+    });
+    expect(mocks.sendToUserDevices).toHaveBeenCalledTimes(3);
+    const expectedDeliveries = [
+      { match: closer, record: firstRecord },
+      { match: secondUser, record: firstRecord },
+      { match: otherMessage, record: secondRecord },
+    ];
+    for (const [index, { match, record }] of expectedDeliveries.entries()) {
+      expect(mocks.sendToUserDevices).toHaveBeenNthCalledWith(
+        index + 1,
+        db,
+        messaging,
+        match.userId,
+        expect.objectContaining({ id: record._id, text: record.text }),
+        match,
+      );
+      expect(mocks.updateMatchWithResults).toHaveBeenNthCalledWith(
+        index + 1,
+        db,
+        match.id,
+        record,
+        notifications,
+      );
+    }
+    expect(mocks.markMatchesAsNotified).toHaveBeenCalledWith(db, [
+      "match-1", "match-3", "match-4", "match-2", "match-5", "match-6",
+    ]);
+  });
+
+  it("leaves the entire page pending if a message batch cannot be read", async () => {
+    const pending = Array.from({ length: 31 }, (_, index) => ({
+      id: `match-${index}`,
+      messageId: `message-${index}`,
+      userId: "user-1",
+    }));
+    mocks.getUnprocessedMessages.mockResolvedValueOnce([]);
+    mocks.getUnnotifiedMatches.mockResolvedValueOnce(pending);
+    const error = new Error("Database unavailable");
+    const findMany = vi
+      .fn()
+      .mockResolvedValueOnce([{ _id: "message-0", locality: "bg.sofia", text: "First" }])
+      .mockRejectedValueOnce(error);
+    const messages = new MessagesRepository({ findMany } as unknown as DbClient);
+
+    await expect(processNotificationWork({ messages } as OboDb, {} as Messaging))
+      .rejects.toBe(error);
+
+    expect(findMany).toHaveBeenCalledTimes(2);
+    expect(mocks.sendToUserDevices).not.toHaveBeenCalled();
+    expect(mocks.updateMatchWithResults).not.toHaveBeenCalled();
+    expect(mocks.markMatchesAsNotified).not.toHaveBeenCalled();
   });
 });
