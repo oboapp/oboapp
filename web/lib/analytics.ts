@@ -75,6 +75,10 @@ export type AnalyticsEvent =
   | { name: "prompt_add_zones_dismissed"; params: {} }
   // Content Engagement
   | {
+      name: "message_shared";
+      params: { message_id: string; method: "native" | "copy" };
+    }
+  | {
       name: "message_clicked";
       params: { message_id: string; source_id: string; location: string };
     }
@@ -130,8 +134,11 @@ const CONSENT_DENIED = "denied";
 
 // Check if user has granted consent
 export function hasConsent(): boolean {
-  if (typeof window === "undefined") return false;
-  return localStorage.getItem(CONSENT_KEY) === CONSENT_GRANTED;
+  try {
+    return globalThis.window?.localStorage.getItem(CONSENT_KEY) === CONSENT_GRANTED;
+  } catch {
+    return false;
+  }
 }
 
 // Store consent decision

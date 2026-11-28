@@ -52,6 +52,8 @@ describe("shareable message page", () => {
     expect(html).toContain("Кратко");
     expect(html).toContain("Съдържанието е съкратено от AI.");
     expect(html).toContain("Виж на картата");
+    expect(html).toContain("Сподели със съсед");
+    expect(html).toContain("href=\"/?messageId=aB3xYz12\"");
     expect(metadata.alternates?.canonical).toBe("https://oboapp.online/m/aB3xYz12");
     expect(metadata.description).toBe("Кратко съобщение за ремонт.");
     expect(data).toMatchObject({
@@ -63,6 +65,32 @@ describe("shareable message page", () => {
       dateCreated: "2026-09-29T10:00:00.000Z",
       datePublished: "2026-09-29T10:05:00.000Z",
       digitalSourceType: "https://schema.org/TrainedAlgorithmicMediaDigitalSource",
+    });
+  });
+
+  it("shows the same incident, place, local time and brand in social previews", async () => {
+    findByIdMock.mockResolvedValue(record({
+      locality: "bg.sofia",
+      timespanStart: "2026-09-29T06:00:00Z",
+      timespanEnd: "2026-09-29T11:00:00Z",
+      pins: [{ address: "ул. Искър", timespans: [] }],
+    }));
+    const { openGraph, twitter, description } = await generateMetadata({ params });
+    expect(description).toContain("Кратко съобщение за ремонт.");
+    expect(description).toContain("ул. Искър");
+    expect(description).toMatch(/\b0?9:00/);
+    expect(description).toContain("14:00");
+    expect(openGraph).toMatchObject({
+      title: "Кратко съобщение за ремонт. | OboApp",
+      description,
+      url: "https://oboapp.online/m/aB3xYz12",
+      siteName: "OboApp",
+      images: [{ url: new URL("https://oboapp.online/opengraph-image"), alt: "OboApp" }],
+    });
+    expect(twitter).toMatchObject({
+      title: openGraph?.title,
+      description,
+      images: [{ url: new URL("https://oboapp.online/twitter-image"), alt: "OboApp" }],
     });
   });
 
