@@ -145,10 +145,6 @@ body {
   } /* Complete cycle */
 }
 
-.animate-geolocation-loading-spin {
-  animation: geolocation-loading-spin 2.5s linear infinite;
-}
-
 /* Onboarding fade-in animation */
 @keyframes fade-in {
   from {
@@ -159,8 +155,24 @@ body {
   }
 }
 
-.animate-fade-in {
-  animation: fade-in 200ms ease-out;
+@media (prefers-reduced-motion: no-preference) {
+  .animate-geolocation-loading-spin {
+    animation: geolocation-loading-spin 2.5s linear infinite;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 200ms ease-out;
+  }
+}
+
+/* Keep this outside Tailwind's layers so it takes precedence over motion utilities. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    transition-property: none;
+    animation-name: none;
+  }
 }
 
 /* Drag handle utility for touch-enabled draggable elements */

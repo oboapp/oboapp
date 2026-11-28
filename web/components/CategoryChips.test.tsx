@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { act } from "react";
 import CategoryChips from "@/components/CategoryChips";
 
@@ -32,6 +32,7 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.ResizeObserver = originalResizeObserver as typeof ResizeObserver;
   resizeCallback = null;
+  vi.unstubAllGlobals();
 });
 
 describe("CategoryChips", () => {
@@ -44,6 +45,24 @@ describe("CategoryChips", () => {
     render(<CategoryChips categories={["water"]} />);
     expect(screen.getByText("Вода")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Вода" })).toBeInTheDocument();
+  });
+
+  it("centers a selected chip immediately when reduced motion is enabled", () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+    }));
+    render(<CategoryChips categories={["water"]} />);
+    const chip = screen.getByRole("button", { name: "Вода" });
+    const scrollIntoView = vi.fn();
+    chip.scrollIntoView = scrollIntoView;
+
+    fireEvent.click(chip);
+
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: "instant",
+      block: "nearest",
+      inline: "center",
+    });
   });
 
   it("shows fades when chips overflow", async () => {

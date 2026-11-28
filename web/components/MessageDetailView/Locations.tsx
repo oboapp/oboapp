@@ -6,6 +6,7 @@ import type {
 } from "@/lib/types";
 import DetailItem from "./DetailItem";
 import TimespanList from "./TimespanList";
+import { getPreferredScrollBehavior } from "@/lib/scroll-behavior";
 
 interface LocationsProps {
   pins?: Pin[] | null;
@@ -108,20 +109,19 @@ export default function Locations({
   addresses,
   onLocationClick,
 }: LocationsProps) {
-  const handleClick = (text: string) => {
-    if (!onLocationClick) return;
-    const coords = findCoordinates(text, addresses);
-    if (coords) {
-      onLocationClick(coords.lat, coords.lng);
-      // Scroll to bring the map into view (especially on mobile)
-      window.scrollTo({ top: 0, behavior: "smooth" });
+  const handleClickCoords = (lat: number, lng: number) => {
+    if (!onLocationClick) {
+      return;
     }
+    onLocationClick(lat, lng);
+    window.scrollTo({ top: 0, behavior: getPreferredScrollBehavior() });
   };
 
-  const handleClickCoords = (lat: number, lng: number) => {
-    if (!onLocationClick) return;
-    onLocationClick(lat, lng);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const handleClick = (text: string) => {
+    const coords = findCoordinates(text, addresses);
+    if (coords) {
+      handleClickCoords(coords.lat, coords.lng);
+    }
   };
 
   return (

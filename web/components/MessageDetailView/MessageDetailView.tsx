@@ -24,6 +24,7 @@ import AiProcessedNotice, { hasValidSourceUrl } from "./AiProcessedNotice";
 import CategoryChips from "@/components/CategoryChips";
 import ExternalLinkIcon from "@/components/icons/ExternalLinkIcon";
 import { getFeaturesCentroid } from "@/lib/geometry-utils";
+import { getPreferredScrollBehavior } from "@/lib/scroll-behavior";
 import LinkedMessagesAccordion from "./LinkedMessagesAccordion";
 
 type CloseMethod = "drag" | "esc";
@@ -383,7 +384,7 @@ export default function MessageDetailView({
               if (centroid && onAddressClick) {
                 onAddressClick(centroid.lat, centroid.lng);
                 // Scroll body to bring the map into view (especially on mobile)
-                window.scrollTo({ top: 0, behavior: "smooth" });
+                window.scrollTo({ top: 0, behavior: getPreferredScrollBehavior() });
               }
             };
             return (

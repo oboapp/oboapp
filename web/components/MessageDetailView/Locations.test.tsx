@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Locations from "./Locations";
@@ -52,7 +52,17 @@ describe("Locations – bus stops", () => {
     expect(screen.getByText("Ул. 507 (1805)")).toBeInTheDocument();
   });
 
-  it("renders clickable card when address has coordinates", async () => {
+  it("scrolls to a selected location using the current motion preference", async () => {
+    let reduceMotion = false;
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)" && reduceMotion,
+    }));
+    const scrollTo = vi.fn();
+    vi.stubGlobal("scrollTo", scrollTo);
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
+
     const onLocationClick = vi.fn();
     render(
       <Locations
@@ -65,6 +75,11 @@ describe("Locations – bus stops", () => {
     const button = screen.getByRole("button", { name: "Ул. 507 (1805)" });
     await userEvent.click(button);
     expect(onLocationClick).toHaveBeenCalledWith(42.6977, 23.3219);
+    expect(scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: "smooth" });
+
+    reduceMotion = true;
+    await userEvent.click(button);
+    expect(scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: "instant" });
   });
 
   it("resolves raw stop code via Спирка prefix fallback", () => {
